@@ -23,8 +23,9 @@ npm-debug.log*
 .vscode/
 .idea/
 
-# Claude Code local settings (machine-specific, not shared)
+# Claude Code local settings/runtime state (machine-specific, not shared)
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # TypeScript incremental build info
 *.tsbuildinfo

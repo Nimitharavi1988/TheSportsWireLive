@@ -48,6 +48,8 @@ export interface RawMatchItem {
   sourceName: string;
   category: string;
   publishedAt: Date;
+  homeCrestUrl?: string;
+  awayCrestUrl?: string;
 }
 
 async function fetchCompetitionMatches(
@@ -105,6 +107,8 @@ async function fetchCompetitionMatches(
       sourceName: "football-data.org",
       category: categoryFor(competitionCode),
       publishedAt: new Date(match.utcDate),
+      homeCrestUrl: match.homeTeam?.crest || undefined,
+      awayCrestUrl: match.awayTeam?.crest || undefined,
     });
   }
 

@@ -57,6 +57,8 @@ model Article {
   profanityDetail  String?        // which terms/fields triggered it
   readabilityScore Float?
   trendingScore    Float          @default(0)
+  homeCrestUrl     String?        // team crest, from football-data.org — used on generated poster images
+  awayCrestUrl     String?
   reviewedBy       String?
   reviewedAt       DateTime?
   publishedAt      DateTime?

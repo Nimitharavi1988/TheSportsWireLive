@@ -52,6 +52,8 @@ export async function runIngest() {
         profanityDetail: quality.profanityDetail,
         readabilityScore: quality.readabilityScore,
         trendingScore,
+        homeCrestUrl: item.homeCrestUrl,
+        awayCrestUrl: item.awayCrestUrl,
         status: quality.passed ? "pending_review" : "flagged",
       },
     });

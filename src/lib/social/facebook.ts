@@ -17,6 +17,10 @@
  *   - The article link is added as the first comment rather than in the
  *     post body, so the post itself stays link-free for reach purposes
  *     while the link is still one tap away.
+ *   - The image is uploaded to Facebook as raw bytes (fetched from our own
+ *     OG_IMAGE_BASE_URL, e.g. localhost during development) rather than
+ *     passed as a `url` for Facebook's servers to fetch — Facebook can't
+ *     reach a URL on your machine while the site isn't publicly deployed.
  */
 import { db } from "../db";
 
@@ -59,14 +63,24 @@ export async function postArticleToFacebook(articleId: string) {
     throw new Error("SITE_URL not set");
   }
 
-  const imageUrl = `${siteUrl}/api/og/${article.slug}`;
+  const ogImageBase = process.env.OG_IMAGE_BASE_URL || "http://localhost:3000";
   const articleUrl = `${siteUrl}/article/${article.slug}`;
   const caption = composeCaption(article);
 
+  const imageRes = await fetch(`${ogImageBase}/api/og/${article.slug}`);
+  if (!imageRes.ok) {
+    throw new Error(`Failed to render post image (${imageRes.status}) from ${ogImageBase}/api/og/${article.slug}`);
+  }
+  const imageBlob = await imageRes.blob();
+
+  const form = new FormData();
+  form.append("source", imageBlob, "card.png");
+  form.append("caption", caption);
+  form.append("access_token", accessToken);
+
   const res = await fetch(`${GRAPH_API_BASE}/${pageId}/photos`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url: imageUrl, caption, access_token: accessToken }),
+    body: form,
   });
 
   const data = await res.json();
