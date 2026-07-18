@@ -1,0 +1,101 @@
+// Prisma schema — matches the data model in the architecture plan.
+// Run `npx prisma migrate dev --name init` after setting DATABASE_URL in .env
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Switch to "mysql" if your shared hosting only offers MySQL.
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ArticleStatus {
+  ingested
+  auto_checked
+  flagged
+  pending_review
+  approved
+  published
+  rejected
+}
+
+enum SocialPlatform {
+  facebook
+  x
+  instagram
+}
+
+enum SocialPostStatus {
+  queued
+  posted
+  failed
+}
+
+model Vertical {
+  id        String    @id @default(cuid())
+  name      String    @unique // e.g. "sports"
+  domain    String?
+  articles  Article[]
+  sources   Source[]
+  createdAt DateTime  @default(now())
+}
+
+model Article {
+  id               String         @id @default(cuid())
+  verticalId       String
+  vertical         Vertical       @relation(fields: [verticalId], references: [id])
+  title            String
+  slug             String         @unique
+  summary          String
+  sourceUrl        String
+  sourceName       String
+  category         String         // e.g. "football", "football/world-cup", "cricket"
+  status           ArticleStatus  @default(ingested)
+  profanityFlag    Boolean        @default(false)
+  profanityDetail  String?        // which terms/fields triggered it
+  readabilityScore Float?
+  trendingScore    Float          @default(0)
+  reviewedBy       String?
+  reviewedAt       DateTime?
+  publishedAt      DateTime?
+  dedupeHash       String         @unique // used to catch the same story from multiple sources
+  socialPosts      SocialPost[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([status])
+  @@index([category])
+}
+
+model SocialPost {
+  id             String            @id @default(cuid())
+  articleId      String
+  article        Article           @relation(fields: [articleId], references: [id])
+  platform       SocialPlatform
+  status         SocialPostStatus  @default(queued)
+  externalPostId String?
+  errorMessage   String?
+  postedAt       DateTime?
+  createdAt      DateTime          @default(now())
+}
+
+model Source {
+  id           String   @id @default(cuid())
+  verticalId   String
+  vertical     Vertical @relation(fields: [verticalId], references: [id])
+  name         String   // e.g. "football-data.org"
+  type         String   // "api" | "rss"
+  config       Json     // API key ref, competition IDs, feed URL, etc.
+  lastPolledAt DateTime?
+  createdAt    DateTime @default(now())
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("admin")
+  createdAt    DateTime @default(now())
+}
