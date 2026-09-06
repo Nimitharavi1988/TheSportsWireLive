@@ -7,14 +7,20 @@ import Stack from "@mui/material/Stack";
 export default function NotFound() {
   return (
     <Container maxWidth="sm" sx={{ py: 10, textAlign: "center" }}>
-      <Stack spacing={2} alignItems="center">
-        <Typography variant="h2" component="p" fontWeight={700}>
+      <Stack spacing={2} sx={{
+        alignItems: "center"
+      }}>
+        <Typography variant="h2" component="p" sx={{
+          fontWeight: 700
+        }}>
           404
         </Typography>
         <Typography variant="h5" component="h1">
           Page not found
         </Typography>
-        <Typography variant="body1" color="text.secondary">
+        <Typography variant="body1" sx={{
+          color: "text.secondary"
+        }}>
           The page you're looking for doesn't exist, or the article may have been removed.
         </Typography>
         <Link href="/" style={{ textDecoration: "none" }}>

@@ -12,11 +12,7 @@ import Divider from "@mui/material/Divider";
 import { fetchOneStockImage } from "@/lib/ingestion/stockImages";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 import { crestAltText } from "@/lib/teamNames";
-import Table from "@mui/material/Table";
-import TableHead from "@mui/material/TableHead";
-import TableBody from "@mui/material/TableBody";
-import TableRow from "@mui/material/TableRow";
-import TableCell from "@mui/material/TableCell";
+import { CompactStandingsTable } from "@/components/StandingsTable";
 
 export const revalidate = 60;
 
@@ -50,11 +46,12 @@ const CATEGORY_META: Record<string, { title: string; description: string }> = {
   },
 };
 
-export async function generateMetadata({
-  searchParams,
-}: {
-  searchParams: { category?: string };
-}) {
+export async function generateMetadata(
+  props: {
+    searchParams: Promise<{ category?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const meta = searchParams.category ? CATEGORY_META[searchParams.category] : undefined;
   if (!meta) return {};
   return {
@@ -65,11 +62,12 @@ export async function generateMetadata({
   };
 }
 
-export default async function HomePage({
-  searchParams,
-}: {
-  searchParams: { category?: string };
-}) {
+export default async function HomePage(
+  props: {
+    searchParams: Promise<{ category?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const category = searchParams.category;
 
   const articles = await db.article.findMany({
@@ -136,7 +134,12 @@ export default async function HomePage({
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {articles.length === 0 && (
-        <Typography color="text.secondary" align="center" sx={{ py: 5 }}>
+        <Typography
+          align="center"
+          sx={{
+            color: "text.secondary",
+            py: 5
+          }}>
           {category
             ? "No published articles in this category yet."
             : "No articles published yet — approve some in /admin to see them here."}
@@ -164,26 +167,52 @@ export default async function HomePage({
               )}
               <CardContent sx={{ p: 3 }}>
                 {heroArticle.homeCrestUrl && heroArticle.awayCrestUrl && (
-                  <Stack direction="row" spacing={2.5} alignItems="center" sx={{ mb: 2 }}>
+                  <Stack
+                    direction="row"
+                    spacing={2.5}
+                    sx={{
+                      alignItems: "center",
+                      mb: 2
+                    }}>
                     <img src={heroArticle.homeCrestUrl} alt={crestAltText(heroArticle.summary).home} width={96} height={96} />
-                    <Typography variant="h6" color="text.secondary" fontWeight={600}>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        color: "text.secondary",
+                        fontWeight: 600
+                      }}>
                       vs
                     </Typography>
                     <img src={heroArticle.awayCrestUrl} alt={crestAltText(heroArticle.summary).away} width={96} height={96} />
                   </Stack>
                 )}
-                <Chip label="Top Story" size="small" color="primary" sx={{ mb: 1 }} />
+                <Chip
+                  label="Top Story"
+                  size="small"
+                  sx={{
+                    color: "primary",
+                    mb: 1
+                  }} />
                 <Typography variant="h4" component="h2" gutterBottom>
                   <Link href={`/article/${heroArticle.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
                     {heroArticle.title}
                   </Link>
                 </Typography>
-                <Typography variant="body1" color="text.secondary">
+                <Typography variant="body1" sx={{
+                  color: "text.secondary"
+                }}>
                   {heroArticle.summary}
                 </Typography>
               </CardContent>
               {heroBanner?.credit && (
-                <Typography variant="caption" color="text.secondary" sx={{ px: 3, pb: 2, display: "block" }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "text.secondary",
+                    px: 3,
+                    pb: 2,
+                    display: "block"
+                  }}>
                   <a href={heroBanner.creditUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
                     {heroBanner.credit}
                   </a>
@@ -202,8 +231,12 @@ export default async function HomePage({
                   <Card key={article.id} variant="outlined" sx={{ borderColor: "warning.main" }}>
                     <CardContent>
                       <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                        <Chip label={article.sourceName} size="small" color="warning" variant="outlined" />
-                        {article.highlighted && <Chip label="📌 Editor's pick" size="small" color="warning" />}
+                        <Chip label={article.sourceName} size="small" variant="outlined" sx={{
+                          color: "warning"
+                        }} />
+                        {article.highlighted && <Chip label="📌 Editor's pick" size="small" sx={{
+                          color: "warning"
+                        }} />}
                       </Stack>
                       <Typography variant="h6" component="h2" gutterBottom>
                         <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
@@ -219,43 +252,23 @@ export default async function HomePage({
 
           {standings && standings.rows.length > 0 && (
             <Box component="section" sx={{ mb: 4 }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mb: 2 }}>
+              <Stack
+                direction="row"
+                sx={{
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  mb: 2
+                }}>
                 <Typography variant="h5">{standings.competitionName} Standings</Typography>
                 <Link href="/standings/PL" style={{ color: "inherit" }}>
-                  <Typography variant="body2" color="primary.main">
+                  <Typography variant="body2" sx={{
+                    color: "primary.main"
+                  }}>
                     Full table →
                   </Typography>
                 </Link>
               </Stack>
-              <Paper variant="outlined" sx={{ overflowX: "auto" }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>#</TableCell>
-                      <TableCell>Team</TableCell>
-                      <TableCell align="right">P</TableCell>
-                      <TableCell align="right">Pts</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {standings.rows.slice(0, 6).map((row) => (
-                      <TableRow key={row.teamId}>
-                        <TableCell>{row.position}</TableCell>
-                        <TableCell>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            {row.teamCrest && <img src={row.teamCrest} alt={`${row.teamName} crest`} width={20} height={20} />}
-                            <Typography variant="body2">{row.teamName}</Typography>
-                          </Stack>
-                        </TableCell>
-                        <TableCell align="right">{row.playedGames}</TableCell>
-                        <TableCell align="right">
-                          <strong>{row.points}</strong>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Paper>
+              <CompactStandingsTable rows={standings.rows.slice(0, 6)} />
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1.5 }}>
                 {STANDINGS_LEAGUES.filter((l) => l.code !== "PL").map((league) => (
                   <Link key={league.code} href={`/standings/${league.code}`} style={{ textDecoration: "none" }}>
@@ -276,9 +289,20 @@ export default async function HomePage({
                   <Card key={article.id} variant="outlined">
                     <CardContent>
                       {article.homeCrestUrl && article.awayCrestUrl ? (
-                        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
+                        <Stack
+                          direction="row"
+                          spacing={1.5}
+                          sx={{
+                            alignItems: "center",
+                            mb: 1.5
+                          }}>
                           <img src={article.homeCrestUrl} alt={crestAltText(article.summary).home} width={40} height={40} />
-                          <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "text.secondary",
+                              fontWeight: 600
+                            }}>
                             vs
                           </Typography>
                           <img src={article.awayCrestUrl} alt={crestAltText(article.summary).away} width={40} height={40} />
@@ -291,13 +315,22 @@ export default async function HomePage({
                           sx={{ width: "100%", height: 160, objectFit: "cover", borderRadius: 1, mb: 1.5 }}
                         />
                       ) : null}
-                      <Chip label={article.category} size="small" color="primary" variant="outlined" sx={{ mb: 1 }} />
+                      <Chip
+                        label={article.category}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          color: "primary",
+                          mb: 1
+                        }} />
                       <Typography variant="h6" component="h2" gutterBottom>
                         <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
                           {article.title}
                         </Link>
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" sx={{
+                        color: "text.secondary"
+                      }}>
                         {article.summary}
                       </Typography>
                     </CardContent>
@@ -313,28 +346,38 @@ export default async function HomePage({
             <Typography variant="h6" sx={{ mb: 0.5 }}>
               In Brief
             </Typography>
-            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+            <Typography
+              variant="caption"
+              sx={{
+                color: "text.secondary",
+                display: "block",
+                mb: 2
+              }}>
               Quick links to coverage from around the web — click through for the full story.
             </Typography>
-            <Stack divider={<Divider />} spacing={1.5}>
-              {briefArticles.map((article) => (
-                <Link
-                  key={article.id}
-                  href={`/article/${article.slug}`}
-                  style={{ color: "inherit", textDecoration: "none" }}
-                >
-                  <Box sx={{ py: 0.5 }}>
-                    <Typography variant="body2" fontWeight={500} gutterBottom>
-                      {article.title}
-                    </Typography>
-                    <Chip
-                      label={article.sourceName}
-                      size="small"
-                      variant="outlined"
-                      sx={{ height: 16, fontSize: 9, "& .MuiChip-label": { px: 0.75 } }}
-                    />
-                  </Box>
-                </Link>
+            <Stack spacing={1.5}>
+              {briefArticles.map((article, index) => (
+                <Box key={article.id}>
+                  {index > 0 && <Divider sx={{ mb: 1.5 }} />}
+                  <Link
+                    href={`/article/${article.slug}`}
+                    style={{ color: "inherit", textDecoration: "none" }}
+                  >
+                    <Box sx={{ py: 0.5 }}>
+                      <Typography variant="body2" gutterBottom sx={{
+                        fontWeight: 500
+                      }}>
+                        {article.title}
+                      </Typography>
+                      <Chip
+                        label={article.sourceName}
+                        size="small"
+                        variant="outlined"
+                        sx={{ height: 16, fontSize: 9, "& .MuiChip-label": { px: 0.75 } }}
+                      />
+                    </Box>
+                  </Link>
+                </Box>
               ))}
             </Stack>
           </Paper>
@@ -364,9 +407,20 @@ export default async function HomePage({
               >
                 <CardContent>
                   {article.homeCrestUrl && article.awayCrestUrl ? (
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{
+                        alignItems: "center",
+                        mb: 1
+                      }}>
                       <img src={article.homeCrestUrl} alt={crestAltText(article.summary).home} width={32} height={32} />
-                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: "text.secondary",
+                          fontWeight: 600
+                        }}>
                         vs
                       </Typography>
                       <img src={article.awayCrestUrl} alt={crestAltText(article.summary).away} width={32} height={32} />

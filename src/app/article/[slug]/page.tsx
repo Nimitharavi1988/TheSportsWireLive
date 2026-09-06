@@ -12,7 +12,8 @@ import { crestAltText } from "@/lib/teamNames";
 
 export const revalidate = 60;
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
+export async function generateMetadata(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const article = await db.article.findUnique({ where: { slug: params.slug } });
   if (!article) return {};
   return {
@@ -32,7 +33,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-export default async function ArticlePage({ params }: { params: { slug: string } }) {
+export default async function ArticlePage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const article = await db.article.findUnique({ where: { slug: params.slug } });
   if (!article || article.status !== "published") notFound();
 
@@ -65,9 +67,20 @@ export default async function ArticlePage({ params }: { params: { slug: string }
       />
 
       {article.homeCrestUrl && article.awayCrestUrl ? (
-        <Stack direction="row" spacing={2.5} alignItems="center" sx={{ mb: 2.5 }}>
+        <Stack
+          direction="row"
+          spacing={2.5}
+          sx={{
+            alignItems: "center",
+            mb: 2.5
+          }}>
           <img src={article.homeCrestUrl} alt={crestAltText(article.summary).home} width={64} height={64} />
-          <Typography variant="body1" color="text.secondary" fontWeight={600}>
+          <Typography
+            variant="body1"
+            sx={{
+              color: "text.secondary",
+              fontWeight: 600
+            }}>
             vs
           </Typography>
           <img src={article.awayCrestUrl} alt={crestAltText(article.summary).away} width={64} height={64} />
@@ -81,7 +94,13 @@ export default async function ArticlePage({ params }: { params: { slug: string }
             sx={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 1.5, display: "block" }}
           />
           {article.heroImageCredit && (
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: "block" }}>
+            <Typography
+              variant="caption"
+              sx={{
+                color: "text.secondary",
+                mt: 0.75,
+                display: "block"
+              }}>
               {article.heroImageCreditUrl ? (
                 <a href={article.heroImageCreditUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
                   {article.heroImageCredit}
@@ -94,7 +113,14 @@ export default async function ArticlePage({ params }: { params: { slug: string }
         </Box>
       ) : null}
 
-      <Chip label={article.category} size="small" color="primary" variant="outlined" sx={{ mb: 1.5 }} />
+      <Chip
+        label={article.category}
+        size="small"
+        variant="outlined"
+        sx={{
+          color: "primary",
+          mb: 1.5
+        }} />
       <Typography variant="h4" component="h1" gutterBottom>
         {article.title}
       </Typography>
@@ -107,7 +133,9 @@ export default async function ArticlePage({ params }: { params: { slug: string }
 
       <Box sx={{ mt: 3, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
         <a href={article.sourceUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             Original source: {article.sourceName} ↗
           </Typography>
         </a>
@@ -115,16 +143,27 @@ export default async function ArticlePage({ params }: { params: { slug: string }
 
       {related.length > 0 && (
         <Paper variant="outlined" sx={{ p: 3, mt: 5 }}>
-          <Typography variant="overline" color="text.secondary">
+          <Typography variant="overline" sx={{
+            color: "text.secondary"
+          }}>
             More in {article.category}
           </Typography>
-          <Stack divider={<Divider />} sx={{ mt: 1 }}>
-            {related.map((r) => (
-              <Link key={r.id} href={`/article/${r.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
-                <Typography variant="body2" fontWeight={500} sx={{ py: 1.25, "&:hover": { color: "primary.main" } }}>
-                  {r.title}
-                </Typography>
-              </Link>
+          <Stack sx={{ mt: 1 }}>
+            {related.map((r, index) => (
+              <Box key={r.id}>
+                {index > 0 && <Divider />}
+                <Link href={`/article/${r.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 500,
+                      py: 1.25,
+                      "&:hover": { color: "primary.main" }
+                    }}>
+                    {r.title}
+                  </Typography>
+                </Link>
+              </Box>
             ))}
           </Stack>
         </Paper>

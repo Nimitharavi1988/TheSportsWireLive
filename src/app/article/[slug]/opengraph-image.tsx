@@ -16,8 +16,9 @@ function gradientFor(category: string): [string, string] {
   return key ? GRADIENTS[key] : ["#555555", "#222222"];
 }
 
-export default async function Image({ params }: { params: { slug: string } }) {
-  const article = await db.article.findUnique({ where: { slug: params.slug } });
+export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const article = await db.article.findUnique({ where: { slug } });
   const title = article?.title ?? "Sports News";
   const category = article?.category ?? "";
   const [from, to] = gradientFor(category);

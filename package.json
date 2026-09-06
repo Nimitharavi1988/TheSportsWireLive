@@ -13,23 +13,26 @@
     "@alkalisummer/google-trends-js": "^0.3.7",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@mui/icons-material": "^5.18.0",
-    "@mui/material": "^5.18.0",
-    "@mui/material-nextjs": "^5.18.0",
+    "@mui/icons-material": "^9.4.0",
+    "@mui/material": "^9.4.0",
+    "@mui/material-nextjs": "^9.4.0",
     "@prisma/client": "5.17.0",
     "bad-words": "^4.0.0",
     "bcryptjs": "^2.4.3",
     "jose": "^5.6.3",
-    "next": "^14.2.35",
+    "next": "16.3.4",
     "prisma": "5.17.0",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "rss-parser": "^3.13.0",
     "text-readability": "^1.1.0"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
-    "@types/react": "^18.3.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.4",
     "tsx": "^4.16.2",
     "typescript": "^5.5.4",
     "vitest": "^5.0.0"
@@ -39,5 +42,8 @@
     "@prisma/engines@5.17.0": true,
     "esbuild@0.28.1": true,
     "prisma@5.17.0": true
+  },
+  "overrides": {
+    "@types/react": "19.2.18"
   }
 }

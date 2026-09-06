@@ -14,7 +14,12 @@ export default function StandingsIndexPage() {
       <Typography variant="h4" gutterBottom>
         League Standings
       </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+      <Typography
+        variant="body1"
+        sx={{
+          color: "text.secondary",
+          mb: 3
+        }}>
         Full tables for every league we cover.
       </Typography>
       <Stack spacing={1.5}>

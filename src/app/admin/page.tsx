@@ -22,11 +22,12 @@ import CardActions from "@mui/material/CardActions";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
 
-export default async function AdminQueuePage({
-  searchParams,
-}: {
-  searchParams: { q?: string; source?: string; category?: string; status?: string };
-}) {
+export default async function AdminQueuePage(
+  props: {
+    searchParams: Promise<{ q?: string; source?: string; category?: string; status?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const session = await getSession();
   if (!session) redirect("/admin/login");
 
@@ -116,13 +117,23 @@ export default async function AdminQueuePage({
       </Card>
 
       {list.length === 0 && (
-        <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
+        <Typography
+          align="center"
+          sx={{
+            color: "text.secondary",
+            py: 4
+          }}>
           Nothing matches right now.
         </Typography>
       )}
 
       {matchingCount > list.length && (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: "text.secondary",
+            mb: 2
+          }}>
           Showing first {list.length} of {matchingCount} matching articles — narrow your search to see more precisely.
         </Typography>
       )}
@@ -131,20 +142,39 @@ export default async function AdminQueuePage({
         {list.map((article) => (
           <Card key={article.id} variant="outlined" sx={article.featured ? { borderColor: "primary.main", borderWidth: 2 } : undefined}>
             <CardContent>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                <Typography variant="caption" color="text.secondary">
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  alignItems: "center",
+                  mb: 1
+                }}>
+                <Typography variant="caption" sx={{
+                  color: "text.secondary"
+                }}>
                   {article.category} · {article.sourceName}
                 </Typography>
-                {article.featured && <Chip label="★ Featured hero" size="small" color="primary" />}
-                {article.highlighted && <Chip label="📌 Highlighted" size="small" color="warning" />}
+                {article.featured && <Chip label="★ Featured hero" size="small" sx={{
+                  color: "primary"
+                }} />}
+                {article.highlighted && <Chip label="📌 Highlighted" size="small" sx={{
+                  color: "warning"
+                }} />}
                 {article.readabilityScore != null && article.readabilityScore < 40 && (
-                  <Chip label="low readability score" size="small" color="warning" variant="outlined" />
+                  <Chip label="low readability score" size="small" variant="outlined" sx={{
+                    color: "warning"
+                  }} />
                 )}
               </Stack>
               <Typography variant="h6" component="h2" gutterBottom>
                 {article.title}
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                  mb: 1
+                }}>
                 {article.summary}
               </Typography>
               <a href={article.sourceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: "inherit" }}>
@@ -187,19 +217,27 @@ export default async function AdminQueuePage({
       {flagged.length > 0 && (
         <Box sx={{ mt: 5 }}>
           <Typography variant="h6">Flagged by automated checks</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+              mb: 1.5
+            }}>
             These failed the profanity or readability check and never reached the
             queue above. Shown here so you can spot patterns and tune the filters.
           </Typography>
-          <Stack divider={<Box sx={{ borderBottom: "1px solid", borderColor: "divider" }} />}>
-            {flagged.map((article) => (
-              <Box key={article.id} sx={{ py: 1, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
-                <Typography variant="body2">
-                  {article.title} — {article.profanityDetail ?? "readability"}
-                </Typography>
-                <form action={unflagArticle.bind(null, article.id)}>
-                  <Button type="submit" size="small" variant="text">False positive? Send to review</Button>
-                </form>
+          <Stack>
+            {flagged.map((article, index) => (
+              <Box key={article.id}>
+                {index > 0 && <Box sx={{ borderBottom: "1px solid", borderColor: "divider" }} />}
+                <Box sx={{ py: 1, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+                  <Typography variant="body2">
+                    {article.title} — {article.profanityDetail ?? "readability"}
+                  </Typography>
+                  <form action={unflagArticle.bind(null, article.id)}>
+                    <Button type="submit" size="small" variant="text">False positive? Send to review</Button>
+                  </form>
+                </Box>
               </Box>
             ))}
           </Stack>

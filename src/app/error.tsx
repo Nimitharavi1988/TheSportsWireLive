@@ -14,11 +14,15 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
 
   return (
     <Container maxWidth="sm" sx={{ py: 10, textAlign: "center" }}>
-      <Stack spacing={2} alignItems="center">
+      <Stack spacing={2} sx={{
+        alignItems: "center"
+      }}>
         <Typography variant="h5" component="h1">
           Something went wrong
         </Typography>
-        <Typography variant="body1" color="text.secondary">
+        <Typography variant="body1" sx={{
+          color: "text.secondary"
+        }}>
           This page hit an unexpected error. You can try again, or head back home.
         </Typography>
         <Stack direction="row" spacing={2} sx={{ mt: 2 }}>

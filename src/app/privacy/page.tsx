@@ -10,7 +10,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <Typography variant="h6" component="h2" gutterBottom>
         {title}
       </Typography>
-      <Typography variant="body1" color="text.secondary" component="div" sx={{ "& p": { mb: 1.5 } }}>
+      <Typography
+        variant="body1"
+        component="div"
+        sx={{
+          color: "text.secondary",
+          "& p": { mb: 1.5 }
+        }}>
         {children}
       </Typography>
     </Box>
@@ -23,7 +29,12 @@ export default function PrivacyPolicyPage() {
       <Typography variant="h4" component="h1" gutterBottom>
         Privacy Policy
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+      <Typography
+        variant="body2"
+        sx={{
+          color: "text.secondary",
+          mb: 4
+        }}>
         Last updated: September 6, 2026
       </Typography>
 

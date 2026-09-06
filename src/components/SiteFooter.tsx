@@ -16,10 +16,13 @@ export default function SiteFooter() {
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={2}
-          justifyContent="space-between"
-          alignItems={{ xs: "flex-start", sm: "center" }}
-        >
-          <Typography variant="body2" color="text.secondary">
+          sx={{
+            justifyContent: "space-between",
+            alignItems: { xs: "flex-start", sm: "center" }
+          }}>
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             © {new Date().getFullYear()} HyperianAI LLC. All rights reserved.
           </Typography>
           <Stack direction="row" spacing={3}>
@@ -27,9 +30,10 @@ export default function SiteFooter() {
               <Link key={link.href} href={link.href} style={{ textDecoration: "none" }}>
                 <Typography
                   variant="body2"
-                  color="text.secondary"
-                  sx={{ "&:hover": { color: "primary.main" } }}
-                >
+                  sx={{
+                    color: "text.secondary",
+                    "&:hover": { color: "primary.main" }
+                  }}>
                   {link.label}
                 </Typography>
               </Link>
