@@ -34,12 +34,14 @@ enum SocialPostStatus {
 }
 
 model Vertical {
-  id        String    @id @default(cuid())
-  name      String    @unique // e.g. "sports"
-  domain    String?
-  articles  Article[]
-  sources   Source[]
-  createdAt DateTime  @default(now())
+  id                       String    @id @default(cuid())
+  name                     String    @unique // e.g. "sports"
+  domain                   String?
+  facebookPageId           String?   // Page to post this vertical's approved articles to
+  facebookPageAccessToken  String?   // long-lived Page access token for that Page
+  articles                 Article[]
+  sources                  Source[]
+  createdAt                DateTime  @default(now())
 }
 
 model Article {
@@ -48,7 +50,8 @@ model Article {
   vertical         Vertical       @relation(fields: [verticalId], references: [id])
   title            String
   slug             String         @unique
-  summary          String
+  summary          String         // short teaser — used for the social post text, homepage card, and meta description
+  body             String?        // fuller content for the article detail page; null until enrichment fills it in
   sourceUrl        String
   sourceName       String
   category         String         // e.g. "football", "football/world-cup", "cricket"
@@ -61,6 +64,13 @@ model Article {
   reviewedAt       DateTime?
   publishedAt      DateTime?
   dedupeHash       String         @unique // used to catch the same story from multiple sources
+  homeCrestUrl     String?        // team crest image, when the source provides one (used for social preview images)
+  awayCrestUrl     String?
+  heroImageUrl     String?        // generic stock photo, for articles with no crest (e.g. RSS news)
+  heroImageCredit  String?        // "Photo by {name} on Pexels" — required attribution text
+  heroImageCreditUrl String?      // link to the photographer's Pexels profile
+  featured         Boolean        @default(false) // manually picked by an admin as the homepage hero; falls back to automatic ranking when no article has this set
+  highlighted      Boolean        @default(false) // manually pinned into "Transfers & Big News"; adds to (doesn't replace) the automatic keyword match
   socialPosts      SocialPost[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt

@@ -1,43 +1,395 @@
 import { db } from "@/lib/db";
 import Link from "next/link";
+import Container from "@mui/material/Container";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Typography from "@mui/material/Typography";
+import Chip from "@mui/material/Chip";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Divider from "@mui/material/Divider";
+import { fetchOneStockImage } from "@/lib/ingestion/stockImages";
+import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
+import { crestAltText } from "@/lib/teamNames";
+import Table from "@mui/material/Table";
+import TableHead from "@mui/material/TableHead";
+import TableBody from "@mui/material/TableBody";
+import TableRow from "@mui/material/TableRow";
+import TableCell from "@mui/material/TableCell";
 
 export const revalidate = 60;
 
-export default async function HomePage() {
+const RSS_SOURCES = ["BBC Sport", "The Guardian", "Sky Sports", "ESPN Cricinfo"];
+
+// Simple keyword match to surface transfer/retirement stories in their own
+// highlighted section — these tend to be the highest-interest RSS stories.
+const HIGHLIGHT_KEYWORDS = [
+  "transfer", "sign", "signing", "signs", "deal", "retire", "retirement",
+  "retires", "quits", "quit", "move to", "confirmed", "departure", "leave",
+  "leaves", "exit", "farewell",
+];
+
+function isHighlightWorthy(title: string): boolean {
+  const lower = title.toLowerCase();
+  return HIGHLIGHT_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
+const CATEGORY_META: Record<string, { title: string; description: string }> = {
+  football: {
+    title: "Football News, Scores & Standings",
+    description: "Latest football results, previews, transfer news, and live league standings.",
+  },
+  "football/world-cup": {
+    title: "World Cup News & Scores",
+    description: "Latest World Cup match results, previews, and news.",
+  },
+  cricket: {
+    title: "Cricket News & Scores",
+    description: "Latest cricket news, match reports, and transfer stories.",
+  },
+};
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: { category?: string };
+}) {
+  const meta = searchParams.category ? CATEGORY_META[searchParams.category] : undefined;
+  if (!meta) return {};
+  return {
+    title: meta.title,
+    description: meta.description,
+    openGraph: { title: meta.title, description: meta.description },
+    twitter: { title: meta.title, description: meta.description },
+  };
+}
+
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: { category?: string };
+}) {
+  const category = searchParams.category;
+
   const articles = await db.article.findMany({
-    where: { status: "published" },
+    where: {
+      status: "published",
+      ...(category ? { category: { startsWith: category } } : {}),
+    },
     orderBy: [{ trendingScore: "desc" }, { publishedAt: "desc" }],
-    take: 30,
+    take: 80,
   });
 
+  // A manually-featured article (set from /admin) always wins as hero;
+  // otherwise fall back to the top-ranked match article automatically.
+  const manuallyFeatured = articles.find((a) => a.featured);
+  const remainingAfterFeatured = manuallyFeatured
+    ? articles.filter((a) => a.id !== manuallyFeatured.id)
+    : articles;
+
+  // Manually-highlighted articles (set from /admin) are pinned into
+  // "Transfers & Big News" alongside — not instead of — the automatic
+  // keyword match, capped at 4 total so the section can't grow unbounded.
+  const manuallyHighlighted = remainingAfterFeatured.filter((a) => a.highlighted).slice(0, 4);
+  const manuallyHighlightedIds = new Set(manuallyHighlighted.map((a) => a.id));
+  const remainingAfterHighlighted = remainingAfterFeatured.filter((a) => !manuallyHighlightedIds.has(a.id));
+
+  const allMatchArticlesFull = remainingAfterHighlighted.filter((a) => !RSS_SOURCES.includes(a.sourceName));
+  const allBriefArticlesFull = remainingAfterHighlighted.filter((a) => RSS_SOURCES.includes(a.sourceName));
+
+  // Hero: a manual pick always wins; otherwise the top-ranked match article.
+  // Some categories (cricket, right now) have no non-RSS "match" data source
+  // at all, so without this second fallback the hero section would just be
+  // empty there — fall back to the top RSS headline instead.
+  const heroArticle = manuallyFeatured ?? allMatchArticlesFull[0] ?? allBriefArticlesFull[0];
+  const allMatchArticles = allMatchArticlesFull.filter((a) => a.id !== heroArticle?.id);
+  const allBriefArticles = allBriefArticlesFull.filter((a) => a.id !== heroArticle?.id);
+
+  const automaticHighlights = allBriefArticles
+    .filter((a) => isHighlightWorthy(a.title))
+    .slice(0, Math.max(0, 4 - manuallyHighlighted.length));
+  const highlightArticles = [...manuallyHighlighted, ...automaticHighlights];
+  const highlightIds = new Set(highlightArticles.map((a) => a.id));
+  const briefArticles = allBriefArticles.filter((a) => !highlightIds.has(a.id));
+
+  const matchArticles = allMatchArticles.slice(0, 10);
+  const moreArticles = allMatchArticles.slice(10, 25);
+
+  // Only fetch a generic stock photo for the hero when there's no real image
+  // to show instead — a match article with real team crests shouldn't also
+  // get an unrelated random stadium photo layered on top of them.
+  const heroHasCrests = Boolean(heroArticle?.homeCrestUrl && heroArticle?.awayCrestUrl);
+  const heroBanner =
+    heroArticle && !heroHasCrests && !heroArticle.heroImageUrl
+      ? await fetchOneStockImage(heroArticle.category)
+      : null;
+
+  // Standings only exist for domestic leagues on this API tier (not Champions
+  // League/World Cup/Euros — no data — and cricket has no active standings
+  // source at all), so only show this on "All" or the plain "Football" filter.
+  const showStandings = !category || category === "football";
+  const standingsApiKey = process.env.FOOTBALL_DATA_API_KEY;
+  const standings =
+    showStandings && standingsApiKey ? await fetchStandingsTable(standingsApiKey, "PL") : null;
+
   return (
-    <main className="page">
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       {articles.length === 0 && (
-        <p className="empty-state">
-          No articles published yet — approve some in /admin to see them here.
-        </p>
+        <Typography color="text.secondary" align="center" sx={{ py: 5 }}>
+          {category
+            ? "No published articles in this category yet."
+            : "No articles published yet — approve some in /admin to see them here."}
+        </Typography>
       )}
 
-      {articles.map((article) => {
-        const bannerClass = article.category.startsWith("cricket")
-          ? "cover-banner--cricket"
-          : article.category === "football/euros"
-          ? "cover-banner--euros"
-          : article.category.startsWith("football")
-          ? "cover-banner--football"
-          : "cover-banner--default";
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "2fr 1fr" },
+          gap: 5,
+          alignItems: "start",
+        }}
+      >
+        <Box component="main">
+          {heroArticle && (
+            <Card variant="outlined" sx={{ mb: 4, borderColor: "primary.main", borderWidth: 2 }}>
+              {(heroBanner || heroArticle.heroImageUrl) && (
+                <Box
+                  component="img"
+                  src={heroBanner?.url ?? heroArticle.heroImageUrl!}
+                  alt={heroArticle.title}
+                  sx={{ width: "100%", height: 320, objectFit: "cover", display: "block" }}
+                />
+              )}
+              <CardContent sx={{ p: 3 }}>
+                {heroArticle.homeCrestUrl && heroArticle.awayCrestUrl && (
+                  <Stack direction="row" spacing={2.5} alignItems="center" sx={{ mb: 2 }}>
+                    <img src={heroArticle.homeCrestUrl} alt={crestAltText(heroArticle.summary).home} width={96} height={96} />
+                    <Typography variant="h6" color="text.secondary" fontWeight={600}>
+                      vs
+                    </Typography>
+                    <img src={heroArticle.awayCrestUrl} alt={crestAltText(heroArticle.summary).away} width={96} height={96} />
+                  </Stack>
+                )}
+                <Chip label="Top Story" size="small" color="primary" sx={{ mb: 1 }} />
+                <Typography variant="h4" component="h2" gutterBottom>
+                  <Link href={`/article/${heroArticle.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+                    {heroArticle.title}
+                  </Link>
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                  {heroArticle.summary}
+                </Typography>
+              </CardContent>
+              {heroBanner?.credit && (
+                <Typography variant="caption" color="text.secondary" sx={{ px: 3, pb: 2, display: "block" }}>
+                  <a href={heroBanner.creditUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
+                    {heroBanner.credit}
+                  </a>
+                </Typography>
+              )}
+            </Card>
+          )}
 
-        return (
-          <article key={article.id} className="article-card">
-            <div className={`cover-banner ${bannerClass}`}>{article.category}</div>
-            <div className="article-card__category">{article.category}</div>
-            <h2 className="article-card__title">
-              <Link href={`/article/${article.slug}`}>{article.title}</Link>
-            </h2>
-            <p className="article-card__summary">{article.summary}</p>
-          </article>
-        );
-      })}
-    </main>
+          {highlightArticles.length > 0 && (
+            <Box component="section" sx={{ mb: 4 }}>
+              <Typography variant="h5" sx={{ mb: 2 }}>
+                Transfers &amp; Big News
+              </Typography>
+              <Stack spacing={2}>
+                {highlightArticles.map((article) => (
+                  <Card key={article.id} variant="outlined" sx={{ borderColor: "warning.main" }}>
+                    <CardContent>
+                      <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+                        <Chip label={article.sourceName} size="small" color="warning" variant="outlined" />
+                        {article.highlighted && <Chip label="📌 Editor's pick" size="small" color="warning" />}
+                      </Stack>
+                      <Typography variant="h6" component="h2" gutterBottom>
+                        <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+                          {article.title}
+                        </Link>
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                ))}
+              </Stack>
+            </Box>
+          )}
+
+          {standings && standings.rows.length > 0 && (
+            <Box component="section" sx={{ mb: 4 }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mb: 2 }}>
+                <Typography variant="h5">{standings.competitionName} Standings</Typography>
+                <Link href="/standings/PL" style={{ color: "inherit" }}>
+                  <Typography variant="body2" color="primary.main">
+                    Full table →
+                  </Typography>
+                </Link>
+              </Stack>
+              <Paper variant="outlined" sx={{ overflowX: "auto" }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>#</TableCell>
+                      <TableCell>Team</TableCell>
+                      <TableCell align="right">P</TableCell>
+                      <TableCell align="right">Pts</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {standings.rows.slice(0, 6).map((row) => (
+                      <TableRow key={row.teamId}>
+                        <TableCell>{row.position}</TableCell>
+                        <TableCell>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            {row.teamCrest && <img src={row.teamCrest} alt={`${row.teamName} crest`} width={20} height={20} />}
+                            <Typography variant="body2">{row.teamName}</Typography>
+                          </Stack>
+                        </TableCell>
+                        <TableCell align="right">{row.playedGames}</TableCell>
+                        <TableCell align="right">
+                          <strong>{row.points}</strong>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Paper>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1.5 }}>
+                {STANDINGS_LEAGUES.filter((l) => l.code !== "PL").map((league) => (
+                  <Link key={league.code} href={`/standings/${league.code}`} style={{ textDecoration: "none" }}>
+                    <Chip label={league.name} size="small" variant="outlined" clickable />
+                  </Link>
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          {matchArticles.length > 0 && (
+            <Box component="section">
+              <Typography variant="h5" sx={{ mb: 2 }}>
+                Match Results &amp; Previews
+              </Typography>
+              <Stack spacing={2}>
+                {matchArticles.map((article) => (
+                  <Card key={article.id} variant="outlined">
+                    <CardContent>
+                      {article.homeCrestUrl && article.awayCrestUrl ? (
+                        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
+                          <img src={article.homeCrestUrl} alt={crestAltText(article.summary).home} width={40} height={40} />
+                          <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                            vs
+                          </Typography>
+                          <img src={article.awayCrestUrl} alt={crestAltText(article.summary).away} width={40} height={40} />
+                        </Stack>
+                      ) : article.heroImageUrl ? (
+                        <Box
+                          component="img"
+                          src={article.heroImageUrl}
+                          alt={article.title}
+                          sx={{ width: "100%", height: 160, objectFit: "cover", borderRadius: 1, mb: 1.5 }}
+                        />
+                      ) : null}
+                      <Chip label={article.category} size="small" color="primary" variant="outlined" sx={{ mb: 1 }} />
+                      <Typography variant="h6" component="h2" gutterBottom>
+                        <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+                          {article.title}
+                        </Link>
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {article.summary}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                ))}
+              </Stack>
+            </Box>
+          )}
+        </Box>
+
+        {briefArticles.length > 0 && (
+          <Paper component="aside" variant="outlined" sx={{ p: 3, position: { md: "sticky" }, top: { md: 32 } }}>
+            <Typography variant="h6" sx={{ mb: 0.5 }}>
+              In Brief
+            </Typography>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+              Quick links to coverage from around the web — click through for the full story.
+            </Typography>
+            <Stack divider={<Divider />} spacing={1.5}>
+              {briefArticles.map((article) => (
+                <Link
+                  key={article.id}
+                  href={`/article/${article.slug}`}
+                  style={{ color: "inherit", textDecoration: "none" }}
+                >
+                  <Box sx={{ py: 0.5 }}>
+                    <Typography variant="body2" fontWeight={500} gutterBottom>
+                      {article.title}
+                    </Typography>
+                    <Chip
+                      label={article.sourceName}
+                      size="small"
+                      variant="outlined"
+                      sx={{ height: 16, fontSize: 9, "& .MuiChip-label": { px: 0.75 } }}
+                    />
+                  </Box>
+                </Link>
+              ))}
+            </Stack>
+          </Paper>
+        )}
+      </Box>
+
+      {moreArticles.length > 0 && (
+        <Box component="section" sx={{ mt: 5 }}>
+          <Typography variant="h5" sx={{ mb: 2 }}>
+            More Headlines
+          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              gap: 2,
+              overflowX: "auto",
+              pb: 1,
+              "&::-webkit-scrollbar": { height: 8 },
+              "&::-webkit-scrollbar-thumb": { backgroundColor: "divider", borderRadius: 4 },
+            }}
+          >
+            {moreArticles.map((article) => (
+              <Card
+                key={article.id}
+                variant="outlined"
+                sx={{ minWidth: 260, maxWidth: 260, flexShrink: 0 }}
+              >
+                <CardContent>
+                  {article.homeCrestUrl && article.awayCrestUrl ? (
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                      <img src={article.homeCrestUrl} alt={crestAltText(article.summary).home} width={32} height={32} />
+                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                        vs
+                      </Typography>
+                      <img src={article.awayCrestUrl} alt={crestAltText(article.summary).away} width={32} height={32} />
+                    </Stack>
+                  ) : article.heroImageUrl ? (
+                    <Box
+                      component="img"
+                      src={article.heroImageUrl}
+                      alt={article.title}
+                      sx={{ width: "100%", height: 110, objectFit: "cover", borderRadius: 1, mb: 1 }}
+                    />
+                  ) : null}
+                  <Typography variant="subtitle2" component="h3" gutterBottom>
+                    <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+                      {article.title}
+                    </Link>
+                  </Typography>
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+        </Box>
+      )}
+    </Container>
   );
 }

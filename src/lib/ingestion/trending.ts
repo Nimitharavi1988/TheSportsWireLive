@@ -9,12 +9,19 @@
  * breaks, ingestion should keep working without it (everything just gets
  * trendingScore 0, same as before).
  */
-import * as GoogleTrendsApi from "@alkalisummer/google-trends-js";
+import GoogleTrendsApi from "@alkalisummer/google-trends-js";
 
 export async function fetchTrendingKeywords(): Promise<string[]> {
   try {
     const result = await GoogleTrendsApi.dailyTrends({ geo: "US", hl: "en" });
-    return (result?.data ?? []).map((item: any) => String(item.keyword).toLowerCase());
+    const keywords: string[] = [];
+    for (const item of result?.data ?? []) {
+      if (item.keyword) keywords.push(String(item.keyword).toLowerCase());
+      for (const related of item.relatedKeywords ?? []) {
+        keywords.push(String(related).toLowerCase());
+      }
+    }
+    return keywords;
   } catch (err) {
     console.error("Google Trends fetch failed (continuing without trending scores):", err);
     return [];

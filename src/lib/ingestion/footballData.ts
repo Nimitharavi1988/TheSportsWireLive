@@ -7,6 +7,8 @@
  * Docs: https://www.football-data.org/documentation/quickstart
  */
 
+import { fetchStandings, ordinal, type TeamStanding } from "./standings";
+
 const BASE_URL = "https://api.football-data.org/v4";
 
 const COMPETITIONS = [
@@ -44,10 +46,28 @@ function dateRange() {
 export interface RawMatchItem {
   title: string;
   summary: string;
+  body?: string;
+  sourceSnippet?: string;
   sourceUrl: string;
   sourceName: string;
   category: string;
   publishedAt: Date;
+  homeCrestUrl?: string;
+  awayCrestUrl?: string;
+}
+
+function standingsContext(
+  homeTeam: string,
+  awayTeam: string,
+  homeTeamId: number | undefined,
+  awayTeamId: number | undefined,
+  standings: Map<number, TeamStanding>
+): string {
+  const home = homeTeamId ? standings.get(homeTeamId) : undefined;
+  const away = awayTeamId ? standings.get(awayTeamId) : undefined;
+  if (!home || !away) return "";
+
+  return ` ${homeTeam} sit ${ordinal(home.position)} in the table with ${home.points} points from ${home.playedGames} games (${home.won}W ${home.draw}D ${home.lost}L), while ${awayTeam} are ${ordinal(away.position)} with ${away.points} points from ${away.playedGames} games (${away.won}W ${away.draw}D ${away.lost}L).`;
 }
 
 async function fetchCompetitionMatches(
@@ -56,6 +76,7 @@ async function fetchCompetitionMatches(
   status: "FINISHED" | "SCHEDULED",
   dateFrom: string,
   dateTo: string,
+  standings: Map<number, TeamStanding>,
   attempt = 1
 ): Promise<RawMatchItem[]> {
   const res = await fetch(
@@ -67,7 +88,7 @@ async function fetchCompetitionMatches(
     const backoffMs = 20000 * attempt; // 20s, then 40s
     console.warn(`Rate limited on ${competitionCode} (${status}), waiting ${backoffMs / 1000}s before retry ${attempt + 1}/3`);
     await sleep(backoffMs);
-    return fetchCompetitionMatches(apiKey, competitionCode, status, dateFrom, dateTo, attempt + 1);
+    return fetchCompetitionMatches(apiKey, competitionCode, status, dateFrom, dateTo, standings, attempt + 1);
   }
 
   if (!res.ok) {
@@ -82,29 +103,52 @@ async function fetchCompetitionMatches(
     const homeTeam = match.homeTeam?.name ?? "Home";
     const awayTeam = match.awayTeam?.name ?? "Away";
     const competitionName = match.competition?.name ?? "match";
+    const homeCrestUrl = match.homeTeam?.crest || undefined;
+    const awayCrestUrl = match.awayTeam?.crest || undefined;
+    const context = standingsContext(homeTeam, awayTeam, match.homeTeam?.id, match.awayTeam?.id, standings);
 
     let title: string;
     let summary: string;
+    let body: string;
 
     if (status === "FINISHED") {
       const homeScore = match.score?.fullTime?.home;
       const awayScore = match.score?.fullTime?.away;
+      const fullDateLabel = new Date(match.utcDate).toLocaleDateString("en-US", {
+        weekday: "short", month: "short", day: "numeric", year: "numeric",
+      });
+
       title = `${homeTeam} ${homeScore}-${awayScore} ${awayTeam}`;
       summary = `${homeTeam} played ${awayTeam} in the ${competitionName}, finishing ${homeScore}-${awayScore}.`;
+
+      const resultSentence =
+        homeScore > awayScore ? `${homeTeam} won ${homeScore}-${awayScore}.`
+        : awayScore > homeScore ? `${awayTeam} won ${awayScore}-${homeScore}.`
+        : `The match ended in a ${homeScore}-${awayScore} draw.`;
+      body = `${homeTeam} played ${awayTeam} in the ${competitionName} on ${fullDateLabel}. ${resultSentence}${context}`;
     } else {
       const kickoff = new Date(match.utcDate);
       const dateLabel = kickoff.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const kickoffLabel = kickoff.toLocaleString("en-US", {
+        weekday: "short", month: "short", day: "numeric", year: "numeric",
+        hour: "numeric", minute: "2-digit", timeZone: "UTC", timeZoneName: "short",
+      });
+
       title = `Preview: ${homeTeam} vs ${awayTeam} — ${dateLabel}`;
       summary = `${homeTeam} face ${awayTeam} in the ${competitionName} on ${dateLabel}.`;
+      body = `${homeTeam} face ${awayTeam} in the ${competitionName}. Kickoff is ${kickoffLabel}.${context}`;
     }
 
     items.push({
       title,
       summary,
+      body,
       sourceUrl: `https://www.football-data.org/matches/${match.id}`,
       sourceName: "football-data.org",
       category: categoryFor(competitionCode),
       publishedAt: new Date(match.utcDate),
+      homeCrestUrl,
+      awayCrestUrl,
     });
   }
 
@@ -114,21 +158,28 @@ async function fetchCompetitionMatches(
 export async function fetchFootballData(): Promise<RawMatchItem[]> {
   const apiKey = process.env.FOOTBALL_DATA_API_KEY;
   if (!apiKey) {
-    throw new Error("FOOTBALL_DATA_API_KEY is not set in the environment");
+    console.warn("FOOTBALL_DATA_API_KEY not set — skipping football-data.org ingestion");
+    return [];
   }
 
   const { dateFromPast, dateToPast, dateFromFuture, dateToFuture } = dateRange();
   const items: RawMatchItem[] = [];
 
   for (const competitionCode of COMPETITIONS) {
+    // Real league-table context (position, points, form) — not every
+    // competition/stage has one (e.g. knockout-only rounds), in which case
+    // this comes back empty and match articles just skip the extra context.
+    const standings = await fetchStandings(apiKey, competitionCode);
+    await sleep(REQUEST_DELAY_MS);
+
     const finished = await fetchCompetitionMatches(
-      apiKey, competitionCode, "FINISHED", dateFromPast, dateToPast
+      apiKey, competitionCode, "FINISHED", dateFromPast, dateToPast, standings
     );
     items.push(...finished);
     await sleep(REQUEST_DELAY_MS);
 
     const scheduled = await fetchCompetitionMatches(
-      apiKey, competitionCode, "SCHEDULED", dateFromFuture, dateToFuture
+      apiKey, competitionCode, "SCHEDULED", dateFromFuture, dateToFuture, standings
     );
     items.push(...scheduled);
     await sleep(REQUEST_DELAY_MS);

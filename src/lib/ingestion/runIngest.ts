@@ -5,6 +5,27 @@ import { fetchCricketData } from "./cricketData";
 import { computeDedupeHash } from "./dedupe";
 import { runQualityChecks } from "./qualityCheck";
 import { fetchTrendingKeywords, computeTrendingScore } from "./trending";
+import { fetchStockImagePools, pickStockImage } from "./stockImages";
+import { generateCommentary } from "./commentary";
+import { fetchPersonPhoto } from "./wikimediaImages";
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Stay well under Gemini's free-tier rate limit.
+const COMMENTARY_DELAY_MS = 4500;
+
+// Cap real Gemini calls per ingestion run — cost/billing behavior on this
+// account isn't fully confirmed yet, so keep exposure small and predictable
+// until that's verified. Items beyond this cap fall back to the safe
+// default (headline + link), no API call made.
+const MAX_COMMENTARY_PER_RUN = 10;
+
+// Optional cap on how many new (non-duplicate) items to ingest in this run —
+// handy for a quick manual test without waiting through hundreds of
+// already-seen duplicates. Unset (the normal cron path) means no limit.
+const INGEST_LIMIT = process.env.INGEST_LIMIT ? parseInt(process.env.INGEST_LIMIT, 10) : undefined;
 
 export async function runIngest() {
   const vertical = await db.vertical.upsert({
@@ -13,19 +34,29 @@ export async function runIngest() {
     create: { name: "sports" },
   });
 
-  const [scoreItems, newsItems, cricketItems, trendingKeywords] = await Promise.all([
+  const [scoreItems, newsItems, cricketItems, trendingKeywords, stockImagePools] = await Promise.all([
     fetchFootballData(),
     fetchRssNews(),
     fetchCricketData(),
     fetchTrendingKeywords(),
+    fetchStockImagePools(),
   ]);
-  const rawItems: RawMatchItem[] = [...scoreItems, ...newsItems, ...cricketItems];
+  // Prioritize RSS items by trending relevance so the limited commentary
+  // budget (MAX_COMMENTARY_PER_RUN) goes to the most important stories first,
+  // not just whatever came first in feed order.
+  const sortedNewsItems = [...newsItems].sort(
+    (a, b) => computeTrendingScore(b.title, trendingKeywords) - computeTrendingScore(a.title, trendingKeywords)
+  );
+  const rawItems: RawMatchItem[] = [...scoreItems, ...sortedNewsItems, ...cricketItems];
 
   let ingested = 0;
   let duplicates = 0;
   let flagged = 0;
+  let commentaryCalls = 0;
 
   for (const item of rawItems) {
+    if (INGEST_LIMIT !== undefined && ingested >= INGEST_LIMIT) break;
+
     const dedupeHash = computeDedupeHash(item.title, item.publishedAt);
 
     const existing = await db.article.findUnique({ where: { dedupeHash } });
@@ -38,16 +69,44 @@ export async function runIngest() {
     const trendingScore = computeTrendingScore(item.title, trendingKeywords);
     const slug = `${item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
 
+    let stockImage = item.homeCrestUrl ? null : pickStockImage(stockImagePools, item.category);
+
+    let body = item.body;
+    if (!body && item.sourceSnippet && commentaryCalls < MAX_COMMENTARY_PER_RUN) {
+      commentaryCalls++;
+      const { commentary, personNames } = await generateCommentary(item.title, item.sourceSnippet, item.sourceName);
+      if (commentary) body = commentary;
+      await sleep(COMMENTARY_DELAY_MS);
+
+      // Prefer a real photo of the actual person (or co-central people) the
+      // story is about over the generic category stock photo. Try each
+      // candidate in prominence order and use the first one that resolves
+      // to a clearly free-licensed Wikimedia Commons photo.
+      for (const personName of personNames) {
+        const personPhoto = await fetchPersonPhoto(personName);
+        if (personPhoto) {
+          stockImage = personPhoto;
+          break;
+        }
+      }
+    }
+
     await db.article.create({
       data: {
         verticalId: vertical.id,
         title: item.title,
         slug,
         summary: item.summary,
+        body,
         sourceUrl: item.sourceUrl,
         sourceName: item.sourceName,
         category: item.category,
         dedupeHash,
+        homeCrestUrl: item.homeCrestUrl,
+        awayCrestUrl: item.awayCrestUrl,
+        heroImageUrl: stockImage?.url,
+        heroImageCredit: stockImage?.credit,
+        heroImageCreditUrl: stockImage?.creditUrl,
         profanityFlag: quality.profanityFlag,
         profanityDetail: quality.profanityDetail,
         readabilityScore: quality.readabilityScore,
@@ -61,7 +120,7 @@ export async function runIngest() {
   }
 
   console.log(
-    `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${duplicates} duplicates skipped. ` +
+    `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${duplicates} duplicates skipped, ${commentaryCalls} commentary calls made. ` +
     `(${scoreItems.length} from football-data.org, ${newsItems.length} from RSS, ${cricketItems.length} from CricketData.org, ${trendingKeywords.length} trending keywords checked)`
   );
 }

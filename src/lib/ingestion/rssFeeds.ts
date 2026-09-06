@@ -31,7 +31,16 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
 
         items.push({
           title: entry.title,
-          summary: entry.contentSnippet?.slice(0, 400) || entry.title,
+          // Deliberately NOT reusing entry.contentSnippet (the source's own
+          // article text) as our summary — that would republish the
+          // publisher's copyrighted prose as if it were our own content.
+          // Standard aggregator pattern instead: headline + attribution +
+          // link out to the original for the full story.
+          summary: `Full coverage from ${feed.sourceName}. Read the original report at the source link below.`,
+          // Carried through the pipeline only as grounding input for the
+          // optional LLM commentary step (commentary.ts) — never stored or
+          // displayed as-is, so it never republishes the source's own prose.
+          sourceSnippet: entry.contentSnippet?.slice(0, 1200),
           sourceUrl: entry.link,
           sourceName: feed.sourceName,
           category,
