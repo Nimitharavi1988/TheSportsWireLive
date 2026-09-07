@@ -318,8 +318,8 @@ Update this file as things change — don't let it go stale.
 
 ### Open decisions (need your input, gate further content work)
 - **Deployment target**: README suggests shared cPanel hosting (Node.js App support required). Not yet chosen or actioned.
-- **Gemini billing**: confirm whether the $5 prepaid balance is actually decreasing with usage (metered) or staying flat (genuinely free within limits) — check the Google Cloud billing page after a few more ingestion runs.
-- **Commentary cap**: currently 10/run as a safety measure — revisit once billing behavior is confirmed (could raise it if genuinely free, or add tighter cost tracking if metered).
+- **Gemini billing**: resolved for now (2026-09-07) — user added a real credit card to the Google Cloud billing account. Computed actual cost at gemini-2.5-flash pricing (~$0.0009/commentary call) rather than continuing to guess; raised `MAX_COMMENTARY_PER_RUN` to 20 on that basis (~$0.018/run worst case). Still worth checking the Google Cloud usage page after a few real runs to confirm actual spend matches the estimate, and worth setting a budget alert as a cheap safety net.
+- **Commentary cap**: raised 10 → 20/run (2026-09-07, see below) — was leaving 144 of 154 new RSS articles in one real run with no generated content at all, just the generic fallback summary line.
 
 ## Recommended next steps, in order
 
@@ -450,6 +450,12 @@ Working through the gaps found in the full-site review, in order.
 - Live-verified across all 5 RSS feeds (299 real items fetched): BBC Sport 137/137, ESPN Cricinfo 100/100, The Guardian 20/20 all got a real image (100% each); Sky Sports 20/20 after adding `<enclosure>` support (was 0/20 before that). ESPN's general soccer feed genuinely has no image field in its RSS at all (checked 5 items directly) — correctly falls through to the existing behavior, not a bug. Net: ~86%+ of RSS-sourced articles (football and cricket both) now get a real, story-specific photo instead of a generic stock photo or nothing.
 - Added `src/lib/ingestion/rssFeeds.test.ts` (8 new tests against real captured field shapes from all sources, including the "prefers media:content over media:thumbnail," "picks the largest Guardian variant," and "ignores a non-image enclosure" cases). `npm test` — 60/60 passing; `npx tsc --noEmit` clean.
 - Not yet run through a full live ingest into the database (the extraction is verified directly against `fetchRssNews()`, not yet observed end-to-end as a published article) — next real ingest run will pick this up.
+
+### Commentary cap raised, with real cost numbers (2026-09-07)
+- Ran a real, full (non-limited) ingest to prove out the RSS-image fix — 183 new articles, 154 of them RSS-sourced. User spotted that most had no real body content, just the fallback line ("Full coverage from The Guardian. Read the original report at the source link below."). Confirmed via DB query: only 10 of 154 got real AI-generated commentary — exactly matching `MAX_COMMENTARY_PER_RUN`, which had been sitting at 10 since 2026-09-06 pending an unconfirmed billing question.
+- User asked directly why Gemini is used at all here, and separately raised a real concern about cost before agreeing to raise the cap. Resolved both: Gemini generates the only legally original prose available (RSS article text itself can't be republished — copyright), and — since the account now has a real credit card linked, not just the earlier $5 deposit — computed actual Gemini 2.5 Flash pricing rather than continuing to guess: ~$0.0009 per commentary call ($0.30/1M input tokens, $2.50/1M output tokens, ~700 in/~300 out per call), so a cap of 20 costs roughly $0.018 per ingestion run, worst case.
+- Raised `MAX_COMMENTARY_PER_RUN` from 10 to 20 in `runIngest.ts` on that basis. `MAX_MATCH_RECAP_PER_RUN` (6) left unchanged — not part of what was agreed. `npm test` — 60/60 passing; `npx tsc --noEmit` clean.
+- Not yet addressed: the 144 filler-only articles already created by today's catch-up run are `pending_review` and won't retroactively gain real commentary just from this cap change (enrichment only happens at creation time, and the RSS source snippet is deliberately never persisted, so a later backfill would need to re-fetch each original article's source URL directly — a separate, larger piece of work, not yet built or agreed to). Also proposed but not yet actioned: redesigning how a no-commentary article displays (a clear "Read the full story on {Source} →" card treatment) rather than showing the generic fallback line as if it were body text.
 
 ## Monetization plan (for reference)
 - **Phase 1 (now, low effort)**: Google AdSense, affiliate links (merch/streaming), email newsletter signup — all deferred until deployed per above

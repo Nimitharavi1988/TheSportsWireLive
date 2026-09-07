@@ -17,15 +17,21 @@ function sleep(ms: number) {
 // Stay well under Gemini's free-tier rate limit.
 const COMMENTARY_DELAY_MS = 4500;
 
-// Cap real Gemini calls per ingestion run — cost/billing behavior on this
-// account isn't fully confirmed yet, so keep exposure small and predictable
-// until that's verified. Items beyond this cap fall back to the safe
-// default (headline + link, or the bare match template), no API call made.
+// Cap real Gemini calls per ingestion run. Billing IS linked on this account
+// (a card was added after Gemini's `generateContent` required one to work at
+// all), so this is real, if small, money — at gemini-2.5-flash pricing
+// (~$0.0009/call for a typical commentary request) a cap of 20 costs
+// roughly $0.018/run. Raised from the original 10 (2026-09-06) once that
+// cost was actually computed and accepted (2026-09-07) — was previously
+// leaving the large majority of RSS articles in a given run (144 of 154 in
+// one real run) with no generated body at all, just the generic fallback
+// summary line. Revisit again once real billing data from a few runs comes
+// back from the Google Cloud usage page.
 // Match recaps get their own separate budget so a heavy match day (dozens of
 // football-data.org fixtures, which come first in the processing order) can
 // never starve the RSS commentary budget — the trending-sort prioritization
 // above depends on RSS items actually getting a turn.
-const MAX_COMMENTARY_PER_RUN = 10;
+const MAX_COMMENTARY_PER_RUN = 20;
 const MAX_MATCH_RECAP_PER_RUN = 6;
 
 // football-data.org/CricketData.org items always arrive with `body` already
