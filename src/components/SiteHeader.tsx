@@ -21,10 +21,16 @@ export default function SiteHeader() {
         <Typography
           component={Link}
           href="/"
-          variant="h6"
-          sx={{ flexGrow: 1, color: "text.primary", textDecoration: "none" }}
+          sx={{
+            flexGrow: 1,
+            color: "text.primary",
+            textDecoration: "none",
+            fontFamily: "var(--font-heading)",
+            fontWeight: 700,
+            fontSize: 24,
+          }}
         >
-          Sports News
+          Sports<Box component="span" sx={{ color: "primary.main" }}>News</Box>
         </Typography>
         <Box sx={{ display: "flex", gap: 2.5, flexWrap: "wrap" }}>
           {NAV_LINKS.map((link) => (

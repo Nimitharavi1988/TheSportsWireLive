@@ -344,7 +344,7 @@ export default async function HomePage(
         {briefArticles.length > 0 && (
           <Paper component="aside" variant="outlined" sx={{ p: 3, position: { md: "sticky" }, top: { md: 32 } }}>
             <Typography variant="h6" sx={{ mb: 0.5 }}>
-              In Brief
+              Also in the News
             </Typography>
             <Typography
               variant="caption"

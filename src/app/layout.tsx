@@ -1,6 +1,7 @@
 import { Poppins, Inter } from "next/font/google";
 import ThemeRegistry from "@/components/ThemeRegistry";
 import SiteHeader from "@/components/SiteHeader";
+import MatchTicker from "@/components/MatchTicker";
 import SiteFooter from "@/components/SiteFooter";
 import "./globals.css";
 
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ThemeRegistry>
           <SiteHeader />
+          <MatchTicker />
           {children}
           <SiteFooter />
         </ThemeRegistry>

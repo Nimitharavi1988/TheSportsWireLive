@@ -6,9 +6,22 @@ const parser = new Parser();
 const FEEDS: { url: string; category: string; sourceName: string }[] = [
   { url: "http://feeds.bbci.co.uk/sport/football/rss.xml", category: "football", sourceName: "BBC Sport" },
   { url: "http://feeds.bbci.co.uk/sport/cricket/rss.xml", category: "cricket", sourceName: "BBC Sport" },
-  { url: "https://www.skysports.com/rss/12040", category: "auto", sourceName: "Sky Sports" },
+  // Feed 11095 is Sky's football-only feed — confirmed by inspecting its
+  // actual content (25/25 items football, no darts/golf/F1). The previously
+  // used feed 12040 is a mixed all-sports feed, which combined with the
+  // narrow "auto" keyword filter below was silently dropping real football
+  // transfer news (e.g. Man City/Man Utd stories with no literal "football"
+  // or "premier league" in the title).
+  { url: "https://www.skysports.com/rss/11095", category: "football", sourceName: "Sky Sports" },
   { url: "http://www.espncricinfo.com/rss/content/story/feeds/0.xml", category: "cricket", sourceName: "ESPN Cricinfo" },
   { url: "https://www.theguardian.com/sport/cricket/rss", category: "cricket", sourceName: "The Guardian" },
+  // ESPN's general soccer feed — broader global coverage than the UK-focused
+  // feeds above, more likely to pick up MLS (Messi/Inter Miami) and Saudi
+  // Pro League (Ronaldo/Al-Nassr) news, which football-data.org's structured
+  // match data doesn't cover for either league (checked: football-data.org
+  // has no Saudi Pro League at any pricing tier, and MLS only on a paid
+  // tier) — a real coverage gap this at least partially closes for free.
+  { url: "https://www.espn.com/espn/rss/soccer/news", category: "football", sourceName: "ESPN" },
 ];
 
 export async function fetchRssNews(): Promise<RawMatchItem[]> {
@@ -20,14 +33,6 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
 
       for (const entry of parsed.items ?? []) {
         if (!entry.title || !entry.link) continue;
-
-        let category = feed.category;
-        if (category === "auto") {
-          const lower = entry.title.toLowerCase();
-          if (lower.includes("cricket")) category = "cricket";
-          else if (lower.includes("football") || lower.includes("premier league") || lower.includes("champions league")) category = "football";
-          else continue;
-        }
 
         items.push({
           title: entry.title,
@@ -43,7 +48,7 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
           sourceSnippet: entry.contentSnippet?.slice(0, 1200),
           sourceUrl: entry.link,
           sourceName: feed.sourceName,
-          category,
+          category: feed.category,
           publishedAt: entry.isoDate ? new Date(entry.isoDate) : new Date(),
         });
       }
