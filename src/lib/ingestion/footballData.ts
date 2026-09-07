@@ -54,6 +54,12 @@ export interface RawMatchItem {
   publishedAt: Date;
   homeCrestUrl?: string;
   awayCrestUrl?: string;
+  // A real, story-specific photo carried directly in the publisher's own RSS
+  // feed (media:thumbnail / media:content) — see rssFeeds.ts. Takes priority
+  // over both the Wikimedia person-photo lookup and the generic stock-photo
+  // fallback in runIngest.ts, since it's the most specific image available.
+  heroImageUrl?: string;
+  heroImageCredit?: string;
 }
 
 function standingsContext(

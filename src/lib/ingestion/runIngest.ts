@@ -85,7 +85,15 @@ export async function runIngest() {
     const trendingScore = computeTrendingScore(item.title, trendingKeywords);
     const slug = `${item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
 
-    let stockImage = item.homeCrestUrl ? null : stockImagePicker.pick(item.category);
+    // Priority: a real, story-specific photo the publisher's own RSS feed
+    // already provides (most specific/authentic) > a team crest (no stock
+    // image needed at all) > the category stock-photo fallback. The person-
+    // photo lookup below only runs when neither of the first two applies.
+    let stockImage = item.heroImageUrl
+      ? { url: item.heroImageUrl, credit: item.heroImageCredit ?? `Photo via ${item.sourceName}`, creditUrl: item.sourceUrl }
+      : item.homeCrestUrl
+        ? null
+        : stockImagePicker.pick(item.category);
 
     let body = item.body;
     if (body && isMatchDataSource(item.sourceName) && matchRecapCalls < MAX_MATCH_RECAP_PER_RUN) {
@@ -102,14 +110,17 @@ export async function runIngest() {
       await sleep(COMMENTARY_DELAY_MS);
 
       // Prefer a real photo of the actual person (or co-central people) the
-      // story is about over the generic category stock photo. Try each
-      // candidate in prominence order and use the first one that resolves
-      // to a clearly free-licensed Wikimedia Commons photo.
-      for (const personName of personNames) {
-        const personPhoto = await fetchPersonPhoto(personName);
-        if (personPhoto) {
-          stockImage = personPhoto;
-          break;
+      // story is about over the generic category stock photo — but only
+      // when the RSS feed itself didn't already give us a real photo for
+      // this exact story, which is even more specific than a generic
+      // Wikimedia portrait of the person.
+      if (!item.heroImageUrl) {
+        for (const personName of personNames) {
+          const personPhoto = await fetchPersonPhoto(personName);
+          if (personPhoto) {
+            stockImage = personPhoto;
+            break;
+          }
         }
       }
     }

@@ -1,7 +1,75 @@
 import Parser from "rss-parser";
 import type { RawMatchItem } from "./footballData";
 
-const parser = new Parser();
+// Each publisher includes a real, story-specific photo directly in their own
+// RSS feed — media:thumbnail (BBC) or media:content, sometimes with a
+// nested media:credit (Guardian), sometimes as a plain <coverImages> string
+// (ESPN Cricinfo). This is the RSS spec's own mechanism for exactly this —
+// letting an aggregator show a preview image next to the headline — so it's
+// extracted the same way the headline/link/date already are: displayed with
+// credit and a link back to the original, never re-hosted as if it were our
+// own photography. Confirmed via raw feed inspection, not assumed.
+const parser = new Parser({
+  customFields: {
+    item: [
+      ["media:thumbnail", "mediaThumbnail"],
+      ["media:content", "mediaContent", { keepArray: true }],
+      ["coverImages", "coverImages"],
+    ],
+  },
+});
+
+interface RssImage {
+  url: string;
+  credit?: string;
+}
+
+function firstOrOnly<T>(value: T | T[] | undefined): T | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
+// media:content can appear once (ESPN Cricinfo) or multiple times as
+// different size variants of the same photo (Guardian) — when there are
+// several, the largest is the best fit for a hero-style display.
+export function extractRssImage(entry: any): RssImage | null {
+  const contents: any[] = Array.isArray(entry.mediaContent)
+    ? entry.mediaContent
+    : entry.mediaContent
+      ? [entry.mediaContent]
+      : [];
+
+  if (contents.length > 0) {
+    const largest = contents.reduce((best, c) => {
+      const width = Number(c?.$?.width) || 0;
+      const bestWidth = Number(best?.$?.width) || 0;
+      return width > bestWidth ? c : best;
+    });
+    const url: string | undefined = largest?.$?.url;
+    if (url) {
+      const credit = firstOrOnly(largest["media:credit"])?._;
+      return { url, credit: typeof credit === "string" ? credit.trim() : undefined };
+    }
+  }
+
+  const thumbnailUrl: string | undefined = entry.mediaThumbnail?.$?.url;
+  if (thumbnailUrl) return { url: thumbnailUrl };
+
+  if (typeof entry.coverImages === "string" && entry.coverImages.trim()) {
+    return { url: entry.coverImages.trim() };
+  }
+
+  // Standard RSS 2.0 <enclosure> — a core field rss-parser already parses
+  // without any customFields config (unlike the Media RSS extensions
+  // above). Sky Sports uses this instead of media:thumbnail/media:content.
+  const enclosureUrl: string | undefined =
+    typeof entry.enclosure?.url === "string" && entry.enclosure.type?.startsWith("image")
+      ? entry.enclosure.url
+      : undefined;
+  if (enclosureUrl) return { url: enclosureUrl };
+
+  return null;
+}
 
 const FEEDS: { url: string; category: string; sourceName: string }[] = [
   { url: "http://feeds.bbci.co.uk/sport/football/rss.xml", category: "football", sourceName: "BBC Sport" },
@@ -34,6 +102,8 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
       for (const entry of parsed.items ?? []) {
         if (!entry.title || !entry.link) continue;
 
+        const image = extractRssImage(entry);
+
         items.push({
           title: entry.title,
           // Deliberately NOT reusing entry.contentSnippet (the source's own
@@ -50,6 +120,8 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
           sourceName: feed.sourceName,
           category: feed.category,
           publishedAt: entry.isoDate ? new Date(entry.isoDate) : new Date(),
+          heroImageUrl: image?.url,
+          heroImageCredit: image?.credit,
         });
       }
     } catch (err) {
