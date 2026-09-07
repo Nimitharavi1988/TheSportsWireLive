@@ -41,7 +41,7 @@ function extractTeams(matchName: string): [string, string] | null {
 // standard cricket format terminology, not by team name alone) AND both team
 // names resolve exactly to a recognized national side — see
 // cricketCountries.ts for why this two-part check matters.
-async function fetchInternationalFlags(
+export async function fetchInternationalFlags(
   matchName: string
 ): Promise<{ homeCrestUrl?: string; awayCrestUrl?: string }> {
   if (!isInternationalFormat(matchName)) return {};
