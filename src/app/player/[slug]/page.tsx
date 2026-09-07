@@ -9,6 +9,7 @@ import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { ArticleThumb } from "@/components/ArticleThumb";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
@@ -67,13 +68,31 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
       >
         <Box sx={{ minWidth: 0 }}>
           <Stack direction="row" spacing={3} sx={{ alignItems: "center", mb: 4 }}>
-            {photo && (
+            {photo ? (
               <Box
                 component="img"
                 src={photo.url}
                 alt={player.name}
                 sx={{ width: 120, height: 120, borderRadius: "50%", objectFit: "cover", objectPosition: "top", flexShrink: 0 }}
               />
+            ) : (
+              <Box
+                sx={{
+                  width: 120,
+                  height: 120,
+                  borderRadius: "50%",
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  bgcolor: playerAvatarColor(player.name),
+                  color: "#fff",
+                  fontSize: 36,
+                  fontWeight: 700,
+                }}
+              >
+                {playerInitials(player.name)}
+              </Box>
             )}
             <Box>
               <Typography variant="h4" component="h1" gutterBottom>

@@ -19,23 +19,13 @@ import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { HeroCarousel } from "@/components/HeroCarousel";
 import { ArticleThumb } from "@/components/ArticleThumb";
+import { fetchPersonPhoto } from "@/lib/ingestion/wikimediaImages";
+import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import StarIcon from "@mui/icons-material/Star";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import ScoreboardIcon from "@mui/icons-material/Scoreboard";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import ArticleIcon from "@mui/icons-material/Article";
-
-// Initials-avatar colors for the Star Players rail — a small, deliberately
-// muted 3-color rotation (brand green plus two restrained neutrals) rather
-// than a wide palette, so 10 avatars in a row still read as one cohesive set.
-const PLAYER_AVATAR_COLORS = ["#1d6b3f", "#b8752e", "#3d5a73"];
-
-function playerInitials(name: string): string {
-  const parts = name.split(" ").filter(Boolean);
-  const first = parts[0]?.[0] ?? "";
-  const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
-  return (first + last).toUpperCase();
-}
 
 // Main-column section headers (Player News, Transfers & Big News, etc.) were
 // using the theme's default h5 styling — Poppins, near-black — while the
@@ -145,12 +135,22 @@ export default async function HomePage(
   // no extra queries) and show that real headline instead of a bare
   // nav-shortcut chip. Players with nothing recent are left out entirely,
   // since an empty card under a "Player News" heading would be confusing.
-  const playerNews = TRACKED_PLAYERS.map((player) => {
+  const playerNewsMatches = TRACKED_PLAYERS.map((player) => {
     const match = articles.find((a) =>
       player.searchTerms.some((term) => a.title.toLowerCase().includes(term.toLowerCase()))
     );
     return match ? { player, article: match } : null;
   }).filter((entry): entry is { player: (typeof TRACKED_PLAYERS)[number]; article: (typeof articles)[number] } => entry !== null);
+
+  // Real Wikimedia photo per player, same source the player's own page uses
+  // — previously this rail showed a generic colored-initials avatar even for
+  // players whose own page already has a real photo, which read as
+  // inconsistent when you clicked through. Falls back to the initials
+  // avatar (rendered below) when no free-licensed photo is found.
+  const playerNewsPhotos = await Promise.all(
+    playerNewsMatches.map((entry) => fetchPersonPhoto(entry.player.name))
+  );
+  const playerNews = playerNewsMatches.map((entry, i) => ({ ...entry, photo: playerNewsPhotos[i] }));
 
   // "Just In": pure recency, unlike everything else on this page (which is
   // trending-sorted, category-grouped, or player-matched) — a plain
@@ -522,7 +522,7 @@ export default async function HomePage(
                   "&::-webkit-scrollbar-thumb": { backgroundColor: "divider", borderRadius: 4 },
                 }}
               >
-                {playerNews.map(({ player, article }, i) => (
+                {playerNews.map(({ player, article, photo }) => (
                   <Paper
                     key={player.slug}
                     variant="outlined"
@@ -555,23 +555,32 @@ export default async function HomePage(
                           "&:hover": { color: "primary.main" },
                         }}
                       >
-                        <Box
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: "50%",
-                            flexShrink: 0,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            bgcolor: PLAYER_AVATAR_COLORS[i % PLAYER_AVATAR_COLORS.length],
-                            color: "#fff",
-                            fontSize: 12,
-                            fontWeight: 700,
-                          }}
-                        >
-                          {playerInitials(player.name)}
-                        </Box>
+                        {photo ? (
+                          <Box
+                            component="img"
+                            src={photo.url}
+                            alt={player.name}
+                            sx={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", objectPosition: "top", flexShrink: 0 }}
+                          />
+                        ) : (
+                          <Box
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: "50%",
+                              flexShrink: 0,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              bgcolor: playerAvatarColor(player.name),
+                              color: "#fff",
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {playerInitials(player.name)}
+                          </Box>
+                        )}
                         <Typography variant="caption" noWrap sx={{ fontWeight: 700 }}>
                           {player.name}
                         </Typography>
