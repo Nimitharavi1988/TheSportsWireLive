@@ -37,7 +37,37 @@ function extractTeams(matchName: string): [string, string] | null {
   return m ? [m[1].trim(), m[2].trim()] : null;
 }
 
-// Only sets real flags when the match is unambiguously international (by
+// CricketData.org DOES return a real per-team logo directly on the match
+// object (`teamInfo[].img`) — this was missed originally (not documented
+// clearly, and the sandbox used to investigate it was network-blocked from
+// the live API for a while). Confirmed live: most teams get a real,
+// team-specific CDN image; a team with no logo on file gets this exact
+// generic placeholder icon instead of a missing/null field, so it has to be
+// filtered out explicitly rather than just checking truthiness.
+export const GENERIC_PLACEHOLDER_IMG = "https://h.cricapi.com/img/icon512.png";
+
+export function isRealLogo(img: unknown): img is string {
+  return typeof img === "string" && img.length > 0 && img !== GENERIC_PLACEHOLDER_IMG;
+}
+
+// Real logos straight from the source take priority — no extra API call,
+// no ambiguity, and (unlike the flag fallback below) covers domestic
+// franchise/league teams too, not just national sides. Requires BOTH teams
+// to have a real logo, never just one — mixing a real team badge with a
+// missing/placeholder crest would look broken, not just incomplete.
+export function extractTeamLogos(match: any): { homeCrestUrl?: string; awayCrestUrl?: string } {
+  const teamInfo = Array.isArray(match.teamInfo) ? match.teamInfo : [];
+  const home = teamInfo[0]?.img;
+  const away = teamInfo[1]?.img;
+  if (isRealLogo(home) && isRealLogo(away)) {
+    return { homeCrestUrl: home, awayCrestUrl: away };
+  }
+  return {};
+}
+
+// Fallback for when CricketData.org has no real logo for one or both teams
+// (common for national sides, less common for well-known franchises) — only
+// sets real flags when the match is unambiguously international (by
 // standard cricket format terminology, not by team name alone) AND both team
 // names resolve exactly to a recognized national side — see
 // cricketCountries.ts for why this two-part check matters.
@@ -145,7 +175,10 @@ export async function fetchCricketData(): Promise<RawMatchItem[]> {
     ].filter(Boolean);
     const body = bodyParts.join(" ");
 
-    const flags = await fetchInternationalFlags(title);
+    const crests = extractTeamLogos(match);
+    if (!crests.homeCrestUrl) {
+      Object.assign(crests, await fetchInternationalFlags(title));
+    }
 
     items.push({
       title,
@@ -155,7 +188,7 @@ export async function fetchCricketData(): Promise<RawMatchItem[]> {
       sourceName: "CricketData.org",
       category: "cricket",
       publishedAt: match.dateTimeGMT ? new Date(match.dateTimeGMT) : new Date(),
-      ...flags,
+      ...crests,
     });
   }
 
