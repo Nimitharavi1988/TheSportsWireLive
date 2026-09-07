@@ -15,6 +15,8 @@ import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standing
 import { StandingsCarousel } from "@/components/StandingsCarousel";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
+import { TRACKED_PLAYERS } from "@/lib/players";
+import { TRACKED_CLUBS } from "@/lib/clubs";
 
 export const revalidate = 60;
 
@@ -64,6 +66,19 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
     ...(article.heroImageUrl ? { image: [article.heroImageUrl] } : {}),
     publisher: { "@type": "Organization", name: "Sports Wire Live" },
   };
+
+  // Tracked players mentioned in this article's title — the only real entry
+  // point into a player's dedicated page used to be the homepage's Player
+  // News carousel, which only ever shows 3 players at a time (whoever
+  // currently has matching news). An article about Messi that isn't one of
+  // those 3 right now had no link to his page anywhere. Same searchTerms
+  // matching already used for the homepage's Player News/highlight logic.
+  const taggedPlayers = TRACKED_PLAYERS.filter((player) =>
+    player.searchTerms.some((term) => article.title.toLowerCase().includes(term.toLowerCase()))
+  );
+  const taggedClubs = TRACKED_CLUBS.filter((club) =>
+    club.searchTerms.some((term) => article.title.toLowerCase().includes(term.toLowerCase()))
+  );
 
   // Same sidebar content as the homepage rail (Standings, Quotes) — article
   // pages are where most real traffic actually lands (search, social
@@ -154,11 +169,32 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         {article.title}
       </Typography>
       {article.publishedAt && (
-        <Typography variant="body2" sx={{ color: "text.secondary", mb: 2.5 }}>
+        <Typography variant="body2" sx={{ color: "text.secondary", mb: (taggedPlayers.length > 0 || taggedClubs.length > 0) ? 1.5 : 2.5 }}>
           {article.publishedAt.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
           {" · "}
           {article.sourceName}
         </Typography>
+      )}
+
+      {(taggedPlayers.length > 0 || taggedClubs.length > 0) && (
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1, mb: 2.5 }}>
+          {taggedClubs.map((club) => (
+            <Link key={club.slug} href={`/club/${club.slug}`} style={{ textDecoration: "none" }}>
+              <Chip
+                label={club.name}
+                size="small"
+                variant="outlined"
+                clickable
+                sx={{ borderColor: "primary.main", color: "primary.main" }}
+              />
+            </Link>
+          ))}
+          {taggedPlayers.map((player) => (
+            <Link key={player.slug} href={`/player/${player.slug}`} style={{ textDecoration: "none" }}>
+              <Chip label={player.name} size="small" variant="outlined" clickable />
+            </Link>
+          ))}
+        </Stack>
       )}
 
       {(article.body ?? article.summary).split(/\n+/).filter(Boolean).map((paragraph, i) => (

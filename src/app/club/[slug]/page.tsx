@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { TRACKED_PLAYERS } from "@/lib/players";
-import { fetchPersonPhoto } from "@/lib/ingestion/wikimediaImages";
+import { TRACKED_CLUBS } from "@/lib/clubs";
+import { crestAltText } from "@/lib/teamNames";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 import { StandingsCarousel } from "@/components/StandingsCarousel";
 import { PLAYER_QUOTES } from "@/lib/quotes";
@@ -17,44 +17,53 @@ import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
 
-// The player's photo rarely changes day to day — an hour of staleness is a
-// fine trade for not hitting the Wikimedia API on every single page view.
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const player = TRACKED_PLAYERS.find((p) => p.slug === slug);
-  if (!player) return {};
+  const club = TRACKED_CLUBS.find((c) => c.slug === slug);
+  if (!club) return {};
   return {
-    title: `${player.name} News`,
-    description: `Latest news and coverage of ${player.name}.`,
+    title: `${club.name} News`,
+    description: `Latest news and results for ${club.name}.`,
   };
 }
 
-export default async function PlayerPage({ params }: { params: Promise<{ slug: string }> }) {
+// Clubs don't have a Wikimedia-style dedicated portrait fetch like players —
+// their crest already appears on every match article they're in
+// (homeCrestUrl/awayCrestUrl). Picks the club's own crest out of whichever
+// side of the most recent matching article it actually was, using the same
+// summary-parsing `crestAltText` already relies on, rather than guessing.
+function findClubCrest(club: { searchTerms: string[] }, articles: { summary: string; homeCrestUrl: string | null; awayCrestUrl: string | null }[]) {
+  for (const article of articles) {
+    if (!article.homeCrestUrl || !article.awayCrestUrl) continue;
+    const { home, away } = crestAltText(article.summary);
+    const isHome = club.searchTerms.some((term) => home.toLowerCase().includes(term.toLowerCase()));
+    if (isHome) return article.homeCrestUrl;
+    const isAway = club.searchTerms.some((term) => away.toLowerCase().includes(term.toLowerCase()));
+    if (isAway) return article.awayCrestUrl;
+  }
+  return null;
+}
+
+export default async function ClubPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const player = TRACKED_PLAYERS.find((p) => p.slug === slug);
-  if (!player) notFound();
+  const club = TRACKED_CLUBS.find((c) => c.slug === slug);
+  if (!club) notFound();
 
-  const [photo, articles] = await Promise.all([
-    fetchPersonPhoto(player.name),
-    db.article.findMany({
-      where: {
-        status: "published",
-        OR: player.searchTerms.map((term) => ({ title: { contains: term, mode: "insensitive" as const } })),
-      },
-      orderBy: { publishedAt: "desc" },
-      take: 30,
-    }),
-  ]);
+  const articles = await db.article.findMany({
+    where: {
+      status: "published",
+      OR: club.searchTerms.map((term) => ({ title: { contains: term, mode: "insensitive" as const } })),
+    },
+    orderBy: { publishedAt: "desc" },
+    take: 30,
+  });
 
-  // Same sidebar content as article pages (Standings, Quotes) — a player
-  // page shouldn't be a dead end either, same reasoning as the article-page
-  // fix earlier today. Football-only, matching every other Standings widget
-  // on the site (no standings data exists for cricket on this API tier).
+  const crestUrl = findClubCrest(club, articles);
+
   const standingsApiKey = process.env.FOOTBALL_DATA_API_KEY;
-  const standings =
-    player.sport === "football" && standingsApiKey ? await fetchStandingsTable(standingsApiKey, "PL") : null;
+  const standings = standingsApiKey ? await fetchStandingsTable(standingsApiKey, "PL") : null;
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -67,17 +76,22 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
       >
         <Box sx={{ minWidth: 0 }}>
           <Stack direction="row" spacing={3} sx={{ alignItems: "center", mb: 4 }}>
-            {photo && (
+            {crestUrl ? (
+              <Box component="img" src={crestUrl} alt={`${club.name} crest`} sx={{ width: 96, height: 96, objectFit: "contain", flexShrink: 0 }} />
+            ) : (
               <Box
-                component="img"
-                src={photo.url}
-                alt={player.name}
-                sx={{ width: 120, height: 120, borderRadius: "50%", objectFit: "cover", objectPosition: "top", flexShrink: 0 }}
+                sx={{
+                  width: 96,
+                  height: 96,
+                  borderRadius: "50%",
+                  flexShrink: 0,
+                  bgcolor: "rgba(29, 107, 63, 0.08)",
+                }}
               />
             )}
             <Box>
               <Typography variant="h4" component="h1" gutterBottom>
-                {player.name}
+                {club.name}
               </Typography>
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
                 {articles.length} {articles.length === 1 ? "story" : "stories"} on Sports Wire Live
@@ -85,17 +99,9 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
             </Box>
           </Stack>
 
-          {photo?.credit && (
-            <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 3 }}>
-              <a href={photo.creditUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
-                {photo.credit}
-              </a>
-            </Typography>
-          )}
-
           {articles.length === 0 ? (
             <Typography sx={{ color: "text.secondary", py: 5, textAlign: "center" }}>
-              No stories about {player.name} yet — check back soon.
+              No stories about {club.name} yet — check back soon.
             </Typography>
           ) : (
             <Stack spacing={2}>

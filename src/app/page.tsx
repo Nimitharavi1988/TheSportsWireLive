@@ -523,25 +523,38 @@ export default async function HomePage(
                 }}
               >
                 {playerNews.map(({ player, article }, i) => (
-                  <Link
+                  <Paper
                     key={player.slug}
-                    href={`/article/${article.slug}`}
-                    style={{ textDecoration: "none", color: "inherit" }}
+                    variant="outlined"
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 1,
+                      p: 1.5,
+                      width: 176,
+                      flexShrink: 0,
+                    }}
                   >
-                    <Paper
-                      variant="outlined"
-                      sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 1,
-                        p: 1.5,
-                        width: 176,
-                        flexShrink: 0,
-                        transition: "border-color 0.15s, transform 0.15s",
-                        "&:hover": { borderColor: "primary.main", transform: "translateY(-2px)" },
-                      }}
+                    {/* Avatar/name link to the player's own dedicated page,
+                        headline links to the specific article — two
+                        different destinations, so can't be one wrapping
+                        <Link> (invalid nested <a> tags). This is also the
+                        only real navigable entry point into /player/[slug]
+                        anywhere on the site — it's in the sitemap for SEO,
+                        but had no clickable path to it in the UI at all
+                        before this. */}
+                    <Link
+                      href={`/player/${player.slug}`}
+                      style={{ textDecoration: "none", color: "inherit" }}
                     >
-                      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{
+                          alignItems: "center",
+                          "&:hover": { color: "primary.main" },
+                        }}
+                      >
                         <Box
                           sx={{
                             width: 32,
@@ -563,6 +576,11 @@ export default async function HomePage(
                           {player.name}
                         </Typography>
                       </Stack>
+                    </Link>
+                    <Link
+                      href={`/article/${article.slug}`}
+                      style={{ textDecoration: "none", color: "inherit" }}
+                    >
                       <Typography
                         variant="body2"
                         sx={{
@@ -572,12 +590,13 @@ export default async function HomePage(
                           WebkitLineClamp: 3,
                           WebkitBoxOrient: "vertical",
                           overflow: "hidden",
+                          "&:hover": { color: "primary.main" },
                         }}
                       >
                         {article.title}
                       </Typography>
-                    </Paper>
-                  </Link>
+                    </Link>
+                  </Paper>
                 ))}
               </Box>
             </Box>
