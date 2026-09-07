@@ -13,6 +13,12 @@ dist/
 .env
 .env.local
 .env.*.local
+.dev.vars
+
+# Cloudflare / OpenNext build output and local state
+.open-next/
+.wrangler/
+cloudflare-env.d.ts
 
 # misc
 .DS_Store

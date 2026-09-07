@@ -11,9 +11,52 @@ import Stack from "@mui/material/Stack";
 import Divider from "@mui/material/Divider";
 import { fetchOneStockImage } from "@/lib/ingestion/stockImages";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
-import { crestAltText } from "@/lib/teamNames";
-import { CompactStandingsTable } from "@/components/StandingsTable";
+import { crestAltText, competitionFromSummary } from "@/lib/teamNames";
+import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { StandingsCarousel } from "@/components/StandingsCarousel";
 import { SUPERSTAR_SEARCH_TERMS, TRACKED_PLAYERS } from "@/lib/players";
+import { PLAYER_QUOTES } from "@/lib/quotes";
+import { QuotesStrip } from "@/components/QuotesStrip";
+import { HeroCarousel } from "@/components/HeroCarousel";
+import { ArticleThumb } from "@/components/ArticleThumb";
+import StarIcon from "@mui/icons-material/Star";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import ScoreboardIcon from "@mui/icons-material/Scoreboard";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import ArticleIcon from "@mui/icons-material/Article";
+
+// Initials-avatar colors for the Star Players rail — a small, deliberately
+// muted 3-color rotation (brand green plus two restrained neutrals) rather
+// than a wide palette, so 10 avatars in a row still read as one cohesive set.
+const PLAYER_AVATAR_COLORS = ["#1d6b3f", "#b8752e", "#3d5a73"];
+
+function playerInitials(name: string): string {
+  const parts = name.split(" ").filter(Boolean);
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
+  return (first + last).toUpperCase();
+}
+
+// Main-column section headers (Player News, Transfers & Big News, etc.) were
+// using the theme's default h5 styling — Poppins, near-black — while the
+// left rail's headers (By Category, Just In) use Inter and a muted gray.
+// Standardizing the main column on the sidebar's font/color per user
+// feedback, while keeping the larger h5 size so these still read as the
+// primary section dividers they are.
+const SECTION_HEADING_SX = { fontFamily: "var(--font-body)", color: "text.secondary" };
+
+// "2h ago" / "3d ago" style — distinct from the "Sep 6" date chips used
+// elsewhere, since the whole point of "Just In" is a freshness signal.
+function relativeTime(date: Date): string {
+  const diffMs = Date.now() - date.getTime();
+  const minutes = Math.round(diffMs / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
+}
 
 export const revalidate = 60;
 
@@ -97,6 +140,64 @@ export default async function HomePage(
     take: 80,
   });
 
+  // For each tracked player, find their single most prominent recent
+  // article (reusing the already-fetched, trending-sorted `articles` list —
+  // no extra queries) and show that real headline instead of a bare
+  // nav-shortcut chip. Players with nothing recent are left out entirely,
+  // since an empty card under a "Player News" heading would be confusing.
+  const playerNews = TRACKED_PLAYERS.map((player) => {
+    const match = articles.find((a) =>
+      player.searchTerms.some((term) => a.title.toLowerCase().includes(term.toLowerCase()))
+    );
+    return match ? { player, article: match } : null;
+  }).filter((entry): entry is { player: (typeof TRACKED_PLAYERS)[number]; article: (typeof articles)[number] } => entry !== null);
+
+  // "Just In": pure recency, unlike everything else on this page (which is
+  // trending-sorted, category-grouped, or player-matched) — a plain
+  // freshness signal, the one sidebar module almost every news site has.
+  // Same fetched `articles` list re-sorted by `publishedAt`, no extra query.
+  const justIn = [...articles]
+    .filter((a) => a.publishedAt)
+    .sort((a, b) => b.publishedAt!.getTime() - a.publishedAt!.getTime())
+    .slice(0, 3);
+
+  // "By Category" sidebar tiles: one representative story per sport, so
+  // Cricket/World Cup still get real homepage visibility on the "All" view
+  // even when they don't happen to rank highly enough for the trending
+  // main feed. Only shown on "All" (no category filter already applied) —
+  // redundant once you're already looking at a single category. Reuses the
+  // same fetched `articles` list, no extra queries; prefers an article that
+  // actually has an image, since the whole point is a visual tile.
+  const categoryTiles = category
+    ? []
+    : Object.keys(CATEGORY_META)
+        .map((cat) => {
+          const inCategory = articles.filter((a) => a.category === cat);
+          const withImage = inCategory.find((a) => a.heroImageUrl || (a.homeCrestUrl && a.awayCrestUrl));
+          const chosen = withImage ?? inCategory[0];
+          return chosen ? { category: cat, article: chosen } : null;
+        })
+        .filter((entry): entry is { category: string; article: (typeof articles)[number] } => entry !== null);
+
+  // "By Competition" sidebar tiles — same idea and same visual pattern as By
+  // Category, one level more specific (Premier League, La Liga, Champions
+  // League, etc. instead of just "Football"). Competition name is parsed out
+  // of the already-reliable summary format via `competitionFromSummary`
+  // (only works for football-data.org-sourced match summaries — RSS
+  // articles correctly return null and are skipped rather than guessed).
+  // Capped at 4 so the sidebar doesn't grow tall again after just fixing
+  // that. Only on "All" (no category filter), matching By Category's scope.
+  const competitionTiles = category
+    ? []
+    : (() => {
+        const seen = new Map<string, (typeof articles)[number]>();
+        for (const a of articles) {
+          const competition = competitionFromSummary(a.summary);
+          if (competition && !seen.has(competition)) seen.set(competition, a);
+        }
+        return [...seen.entries()].slice(0, 4).map(([competition, article]) => ({ competition, article }));
+      })();
+
   // A manually-featured article (set from /admin) always wins as hero;
   // otherwise fall back to the top-ranked match article automatically.
   const manuallyFeatured = articles.find((a) => a.featured);
@@ -114,13 +215,26 @@ export default async function HomePage(
   const allMatchArticlesFull = remainingAfterHighlighted.filter((a) => !RSS_SOURCES.includes(a.sourceName));
   const allBriefArticlesFull = remainingAfterHighlighted.filter((a) => RSS_SOURCES.includes(a.sourceName));
 
-  // Hero: a manual pick always wins; otherwise the top-ranked match article.
-  // Some categories (cricket, right now) have no non-RSS "match" data source
-  // at all, so without this second fallback the hero section would just be
-  // empty there — fall back to the top RSS headline instead.
-  const heroArticle = manuallyFeatured ?? allMatchArticlesFull[0] ?? allBriefArticlesFull[0];
-  const allMatchArticles = allMatchArticlesFull.filter((a) => a.id !== heroArticle?.id);
-  const allBriefArticles = allBriefArticlesFull.filter((a) => a.id !== heroArticle?.id);
+  // Hero carousel: a manual pick always wins the first slot; the rest are
+  // filled with the top-ranked match articles, falling back to top RSS
+  // headlines if there aren't enough (cricket, right now, has no non-RSS
+  // "match" data source at all — without this fallback the hero would be
+  // empty there). Capped at 5 slides — enough to feel like a real rotation
+  // without turning the front page into an endless slideshow.
+  const heroCandidates = [manuallyFeatured, ...allMatchArticlesFull, ...allBriefArticlesFull].filter(
+    (a): a is (typeof articles)[number] => a !== null && a !== undefined
+  );
+  const seenHeroIds = new Set<string>();
+  const heroArticles = heroCandidates
+    .filter((a) => {
+      if (seenHeroIds.has(a.id)) return false;
+      seenHeroIds.add(a.id);
+      return true;
+    })
+    .slice(0, 5);
+  const heroIds = new Set(heroArticles.map((a) => a.id));
+  const allMatchArticles = allMatchArticlesFull.filter((a) => !heroIds.has(a.id));
+  const allBriefArticles = allBriefArticlesFull.filter((a) => !heroIds.has(a.id));
 
   const automaticHighlights = allBriefArticles
     .filter((a) => isHighlightWorthy(a.title))
@@ -132,14 +246,18 @@ export default async function HomePage(
   const matchArticles = allMatchArticles.slice(0, 10);
   const moreArticles = allMatchArticles.slice(10, 25);
 
-  // Only fetch a generic stock photo for the hero when there's no real image
-  // to show instead — a match article with real team crests shouldn't also
-  // get an unrelated random stadium photo layered on top of them.
-  const heroHasCrests = Boolean(heroArticle?.homeCrestUrl && heroArticle?.awayCrestUrl);
-  const heroBanner =
-    heroArticle && !heroHasCrests && !heroArticle.heroImageUrl
-      ? await fetchOneStockImage(heroArticle.category)
-      : null;
+  // Only fetch a generic stock photo per slide when there's no real image to
+  // show instead — a match article with real team crests shouldn't also get
+  // an unrelated random stadium photo layered on top of them. Runs for every
+  // hero slide (not just one), but each is a cheap, free-tier Pexels call
+  // and there are at most 5 slides.
+  const heroSlides = await Promise.all(
+    heroArticles.map(async (article) => {
+      const hasCrests = Boolean(article.homeCrestUrl && article.awayCrestUrl);
+      const banner = !hasCrests && !article.heroImageUrl ? await fetchOneStockImage(article.category) : null;
+      return { article, banner };
+    })
+  );
 
   // Standings only exist for domestic leagues on this API tier (not Champions
   // League/World Cup/Euros — no data — and cricket has no active standings
@@ -150,100 +268,327 @@ export default async function HomePage(
     showStandings && standingsApiKey ? await fetchStandingsTable(standingsApiKey, "PL") : null;
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="xl" sx={{ py: 4 }}>
       {articles.length === 0 && (
-        <Typography
-          align="center"
-          sx={{
-            color: "text.secondary",
-            py: 5
-          }}>
-          {category
-            ? "No published articles in this category yet."
-            : "No articles published yet — approve some in /admin to see them here."}
-        </Typography>
+        <Box sx={{ textAlign: "center", py: 8 }}>
+          <Typography variant="h6" gutterBottom>
+            {category === "football/world-cup"
+              ? "No World Cup coverage right now"
+              : "No articles here yet"}
+          </Typography>
+          <Typography sx={{ color: "text.secondary", mb: 3 }}>
+            {category === "football/world-cup"
+              ? "The tournament only runs every four years — check back closer to the next one, or see what's happening in Football and Cricket right now."
+              : category
+                ? "Nothing published in this category yet — check back soon."
+                : "No articles published yet — approve some in /admin to see them here."}
+          </Typography>
+          {category === "football/world-cup" && (
+            <Stack direction="row" spacing={1.5} sx={{ justifyContent: "center" }}>
+              <Link href="/?category=football" style={{ textDecoration: "none" }}>
+                <Chip label="Football" clickable color="primary" variant="outlined" />
+              </Link>
+              <Link href="/?category=cricket" style={{ textDecoration: "none" }}>
+                <Chip label="Cricket" clickable color="primary" variant="outlined" />
+              </Link>
+            </Stack>
+          )}
+        </Box>
       )}
 
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "2fr 1fr" },
+          gridTemplateColumns: { xs: "1fr", md: "2fr 1fr", lg: "240px 1fr 340px" },
           gap: 5,
           alignItems: "start",
         }}
       >
-        <Box component="main">
-          {heroArticle && (
-            <Card variant="outlined" sx={{ mb: 4, borderColor: "primary.main", borderWidth: 2 }}>
-              {(heroBanner || heroArticle.heroImageUrl) && (
-                <Box
-                  component="img"
-                  src={heroBanner?.url ?? heroArticle.heroImageUrl!}
-                  alt={heroArticle.title}
-                  sx={{ width: "100%", height: 420, objectFit: "cover", objectPosition: "top", display: "block" }}
-                />
-              )}
-              <CardContent sx={{ p: 3 }}>
-                {heroArticle.homeCrestUrl && heroArticle.awayCrestUrl && (
-                  <Stack
-                    direction="row"
-                    spacing={2.5}
-                    sx={{
-                      alignItems: "center",
-                      mb: 2
-                    }}>
-                    <img src={heroArticle.homeCrestUrl} alt={crestAltText(heroArticle.summary).home} width={96} height={96} />
-                    <Typography
-                      variant="h6"
+        {((standings && standings.rows.length > 0) || categoryTiles.length > 0 || justIn.length > 0 || PLAYER_QUOTES.length > 0) && (
+          <Box
+            component="aside"
+            sx={{
+              gridColumn: { xs: "1 / -1", md: "1 / -1", lg: "1" },
+              position: { lg: "sticky" },
+              // 68px sticky header + a 16px gap — without this it sticks at
+              // the old top:32 offset and slides up underneath the header.
+              top: { lg: 84 },
+              // No internal scrollbar on this sidebar — it read as confusing
+              // (an unexpected nested scrollbar) even though it was working
+              // as designed. Trimmed "Just In" to 3 items instead so the
+              // four stacked modules fit within a typical viewport without
+              // needing one; on a genuinely short window it just un-sticks
+              // and scrolls with the page like a normal element, which is a
+              // fine fallback.
+            }}
+          >
+            {standings && standings.rows.length > 0 && (
+              <Box sx={{ mb: 3 }}>
+                <StandingsCarousel leagues={STANDINGS_LEAGUES} initialCode="PL" initialTable={standings} />
+              </Box>
+            )}
+
+            {categoryTiles.length > 0 && (
+              <Paper component="section" variant="outlined" sx={{ p: 2 }}>
+                <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, mb: 1, display: "block" }}>
+                  By Category
+                </Typography>
+                <Stack spacing={1.25}>
+                  {categoryTiles.map(({ category: cat, article }) => (
+                    <Link
+                      key={cat}
+                      href={`/article/${article.slug}`}
+                      style={{ textDecoration: "none", color: "inherit" }}
+                    >
+                      <Stack
+                        direction="row"
+                        spacing={1.25}
+                        sx={{
+                          alignItems: "center",
+                          p: 0.75,
+                          borderRadius: 2,
+                          transition: "background-color 0.15s",
+                          "&:hover": { bgcolor: "action.hover" },
+                        }}
+                      >
+                        <ArticleThumb article={article} size={48} fallbackColor={categoryChipStyle(cat).color} />
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography
+                            variant="caption"
+                            sx={{ color: categoryChipStyle(cat).color, fontWeight: 700, display: "block" }}
+                          >
+                            {categoryChipStyle(cat).label}
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontSize: 12.5,
+                              lineHeight: 1.3,
+                              fontWeight: 500,
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {article.title}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Link>
+                  ))}
+                </Stack>
+              </Paper>
+            )}
+
+            {competitionTiles.length > 0 && (
+              <Paper component="section" variant="outlined" sx={{ p: 2, mt: 3 }}>
+                <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, mb: 1, display: "block" }}>
+                  By Competition
+                </Typography>
+                <Stack spacing={1.25}>
+                  {competitionTiles.map(({ competition, article }) => (
+                    <Link
+                      key={competition}
+                      href={`/article/${article.slug}`}
+                      style={{ textDecoration: "none", color: "inherit" }}
+                    >
+                      <Stack
+                        direction="row"
+                        spacing={1.25}
+                        sx={{
+                          alignItems: "center",
+                          p: 0.75,
+                          borderRadius: 2,
+                          transition: "background-color 0.15s",
+                          "&:hover": { bgcolor: "action.hover" },
+                        }}
+                      >
+                        <ArticleThumb article={article} size={48} fallbackColor="#1d6b3f" />
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="caption" sx={{ color: "primary.main", fontWeight: 700, display: "block" }}>
+                            {competition}
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontSize: 12.5,
+                              lineHeight: 1.3,
+                              fontWeight: 500,
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {article.title}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Link>
+                  ))}
+                </Stack>
+              </Paper>
+            )}
+
+            {justIn.length > 0 && (
+              <Paper component="section" variant="outlined" sx={{ p: 2, mt: 3 }}>
+                <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 1.5 }}>
+                  <AccessTimeIcon sx={{ fontSize: 15, color: "primary.main" }} />
+                  <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, lineHeight: 1 }}>
+                    Just In
+                  </Typography>
+                </Stack>
+                <Stack spacing={1.25}>
+                  {justIn.map((article, i) => (
+                    <Box key={article.id}>
+                      {i > 0 && <Divider sx={{ mb: 1.25 }} />}
+                      <Link href={`/article/${article.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
+                        {/* flex-start, not center — this row has a secondary
+                            timestamp line below the title, which pulls the
+                            true vertical center down and makes a centered
+                            thumbnail look misaligned with the headline. */}
+                        <Stack direction="row" spacing={1.25} sx={{ alignItems: "flex-start" }}>
+                          <ArticleThumb article={article} size={40} />
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontSize: 12.5,
+                                fontWeight: 500,
+                                lineHeight: 1.35,
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden",
+                              }}
+                            >
+                              {article.title}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                              {relativeTime(article.publishedAt!)}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </Link>
+                    </Box>
+                  ))}
+                </Stack>
+              </Paper>
+            )}
+
+            {PLAYER_QUOTES.length > 0 && (
+              <Box sx={{ mt: 3 }}>
+                <QuotesStrip quotes={PLAYER_QUOTES} />
+              </Box>
+            )}
+          </Box>
+        )}
+
+        {/* minWidth: 0 overrides the grid item's default min-width:auto —
+            without it, the Star Players horizontal-scroll strip's intrinsic
+            content width pushes this whole column (and the page) wider
+            instead of scrolling inside its own box, a classic CSS Grid trap. */}
+        <Box component="main" sx={{ gridColumn: { xs: "1 / -1", md: "1", lg: "2" }, minWidth: 0 }}>
+          {heroSlides.length > 0 && (
+            <HeroCarousel
+              slides={heroSlides.map(({ article, banner }) => ({
+                slug: article.slug,
+                title: article.title,
+                summary: article.summary,
+                heroImageUrl: article.heroImageUrl,
+                homeCrestUrl: article.homeCrestUrl,
+                awayCrestUrl: article.awayCrestUrl,
+                bannerUrl: banner?.url ?? null,
+                bannerCredit: banner?.credit ?? null,
+                bannerCreditUrl: banner?.creditUrl ?? null,
+              }))}
+            />
+          )}
+
+          {playerNews.length > 0 && (
+            <Box component="section" sx={{ mb: 4 }}>
+              <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
+                <StarIcon sx={{ fontSize: 20, color: "primary.main" }} />
+                <Typography variant="h5" sx={SECTION_HEADING_SX}>Player News</Typography>
+              </Stack>
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 1.5,
+                  overflowX: "auto",
+                  pb: 1,
+                  "&::-webkit-scrollbar": { height: 8 },
+                  "&::-webkit-scrollbar-thumb": { backgroundColor: "divider", borderRadius: 4 },
+                }}
+              >
+                {playerNews.map(({ player, article }, i) => (
+                  <Link
+                    key={player.slug}
+                    href={`/article/${article.slug}`}
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
+                    <Paper
+                      variant="outlined"
                       sx={{
-                        color: "text.secondary",
-                        fontWeight: 600
-                      }}>
-                      vs
-                    </Typography>
-                    <img src={heroArticle.awayCrestUrl} alt={crestAltText(heroArticle.summary).away} width={96} height={96} />
-                  </Stack>
-                )}
-                <Chip
-                  label="Top Story"
-                  size="small"
-                  sx={{
-                    color: "primary",
-                    mb: 1
-                  }} />
-                <Typography variant="h4" component="h2" gutterBottom>
-                  <Link href={`/article/${heroArticle.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
-                    {heroArticle.title}
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 1,
+                        p: 1.5,
+                        width: 176,
+                        flexShrink: 0,
+                        transition: "border-color 0.15s, transform 0.15s",
+                        "&:hover": { borderColor: "primary.main", transform: "translateY(-2px)" },
+                      }}
+                    >
+                      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                        <Box
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: "50%",
+                            flexShrink: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            bgcolor: PLAYER_AVATAR_COLORS[i % PLAYER_AVATAR_COLORS.length],
+                            color: "#fff",
+                            fontSize: 12,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {playerInitials(player.name)}
+                        </Box>
+                        <Typography variant="caption" noWrap sx={{ fontWeight: 700 }}>
+                          {player.name}
+                        </Typography>
+                      </Stack>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: 12.5,
+                          lineHeight: 1.35,
+                          display: "-webkit-box",
+                          WebkitLineClamp: 3,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {article.title}
+                      </Typography>
+                    </Paper>
                   </Link>
-                </Typography>
-                <Typography variant="body1" sx={{
-                  color: "text.secondary"
-                }}>
-                  {heroArticle.summary}
-                </Typography>
-              </CardContent>
-              {heroBanner?.credit && (
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: "text.secondary",
-                    px: 3,
-                    pb: 2,
-                    display: "block"
-                  }}>
-                  <a href={heroBanner.creditUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
-                    {heroBanner.credit}
-                  </a>
-                </Typography>
-              )}
-            </Card>
+                ))}
+              </Box>
+            </Box>
           )}
 
           {highlightArticles.length > 0 && (
             <Box component="section" sx={{ mb: 4 }}>
-              <Typography variant="h5" sx={{ mb: 2 }}>
-                Transfers &amp; Big News
-              </Typography>
+              <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
+                <SwapHorizIcon sx={{ color: "warning.main" }} />
+                <Typography variant="h5" sx={SECTION_HEADING_SX}>Transfers &amp; Big News</Typography>
+              </Stack>
               <Stack spacing={2}>
                 {highlightArticles.map((article) => (
                   <Card key={article.id} variant="outlined" sx={{ borderColor: "warning.main" }}>
@@ -273,53 +618,12 @@ export default async function HomePage(
             </Box>
           )}
 
-          <Box component="section" sx={{ mb: 4 }}>
-            <Typography variant="overline" sx={{ color: "text.secondary" }}>
-              Star Players
-            </Typography>
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}>
-              {TRACKED_PLAYERS.slice(0, 10).map((player) => (
-                <Link key={player.slug} href={`/player/${player.slug}`} style={{ textDecoration: "none" }}>
-                  <Chip label={player.name} size="small" variant="outlined" clickable />
-                </Link>
-              ))}
-            </Box>
-          </Box>
-
-          {standings && standings.rows.length > 0 && (
-            <Box component="section" sx={{ mb: 4 }}>
-              <Stack
-                direction="row"
-                sx={{
-                  justifyContent: "space-between",
-                  alignItems: "baseline",
-                  mb: 2
-                }}>
-                <Typography variant="h5">{standings.competitionName} Standings</Typography>
-                <Link href="/standings/PL" style={{ color: "inherit" }}>
-                  <Typography variant="body2" sx={{
-                    color: "primary.main"
-                  }}>
-                    Full table →
-                  </Typography>
-                </Link>
-              </Stack>
-              <CompactStandingsTable rows={standings.rows.slice(0, 6)} />
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1.5 }}>
-                {STANDINGS_LEAGUES.filter((l) => l.code !== "PL").map((league) => (
-                  <Link key={league.code} href={`/standings/${league.code}`} style={{ textDecoration: "none" }}>
-                    <Chip label={league.name} size="small" variant="outlined" clickable />
-                  </Link>
-                ))}
-              </Box>
-            </Box>
-          )}
-
           {matchArticles.length > 0 && (
             <Box component="section">
-              <Typography variant="h5" sx={{ mb: 2 }}>
-                Match Results &amp; Previews
-              </Typography>
+              <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
+                <ScoreboardIcon sx={{ color: "primary.main" }} />
+                <Typography variant="h5" sx={SECTION_HEADING_SX}>Match Results &amp; Previews</Typography>
+              </Stack>
               <Stack spacing={2}>
                 {matchArticles.map((article) => (
                   <Card key={article.id} variant="outlined">
@@ -352,7 +656,16 @@ export default async function HomePage(
                         />
                       ) : null}
                       <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
-                        <Chip label={article.category} size="small" variant="outlined" sx={{ color: "primary" }} />
+                        <Chip
+                          label={categoryChipStyle(article.category).label}
+                          size="small"
+                          variant="outlined"
+                          sx={{
+                            color: categoryChipStyle(article.category).color,
+                            borderColor: categoryChipStyle(article.category).color,
+                            fontWeight: 600,
+                          }}
+                        />
                         {article.publishedAt && (
                           <Typography variant="caption" sx={{ color: "text.secondary" }}>
                             {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -378,10 +691,23 @@ export default async function HomePage(
         </Box>
 
         {briefArticles.length > 0 && (
-          <Paper component="aside" variant="outlined" sx={{ p: 3, position: { md: "sticky" }, top: { md: 32 } }}>
-            <Typography variant="h6" sx={{ mb: 0.5 }}>
-              Also in the News
-            </Typography>
+          <Paper
+            component="aside"
+            variant="outlined"
+            sx={{
+              p: 3,
+              gridColumn: { xs: "1 / -1", md: "2", lg: "3" },
+              position: { md: "sticky" },
+              // Same 68px header + 16px gap fix as the left rail.
+              top: { md: 84 },
+            }}
+          >
+            <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 0.5 }}>
+              <ArticleIcon sx={{ fontSize: 18, color: "primary.main" }} />
+              <Typography variant="h6" sx={{ fontSize: 17 }}>
+                Also in the News
+              </Typography>
+            </Stack>
             <Typography
               variant="caption"
               sx={{
@@ -399,19 +725,33 @@ export default async function HomePage(
                     href={`/article/${article.slug}`}
                     style={{ color: "inherit", textDecoration: "none" }}
                   >
-                    <Box sx={{ py: 0.5 }}>
-                      <Typography variant="body2" gutterBottom sx={{
-                        fontWeight: 500
-                      }}>
-                        {article.title}
-                      </Typography>
-                      <Chip
-                        label={article.sourceName}
-                        size="small"
-                        variant="outlined"
-                        sx={{ height: 16, fontSize: 9, "& .MuiChip-label": { px: 0.75 } }}
-                      />
-                    </Box>
+                    {/* flex-start, not center — the source Chip below the
+                        title pulls the true vertical center down, same
+                        reason as the Just In fix above. */}
+                    <Stack direction="row" spacing={1.25} sx={{ alignItems: "flex-start", py: 0.5 }}>
+                      <ArticleThumb article={article} size={40} fallbackColor={categoryChipStyle(article.category).color} />
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography
+                          variant="body2"
+                          gutterBottom
+                          sx={{
+                            fontWeight: 500,
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {article.title}
+                        </Typography>
+                        <Chip
+                          label={article.sourceName}
+                          size="small"
+                          variant="outlined"
+                          sx={{ height: 16, fontSize: 9, "& .MuiChip-label": { px: 0.75 } }}
+                        />
+                      </Box>
+                    </Stack>
                   </Link>
                 </Box>
               ))}
@@ -422,7 +762,7 @@ export default async function HomePage(
 
       {moreArticles.length > 0 && (
         <Box component="section" sx={{ mt: 5 }}>
-          <Typography variant="h5" sx={{ mb: 2 }}>
+          <Typography variant="h5" sx={{ ...SECTION_HEADING_SX, mb: 2 }}>
             More Headlines
           </Typography>
           <Box

@@ -1,0 +1,15 @@
+name: Ingestion cron
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  trigger-ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call ingestion endpoint
+        run: |
+          curl -sf -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.SITE_URL }}/api/cron/ingest"

@@ -9,6 +9,12 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Divider from "@mui/material/Divider";
 import { crestAltText } from "@/lib/teamNames";
+import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { ArticleThumb } from "@/components/ArticleThumb";
+import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
+import { StandingsCarousel } from "@/components/StandingsCarousel";
+import { PLAYER_QUOTES } from "@/lib/quotes";
+import { QuotesStrip } from "@/components/QuotesStrip";
 
 export const revalidate = 60;
 
@@ -56,15 +62,36 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
     articleSection: article.category,
     description: article.summary,
     ...(article.heroImageUrl ? { image: [article.heroImageUrl] } : {}),
-    publisher: { "@type": "Organization", name: "Sports News" },
+    publisher: { "@type": "Organization", name: "Sports Wire Live" },
   };
 
+  // Same sidebar content as the homepage rail (Standings, Quotes) — article
+  // pages are where most real traffic actually lands (search, social
+  // shares), so they shouldn't be a dead end with zero discovery content
+  // just because they're not the homepage. Football-only, matching how the
+  // homepage's Standings widget is already scoped (no standings data exists
+  // for cricket on this API tier).
+  const standingsApiKey = process.env.FOOTBALL_DATA_API_KEY;
+  const standings =
+    article.category.startsWith("football") && standingsApiKey
+      ? await fetchStandingsTable(standingsApiKey, "PL")
+      : null;
+
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "1fr 300px" },
+          gap: 4,
+        }}
+      >
+      <Box sx={{ minWidth: 0 }}>
 
       {article.homeCrestUrl && article.awayCrestUrl ? (
         <Stack
@@ -114,11 +141,13 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
       ) : null}
 
       <Chip
-        label={article.category}
+        label={categoryChipStyle(article.category).label}
         size="small"
         variant="outlined"
         sx={{
-          color: "primary",
+          color: categoryChipStyle(article.category).color,
+          borderColor: categoryChipStyle(article.category).color,
+          fontWeight: 600,
           mb: 1.5
         }} />
       <Typography variant="h4" component="h1" gutterBottom>
@@ -153,28 +182,41 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           <Typography variant="overline" sx={{
             color: "text.secondary"
           }}>
-            More in {article.category}
+            More in {categoryChipStyle(article.category).label}
           </Typography>
           <Stack sx={{ mt: 1 }}>
             {related.map((r, index) => (
               <Box key={r.id}>
                 {index > 0 && <Divider />}
                 <Link href={`/article/${r.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontWeight: 500,
-                      py: 1.25,
-                      "&:hover": { color: "primary.main" }
-                    }}>
-                    {r.title}
-                  </Typography>
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", py: 1.25 }}>
+                    <ArticleThumb article={r} size={44} fallbackColor={categoryChipStyle(article.category).color} />
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 500,
+                        "&:hover": { color: "primary.main" }
+                      }}>
+                      {r.title}
+                    </Typography>
+                  </Stack>
                 </Link>
               </Box>
             ))}
           </Stack>
         </Paper>
       )}
+      </Box>
+
+      <Box component="aside">
+        {standings && standings.rows.length > 0 && (
+          <Box sx={{ mb: 3 }}>
+            <StandingsCarousel leagues={STANDINGS_LEAGUES} initialCode="PL" initialTable={standings} />
+          </Box>
+        )}
+        {PLAYER_QUOTES.length > 0 && <QuotesStrip quotes={PLAYER_QUOTES} />}
+      </Box>
+      </Box>
     </Container>
   );
 }

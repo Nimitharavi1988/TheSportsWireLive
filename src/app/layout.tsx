@@ -22,10 +22,10 @@ const inter = Inter({
 
 export const metadata = {
   metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:3000"),
-  title: "Sports News",
+  title: "Sports Wire Live",
   description: "Trending football and cricket news, updated automatically.",
   openGraph: {
-    siteName: "Sports News",
+    siteName: "Sports Wire Live",
     type: "website",
   },
   twitter: {

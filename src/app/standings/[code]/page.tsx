@@ -6,6 +6,8 @@ import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
+import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 
 export const revalidate = 300;
 
@@ -28,9 +30,12 @@ export default async function StandingsPage(props: { params: Promise<{ code: str
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        {table.competitionName} Standings
-      </Typography>
+      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
+        <EmojiEventsIcon sx={{ color: "primary.main" }} />
+        <Typography variant="h4">
+          {table.competitionName} Standings
+        </Typography>
+      </Stack>
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 3 }}>
         {STANDINGS_LEAGUES.map((league) => (
           <Link key={league.code} href={`/standings/${league.code}`} style={{ textDecoration: "none" }}>

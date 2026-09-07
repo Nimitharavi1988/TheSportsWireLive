@@ -79,28 +79,70 @@ export default async function MatchTicker() {
           .sw-ticker-track { animation: none !important; }
         }
       `}</style>
+      {/* Right-edge fade so items scroll out of view smoothly rather than
+          getting hard-clipped mid-crest by the container edge. */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          right: 0,
+          width: 48,
+          zIndex: 2,
+          pointerEvents: "none",
+          background: "linear-gradient(to right, rgba(233,241,236,0), #e9f1ec)",
+        }}
+      />
       <Box
         sx={{
           position: "absolute",
           top: 0,
           bottom: 0,
           left: 0,
-          zIndex: 2,
+          zIndex: 3,
           display: "flex",
           alignItems: "center",
-          px: 2,
-          bgcolor: "#e9f1ec",
-          borderRight: "1px solid",
-          borderColor: "divider",
-          fontFamily: "var(--font-heading)",
-          fontWeight: 700,
-          fontSize: 11.5,
-          letterSpacing: "0.07em",
-          textTransform: "uppercase",
-          color: "primary.main",
+          pl: 2,
+          pr: 1.5,
+          bgcolor: "primary.main",
         }}
       >
-        Results
+        <Box
+          sx={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            bgcolor: "#fff",
+            mr: 1,
+          }}
+        />
+        <Box
+          component="span"
+          sx={{
+            fontFamily: "var(--font-heading)",
+            fontWeight: 700,
+            fontSize: 11.5,
+            letterSpacing: "0.07em",
+            textTransform: "uppercase",
+            color: "primary.contrastText",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Results
+        </Box>
+        {/* Angled edge so the badge reads as a distinct tag rather than a
+            plain rectangle butting into the scrolling track. */}
+        <Box
+          sx={{
+            width: 0,
+            height: 0,
+            borderTop: "18px solid transparent",
+            borderBottom: "18px solid transparent",
+            borderLeft: "10px solid",
+            borderLeftColor: "primary.main",
+            ml: 1.5,
+          }}
+        />
       </Box>
       <Box
         className="sw-ticker-track"
@@ -108,7 +150,7 @@ export default async function MatchTicker() {
           display: "flex",
           width: "max-content",
           animation: "sw-ticker-scroll 40s linear infinite",
-          pl: "128px",
+          pl: "148px",
           "&:hover": { animationPlayState: "paused" },
         }}
       >
@@ -125,6 +167,8 @@ export default async function MatchTicker() {
                 borderColor: "divider",
                 whiteSpace: "nowrap",
                 fontSize: 13.5,
+                transition: "background-color 0.15s",
+                "&:hover": { bgcolor: "rgba(29, 107, 63, 0.06)" },
               }}
             >
               <img src={tick.homeCrestUrl} alt="" width={19} height={19} />
@@ -132,7 +176,19 @@ export default async function MatchTicker() {
                 {tick.home}
               </Box>
               {tick.score ? (
-                <Box component="span" sx={{ fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>
+                <Box
+                  component="span"
+                  sx={{
+                    fontVariantNumeric: "tabular-nums",
+                    fontWeight: 700,
+                    bgcolor: "background.paper",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 4,
+                    px: 0.9,
+                    py: 0.15,
+                  }}
+                >
                   {tick.score}
                 </Box>
               ) : (

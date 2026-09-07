@@ -40,7 +40,7 @@ export default function PrivacyPolicyPage() {
 
       <Section title="Who we are">
         <p>
-          Sports News (the "Site") is operated by HyperianAI LLC, a limited liability company
+          Sports Wire Live (the "Site") is operated by HyperianAI LLC, a limited liability company
           registered in Arkansas, USA ("we," "us," or "our"). This policy explains what
           information we collect when you visit the Site, how we use it, and the choices you
           have.

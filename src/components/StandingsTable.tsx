@@ -22,7 +22,7 @@ import type { StandingsTableRow } from "@/lib/ingestion/standings";
 export function CompactStandingsTable({ rows }: { rows: StandingsTableRow[] }) {
   return (
     <Paper variant="outlined" sx={{ overflowX: "auto" }}>
-      <Table size="small">
+      <Table size="small" sx={{ "& th, & td": denseCellSx }}>
         <TableHead>
           <TableRow>
             <TableCell>#</TableCell>
@@ -35,10 +35,14 @@ export function CompactStandingsTable({ rows }: { rows: StandingsTableRow[] }) {
           {rows.map((row) => (
             <TableRow key={row.teamId}>
               <TableCell>{row.position}</TableCell>
-              <TableCell>
-                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                  {row.teamCrest && <img src={row.teamCrest} alt={`${row.teamName} crest`} width={20} height={20} />}
-                  <Typography variant="body2">{row.teamName}</Typography>
+              <TableCell sx={{ maxWidth: 140 }}>
+                <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", flexWrap: "nowrap" }}>
+                  {row.teamCrest && (
+                    <img src={row.teamCrest} alt={`${row.teamName} crest`} width={16} height={16} style={{ flexShrink: 0 }} />
+                  )}
+                  <Typography variant="body2" noWrap sx={{ fontSize: 12 }}>
+                    {row.teamName}
+                  </Typography>
                 </Stack>
               </TableCell>
               <TableCell align="right">{row.playedGames}</TableCell>
@@ -53,14 +57,26 @@ export function CompactStandingsTable({ rows }: { rows: StandingsTableRow[] }) {
   );
 }
 
+// Team (and its position number) stays pinned while the stat columns scroll
+// horizontally — on a narrow screen you'd otherwise lose track of which row
+// you're reading the moment you scroll right to see W/D/L/GF/GA/GD/Pts.
+const stickyCellSx = {
+  position: "sticky" as const,
+  left: 0,
+  zIndex: 1,
+  bgcolor: "background.paper",
+};
+
+const denseCellSx = { fontSize: 12, px: 1, py: 0.75 };
+
 export function FullStandingsTable({ rows }: { rows: StandingsTableRow[] }) {
   return (
     <Paper variant="outlined" sx={{ overflowX: "auto" }}>
-      <Table size="small">
+      <Table size="small" sx={{ "& th, & td": denseCellSx }}>
         <TableHead>
           <TableRow>
-            <TableCell>#</TableCell>
-            <TableCell>Team</TableCell>
+            <TableCell sx={{ ...stickyCellSx, left: 0 }}>#</TableCell>
+            <TableCell sx={{ ...stickyCellSx, left: 28 }}>Team</TableCell>
             <TableCell align="right">P</TableCell>
             <TableCell align="right">W</TableCell>
             <TableCell align="right">D</TableCell>
@@ -74,11 +90,15 @@ export function FullStandingsTable({ rows }: { rows: StandingsTableRow[] }) {
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.teamId}>
-              <TableCell>{row.position}</TableCell>
-              <TableCell>
-                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                  {row.teamCrest && <img src={row.teamCrest} alt={`${row.teamName} crest`} width={20} height={20} />}
-                  <Typography variant="body2">{row.teamName}</Typography>
+              <TableCell sx={stickyCellSx}>{row.position}</TableCell>
+              <TableCell sx={{ ...stickyCellSx, left: 28, maxWidth: 130 }}>
+                <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", flexWrap: "nowrap" }}>
+                  {row.teamCrest && (
+                    <img src={row.teamCrest} alt={`${row.teamName} crest`} width={16} height={16} style={{ flexShrink: 0 }} />
+                  )}
+                  <Typography variant="body2" noWrap sx={{ fontSize: 12 }}>
+                    {row.teamName}
+                  </Typography>
                 </Stack>
               </TableCell>
               <TableCell align="right">{row.playedGames}</TableCell>

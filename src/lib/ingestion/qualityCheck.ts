@@ -81,6 +81,35 @@ function containsProfanity(text: string): { flagged: boolean; matched: string[] 
   return { flagged: matched.size > 0, matched: [...matched] };
 }
 
+// General-purpose RSS feeds (BBC Sport, etc.) mix in self-promotional filler
+// alongside real reporting — quizzes, polls, "sign up" prompts — that isn't
+// news at all. A general sports/news reader shouldn't have to see "Flex your
+// football brain with our daily quizzes" presented as if it were a match
+// report. Title-pattern based since these items are structurally different
+// from news headlines (an interactive feature, not an event that happened),
+// not a topic filter — living config, extend as new filler shapes turn up
+// in the review queue.
+const NON_NEWS_PATTERNS = [
+  /\bquiz(zes)?\b/i,
+  /\bcrossword\b/i,
+  // Deliberately NOT a standalone /\bpuzzle\b/ — real tactical-analysis
+  // headlines use "puzzle" metaphorically ("Guardiola solves the puzzle of
+  // his front three"), the same class of false-positive trap as the
+  // profanity list's "Scunthorpe problem" above. No real filler example has
+  // used "puzzle" alone so far — leaving it out rather than guessing at a
+  // narrower phrasing with no observed case to justify it.
+  /how (well|much) do you know/i,
+  /test your (football|cricket|sports)? ?knowledge/i,
+  /guess the (player|score|team)/i,
+  /^vote:/i,
+  /^poll:/i,
+  /sign up (for|to) our newsletter/i,
+];
+
+function isNonNewsFiller(title: string): boolean {
+  return NON_NEWS_PATTERNS.some((pattern) => pattern.test(title));
+}
+
 export interface QualityCheckResult {
   passed: boolean;
   profanityFlag: boolean;
@@ -92,9 +121,12 @@ export function runQualityChecks(title: string, summary: string): QualityCheckRe
   const combinedText = `${title} ${summary}`;
 
   const { flagged: profanityFlag, matched } = containsProfanity(combinedText);
+  const nonNewsFlag = isNonNewsFiller(title);
   const profanityDetail = profanityFlag
     ? `Profanity detected: ${matched.join(", ")}`
-    : null;
+    : nonNewsFlag
+      ? "Not a news article (quiz/poll/filler content)"
+      : null;
 
   // Stored for visibility in the admin queue, but NOT used as a pass/fail gate:
   // Flesch Reading Ease penalizes long/foreign proper nouns (team names like
@@ -107,7 +139,7 @@ export function runQualityChecks(title: string, summary: string): QualityCheckRe
   // suspiciously short (likely a truncated/garbled pull from source).
   const looksBroken = /<[^>]+>/.test(summary) || summary.trim().length < 20;
 
-  const passed = !profanityFlag && !looksBroken;
+  const passed = !profanityFlag && !looksBroken && !nonNewsFlag;
 
-  return { passed, profanityFlag, profanityDetail, readabilityScore };
+  return { passed, profanityFlag: profanityFlag || nonNewsFlag, profanityDetail, readabilityScore };
 }

@@ -40,7 +40,7 @@ export default function TermsPage() {
 
       <Section title="Acceptance of terms">
         <p>
-          These Terms of Service ("Terms") govern your access to and use of Sports News (the
+          These Terms of Service ("Terms") govern your access to and use of Sports Wire Live (the
           "Site"), operated by HyperianAI LLC, a limited liability company registered in
           Arkansas, USA ("we," "us," or "our"). By accessing or using the Site, you agree to
           these Terms. If you don't agree, please don't use the Site.

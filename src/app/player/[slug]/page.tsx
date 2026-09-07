@@ -58,7 +58,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
             {player.name}
           </Typography>
           <Typography variant="body2" sx={{ color: "text.secondary" }}>
-            {articles.length} {articles.length === 1 ? "story" : "stories"} on Sports News
+            {articles.length} {articles.length === 1 ? "story" : "stories"} on Sports Wire Live
           </Typography>
         </Box>
       </Stack>

@@ -19,7 +19,7 @@ function gradientFor(category: string): [string, string] {
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const article = await db.article.findUnique({ where: { slug } });
-  const title = article?.title ?? "Sports News";
+  const title = article?.title ?? "Sports Wire Live";
   const category = article?.category ?? "";
   const [from, to] = gradientFor(category);
 
@@ -72,7 +72,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
         <div style={{ display: "flex", fontSize: 54, fontWeight: 700, lineHeight: 1.25, maxWidth: 1050 }}>
           {title}
         </div>
-        <div style={{ display: "flex", fontSize: 26, fontWeight: 600, opacity: 0.85 }}>Sports News</div>
+        <div style={{ display: "flex", fontSize: 26, fontWeight: 600, opacity: 0.85 }}>Sports Wire Live</div>
       </div>
     ),
     {

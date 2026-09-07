@@ -30,7 +30,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
             Try again
           </Button>
           <Button component={Link} href="/" variant="outlined">
-            Back to Sports News
+            Back to Sports Wire Live
           </Button>
         </Stack>
       </Stack>

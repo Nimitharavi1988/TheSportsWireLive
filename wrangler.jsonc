@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sports-wire-live",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-07",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "sports-wire-live"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "CACHE_R2_BUCKET",
+      "bucket_name": "sports-wire-live-cache"
+    }
+  ]
+}

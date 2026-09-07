@@ -10,3 +10,14 @@ export function crestAltText(summary: string): { home: string; away: string } {
   }
   return { home: "Home team crest", away: "Away team crest" };
 }
+
+// Same reliable summary shape as above — "...in the {competition}, finishing
+// ..." for a finished match, "...in the {competition} on {date}." for a
+// preview — used to group match articles by competition (Premier League,
+// Champions League, etc.) without a dedicated schema field. Only matches
+// football-data.org-sourced summaries (RSS articles use a different, free-
+// text summary and correctly return null rather than a wrong guess).
+export function competitionFromSummary(summary: string): string | null {
+  const match = summary.match(/\bin the (.+?)(?:, finishing|\s+on\s)/);
+  return match ? match[1] : null;
+}

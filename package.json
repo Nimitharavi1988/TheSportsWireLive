@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "ingest": "tsx src/lib/ingestion/runIngest.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
     "@alkalisummer/google-trends-js": "^0.3.7",
@@ -16,6 +19,9 @@
     "@mui/icons-material": "^9.4.0",
     "@mui/material": "^9.4.0",
     "@mui/material-nextjs": "^9.4.0",
+    "@neondatabase/serverless": "0.9.5",
+    "@opennextjs/cloudflare": "^1.20.6",
+    "@prisma/adapter-neon": "5.17.0",
     "@prisma/client": "5.17.0",
     "bad-words": "^4.0.0",
     "bcryptjs": "^2.4.3",
@@ -25,23 +31,29 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "rss-parser": "^3.13.0",
-    "text-readability": "^1.1.0"
+    "text-readability": "^1.1.0",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^24.13.3",
     "@types/react": "19.2.18",
     "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "tsx": "^4.16.2",
     "typescript": "^5.5.4",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "wrangler": "^4.129.1"
   },
   "allowScripts": {
     "@prisma/client@5.17.0": true,
     "@prisma/engines@5.17.0": true,
-    "esbuild@0.28.1": true,
-    "prisma@5.17.0": true
+    "prisma@5.17.0": true,
+    "unrs-resolver@1.12.2": true,
+    "workerd@1.20260907.1": true,
+    "esbuild@0.25.4": true
   },
   "overrides": {
     "@types/react": "19.2.18"

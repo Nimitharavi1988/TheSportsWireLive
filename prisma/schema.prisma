@@ -2,7 +2,8 @@
 // Run `npx prisma migrate dev --name init` after setting DATABASE_URL in .env
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {

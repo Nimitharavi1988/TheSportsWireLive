@@ -25,7 +25,7 @@ export default function NotFound() {
         </Typography>
         <Link href="/" style={{ textDecoration: "none" }}>
           <Button variant="contained" sx={{ mt: 2 }}>
-            Back to Sports News
+            Back to Sports Wire Live
           </Button>
         </Link>
       </Stack>

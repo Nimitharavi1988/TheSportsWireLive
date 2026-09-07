@@ -52,6 +52,34 @@ describe("runQualityChecks — profanity detection", () => {
   });
 });
 
+describe("runQualityChecks — non-news filler detection", () => {
+  function titlePassed(title: string) {
+    return runQualityChecks(title, "A summary long enough to pass the broken-scrape length check.").passed;
+  }
+
+  it("flags real filler titles found in production", () => {
+    expect(titlePassed("Flex your football brain with our daily quizzes")).toBe(false);
+    expect(titlePassed("Sports quiz of the week: transfer deadline day, the US Open and rugby drama")).toBe(false);
+  });
+
+  it("flags other common filler shapes", () => {
+    expect(titlePassed("Crossword: Saturday's football-themed puzzle")).toBe(false);
+    expect(titlePassed("How well do you know your Premier League history?")).toBe(false);
+    expect(titlePassed("Vote: Player of the season")).toBe(false);
+    expect(titlePassed("Sign up for our newsletter to get more like this")).toBe(false);
+  });
+
+  it("does not flag real tactical-analysis headlines that use 'puzzle' metaphorically", () => {
+    // The same class of false-positive trap as the profanity list's
+    // "Scunthorpe problem" — a real word inside a real headline, not filler.
+    expect(titlePassed("Guardiola solves the puzzle of his misfiring front three")).toBe(true);
+  });
+
+  it("does not flag normal match reports", () => {
+    expect(titlePassed("Arsenal beat Chelsea 2-1 at the Emirates")).toBe(true);
+  });
+});
+
 describe("runQualityChecks — broken scrape detection", () => {
   it("flags leftover HTML tags", () => {
     expect(runQualityChecks("Title", "<p>Some text</p>").passed).toBe(false);
