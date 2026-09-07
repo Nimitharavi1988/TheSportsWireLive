@@ -70,11 +70,21 @@ export default function PrivacyPolicyPage() {
 
       <Section title="Advertising and analytics">
         <p>
-          <strong>The Site does not currently serve advertising or run third-party analytics.</strong>{" "}
-          The section below describes what will apply if and when we enable advertising (for
-          example, Google AdSense), so it's accurate in advance rather than something we'd need
-          to add later. We'll update the "Last updated" date above the day advertising actually
-          goes live.
+          <strong>The Site does not currently serve advertising, and analytics is not yet active.</strong>{" "}
+          This section describes what will apply once either is turned on, so it's accurate in
+          advance rather than something we'd need to add later. We'll update the "Last updated"
+          date above the day either actually goes live.
+        </p>
+        <p>
+          <strong>If analytics is enabled</strong>, we intend to use Google Analytics to
+          understand aggregate traffic patterns (which pages are popular, how visitors found the
+          Site) — it does not identify you individually. Google Analytics uses cookies and
+          collects your IP address (truncated/anonymized) to do this. You can opt out of Google
+          Analytics tracking across all websites using the{" "}
+          <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noreferrer">
+            Google Analytics Opt-out Browser Add-on
+          </a>
+          .
         </p>
         <p>
           <strong>If advertising is enabled</strong>, we intend to use Google AdSense. Google and

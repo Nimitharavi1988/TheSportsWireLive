@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/lib/db";
 import { STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
+import { TRACKED_PLAYERS } from "@/lib/players";
 
 export const revalidate = 3600;
 
@@ -25,6 +26,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${siteUrl}/standings/${league.code}`,
       changeFrequency: "daily" as const,
       priority: 0.5,
+    })),
+    ...TRACKED_PLAYERS.map((player) => ({
+      url: `${siteUrl}/player/${player.slug}`,
+      changeFrequency: "daily" as const,
+      priority: 0.6,
     })),
   ];
 

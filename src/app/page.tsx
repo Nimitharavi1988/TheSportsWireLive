@@ -13,6 +13,7 @@ import { fetchOneStockImage } from "@/lib/ingestion/stockImages";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 import { crestAltText } from "@/lib/teamNames";
 import { CompactStandingsTable } from "@/components/StandingsTable";
+import { SUPERSTAR_SEARCH_TERMS, TRACKED_PLAYERS } from "@/lib/players";
 
 export const revalidate = 60;
 
@@ -20,15 +21,32 @@ const RSS_SOURCES = ["BBC Sport", "The Guardian", "Sky Sports", "ESPN Cricinfo"]
 
 // Simple keyword match to surface transfer/retirement stories in their own
 // highlighted section — these tend to be the highest-interest RSS stories.
+// This catches stories by EVENT TYPE (words that show up in the headline
+// regardless of who the story is about) — living config, add to it as gaps
+// are found in the review queue.
 const HIGHLIGHT_KEYWORDS = [
   "transfer", "sign", "signing", "signs", "deal", "retire", "retirement",
   "retires", "quits", "quit", "move to", "confirmed", "departure", "leave",
   "leaves", "exit", "farewell",
+  // Deaths/tributes of sports figures are exactly the kind of major story
+  // this section exists to surface — real sports journalism, not gossip.
+  "dies", "dead at", "death of", "passes away", "obituary", "tribute",
+  "tributes",
+  // Records/milestones — another class of story that's always high-interest
+  // regardless of which player it's about.
+  "record", "milestone", "history", "historic", "breaks", "first player",
+  "youngest", "oldest", "hat-trick", "hat trick",
 ];
 
 function isHighlightWorthy(title: string): boolean {
   const lower = title.toLowerCase();
-  return HIGHLIGHT_KEYWORDS.some((kw) => lower.includes(kw));
+  if (HIGHLIGHT_KEYWORDS.some((kw) => lower.includes(kw))) return true;
+  // Unlike HIGHLIGHT_KEYWORDS, this catches stories by WHO they're about —
+  // "record" or "transfer" shows up literally in a headline, but a match
+  // report or interview about a superstar player often doesn't contain any
+  // special trigger word at all. Shares its list (players.ts) with the
+  // /player/[slug] pages so the two never drift apart.
+  return SUPERSTAR_SEARCH_TERMS.some((term) => lower.includes(term.toLowerCase()));
 }
 
 const CATEGORY_META: Record<string, { title: string; description: string }> = {
@@ -162,7 +180,7 @@ export default async function HomePage(
                   component="img"
                   src={heroBanner?.url ?? heroArticle.heroImageUrl!}
                   alt={heroArticle.title}
-                  sx={{ width: "100%", height: 320, objectFit: "cover", display: "block" }}
+                  sx={{ width: "100%", height: 420, objectFit: "cover", objectPosition: "top", display: "block" }}
                 />
               )}
               <CardContent sx={{ p: 3 }}>
@@ -237,6 +255,11 @@ export default async function HomePage(
                         {article.highlighted && <Chip label="📌 Editor's pick" size="small" sx={{
                           color: "warning"
                         }} />}
+                        {article.publishedAt && (
+                          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                            {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </Typography>
+                        )}
                       </Stack>
                       <Typography variant="h6" component="h2" gutterBottom>
                         <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
@@ -249,6 +272,19 @@ export default async function HomePage(
               </Stack>
             </Box>
           )}
+
+          <Box component="section" sx={{ mb: 4 }}>
+            <Typography variant="overline" sx={{ color: "text.secondary" }}>
+              Star Players
+            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}>
+              {TRACKED_PLAYERS.slice(0, 10).map((player) => (
+                <Link key={player.slug} href={`/player/${player.slug}`} style={{ textDecoration: "none" }}>
+                  <Chip label={player.name} size="small" variant="outlined" clickable />
+                </Link>
+              ))}
+            </Box>
+          </Box>
 
           {standings && standings.rows.length > 0 && (
             <Box component="section" sx={{ mb: 4 }}>
@@ -312,17 +348,17 @@ export default async function HomePage(
                           component="img"
                           src={article.heroImageUrl}
                           alt={article.title}
-                          sx={{ width: "100%", height: 160, objectFit: "cover", borderRadius: 1, mb: 1.5 }}
+                          sx={{ width: "100%", height: 160, objectFit: "cover", objectPosition: "top", borderRadius: 1, mb: 1.5 }}
                         />
                       ) : null}
-                      <Chip
-                        label={article.category}
-                        size="small"
-                        variant="outlined"
-                        sx={{
-                          color: "primary",
-                          mb: 1
-                        }} />
+                      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
+                        <Chip label={article.category} size="small" variant="outlined" sx={{ color: "primary" }} />
+                        {article.publishedAt && (
+                          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                            {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </Typography>
+                        )}
+                      </Stack>
                       <Typography variant="h6" component="h2" gutterBottom>
                         <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
                           {article.title}
@@ -430,7 +466,7 @@ export default async function HomePage(
                       component="img"
                       src={article.heroImageUrl}
                       alt={article.title}
-                      sx={{ width: "100%", height: 110, objectFit: "cover", borderRadius: 1, mb: 1 }}
+                      sx={{ width: "100%", height: 110, objectFit: "cover", objectPosition: "top", borderRadius: 1, mb: 1 }}
                     />
                   ) : null}
                   <Typography variant="subtitle2" component="h3" gutterBottom>

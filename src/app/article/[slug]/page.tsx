@@ -91,7 +91,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
             component="img"
             src={article.heroImageUrl}
             alt={article.title}
-            sx={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 1.5, display: "block" }}
+            sx={{ width: "100%", maxHeight: 460, objectFit: "cover", objectPosition: "top", borderRadius: 1.5, display: "block" }}
           />
           {article.heroImageCredit && (
             <Typography
@@ -124,6 +124,13 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
       <Typography variant="h4" component="h1" gutterBottom>
         {article.title}
       </Typography>
+      {article.publishedAt && (
+        <Typography variant="body2" sx={{ color: "text.secondary", mb: 2.5 }}>
+          {article.publishedAt.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+          {" · "}
+          {article.sourceName}
+        </Typography>
+      )}
 
       {(article.body ?? article.summary).split(/\n+/).filter(Boolean).map((paragraph, i) => (
         <Typography key={i} variant="body1" sx={{ mb: 2 }}>

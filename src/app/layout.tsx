@@ -3,6 +3,7 @@ import ThemeRegistry from "@/components/ThemeRegistry";
 import SiteHeader from "@/components/SiteHeader";
 import MatchTicker from "@/components/MatchTicker";
 import SiteFooter from "@/components/SiteFooter";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${poppins.variable} ${inter.variable}`}>
       <body>
+        <GoogleAnalytics />
         <ThemeRegistry>
           <SiteHeader />
           <MatchTicker />
