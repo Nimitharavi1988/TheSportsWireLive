@@ -8,9 +8,55 @@
  */
 import { db } from "../db";
 import type { RawMatchItem } from "./footballData";
+import { fetchCommonsFile } from "./wikimediaImages";
+import { matchCountry, isInternationalFormat, type CricketCountry } from "./cricketCountries";
 
 const BASE_URL = "https://api.cricapi.com/v1";
 const SOURCE_NAME = "CricketData.org";
+
+// Real national flags, reusing the same trusted, license-verified Wikimedia
+// pipeline as player photos, for genuinely international matches — team
+// crest data doesn't exist in this API tier the way it does for football, so
+// every cricket article was previously falling back to a generic,
+// frequently-repeated stock photo regardless of who was actually playing.
+// Cached per country within a single ingestion run since the same countries
+// (India, Australia, England...) recur across many matches in one run.
+const flagCache = new Map<string, Awaited<ReturnType<typeof fetchCommonsFile>>>();
+
+async function fetchFlag(country: CricketCountry) {
+  if (!flagCache.has(country.flagFile)) {
+    flagCache.set(country.flagFile, await fetchCommonsFile(country.flagFile));
+  }
+  return flagCache.get(country.flagFile)!;
+}
+
+// "TeamA vs TeamB, 12th Match, ..." — the consistent shape of `match.name`
+// across every sample seen from this API, both franchise and international.
+function extractTeams(matchName: string): [string, string] | null {
+  const m = matchName.match(/^(.+?)\s+vs\s+(.+?),/i);
+  return m ? [m[1].trim(), m[2].trim()] : null;
+}
+
+// Only sets real flags when the match is unambiguously international (by
+// standard cricket format terminology, not by team name alone) AND both team
+// names resolve exactly to a recognized national side — see
+// cricketCountries.ts for why this two-part check matters.
+async function fetchInternationalFlags(
+  matchName: string
+): Promise<{ homeCrestUrl?: string; awayCrestUrl?: string }> {
+  if (!isInternationalFormat(matchName)) return {};
+
+  const teams = extractTeams(matchName);
+  if (!teams) return {};
+
+  const [homeCountry, awayCountry] = teams.map(matchCountry);
+  if (!homeCountry || !awayCountry) return {};
+
+  const [homeFlag, awayFlag] = await Promise.all([fetchFlag(homeCountry), fetchFlag(awayCountry)]);
+  if (!homeFlag || !awayFlag) return {};
+
+  return { homeCrestUrl: homeFlag.url, awayCrestUrl: awayFlag.url };
+}
 
 // A single ingest run makes exactly one call here, so the real risk to the
 // 100 req/day free-tier cap is polling frequency, not per-run volume — cron
@@ -40,7 +86,17 @@ export async function fetchCricketData(): Promise<RawMatchItem[]> {
     return [];
   }
 
-  const res = await fetch(`${BASE_URL}/currentMatches?apikey=${apiKey}&offset=0`);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/currentMatches?apikey=${apiKey}&offset=0`);
+  } catch (err) {
+    // A network-level failure here (DNS, timeout, connection reset) must
+    // not throw — this call runs inside a Promise.all alongside
+    // football-data.org and RSS ingestion, so an uncaught rejection would
+    // take down the entire ingest run over one flaky source.
+    console.error("CricketData.org fetch failed (network error):", err);
+    return [];
+  }
 
   // Record the poll attempt regardless of outcome — a failed request still
   // consumes a slot against the daily quota.
@@ -89,6 +145,8 @@ export async function fetchCricketData(): Promise<RawMatchItem[]> {
     ].filter(Boolean);
     const body = bodyParts.join(" ");
 
+    const flags = await fetchInternationalFlags(title);
+
     items.push({
       title,
       summary,
@@ -97,6 +155,7 @@ export async function fetchCricketData(): Promise<RawMatchItem[]> {
       sourceName: "CricketData.org",
       category: "cricket",
       publishedAt: match.dateTimeGMT ? new Date(match.dateTimeGMT) : new Date(),
+      ...flags,
     });
   }
 

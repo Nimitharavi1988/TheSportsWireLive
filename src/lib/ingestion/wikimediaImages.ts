@@ -66,6 +66,20 @@ async function wikiFetch(url: string): Promise<any | null> {
   }
 }
 
+function buildCredit(meta: any, fileName: string, kind: "Photo" | "Image"): { credit: string; creditUrl: string } | null {
+  const licenseShortName: string = meta.LicenseShortName?.value ?? meta.License?.value ?? "";
+  if (!isFreeLicense(licenseShortName)) return null;
+
+  const artist = meta.Artist?.value ? stripHtml(meta.Artist.value) : "Unknown author";
+  const isPublicDomain = /cc0|public domain|^pd$/i.test(licenseShortName);
+  const credit = isPublicDomain
+    ? `${artist} (Public domain), via Wikimedia Commons`
+    : `${kind} by ${artist} (${licenseShortName}), via Wikimedia Commons`;
+  const creditUrl = `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(fileName)}`;
+
+  return { credit, creditUrl };
+}
+
 export async function fetchPersonPhoto(personName: string): Promise<StockImage | null> {
   try {
     // 1. Resolve the name to the best-matching Wikipedia article.
@@ -98,19 +112,43 @@ export async function fetchPersonPhoto(personName: string): Promise<StockImage |
     const meta = infoPage?.imageinfo?.[0]?.extmetadata;
     if (!meta) return null;
 
-    const licenseShortName: string = meta.LicenseShortName?.value ?? meta.License?.value ?? "";
-    if (!isFreeLicense(licenseShortName)) return null;
+    const licensed = buildCredit(meta, fileName, "Photo");
+    if (!licensed) return null;
 
-    const artist = meta.Artist?.value ? stripHtml(meta.Artist.value) : "Unknown author";
-    const isPublicDomain = /cc0|public domain|^pd$/i.test(licenseShortName);
-    const credit = isPublicDomain
-      ? `${artist} (Public domain), via Wikimedia Commons`
-      : `Photo by ${artist} (${licenseShortName}), via Wikimedia Commons`;
-    const creditUrl = `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(fileName)}`;
-
-    return { url: originalUrl, credit, creditUrl };
+    return { url: originalUrl, ...licensed };
   } catch (err) {
     console.error(`Wikimedia photo lookup failed for "${personName}":`, err);
+    return null;
+  }
+}
+
+// Fetches a SPECIFIC, already-known Commons file by exact title — unlike
+// fetchPersonPhoto, there's no article search/resolution step, since flag
+// filenames on Commons are curated by hand (see cricketCountries.ts) rather
+// than looked up by name. Still verifies the license before use — flag
+// *artwork* on Commons is virtually always public domain (national flags are
+// official government symbols), but we don't assume that, same policy as
+// every other image on this site.
+export async function fetchCommonsFile(fileTitle: string): Promise<StockImage | null> {
+  try {
+    const infoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(
+      "File:" + fileTitle
+    )}&prop=imageinfo&iiprop=url|extmetadata&format=json`;
+    const infoData = await wikiFetch(infoUrl);
+    const infoPage: any = infoData?.query?.pages ? Object.values(infoData.query.pages)[0] : null;
+    if (!infoPage || "missing" in infoPage) return null;
+
+    const info = infoPage?.imageinfo?.[0];
+    const url: string | undefined = info?.url;
+    const meta = info?.extmetadata;
+    if (!url || !meta) return null;
+
+    const licensed = buildCredit(meta, fileTitle, "Image");
+    if (!licensed) return null;
+
+    return { url, ...licensed };
+  } catch (err) {
+    console.error(`Wikimedia file lookup failed for "${fileTitle}":`, err);
     return null;
   }
 }

@@ -5,9 +5,10 @@ import { fetchCricketData } from "./cricketData";
 import { computeDedupeHash } from "./dedupe";
 import { runQualityChecks } from "./qualityCheck";
 import { fetchTrendingKeywords, computeTrendingScore } from "./trending";
-import { fetchStockImagePools, pickStockImage } from "./stockImages";
-import { generateCommentary } from "./commentary";
+import { fetchStockImagePools, createStockImagePicker } from "./stockImages";
+import { generateCommentary, generateMatchRecap } from "./commentary";
 import { fetchPersonPhoto } from "./wikimediaImages";
+import { competitionFromSummary } from "../teamNames";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -19,8 +20,21 @@ const COMMENTARY_DELAY_MS = 4500;
 // Cap real Gemini calls per ingestion run — cost/billing behavior on this
 // account isn't fully confirmed yet, so keep exposure small and predictable
 // until that's verified. Items beyond this cap fall back to the safe
-// default (headline + link), no API call made.
+// default (headline + link, or the bare match template), no API call made.
+// Match recaps get their own separate budget so a heavy match day (dozens of
+// football-data.org fixtures, which come first in the processing order) can
+// never starve the RSS commentary budget — the trending-sort prioritization
+// above depends on RSS items actually getting a turn.
 const MAX_COMMENTARY_PER_RUN = 10;
+const MAX_MATCH_RECAP_PER_RUN = 6;
+
+// football-data.org/CricketData.org items always arrive with `body` already
+// set to a template built from real match facts (see footballData.ts /
+// cricketData.ts) — that's the discriminator from RSS items, which only ever
+// set `sourceSnippet`.
+function isMatchDataSource(sourceName: string): boolean {
+  return sourceName === "football-data.org" || sourceName === "CricketData.org";
+}
 
 // Optional cap on how many new (non-duplicate) items to ingest in this run —
 // handy for a quick manual test without waiting through hundreds of
@@ -48,11 +62,13 @@ export async function runIngest() {
     (a, b) => computeTrendingScore(b.title, trendingKeywords) - computeTrendingScore(a.title, trendingKeywords)
   );
   const rawItems: RawMatchItem[] = [...scoreItems, ...sortedNewsItems, ...cricketItems];
+  const stockImagePicker = createStockImagePicker(stockImagePools);
 
   let ingested = 0;
   let duplicates = 0;
   let flagged = 0;
   let commentaryCalls = 0;
+  let matchRecapCalls = 0;
 
   for (const item of rawItems) {
     if (INGEST_LIMIT !== undefined && ingested >= INGEST_LIMIT) break;
@@ -69,10 +85,17 @@ export async function runIngest() {
     const trendingScore = computeTrendingScore(item.title, trendingKeywords);
     const slug = `${item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
 
-    let stockImage = item.homeCrestUrl ? null : pickStockImage(stockImagePools, item.category);
+    let stockImage = item.homeCrestUrl ? null : stockImagePicker.pick(item.category);
 
     let body = item.body;
-    if (!body && item.sourceSnippet && commentaryCalls < MAX_COMMENTARY_PER_RUN) {
+    if (body && isMatchDataSource(item.sourceName) && matchRecapCalls < MAX_MATCH_RECAP_PER_RUN) {
+      matchRecapCalls++;
+      const competitionName =
+        item.category === "cricket" ? "cricket" : competitionFromSummary(item.summary) ?? "football";
+      const recap = await generateMatchRecap(item.title, body, competitionName);
+      if (recap) body = recap;
+      await sleep(COMMENTARY_DELAY_MS);
+    } else if (!body && item.sourceSnippet && commentaryCalls < MAX_COMMENTARY_PER_RUN) {
       commentaryCalls++;
       const { commentary, personNames } = await generateCommentary(item.title, item.sourceSnippet, item.sourceName);
       if (commentary) body = commentary;
@@ -120,7 +143,8 @@ export async function runIngest() {
   }
 
   console.log(
-    `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${duplicates} duplicates skipped, ${commentaryCalls} commentary calls made. ` +
+    `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${duplicates} duplicates skipped, ` +
+    `${commentaryCalls} RSS commentary calls, ${matchRecapCalls} match recap calls. ` +
     `(${scoreItems.length} from football-data.org, ${newsItems.length} from RSS, ${cricketItems.length} from CricketData.org, ${trendingKeywords.length} trending keywords checked)`
   );
 }

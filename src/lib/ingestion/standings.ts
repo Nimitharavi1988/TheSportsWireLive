@@ -98,8 +98,16 @@ export async function fetchStandingsTable(
   competitionCode: string
 ): Promise<StandingsTable | null> {
   try {
+    // Called from every homepage/article/player/club page render with no
+    // caching, this was hitting the free tier's 10 requests/minute limit
+    // almost immediately under normal browsing — the widget would then
+    // silently render nothing (see the `!res.ok` branch below). Next.js's
+    // Data Cache reuses this response across all renders for 5 minutes,
+    // cutting real API calls from "once per page view" to "once per
+    // competition per 5 minutes" site-wide.
     const res = await fetch(`${BASE_URL}/competitions/${competitionCode}/standings`, {
       headers: { "X-Auth-Token": apiKey },
+      next: { revalidate: 300 },
     });
 
     if (!res.ok) return null;
