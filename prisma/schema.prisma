@@ -1,9 +1,16 @@
 // Prisma schema — matches the data model in the architecture plan.
 // Run `npx prisma migrate dev --name init` after setting DATABASE_URL in .env
 
+// "prisma-client" + engineType "client" is Prisma's Rust-free client (GA as
+// of 6.16.0) — required for Cloudflare Workers, which blocks the eval-based
+// dynamic code generation the classic Rust query engine relies on to
+// initialize (confirmed via a real deploy: EvalError inside
+// loadEngine/instantiateLibrary). No previewFeatures flag needed; this is
+// stable, not a preview feature.
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider   = "prisma-client"
+  output     = "../generated/prisma"
+  engineType = "client"
 }
 
 datasource db {

@@ -20,6 +20,10 @@ dist/
 .wrangler/
 cloudflare-env.d.ts
 
+# Prisma's generated client (Rust-free "client" engine output) — regenerated
+# by `prisma generate` (which the build command already runs), not committed
+generated/
+
 # misc
 .DS_Store
 *.log
