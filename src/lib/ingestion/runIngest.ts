@@ -20,19 +20,22 @@ const COMMENTARY_DELAY_MS = 4500;
 // Cap real Gemini calls per ingestion run. Billing IS linked on this account
 // (a card was added after Gemini's `generateContent` required one to work at
 // all), so this is real, if small, money — at gemini-2.5-flash pricing
-// (~$0.0009/call for a typical commentary request) a cap of 10 costs
-// roughly $0.009/run. Lowered from 20/6 (2026-09-07) to 10/4 (2026-09-09)
-// specifically to fit the ingestion pipeline under the Workers Free plan's
-// 50-subrequest-per-invocation hard cap alongside football-data.org/RSS/
-// trending/Wikimedia/DB — each Gemini and Wikimedia call is itself a
-// subrequest. A lower cap here also means a lower worst-case Wikimedia
-// photo-lookup count (bounded by commentary successes), and reduces cost.
+// (~$0.0009/call for a typical commentary request) a cap of 20 costs
+// roughly $0.018/run. Raised from the original 10 (2026-09-06) once that
+// cost was actually computed and accepted (2026-09-07) — was previously
+// leaving the large majority of RSS articles in a given run (144 of 154 in
+// one real run) with no generated body at all, just the generic fallback
+// summary line. (Briefly lowered to 10/4 on 2026-09-09 to fit Cloudflare
+// Workers Free's subrequest cap while ingestion ran inside the Worker —
+// restored now that ingestion runs directly on the GitHub Actions runner
+// instead, which has no such limit.) Revisit again once real billing data
+// from a few runs comes back from the Google Cloud usage page.
 // Match recaps get their own separate budget so a heavy match day (dozens of
 // football-data.org fixtures, which come first in the processing order) can
 // never starve the RSS commentary budget — the trending-sort prioritization
 // above depends on RSS items actually getting a turn.
-const MAX_COMMENTARY_PER_RUN = 10;
-const MAX_MATCH_RECAP_PER_RUN = 4;
+const MAX_COMMENTARY_PER_RUN = 20;
+const MAX_MATCH_RECAP_PER_RUN = 6;
 
 // football-data.org/CricketData.org items always arrive with `body` already
 // set to a template built from real match facts (see footballData.ts /

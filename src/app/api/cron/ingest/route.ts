@@ -1,11 +1,17 @@
 /**
- * Cron entry point for ingestion. On shared hosting, set up a cron job
- * that hits this URL on a schedule, e.g. every 15 minutes:
+ * Manual/legacy ingestion trigger:
  *
  *   curl -H "Authorization: Bearer $CRON_SECRET" https://yourdomain.com/api/cron/ingest
  *
- * The CRON_SECRET check stops randoms from triggering your ingestion
- * (and racking up API calls) by hitting this URL directly.
+ * NOT used by the automated cron anymore — .github/workflows/ingest-cron.yml
+ * runs runIngest() directly on the GitHub Actions runner instead, since
+ * Cloudflare Workers Free caps every request at 10ms of CPU time (not
+ * wall-clock — fetch/sleep waiting doesn't count), which a real batch of
+ * RSS/match items can't realistically fit into. This route will very likely
+ * still fail with the same CPU-time error if called on the Free plan; it's
+ * kept only as a manual trigger for whenever the Workers plan is upgraded.
+ * The CRON_SECRET check stops randoms from triggering ingestion (and racking
+ * up API calls) by hitting this URL directly.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { runIngest } from "@/lib/ingestion/runIngest";
@@ -21,16 +27,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("Cron ingest failed:", err);
-    // TEMPORARY — echo the real error back to the (already CRON_SECRET-
-    // authenticated) caller so it can be diagnosed without needing
-    // Cloudflare dashboard log access. Remove once root-caused.
-    return NextResponse.json(
-      {
-        error: "Ingest failed",
-        detail: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack?.slice(0, 2000) : undefined,
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Ingest failed" }, { status: 500 });
   }
 }

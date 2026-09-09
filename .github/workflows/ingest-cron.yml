@@ -6,10 +6,24 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  trigger-ingest:
+  run-ingest:
     runs-on: ubuntu-latest
     steps:
-      - name: Call ingestion endpoint
-        run: |
-          curl -sf -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "${{ secrets.SITE_URL }}/api/cron/ingest"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      # Runs ingestion directly on the GitHub Actions runner instead of via
+      # the Cloudflare Worker's /api/cron/ingest endpoint — Workers Free
+      # caps every request at 10ms of *CPU* time (not wall-clock; fetch/
+      # sleep waiting doesn't count), which processing hundreds of RSS/
+      # match items can't realistically fit into regardless of subrequest
+      # optimization. GitHub Actions runners have no such limit.
+      - run: npx tsx src/lib/ingestion/runIngest.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
+          CRICKETDATA_API_KEY: ${{ secrets.CRICKETDATA_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
