@@ -21,6 +21,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("Cron ingest failed:", err);
-    return NextResponse.json({ error: "Ingest failed" }, { status: 500 });
+    // TEMPORARY — echo the real error back to the (already CRON_SECRET-
+    // authenticated) caller so it can be diagnosed without needing
+    // Cloudflare dashboard log access. Remove once root-caused.
+    return NextResponse.json(
+      {
+        error: "Ingest failed",
+        detail: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack?.slice(0, 2000) : undefined,
+      },
+      { status: 500 }
+    );
   }
 }
