@@ -13,6 +13,7 @@ import { fetchOneStockImage } from "@/lib/ingestion/stockImages";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 import { crestAltText, competitionFromSummary } from "@/lib/teamNames";
 import { displaySummary } from "@/lib/articleSummary";
+import { EVENT_KEYWORDS } from "@/lib/eventKeywords";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { StandingsCarousel } from "@/components/StandingsCarousel";
 import { SUPERSTAR_SEARCH_TERMS, TRACKED_PLAYERS } from "@/lib/players";
@@ -53,28 +54,9 @@ export const revalidate = 60;
 
 const RSS_SOURCES = ["BBC Sport", "The Guardian", "Sky Sports", "ESPN Cricinfo"];
 
-// Simple keyword match to surface transfer/retirement stories in their own
-// highlighted section — these tend to be the highest-interest RSS stories.
-// This catches stories by EVENT TYPE (words that show up in the headline
-// regardless of who the story is about) — living config, add to it as gaps
-// are found in the review queue.
-const HIGHLIGHT_KEYWORDS = [
-  "transfer", "sign", "signing", "signs", "deal", "retire", "retirement",
-  "retires", "quits", "quit", "move to", "confirmed", "departure", "leave",
-  "leaves", "exit", "farewell",
-  // Deaths/tributes of sports figures are exactly the kind of major story
-  // this section exists to surface — real sports journalism, not gossip.
-  "dies", "dead at", "death of", "passes away", "obituary", "tribute",
-  "tributes",
-  // Records/milestones — another class of story that's always high-interest
-  // regardless of which player it's about.
-  "record", "milestone", "history", "historic", "breaks", "first player",
-  "youngest", "oldest", "hat-trick", "hat trick",
-];
-
 function isHighlightWorthy(title: string): boolean {
   const lower = title.toLowerCase();
-  if (HIGHLIGHT_KEYWORDS.some((kw) => lower.includes(kw))) return true;
+  if (EVENT_KEYWORDS.some((kw) => lower.includes(kw))) return true;
   // Unlike HIGHLIGHT_KEYWORDS, this catches stories by WHO they're about —
   // "record" or "transfer" shows up literally in a headline, but a match
   // report or interview about a superstar player often doesn't contain any

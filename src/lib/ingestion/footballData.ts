@@ -15,6 +15,27 @@ const COMPETITIONS = [
   "PL", "ELC", "BL1", "DED", "BSA", "PD", "FL1", "SA", "PPL", "CL", "EC", "WC",
 ];
 
+// Cloudflare Workers Free caps each invocation at 50 outbound subrequests
+// (hard platform limit, not configurable without the paid plan — see
+// https://developers.cloudflare.com/workers/wrangler/configuration/#limits).
+// All 12 competitions x 3 calls each (standings + finished + scheduled) is
+// 36 subrequests on its own, before RSS/cricket/trending/Gemini/Wikimedia/DB
+// even run — reliably over the cap by itself. Sharding into 3 rotating
+// groups of 4 keeps each run's football-data.org footprint to ~12 typical
+// (comfortably under budget alongside everything else), at the cost of a
+// full 12-competition sweep taking ~3 runs (~90 min at the current 30-min
+// cron interval) to complete instead of every single run. Deterministic on
+// wall-clock time rather than persisted state, since a Workers invocation
+// can't reliably assume the same isolate (and its in-memory state) handles
+// the next run.
+const SHARD_COUNT = 3;
+const SHARD_INTERVAL_MS = 30 * 60 * 1000; // matches the cron schedule
+
+function currentShard(): string[] {
+  const shardIndex = Math.floor(Date.now() / SHARD_INTERVAL_MS) % SHARD_COUNT;
+  return COMPETITIONS.filter((_, i) => i % SHARD_COUNT === shardIndex);
+}
+
 // Stay well under the free tier's 10 requests/minute limit.
 const REQUEST_DELAY_MS = 7000;
 
@@ -171,7 +192,7 @@ export async function fetchFootballData(): Promise<RawMatchItem[]> {
   const { dateFromPast, dateToPast, dateFromFuture, dateToFuture } = dateRange();
   const items: RawMatchItem[] = [];
 
-  for (const competitionCode of COMPETITIONS) {
+  for (const competitionCode of currentShard()) {
     // Real league-table context (position, points, form) — not every
     // competition/stage has one (e.g. knockout-only rounds), in which case
     // this comes back empty and match articles just skip the extra context.
