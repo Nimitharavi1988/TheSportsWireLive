@@ -12,6 +12,7 @@ import Divider from "@mui/material/Divider";
 import { fetchOneStockImage } from "@/lib/ingestion/stockImages";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 import { crestAltText, competitionFromSummary } from "@/lib/teamNames";
+import { displaySummary } from "@/lib/articleSummary";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { StandingsCarousel } from "@/components/StandingsCarousel";
 import { SUPERSTAR_SEARCH_TERMS, TRACKED_PLAYERS } from "@/lib/players";
@@ -120,14 +121,6 @@ export default async function HomePage(
 ) {
   const searchParams = await props.searchParams;
   const category = searchParams.category;
-
-  // TEMPORARY diagnostic — per-request (unlike db.ts's module-scope check,
-  // which only runs once per Worker isolate cold start and was getting
-  // missed in the log stream). Never logs the secret itself.
-  const dbUrl = process.env.DATABASE_URL ?? "";
-  console.error(
-    `[DIAGNOSTIC-PER-REQUEST] DATABASE_URL prefix: "${dbUrl.slice(0, 15)}" | length: ${dbUrl.length}`
-  );
 
   const articles = await db.article.findMany({
     where: {
@@ -510,7 +503,7 @@ export default async function HomePage(
               slides={heroSlides.map(({ article, banner }) => ({
                 slug: article.slug,
                 title: article.title,
-                summary: article.summary,
+                summary: displaySummary(article, 260),
                 heroImageUrl: article.heroImageUrl,
                 homeCrestUrl: article.homeCrestUrl,
                 awayCrestUrl: article.awayCrestUrl,
@@ -723,7 +716,7 @@ export default async function HomePage(
                       <Typography variant="body2" sx={{
                         color: "text.secondary"
                       }}>
-                        {article.summary}
+                        {displaySummary(article)}
                       </Typography>
                     </CardContent>
                   </Card>

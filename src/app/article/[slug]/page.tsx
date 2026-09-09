@@ -17,6 +17,7 @@ import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { TRACKED_PLAYERS } from "@/lib/players";
 import { TRACKED_CLUBS } from "@/lib/clubs";
+import { displaySummary } from "@/lib/articleSummary";
 
 export const revalidate = 60;
 
@@ -24,19 +25,21 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
   const params = await props.params;
   const article = await db.article.findUnique({ where: { slug: params.slug } });
   if (!article) return {};
+  // 160 chars — the length search engines actually display before truncating.
+  const description = displaySummary(article, 160);
   return {
     title: article.title,
-    description: article.summary,
+    description,
     alternates: { canonical: `/article/${article.slug}` },
     openGraph: {
       title: article.title,
-      description: article.summary,
+      description,
       type: "article",
       url: `/article/${article.slug}`,
     },
     twitter: {
       title: article.title,
-      description: article.summary,
+      description,
     },
   };
 }
@@ -62,7 +65,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
     headline: article.title,
     datePublished: article.publishedAt,
     articleSection: article.category,
-    description: article.summary,
+    description: displaySummary(article, 160),
     ...(article.heroImageUrl ? { image: [article.heroImageUrl] } : {}),
     publisher: { "@type": "Organization", name: "Sports Wire Live" },
   };

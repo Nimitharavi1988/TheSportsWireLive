@@ -21,6 +21,7 @@ import CardContent from "@mui/material/CardContent";
 import CardActions from "@mui/material/CardActions";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
+import { displaySummary } from "@/lib/articleSummary";
 
 export default async function AdminQueuePage(
   props: {
@@ -181,7 +182,7 @@ export default async function AdminQueuePage(
                   color: "text.secondary",
                   mb: 1
                 }}>
-                {article.summary}
+                {displaySummary(article)}
               </Typography>
               <a href={article.sourceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: "inherit" }}>
                 Source ↗

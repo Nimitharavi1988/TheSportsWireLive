@@ -9,6 +9,7 @@ import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { ArticleThumb } from "@/components/ArticleThumb";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { displaySummary } from "@/lib/articleSummary";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
@@ -124,7 +125,7 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
                             {article.title}
                           </Typography>
                           <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                            {article.summary}
+                            {displaySummary(article)}
                           </Typography>
                         </Box>
                       </Stack>

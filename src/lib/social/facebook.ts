@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { displaySummary } from "@/lib/articleSummary";
 
 // Isolated social publisher: posts an approved article to the Facebook Page
 // configured for its vertical (each product/vertical can post to its own
@@ -22,7 +23,7 @@ export async function postArticleToFacebook(articleId: string) {
 
   const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
   const link = `${siteUrl}/article/${article.slug}`;
-  const message = `${article.title}\n\n${article.summary}`;
+  const message = `${article.title}\n\n${displaySummary(article, 400)}`;
 
   const socialPost = await db.socialPost.create({
     data: { articleId, platform: "facebook", status: "queued" },

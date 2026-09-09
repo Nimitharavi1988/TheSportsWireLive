@@ -22,15 +22,6 @@ const databaseUrl = process.env.DATABASE_URL ?? "";
 //    (60k/month) on local development traffic.
 const isAccelerate = databaseUrl.startsWith("prisma://") || databaseUrl.startsWith("prisma+postgres://");
 
-// TEMPORARY diagnostic — remove once the Cloudflare env var issue is
-// resolved. Logs only the connection string's scheme/first 15 chars (never
-// the secret itself) so we can confirm from Workers Logs whether the
-// deployed Worker is actually seeing the Accelerate URL at runtime, rather
-// than continuing to guess about dashboard environment scoping.
-console.error(
-  `[DIAGNOSTIC] DATABASE_URL prefix: "${databaseUrl.slice(0, 15)}" | length: ${databaseUrl.length} | isAccelerate: ${isAccelerate}`
-);
-
 function createClient(): PrismaClient {
   if (isAccelerate) {
     // The extended client is a strict superset (same base model methods,
