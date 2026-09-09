@@ -70,6 +70,25 @@ export async function runIngest() {
   const rawItems: RawMatchItem[] = [...scoreItems, ...sortedNewsItems, ...cricketItems];
   const stockImagePicker = createStockImagePicker(stockImagePools);
 
+  // Cloudflare Workers caps outbound subrequests per invocation, and every
+  // Prisma call here goes over HTTPS via Accelerate — so a per-item
+  // db.article.findUnique() dedupe check (one subrequest per raw item, and
+  // the RSS/football-data/cricket feeds return hundreds on every run, not
+  // just new ones) reliably blew that cap and failed the cron on every
+  // single run. One batched lookup up front replaces all of those with a
+  // single subrequest; the set is updated in-memory as items are ingested
+  // so within-run duplicates (two sources reporting the same story) are
+  // still caught without a query each.
+  const allHashes = rawItems.map((item) => computeDedupeHash(item.title, item.publishedAt));
+  const existingHashes = new Set(
+    (
+      await db.article.findMany({
+        where: { dedupeHash: { in: allHashes } },
+        select: { dedupeHash: true },
+      })
+    ).map((a) => a.dedupeHash)
+  );
+
   let ingested = 0;
   let duplicates = 0;
   let flagged = 0;
@@ -81,11 +100,11 @@ export async function runIngest() {
 
     const dedupeHash = computeDedupeHash(item.title, item.publishedAt);
 
-    const existing = await db.article.findUnique({ where: { dedupeHash } });
-    if (existing) {
+    if (existingHashes.has(dedupeHash)) {
       duplicates++;
       continue;
     }
+    existingHashes.add(dedupeHash);
 
     const quality = runQualityChecks(item.title, item.summary);
     const trendingScore = computeTrendingScore(item.title, trendingKeywords);
