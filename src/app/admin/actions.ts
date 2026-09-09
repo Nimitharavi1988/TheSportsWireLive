@@ -31,6 +31,29 @@ export async function approveArticle(articleId: string) {
   revalidatePath("/admin");
 }
 
+// Bulk approve from the multi-select queue UI. Unlike the single-article
+// approveArticle above, this deliberately skips the per-article Facebook
+// post — auto-posting dozens of articles to the Page in one shot at once
+// isn't something an admin selecting a batch is necessarily asking for.
+export async function approveArticles(articleIds: string[]) {
+  const session = await getSession();
+  if (!session) throw new Error("Not authenticated");
+  if (articleIds.length === 0) return;
+
+  const now = new Date();
+  await db.article.updateMany({
+    where: { id: { in: articleIds } },
+    data: {
+      status: "published",
+      publishedAt: now,
+      reviewedBy: session.userId,
+      reviewedAt: now,
+    },
+  });
+
+  revalidatePath("/admin");
+}
+
 export async function rejectArticle(articleId: string, reason?: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");

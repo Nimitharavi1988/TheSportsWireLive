@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import {
   approveArticle,
+  approveArticles,
   rejectArticle,
   featureArticle,
   unfeatureArticle,
@@ -17,11 +18,8 @@ import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import CardActions from "@mui/material/CardActions";
-import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
-import { displaySummary } from "@/lib/articleSummary";
+import { ArticleQueueClient } from "./ArticleQueueClient";
 
 export default async function AdminQueuePage(
   props: {
@@ -139,87 +137,17 @@ export default async function AdminQueuePage(
         </Typography>
       )}
 
-      <Stack spacing={2}>
-        {list.map((article) => (
-          <Card key={article.id} variant="outlined" sx={article.featured ? { borderColor: "primary.main", borderWidth: 2 } : undefined}>
-            <CardContent>
-              <Stack
-                direction="row"
-                spacing={1}
-                sx={{
-                  alignItems: "center",
-                  mb: 1
-                }}>
-                <Typography variant="caption" sx={{
-                  color: "text.secondary"
-                }}>
-                  {article.category} · {article.sourceName}
-                  {status === "published" && article.reviewedAt && (
-                    <> · Approved {article.reviewedAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</>
-                  )}
-                  {status === "pending_review" && (
-                    <> · Submitted {article.createdAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</>
-                  )}
-                </Typography>
-                {article.featured && <Chip label="★ Featured hero" size="small" sx={{
-                  color: "primary"
-                }} />}
-                {article.highlighted && <Chip label="📌 Highlighted" size="small" sx={{
-                  color: "warning"
-                }} />}
-                {article.readabilityScore != null && article.readabilityScore < 40 && (
-                  <Chip label="low readability score" size="small" variant="outlined" sx={{
-                    color: "warning"
-                  }} />
-                )}
-              </Stack>
-              <Typography variant="h6" component="h2" gutterBottom>
-                {article.title}
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: "text.secondary",
-                  mb: 1
-                }}>
-                {displaySummary(article)}
-              </Typography>
-              <a href={article.sourceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: "inherit" }}>
-                Source ↗
-              </a>
-            </CardContent>
-            <CardActions sx={{ px: 2, pb: 2, flexWrap: "wrap" }}>
-              {status === "pending_review" ? (
-                <>
-                  <form action={approveArticle.bind(null, article.id)}>
-                    <Button type="submit" variant="contained" color="success">Approve</Button>
-                  </form>
-                  <form action={rejectArticle.bind(null, article.id, undefined)}>
-                    <Button type="submit" variant="outlined" color="inherit">Reject</Button>
-                  </form>
-                </>
-              ) : article.featured ? (
-                <form action={unfeatureArticle.bind(null, article.id)}>
-                  <Button type="submit" variant="outlined" color="inherit">Remove as hero</Button>
-                </form>
-              ) : (
-                <form action={featureArticle.bind(null, article.id)}>
-                  <Button type="submit" variant="contained">Feature as hero</Button>
-                </form>
-              )}
-              {article.highlighted ? (
-                <form action={unhighlightArticle.bind(null, article.id)}>
-                  <Button type="submit" variant="outlined" color="warning">Remove highlight</Button>
-                </form>
-              ) : (
-                <form action={highlightArticle.bind(null, article.id)}>
-                  <Button type="submit" variant="outlined" color="warning">Highlight (transfers/big news)</Button>
-                </form>
-              )}
-            </CardActions>
-          </Card>
-        ))}
-      </Stack>
+      <ArticleQueueClient
+        articles={list}
+        status={status}
+        approveArticle={approveArticle}
+        approveArticles={approveArticles}
+        rejectArticle={rejectArticle}
+        featureArticle={featureArticle}
+        unfeatureArticle={unfeatureArticle}
+        highlightArticle={highlightArticle}
+        unhighlightArticle={unhighlightArticle}
+      />
 
       {flagged.length > 0 && (
         <Box sx={{ mt: 5 }}>
