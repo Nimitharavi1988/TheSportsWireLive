@@ -153,6 +153,12 @@ export default async function AdminQueuePage(
                   color: "text.secondary"
                 }}>
                   {article.category} · {article.sourceName}
+                  {status === "published" && article.reviewedAt && (
+                    <> · Approved {article.reviewedAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</>
+                  )}
+                  {status === "pending_review" && (
+                    <> · Submitted {article.createdAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</>
+                  )}
                 </Typography>
                 {article.featured && <Chip label="★ Featured hero" size="small" sx={{
                   color: "primary"
