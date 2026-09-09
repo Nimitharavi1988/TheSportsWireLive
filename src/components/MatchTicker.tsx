@@ -63,6 +63,12 @@ export default async function MatchTicker() {
   return (
     <Box
       sx={{
+        // Hidden below `sm` — a horizontally-scrolling marquee needs real
+        // width to read well, and on a narrow phone screen it was eating
+        // the entire top of the page (team names cut off mid-scroll) before
+        // any actual headline. The same results already appear properly,
+        // full-width, in the "Match Results & Previews" section below.
+        display: { xs: "none", sm: "block" },
         bgcolor: "#e9f1ec",
         borderBottom: "1px solid",
         borderColor: "divider",

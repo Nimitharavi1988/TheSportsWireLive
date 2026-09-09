@@ -317,6 +317,13 @@ export default async function HomePage(
             component="aside"
             sx={{
               gridColumn: { xs: "1 / -1", md: "1 / -1", lg: "1" },
+              // On mobile/tablet (single column), this sidebar comes before
+              // <main> in the source, so without an explicit order it was
+              // rendering above the hero story and all headlines — pushing
+              // real content below the fold under a standings table. Push it
+              // after main there; lg has its own explicit column already so
+              // order doesn't affect that layout.
+              order: { xs: 2, lg: 0 },
               position: { lg: "sticky" },
               // 68px sticky header + a 16px gap — without this it sticks at
               // the old top:32 offset and slides up underneath the header.
