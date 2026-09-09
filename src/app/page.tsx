@@ -121,6 +121,14 @@ export default async function HomePage(
   const searchParams = await props.searchParams;
   const category = searchParams.category;
 
+  // TEMPORARY diagnostic — per-request (unlike db.ts's module-scope check,
+  // which only runs once per Worker isolate cold start and was getting
+  // missed in the log stream). Never logs the secret itself.
+  const dbUrl = process.env.DATABASE_URL ?? "";
+  console.error(
+    `[DIAGNOSTIC-PER-REQUEST] DATABASE_URL prefix: "${dbUrl.slice(0, 15)}" | length: ${dbUrl.length}`
+  );
+
   const articles = await db.article.findMany({
     where: {
       status: "published",
