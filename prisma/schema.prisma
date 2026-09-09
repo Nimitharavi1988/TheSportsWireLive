@@ -1,16 +1,18 @@
 // Prisma schema — matches the data model in the architecture plan.
 // Run `npx prisma migrate dev --name init` after setting DATABASE_URL in .env
 
-// "prisma-client" + engineType "client" is Prisma's Rust-free client (GA as
-// of 6.16.0) — required for Cloudflare Workers, which blocks the eval-based
-// dynamic code generation the classic Rust query engine relies on to
-// initialize (confirmed via a real deploy: EvalError inside
-// loadEngine/instantiateLibrary). No previewFeatures flag needed; this is
-// stable, not a preview feature.
+// Deliberately NOT setting engineType = "client" — that mode's WASM query
+// compiler is intrinsic to the generated code (not a separate downloadable
+// file), so `prisma generate --no-engine` can't strip it out; confirmed via
+// a real deploy that still hit the same WASM compile crash on Cloudflare
+// Workers even with --no-engine. The classic engine (this default) plus
+// `--no-engine` on the Cloudflare build specifically produces a client with
+// zero local engine at all, for Accelerate. Locally, the classic engine
+// works fine via `prisma generate` (no flag) with the Neon driver adapter —
+// Node.js has none of the eval/WASM restrictions Workers has.
 generator client {
-  provider   = "prisma-client"
-  output     = "../generated/prisma"
-  engineType = "client"
+  provider = "prisma-client"
+  output   = "../generated/prisma"
 }
 
 datasource db {
