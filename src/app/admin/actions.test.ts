@@ -1,0 +1,290 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+const {
+  mockGetSession,
+  mockUpdate,
+  mockUpdateMany,
+  mockFindMany,
+  mockPostArticleToFacebook,
+  mockRevalidatePath,
+} = vi.hoisted(() => ({
+  mockGetSession: vi.fn(),
+  mockUpdate: vi.fn(),
+  mockUpdateMany: vi.fn(),
+  mockFindMany: vi.fn(),
+  mockPostArticleToFacebook: vi.fn(),
+  mockRevalidatePath: vi.fn(),
+}));
+
+vi.mock("@/lib/db", () => ({
+  db: {
+    article: {
+      update: mockUpdate,
+      updateMany: mockUpdateMany,
+      findMany: mockFindMany,
+    },
+  },
+}));
+vi.mock("@/lib/auth", () => ({ getSession: mockGetSession }));
+vi.mock("@/lib/social/facebook", () => ({ postArticleToFacebook: mockPostArticleToFacebook }));
+vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
+
+import {
+  approveArticle,
+  approveArticles,
+  rejectArticle,
+  featureArticle,
+  unfeatureArticle,
+  highlightArticle,
+  unhighlightArticle,
+  unflagArticle,
+} from "./actions";
+import { HERO_CAP } from "@/lib/heroConfig";
+
+const SESSION = { userId: "admin-1" };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockGetSession.mockResolvedValue(SESSION);
+  mockUpdate.mockResolvedValue({});
+  mockUpdateMany.mockResolvedValue({ count: 0 });
+  mockFindMany.mockResolvedValue([]);
+  mockPostArticleToFacebook.mockResolvedValue(undefined);
+});
+
+describe("approveArticle", () => {
+  it("throws and makes no changes when not authenticated", async () => {
+    mockGetSession.mockResolvedValue(null);
+    await expect(approveArticle("a1")).rejects.toThrow("Not authenticated");
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("publishes the article, stamping reviewer/publish info", async () => {
+    await approveArticle("a1");
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "a1" },
+      data: expect.objectContaining({
+        status: "published",
+        reviewedBy: SESSION.userId,
+        publishedAt: expect.any(Date),
+        reviewedAt: expect.any(Date),
+      }),
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/admin");
+  });
+
+  it("posts to Facebook after approving", async () => {
+    await approveArticle("a1");
+    expect(mockPostArticleToFacebook).toHaveBeenCalledWith("a1");
+  });
+
+  it("still succeeds when the Facebook post fails", async () => {
+    mockPostArticleToFacebook.mockRejectedValue(new Error("FB API down"));
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(approveArticle("a1")).resolves.toBeUndefined();
+    expect(mockUpdate).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+});
+
+describe("approveArticles (bulk)", () => {
+  it("throws and makes no changes when not authenticated", async () => {
+    mockGetSession.mockResolvedValue(null);
+    await expect(approveArticles(["a1", "a2"])).rejects.toThrow("Not authenticated");
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("no-ops on an empty selection", async () => {
+    await approveArticles([]);
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("publishes every selected article in one updateMany call", async () => {
+    await approveArticles(["a1", "a2", "a3"]);
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["a1", "a2", "a3"] } },
+      data: expect.objectContaining({
+        status: "published",
+        reviewedBy: SESSION.userId,
+        publishedAt: expect.any(Date),
+        reviewedAt: expect.any(Date),
+      }),
+    });
+  });
+
+  it("never posts to Facebook, unlike single approve", async () => {
+    await approveArticles(["a1", "a2"]);
+    expect(mockPostArticleToFacebook).not.toHaveBeenCalled();
+  });
+});
+
+describe("rejectArticle", () => {
+  it("throws and makes no changes when not authenticated", async () => {
+    mockGetSession.mockResolvedValue(null);
+    await expect(rejectArticle("a1")).rejects.toThrow("Not authenticated");
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("marks the article rejected with no reason given", async () => {
+    await rejectArticle("a1");
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "a1" },
+      data: expect.objectContaining({ status: "rejected", profanityDetail: undefined }),
+    });
+  });
+
+  it("records the reason when one is given", async () => {
+    await rejectArticle("a1", "duplicate story");
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "a1" },
+      data: expect.objectContaining({ profanityDetail: "duplicate story" }),
+    });
+  });
+});
+
+describe("featureArticle (hero pick, cap-enforced)", () => {
+  it("throws and makes no changes when not authenticated", async () => {
+    mockGetSession.mockResolvedValue(null);
+    await expect(featureArticle("a1")).rejects.toThrow("Not authenticated");
+    expect(mockFindMany).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("picks the article with no retirement when under the cap", async () => {
+    mockFindMany.mockResolvedValue([{ id: "x1" }, { id: "x2" }]); // 2 < HERO_CAP
+    await featureArticle("new1");
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "new1" },
+      data: { featured: true, featuredAt: expect.any(Date) },
+    });
+  });
+
+  it("retires the oldest pick when adding a new one at the cap", async () => {
+    const currentlyFeatured = Array.from({ length: HERO_CAP }, (_, i) => ({ id: `x${i}` }));
+    mockFindMany.mockResolvedValue(currentlyFeatured); // already at HERO_CAP, oldest-first order
+    await featureArticle("new1");
+
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { featured: true }, orderBy: { featuredAt: "asc" } })
+    );
+    expect(mockUpdate).toHaveBeenCalledTimes(2);
+    // Oldest (first in the asc-ordered list) is retired first...
+    expect(mockUpdate).toHaveBeenNthCalledWith(1, {
+      where: { id: "x0" },
+      data: { featured: false, featuredAt: null },
+    });
+    // ...then the new pick is added.
+    expect(mockUpdate).toHaveBeenNthCalledWith(2, {
+      where: { id: "new1" },
+      data: { featured: true, featuredAt: expect.any(Date) },
+    });
+  });
+
+  it("re-picking an article already at the cap just refreshes its timestamp, retiring nobody", async () => {
+    const currentlyFeatured = Array.from({ length: HERO_CAP }, (_, i) => ({ id: `x${i}` }));
+    mockFindMany.mockResolvedValue(currentlyFeatured);
+    await featureArticle("x2"); // already one of the 5 currently featured
+
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "x2" },
+      data: { featured: true, featuredAt: expect.any(Date) },
+    });
+  });
+
+  it("revalidates the admin queue, the homepage manager, and the public homepage", async () => {
+    await featureArticle("a1");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/admin");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/admin/homepage");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/");
+  });
+});
+
+describe("unfeatureArticle", () => {
+  it("throws and makes no changes when not authenticated", async () => {
+    mockGetSession.mockResolvedValue(null);
+    await expect(unfeatureArticle("a1")).rejects.toThrow("Not authenticated");
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("clears both the flag and its timestamp", async () => {
+    await unfeatureArticle("a1");
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "a1" },
+      data: { featured: false, featuredAt: null },
+    });
+  });
+});
+
+describe("highlightArticle / unhighlightArticle", () => {
+  it("highlightArticle throws and makes no changes when not authenticated", async () => {
+    mockGetSession.mockResolvedValue(null);
+    await expect(highlightArticle("a1")).rejects.toThrow("Not authenticated");
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("highlightArticle sets the flag and a fresh timestamp", async () => {
+    await highlightArticle("a1");
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "a1" },
+      data: { highlighted: true, highlightedAt: expect.any(Date) },
+    });
+  });
+
+  it("unhighlightArticle clears both the flag and its timestamp", async () => {
+    await unhighlightArticle("a1");
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "a1" },
+      data: { highlighted: false, highlightedAt: null },
+    });
+  });
+
+  it("highlighting has no cap and never touches the hero findMany check", async () => {
+    await highlightArticle("a1");
+    expect(mockFindMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("unflagArticle", () => {
+  it("throws and makes no changes when not authenticated", async () => {
+    mockGetSession.mockResolvedValue(null);
+    await expect(unflagArticle("a1")).rejects.toThrow("Not authenticated");
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("sends the article back to pending_review", async () => {
+    await unflagArticle("a1");
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "a1" },
+      data: { status: "pending_review" },
+    });
+  });
+});
+
+describe("combined workflows", () => {
+  it("feature-then-approve leaves the article featured after publishing (approve never touches featured/highlighted)", async () => {
+    // Simulates picking "Feature as hero" on a still-pending article, then
+    // hitting Approve — the two actions touch disjoint fields, so the hero
+    // pick made pre-approval should survive the publish untouched.
+    await featureArticle("a1");
+    await approveArticle("a1");
+
+    const approveCall = mockUpdate.mock.calls.find(
+      ([args]) => args.where.id === "a1" && args.data.status === "published"
+    );
+    expect(approveCall).toBeDefined();
+    expect(approveCall![0].data).not.toHaveProperty("featured");
+    expect(approveCall![0].data).not.toHaveProperty("highlighted");
+  });
+
+  it("bulk-approving a batch that includes an already-featured article does not touch its hero pick", async () => {
+    await approveArticles(["a1", "a2", "a3"]);
+    expect(mockUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({ featured: expect.anything(), highlighted: expect.anything() }),
+      })
+    );
+  });
+});

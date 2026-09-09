@@ -79,8 +79,10 @@ model Article {
   heroImageUrl     String?        // generic stock photo, for articles with no crest (e.g. RSS news)
   heroImageCredit  String?        // "Photo by {name} on Pexels" — required attribution text
   heroImageCreditUrl String?      // link to the photographer's Pexels profile
-  featured         Boolean        @default(false) // manually picked by an admin as the homepage hero; falls back to automatic ranking when no article has this set
+  featured         Boolean        @default(false) // manually picked for the homepage hero carousel — up to 5 at a time, oldest pick auto-retired when a 6th is added; auto-fills with top trending stories when fewer than 5 are picked
+  featuredAt       DateTime?      // when this pick was made — determines hero order (latest first) and which pick gets retired when the cap is exceeded
   highlighted      Boolean        @default(false) // manually pinned into "Transfers & Big News"; adds to (doesn't replace) the automatic keyword match
+  highlightedAt    DateTime?      // when this pick was made — determines display order (latest first) among highlighted articles
   socialPosts      SocialPost[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt

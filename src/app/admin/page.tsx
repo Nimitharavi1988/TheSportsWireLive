@@ -19,6 +19,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import Stack from "@mui/material/Stack";
+import Link from "next/link";
 import { ArticleQueueClient } from "./ArticleQueueClient";
 
 export default async function AdminQueuePage(
@@ -73,11 +74,16 @@ export default async function AdminQueuePage(
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        {status === "published" ? "Published articles" : "Review queue"} (
-        {hasFilters ? `${matchingCount} matching, ${totalForStatus} total` : `${totalForStatus} ${status === "published" ? "published" : "pending"}`}
-        )
-      </Typography>
+      <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
+        <Typography variant="h4" gutterBottom>
+          {status === "published" ? "Published articles" : "Review queue"} (
+          {hasFilters ? `${matchingCount} matching, ${totalForStatus} total` : `${totalForStatus} ${status === "published" ? "published" : "pending"}`}
+          )
+        </Typography>
+        <Link href="/admin/homepage" style={{ color: "inherit" }}>
+          <Button variant="outlined" size="small">Manage hero &amp; highlights</Button>
+        </Link>
+      </Stack>
 
       <Card variant="outlined" sx={{ p: 2.5, mb: 3 }}>
         <Box

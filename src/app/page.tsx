@@ -199,32 +199,38 @@ export default async function HomePage(
         return [...seen.entries()].slice(0, 4).map(([competition, article]) => ({ competition, article }));
       })();
 
-  // A manually-featured article (set from /admin) always wins as hero;
-  // otherwise fall back to the top-ranked match article automatically.
-  const manuallyFeatured = articles.find((a) => a.featured);
-  const remainingAfterFeatured = manuallyFeatured
-    ? articles.filter((a) => a.id !== manuallyFeatured.id)
-    : articles;
+  // Manually-picked hero articles (set from /admin) always win the first
+  // slots, most-recently-picked first — the rest of the hero carousel
+  // auto-fills with top-ranked stories below. Capped at 5 in actions.ts
+  // (picking a 6th auto-retires the oldest pick), so no need to slice here.
+  const manuallyFeatured = articles
+    .filter((a) => a.featured)
+    .sort((a, b) => (b.featuredAt?.getTime() ?? 0) - (a.featuredAt?.getTime() ?? 0));
+  const manuallyFeaturedIds = new Set(manuallyFeatured.map((a) => a.id));
+  const remainingAfterFeatured = articles.filter((a) => !manuallyFeaturedIds.has(a.id));
 
   // Manually-highlighted articles (set from /admin) are pinned into
   // "Transfers & Big News" alongside — not instead of — the automatic
-  // keyword match, capped at 4 total so the section can't grow unbounded.
-  const manuallyHighlighted = remainingAfterFeatured.filter((a) => a.highlighted).slice(0, 4);
+  // keyword match, most-recently-picked first, capped at 4 total so the
+  // section can't grow unbounded.
+  const manuallyHighlighted = remainingAfterFeatured
+    .filter((a) => a.highlighted)
+    .sort((a, b) => (b.highlightedAt?.getTime() ?? 0) - (a.highlightedAt?.getTime() ?? 0))
+    .slice(0, 4);
   const manuallyHighlightedIds = new Set(manuallyHighlighted.map((a) => a.id));
   const remainingAfterHighlighted = remainingAfterFeatured.filter((a) => !manuallyHighlightedIds.has(a.id));
 
   const allMatchArticlesFull = remainingAfterHighlighted.filter((a) => !RSS_SOURCES.includes(a.sourceName));
   const allBriefArticlesFull = remainingAfterHighlighted.filter((a) => RSS_SOURCES.includes(a.sourceName));
 
-  // Hero carousel: a manual pick always wins the first slot; the rest are
-  // filled with the top-ranked match articles, falling back to top RSS
-  // headlines if there aren't enough (cricket, right now, has no non-RSS
-  // "match" data source at all — without this fallback the hero would be
-  // empty there). Capped at 5 slides — enough to feel like a real rotation
-  // without turning the front page into an endless slideshow.
-  const heroCandidates = [manuallyFeatured, ...allMatchArticlesFull, ...allBriefArticlesFull].filter(
-    (a): a is (typeof articles)[number] => a !== null && a !== undefined
-  );
+  // Hero carousel: manual picks (up to 5, latest first) always win the
+  // first slots; any remaining slots fill with the top-ranked match
+  // articles, falling back to top RSS headlines if there aren't enough
+  // (cricket, right now, has no non-RSS "match" data source at all —
+  // without this fallback the hero would be empty there). Capped at 5
+  // slides total — enough to feel like a real rotation without turning the
+  // front page into an endless slideshow.
+  const heroCandidates = [...manuallyFeatured, ...allMatchArticlesFull, ...allBriefArticlesFull];
   const seenHeroIds = new Set<string>();
   const heroArticles = heroCandidates
     .filter((a) => {

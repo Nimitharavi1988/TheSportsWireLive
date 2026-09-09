@@ -1,0 +1,2 @@
+ALTER TABLE "Article" ADD COLUMN "featuredAt" TIMESTAMP(3);
+ALTER TABLE "Article" ADD COLUMN "highlightedAt" TIMESTAMP(3);

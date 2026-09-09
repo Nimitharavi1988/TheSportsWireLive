@@ -165,7 +165,7 @@ export function ArticleQueueClient({
               </Stack>
             </CardContent>
             <CardActions sx={{ px: 2, pb: 2, flexWrap: "wrap" }}>
-              {status === "pending_review" ? (
+              {status === "pending_review" && (
                 <>
                   <form action={approveArticle.bind(null, article.id)}>
                     <Button type="submit" variant="contained" color="success">Approve</Button>
@@ -174,7 +174,13 @@ export function ArticleQueueClient({
                     <Button type="submit" variant="outlined" color="inherit">Reject</Button>
                   </form>
                 </>
-              ) : article.featured ? (
+              )}
+              {/* Feature/Highlight work even on a still-pending article —
+                  the pick is stored immediately and takes effect on the
+                  homepage as soon as it's approved, so an admin can decide
+                  "this should be hero" while reviewing instead of having to
+                  come back after approving. */}
+              {article.featured ? (
                 <form action={unfeatureArticle.bind(null, article.id)}>
                   <Button type="submit" variant="outlined" color="inherit">Remove as hero</Button>
                 </form>
@@ -227,8 +233,26 @@ export function ArticleQueueClient({
                 </a>
               </Box>
             </DialogContent>
-            <DialogActions>
+            <DialogActions sx={{ flexWrap: "wrap" }}>
               <Button onClick={() => setDetailId(null)} color="inherit">Close</Button>
+              {detailArticle.highlighted ? (
+                <form action={unhighlightArticle.bind(null, detailArticle.id)}>
+                  <Button type="submit" variant="outlined" color="warning">Remove highlight</Button>
+                </form>
+              ) : (
+                <form action={highlightArticle.bind(null, detailArticle.id)}>
+                  <Button type="submit" variant="outlined" color="warning">Highlight</Button>
+                </form>
+              )}
+              {detailArticle.featured ? (
+                <form action={unfeatureArticle.bind(null, detailArticle.id)}>
+                  <Button type="submit" variant="outlined" color="inherit">Remove as hero</Button>
+                </form>
+              ) : (
+                <form action={featureArticle.bind(null, detailArticle.id)}>
+                  <Button type="submit" variant="outlined">Feature as hero</Button>
+                </form>
+              )}
               {status === "pending_review" && (
                 <>
                   <form action={rejectArticle.bind(null, detailArticle.id, undefined)}>

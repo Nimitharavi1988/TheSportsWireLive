@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { postArticleToFacebook } from "@/lib/social/facebook";
+import { HERO_CAP } from "@/lib/heroConfig";
 import { revalidatePath } from "next/cache";
 
 export async function approveArticle(articleId: string) {
@@ -71,17 +72,30 @@ export async function rejectArticle(articleId: string, reason?: string) {
   revalidatePath("/admin");
 }
 
-// Only one article is ever the manually-featured hero at a time — setting
-// this one clears the flag from any other, so there's no ambiguity about
-// which one the homepage should show.
+// Up to HERO_CAP articles can be manually picked for the hero carousel at
+// once, most-recently-picked first (see featuredAt). Picking one more than
+// the cap auto-retires the oldest pick rather than blocking the action or
+// replacing everything — this keeps the cap enforced without the admin
+// needing to remove one first.
 export async function featureArticle(articleId: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
 
-  await db.article.updateMany({ where: { featured: true }, data: { featured: false } });
-  await db.article.update({ where: { id: articleId }, data: { featured: true } });
+  const currentlyFeatured = await db.article.findMany({
+    where: { featured: true },
+    orderBy: { featuredAt: "asc" },
+    select: { id: true },
+  });
+  const alreadyPicked = currentlyFeatured.some((a) => a.id === articleId);
+  if (!alreadyPicked && currentlyFeatured.length >= HERO_CAP) {
+    const oldest = currentlyFeatured[0];
+    await db.article.update({ where: { id: oldest.id }, data: { featured: false, featuredAt: null } });
+  }
+
+  await db.article.update({ where: { id: articleId }, data: { featured: true, featuredAt: new Date() } });
 
   revalidatePath("/admin");
+  revalidatePath("/admin/homepage");
   revalidatePath("/");
 }
 
@@ -89,22 +103,25 @@ export async function unfeatureArticle(articleId: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
 
-  await db.article.update({ where: { id: articleId }, data: { featured: false } });
+  await db.article.update({ where: { id: articleId }, data: { featured: false, featuredAt: null } });
 
   revalidatePath("/admin");
+  revalidatePath("/admin/homepage");
   revalidatePath("/");
 }
 
 // Unlike featured, multiple articles can be highlighted at once — they're
 // added to (not swapped with) the automatic keyword match in "Transfers &
-// Big News", so there's no need to clear any existing flag first.
+// Big News", so there's no need to clear any existing flag first. The
+// homepage itself caps the visible count at 4, most-recently-picked first.
 export async function highlightArticle(articleId: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
 
-  await db.article.update({ where: { id: articleId }, data: { highlighted: true } });
+  await db.article.update({ where: { id: articleId }, data: { highlighted: true, highlightedAt: new Date() } });
 
   revalidatePath("/admin");
+  revalidatePath("/admin/homepage");
   revalidatePath("/");
 }
 
@@ -112,9 +129,10 @@ export async function unhighlightArticle(articleId: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
 
-  await db.article.update({ where: { id: articleId }, data: { highlighted: false } });
+  await db.article.update({ where: { id: articleId }, data: { highlighted: false, highlightedAt: null } });
 
   revalidatePath("/admin");
+  revalidatePath("/admin/homepage");
   revalidatePath("/");
 }
 
