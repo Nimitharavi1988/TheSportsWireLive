@@ -2,6 +2,7 @@ import { db } from "../db";
 import { fetchFootballData, type RawMatchItem } from "./footballData";
 import { fetchNflData } from "./nflData";
 import { fetchRssNews } from "./rssFeeds";
+import { fetchPlayerNews } from "./playerNewsFeeds";
 import { fetchCricketData } from "./cricketData";
 import { computeDedupeHash, computeStableDedupeHash } from "./dedupe";
 import { runQualityChecks } from "./qualityCheck";
@@ -84,24 +85,35 @@ export async function runIngest() {
     create: { name: "sports" },
   });
 
-  const [scoreItems, nflItems, newsItems, cricketItems, trendingKeywords, stockImagePools] = await Promise.all([
-    fetchFootballData(),
-    fetchNflData(),
-    fetchRssNews(),
-    fetchCricketData(),
-    fetchTrendingKeywords(),
-    // Reddit engagement (redditEngagement.ts) is intentionally not called
-    // here — Reddit's no-auth JSON endpoint now 403s anonymous/datacenter
-    // traffic (confirmed 2026-09-09), so it would just burn 2 of the free
-    // Workers plan's scarce 50-subrequest budget for zero benefit. The
-    // module and its tests are still in place, ready to wire back in once
-    // real OAuth app credentials are added.
-    fetchStockImagePools(),
-  ]);
+  const [scoreItems, nflItems, newsItems, playerNewsItems, cricketItems, trendingKeywords, stockImagePools] =
+    await Promise.all([
+      fetchFootballData(),
+      fetchNflData(),
+      fetchRssNews(),
+      // Actively searches Google News per tracked player (players.ts) —
+      // unlike the fixed feeds above, which only ever surface whatever a
+      // handful of outlets' latest items happen to include. Built after
+      // confirming a real gap: a newly-tracked player (Sanju Samson) had
+      // zero mentions across all 4 cricket feeds at the time this was
+      // added, even though real coverage of him existed elsewhere.
+      fetchPlayerNews(),
+      fetchCricketData(),
+      fetchTrendingKeywords(),
+      // Reddit engagement (redditEngagement.ts) is intentionally not called
+      // here — Reddit's no-auth JSON endpoint now 403s anonymous/datacenter
+      // traffic (confirmed 2026-09-09), so it would just burn 2 of the free
+      // Workers plan's scarce 50-subrequest budget for zero benefit. The
+      // module and its tests are still in place, ready to wire back in once
+      // real OAuth app credentials are added.
+      fetchStockImagePools(),
+    ]);
   // Prioritize RSS items by trending relevance so the limited commentary
   // budget (MAX_COMMENTARY_PER_RUN) goes to the most important stories first,
-  // not just whatever came first in feed order.
-  const sortedNewsItems = [...newsItems].sort(
+  // not just whatever came first in feed order. Player-search results are
+  // folded in here too — they're about a tracked superstar by construction,
+  // so computeTrendingScore's own superstar-name detection already tends to
+  // rank them highly rather than needing a separate carve-out.
+  const sortedNewsItems = [...newsItems, ...playerNewsItems].sort(
     (a, b) => computeTrendingScore(b.title, trendingKeywords) - computeTrendingScore(a.title, trendingKeywords)
   );
   const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...sortedNewsItems, ...cricketItems];
@@ -306,7 +318,7 @@ export async function runIngest() {
     `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${staleSkipped} stale RSS items skipped (older than ${MAX_RSS_ITEM_AGE_MS / 86400000}d), ` +
     `${duplicates} duplicates skipped (${backfilled} of those backfilled with a body they missed on a previous run), ` +
     `${cricketCommentaryCalls + otherCommentaryCalls} RSS commentary calls (${cricketCommentaryCalls} cricket, ${otherCommentaryCalls} other), ${matchRecapCalls} match recap calls. ` +
-    `(${scoreItems.length} from football-data.org, ${nflItems.length} from ESPN NFL, ${newsItems.length} from RSS, ${cricketItems.length} from CricketData.org, ${trendingKeywords.length} trending keywords checked)`
+    `(${scoreItems.length} from football-data.org, ${nflItems.length} from ESPN NFL, ${newsItems.length} from RSS, ${playerNewsItems.length} from per-player Google News search, ${cricketItems.length} from CricketData.org, ${trendingKeywords.length} trending keywords checked)`
   );
 }
 
