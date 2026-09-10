@@ -25,9 +25,11 @@ import Stack from "@mui/material/Stack";
 import Link from "next/link";
 import { ArticleQueueClient } from "./ArticleQueueClient";
 
+const PAGE_SIZE = 50;
+
 export default async function AdminQueuePage(
   props: {
-    searchParams: Promise<{ q?: string; source?: string; category?: string; status?: string }>;
+    searchParams: Promise<{ q?: string; source?: string; category?: string; status?: string; page?: string }>;
   }
 ) {
   const searchParams = await props.searchParams;
@@ -36,6 +38,12 @@ export default async function AdminQueuePage(
 
   const { q, source, category } = searchParams;
   const status = searchParams.status === "published" ? "published" : "pending_review";
+  // No previous page-navigation UI at all before this — with ~1,000
+  // published articles and a hard 50-row cap, everything past the first 50
+  // was genuinely unreachable from the admin UI (just a "narrow your
+  // search" hint, no way to actually see the rest). >>1 keeps a garbage or
+  // negative `page` value from producing a nonsensical negative skip.
+  const page = Math.max(1, parseInt(searchParams.page ?? "1", 10) || 1);
 
   const sources = await db.article.findMany({
     where: { status },
@@ -61,9 +69,22 @@ export default async function AdminQueuePage(
   const list = await db.article.findMany({
     where,
     orderBy: status === "published" ? [{ featured: "desc" }, { publishedAt: "desc" }] : { createdAt: "desc" },
-    take: 50,
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE,
     include: { poll: { include: { options: true } } },
   });
+  const totalPages = Math.max(1, Math.ceil(matchingCount / PAGE_SIZE));
+  // Build a query string that carries every current filter forward, only
+  // swapping the page number — so Prev/Next never silently drop a search.
+  function pageHref(targetPage: number): string {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (source) params.set("source", source);
+    if (category) params.set("category", category);
+    params.set("status", status);
+    if (targetPage > 1) params.set("page", String(targetPage));
+    return `/admin?${params.toString()}`;
+  }
 
   const flagged =
     status === "pending_review"
@@ -145,14 +166,14 @@ export default async function AdminQueuePage(
         </Typography>
       )}
 
-      {matchingCount > list.length && (
+      {matchingCount > PAGE_SIZE && (
         <Typography
           variant="body2"
           sx={{
             color: "text.secondary",
             mb: 2
           }}>
-          Showing first {list.length} of {matchingCount} matching articles — narrow your search to see more precisely.
+          Showing {(page - 1) * PAGE_SIZE + 1}–{(page - 1) * PAGE_SIZE + list.length} of {matchingCount} matching articles.
         </Typography>
       )}
 
@@ -169,6 +190,20 @@ export default async function AdminQueuePage(
         createPoll={createPoll}
         deletePoll={deletePoll}
       />
+
+      {totalPages > 1 && (
+        <Stack direction="row" spacing={1} sx={{ justifyContent: "center", alignItems: "center", mt: 3 }}>
+          <Button href={pageHref(page - 1)} disabled={page <= 1} variant="outlined" size="small">
+            ← Previous
+          </Button>
+          <Typography variant="body2" sx={{ color: "text.secondary", mx: 1 }}>
+            Page {page} of {totalPages}
+          </Typography>
+          <Button href={pageHref(page + 1)} disabled={page >= totalPages} variant="outlined" size="small">
+            Next →
+          </Button>
+        </Stack>
+      )}
 
       {flagged.length > 0 && (
         <Box sx={{ mt: 5 }}>
