@@ -525,6 +525,10 @@ Working through the gaps found in the full-site review, in order.
 - Fixed by fetching currently-featured articles as a second, unconditional query (capped at 5, matching `featureArticle`'s own cap) and merging them into the article list before the existing hero logic runs, instead of hoping they survive the trending-sorted cutoff. Verified live: the most-recently-featured article correctly renders as the hero's Top Story. `npx tsc --noEmit` clean; 132/132 tests passing.
 - **Worth checking later, not yet audited**: any other query on the site that both (a) sorts/limits by trending score or a similar cutoff and (b) also expects a manual override to always be included could have the same class of bug — the article detail page's "Trending Now"/"Just In" sitewide queries weren't checked in this pass since they don't currently have a manual-override concept, but worth keeping in mind if one gets added there later.
 
+### Admin: real pagination added (2026-09-10)
+- User reported not being able to navigate past the first page of the Published section. Real gap: the query had a hard `take: 50` with no `skip` at all, and the only acknowledgment of more results was a passive "narrow your search" hint — with 1,092 published articles by this point, over 1,000 were genuinely unreachable from the admin UI.
+- Added a `page` query param, applied as `skip`/`take`, plus real Prev/Next controls (preserving all active filters) and a "Page X of Y" indicator. Verified live end-to-end via a temporary admin account (created and removed after testing): page 1 → 1-50, page 2 → 51-100 with genuinely different articles, last page (22) → remaining 42 with "Next" correctly disabled (`aria-disabled`, `pointer-events: none`).
+
 ## Monetization plan (for reference)
 - **Phase 1 (now, low effort)**: Google AdSense, affiliate links (merch/streaming), email newsletter signup — all deferred until deployed per above
 - **Phase 2 (once there's real audience)**: Meta in-stream ads/Reels bonuses, sponsored posts, fantasy-sports affiliate deals (regulated, needs compliance research)
