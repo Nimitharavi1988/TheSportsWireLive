@@ -30,22 +30,25 @@ const COMMENTARY_DELAY_MS = 4500;
 // Cap real Gemini calls per ingestion run. Billing IS linked on this account
 // (a card was added after Gemini's `generateContent` required one to work at
 // all), so this is real, if small, money — at gemini-2.5-flash pricing
-// (~$0.0009/call for a typical commentary request) a cap of 30 costs
-// roughly $0.027/run, ~$38.88/month at the current 30-min cron interval (48
-// runs/day). Raised 10 -> 20 (2026-09-07) once that cost was computed and
-// accepted, then 20 -> 30 (2026-09-10, +~$13/month) specifically to give the
-// India-feed-driven cricket volume (see CRICKET_COMMENTARY_RESERVED below)
-// more total room rather than just reslicing the same 20. (Briefly lowered
-// to 10/4 on 2026-09-09 to fit Cloudflare Workers Free's subrequest cap
-// while ingestion ran inside the Worker — restored/raised now that
-// ingestion runs directly on the GitHub Actions runner instead, which has
-// no such limit.) Revisit again once real billing data from a few runs
-// comes back from the Google Cloud usage page.
+// (~$0.0009/call for a typical commentary request) a cap of 60 costs
+// roughly $0.054/run, ~$77.76/month at the current 30-min cron interval (48
+// runs/day). Raised 10 -> 20 (2026-09-07), then 20 -> 30 (2026-09-10) for
+// the India-feed-driven cricket volume, then 30 -> 60 (2026-09-10, same
+// day, +~$39/month) after playerNewsFeeds.ts (per-player Google News
+// search, up to ~300 extra RSS-shaped candidates/run across 63 tracked
+// players) pushed the generic-fallback rate on newly-published articles
+// from a 31% baseline to 89.6% within 24h of shipping it — confirmed via a
+// direct DB check, not assumed. (Briefly lowered to 10/4 on 2026-09-09 to
+// fit Cloudflare Workers Free's subrequest cap while ingestion ran inside
+// the Worker — restored/raised now that ingestion runs directly on the
+// GitHub Actions runner instead, which has no such limit.) Revisit again
+// once real billing data from a few runs comes back from the Google Cloud
+// usage page, and re-check the fallback rate after this change lands.
 // Match recaps get their own separate budget so a heavy match day (dozens of
 // football-data.org fixtures, which come first in the processing order) can
 // never starve the RSS commentary budget — the trending-sort prioritization
 // above depends on RSS items actually getting a turn.
-const MAX_COMMENTARY_PER_RUN = 30;
+const MAX_COMMENTARY_PER_RUN = 60;
 const MAX_MATCH_RECAP_PER_RUN = 6;
 
 // Cricket gets a guaranteed floor of the shared RSS commentary budget above,
@@ -56,9 +59,10 @@ const MAX_MATCH_RECAP_PER_RUN = 6;
 // US/GB Google Trends signal the way football/superstar stories do, so
 // cricket's real body-coverage collapsed to near zero within a day (81% of
 // the pending queue body-less, entirely ESPN Cricinfo). Kept at half of the
-// (now larger) total budget when MAX_COMMENTARY_PER_RUN was raised, so the
-// extra room benefits both cricket and everything else, not just one side.
-const CRICKET_COMMENTARY_RESERVED = 15;
+// (now larger) total budget each time MAX_COMMENTARY_PER_RUN was raised, so
+// the extra room benefits both cricket and everything else, not just one
+// side.
+const CRICKET_COMMENTARY_RESERVED = 30;
 
 // RSS items older than this are skipped outright rather than ingested —
 // see the skip site below for why. 3 days comfortably covers a slow news
