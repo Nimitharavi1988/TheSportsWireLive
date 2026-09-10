@@ -89,17 +89,26 @@ export async function runIngest() {
   // so within-run duplicates (two sources reporting the same story) are
   // still caught without a query each.
   const allHashes = rawItems.map((item) => computeDedupeHash(item.title, item.publishedAt));
-  const existingHashes = new Set(
+  // Keyed on id/body/heroImageUrl (not just the hash) so a duplicate that
+  // was created in an earlier run without a body — because that run's
+  // Gemini budget ran out before reaching it — can be opportunistically
+  // backfilled here instead of staying stuck on the generic summary
+  // forever. RSS feeds return mostly the same items on every 30-min run,
+  // so without this, an item that missed the budget once would never get
+  // another chance: it's a duplicate on every subsequent run and skipped
+  // outright.
+  const existingArticles = new Map(
     (
       await db.article.findMany({
         where: { dedupeHash: { in: allHashes } },
-        select: { dedupeHash: true },
+        select: { id: true, dedupeHash: true, body: true, heroImageUrl: true },
       })
-    ).map((a) => a.dedupeHash)
+    ).map((a) => [a.dedupeHash, a])
   );
 
   let ingested = 0;
   let duplicates = 0;
+  let backfilled = 0;
   let flagged = 0;
   let commentaryCalls = 0;
   let matchRecapCalls = 0;
@@ -108,12 +117,44 @@ export async function runIngest() {
     if (INGEST_LIMIT !== undefined && ingested >= INGEST_LIMIT) break;
 
     const dedupeHash = computeDedupeHash(item.title, item.publishedAt);
+    const existing = existingArticles.get(dedupeHash);
 
-    if (existingHashes.has(dedupeHash)) {
+    if (existing) {
       duplicates++;
+      // Only RSS items can be missing a body this way — match-data items
+      // (football-data.org/CricketData.org) always get one at creation.
+      if (
+        existing.body === null &&
+        item.sourceSnippet &&
+        !isMatchDataSource(item.sourceName) &&
+        commentaryCalls < MAX_COMMENTARY_PER_RUN
+      ) {
+        commentaryCalls++;
+        const { commentary, personNames } = await generateCommentary(item.title, item.sourceSnippet, item.sourceName);
+        await sleep(COMMENTARY_DELAY_MS);
+
+        if (commentary) {
+          let heroImageUpdate = {};
+          if (!existing.heroImageUrl && !item.heroImageUrl) {
+            for (const personName of personNames) {
+              const personPhoto = await fetchPersonPhoto(personName);
+              if (personPhoto) {
+                heroImageUpdate = {
+                  heroImageUrl: personPhoto.url,
+                  heroImageCredit: personPhoto.credit,
+                  heroImageCreditUrl: personPhoto.creditUrl,
+                };
+                break;
+              }
+            }
+          }
+          await db.article.update({ where: { id: existing.id }, data: { body: commentary, ...heroImageUpdate } });
+          existing.body = commentary; // avoid reprocessing if the same story appears twice in this run
+          backfilled++;
+        }
+      }
       continue;
     }
-    existingHashes.add(dedupeHash);
 
     const quality = runQualityChecks(item.title, item.summary);
     const trendingScore = computeTrendingScore(item.title, trendingKeywords);
@@ -159,7 +200,7 @@ export async function runIngest() {
       }
     }
 
-    await db.article.create({
+    const created = await db.article.create({
       data: {
         verticalId: vertical.id,
         title: item.title,
@@ -182,13 +223,18 @@ export async function runIngest() {
         status: quality.passed ? "pending_review" : "flagged",
       },
     });
+    // Registers this hash as no longer "new" — guards against the same
+    // story appearing twice in one run (two sources reporting it) trying
+    // to create it a second time.
+    existingArticles.set(dedupeHash, { id: created.id, dedupeHash, body: created.body, heroImageUrl: created.heroImageUrl });
 
     ingested++;
     if (!quality.passed) flagged++;
   }
 
   console.log(
-    `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${duplicates} duplicates skipped, ` +
+    `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${duplicates} duplicates skipped ` +
+    `(${backfilled} of those backfilled with a body they missed on a previous run), ` +
     `${commentaryCalls} RSS commentary calls, ${matchRecapCalls} match recap calls. ` +
     `(${scoreItems.length} from football-data.org, ${newsItems.length} from RSS, ${cricketItems.length} from CricketData.org, ${trendingKeywords.length} trending keywords checked)`
   );
