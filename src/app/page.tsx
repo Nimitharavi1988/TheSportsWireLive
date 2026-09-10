@@ -86,10 +86,11 @@ export async function generateMetadata(
 ) {
   const searchParams = await props.searchParams;
   const meta = searchParams.category ? CATEGORY_META[searchParams.category] : undefined;
-  if (!meta) return {};
+  if (!meta) return { alternates: { canonical: "/" } };
   return {
     title: meta.title,
     description: meta.description,
+    alternates: { canonical: `/?category=${searchParams.category}` },
     openGraph: { title: meta.title, description: meta.description },
     twitter: { title: meta.title, description: meta.description },
   };

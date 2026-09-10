@@ -21,3 +21,24 @@ export function competitionFromSummary(summary: string): string | null {
   const match = summary.match(/\bin the (.+?)(?:, finishing|\s+on\s)/);
   return match ? match[1] : null;
 }
+
+// Clubs don't have a Wikimedia-style dedicated portrait fetch like players —
+// their crest already appears on every match article they're in
+// (homeCrestUrl/awayCrestUrl). Picks the club's own crest out of whichever
+// side of the most recent matching article it actually was, using the same
+// summary-parsing crestAltText already relies on, rather than guessing.
+// Shared between the club page itself and its opengraph-image route.
+export function findClubCrest(
+  club: { searchTerms: string[] },
+  articles: { summary: string; homeCrestUrl: string | null; awayCrestUrl: string | null }[]
+): string | null {
+  for (const article of articles) {
+    if (!article.homeCrestUrl || !article.awayCrestUrl) continue;
+    const { home, away } = crestAltText(article.summary);
+    const isHome = club.searchTerms.some((term) => home.toLowerCase().includes(term.toLowerCase()));
+    if (isHome) return article.homeCrestUrl;
+    const isAway = club.searchTerms.some((term) => away.toLowerCase().includes(term.toLowerCase()));
+    if (isAway) return article.awayCrestUrl;
+  }
+  return null;
+}

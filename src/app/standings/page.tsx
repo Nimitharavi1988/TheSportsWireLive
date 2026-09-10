@@ -8,7 +8,7 @@ import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 
-export const metadata = { title: "League Standings" };
+export const metadata = { title: "League Standings", alternates: { canonical: "/standings" } };
 
 export default function StandingsIndexPage() {
   return (

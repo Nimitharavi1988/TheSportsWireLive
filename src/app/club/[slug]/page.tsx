@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { TRACKED_CLUBS } from "@/lib/clubs";
-import { crestAltText } from "@/lib/teamNames";
+import { findClubCrest } from "@/lib/teamNames";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 import { StandingsCarousel } from "@/components/StandingsCarousel";
 import { PLAYER_QUOTES } from "@/lib/quotes";
@@ -27,24 +27,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: `${club.name} News`,
     description: `Latest news and results for ${club.name}.`,
+    alternates: { canonical: `/club/${club.slug}` },
   };
-}
-
-// Clubs don't have a Wikimedia-style dedicated portrait fetch like players —
-// their crest already appears on every match article they're in
-// (homeCrestUrl/awayCrestUrl). Picks the club's own crest out of whichever
-// side of the most recent matching article it actually was, using the same
-// summary-parsing `crestAltText` already relies on, rather than guessing.
-function findClubCrest(club: { searchTerms: string[] }, articles: { summary: string; homeCrestUrl: string | null; awayCrestUrl: string | null }[]) {
-  for (const article of articles) {
-    if (!article.homeCrestUrl || !article.awayCrestUrl) continue;
-    const { home, away } = crestAltText(article.summary);
-    const isHome = club.searchTerms.some((term) => home.toLowerCase().includes(term.toLowerCase()));
-    if (isHome) return article.homeCrestUrl;
-    const isAway = club.searchTerms.some((term) => away.toLowerCase().includes(term.toLowerCase()));
-    if (isAway) return article.awayCrestUrl;
-  }
-  return null;
 }
 
 export default async function ClubPage({ params }: { params: Promise<{ slug: string }> }) {

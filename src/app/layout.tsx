@@ -22,14 +22,32 @@ const inter = Inter({
 
 export const metadata = {
   metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:3000"),
-  title: "Sports Wire Live",
-  description: "Trending football and cricket news, updated automatically.",
+  title: {
+    template: "%s | Sports Wire Live",
+    default: "Sports Wire Live",
+  },
+  description: "Trending football, cricket, and NFL news, updated automatically.",
   openGraph: {
     siteName: "Sports Wire Live",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
+  },
+  // Without this, Google defaults to a smaller "standard" image preview
+  // size in Search and Discover results — Discover specifically favors
+  // large-image cards, so this directly affects Discover eligibility/reach,
+  // not just cosmetic Search snippet size.
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
 };
 

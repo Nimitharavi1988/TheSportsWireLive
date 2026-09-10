@@ -17,7 +17,7 @@ export async function generateMetadata(props: { params: Promise<{ code: string }
   if (!apiKey) return {};
   const table = await fetchStandingsTable(apiKey, params.code.toUpperCase());
   if (!table) return {};
-  return { title: `${table.competitionName} Standings` };
+  return { title: `${table.competitionName} Standings`, alternates: { canonical: `/standings/${params.code.toUpperCase()}` } };
 }
 
 export default async function StandingsPage(props: { params: Promise<{ code: string }> }) {
