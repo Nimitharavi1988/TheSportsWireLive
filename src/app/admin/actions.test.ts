@@ -60,18 +60,23 @@ describe("approveArticle", () => {
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  it("publishes the article, stamping reviewer/publish info", async () => {
+  it("publishes the article, stamping reviewer info", async () => {
     await approveArticle("a1");
     expect(mockUpdate).toHaveBeenCalledWith({
       where: { id: "a1" },
       data: expect.objectContaining({
         status: "published",
         reviewedBy: SESSION.userId,
-        publishedAt: expect.any(Date),
         reviewedAt: expect.any(Date),
       }),
     });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/admin");
+  });
+
+  it("never overwrites publishedAt — it already holds the real source date from ingestion", async () => {
+    await approveArticle("a1");
+    const [{ data }] = mockUpdate.mock.calls[0];
+    expect(data).not.toHaveProperty("publishedAt");
   });
 
   it("posts to Facebook after approving", async () => {
@@ -101,17 +106,18 @@ describe("approveArticles (bulk)", () => {
     expect(mockRevalidatePath).not.toHaveBeenCalled();
   });
 
-  it("publishes every selected article in one updateMany call", async () => {
+  it("publishes every selected article in one updateMany call, without touching publishedAt", async () => {
     await approveArticles(["a1", "a2", "a3"]);
     expect(mockUpdateMany).toHaveBeenCalledWith({
       where: { id: { in: ["a1", "a2", "a3"] } },
       data: expect.objectContaining({
         status: "published",
         reviewedBy: SESSION.userId,
-        publishedAt: expect.any(Date),
         reviewedAt: expect.any(Date),
       }),
     });
+    const [{ data }] = mockUpdateMany.mock.calls[0];
+    expect(data).not.toHaveProperty("publishedAt");
   });
 
   it("never posts to Facebook, unlike single approve", async () => {
@@ -127,17 +133,18 @@ describe("approveAllMatching", () => {
     expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 
-  it("with no filters, approves every pending article in one call", async () => {
+  it("with no filters, approves every pending article in one call, without touching publishedAt", async () => {
     await approveAllMatching({});
     expect(mockUpdateMany).toHaveBeenCalledWith({
       where: { status: "pending_review" },
       data: expect.objectContaining({
         status: "published",
         reviewedBy: SESSION.userId,
-        publishedAt: expect.any(Date),
         reviewedAt: expect.any(Date),
       }),
     });
+    const [{ data }] = mockUpdateMany.mock.calls[0];
+    expect(data).not.toHaveProperty("publishedAt");
   });
 
   it("applies the source/category/title filters exactly like the queue view does", async () => {

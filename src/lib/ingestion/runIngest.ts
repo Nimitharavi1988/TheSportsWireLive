@@ -264,6 +264,14 @@ export async function runIngest() {
         sourceUrl: item.sourceUrl,
         sourceName: item.sourceName,
         category: item.category,
+        // The article's real-world publish date (RSS pubDate, or match
+        // date for structured sources) — was never actually persisted
+        // here before, silently discarded until approveArticle overwrote
+        // it with the approval timestamp instead. That made every
+        // article's displayed/sorted date "when an admin clicked
+        // Approve," not "when the story actually happened" — the root
+        // cause of old news displaying with a fresh-looking date.
+        publishedAt: item.publishedAt,
         dedupeHash,
         homeCrestUrl: item.homeCrestUrl,
         awayCrestUrl: item.awayCrestUrl,

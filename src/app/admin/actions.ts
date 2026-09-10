@@ -14,7 +14,10 @@ export async function approveArticle(articleId: string) {
     where: { id: articleId },
     data: {
       status: "published",
-      publishedAt: new Date(),
+      // publishedAt is deliberately NOT set here — it already holds the
+      // article's real-world publish date from ingestion (runIngest.ts).
+      // Overwriting it with the approval timestamp was the bug that made
+      // old news display with a fresh-looking date.
       reviewedBy: session.userId,
       reviewedAt: new Date(),
     },
@@ -46,7 +49,7 @@ export async function approveArticles(articleIds: string[]) {
     where: { id: { in: articleIds } },
     data: {
       status: "published",
-      publishedAt: now,
+      // Not touching publishedAt — see approveArticle.
       reviewedBy: session.userId,
       reviewedAt: now,
     },
@@ -75,7 +78,7 @@ export async function approveAllMatching(filters: { q?: string; source?: string;
     },
     data: {
       status: "published",
-      publishedAt: now,
+      // Not touching publishedAt — see approveArticle.
       reviewedBy: session.userId,
       reviewedAt: now,
     },
