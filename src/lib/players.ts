@@ -24,6 +24,23 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   { slug: "harry-kane", name: "Harry Kane", searchTerms: ["Kane"], sport: "football" },
   { slug: "kevin-de-bruyne", name: "Kevin De Bruyne", searchTerms: ["De Bruyne"], sport: "football" },
   { slug: "luka-modric", name: "Luka Modrić", searchTerms: ["Modric", "Modrić"], sport: "football" },
+  { slug: "bukayo-saka", name: "Bukayo Saka", searchTerms: ["Saka"], sport: "football" },
+  { slug: "phil-foden", name: "Phil Foden", searchTerms: ["Foden"], sport: "football" },
+  { slug: "jamal-musiala", name: "Jamal Musiala", searchTerms: ["Musiala"], sport: "football" },
+  { slug: "pedri", name: "Pedri", searchTerms: ["Pedri"], sport: "football" },
+  { slug: "robert-lewandowski", name: "Robert Lewandowski", searchTerms: ["Lewandowski"], sport: "football" },
+  // "Martinez" alone is a very common surname (several other tracked
+  // players' teams have one) — "Lautaro" (his first name, how he's usually
+  // referred to in headlines) is distinctive enough on its own.
+  { slug: "lautaro-martinez", name: "Lautaro Martínez", searchTerms: ["Lautaro"], sport: "football" },
+  // "Rice" alone is a common word (the food) — full name needed.
+  { slug: "declan-rice", name: "Declan Rice", searchTerms: ["Declan Rice"], sport: "football" },
+  // "Son" (as in Son Heung-min, near-universally just "Son" in English
+  // headlines) is far too common an English word to match safely, and his
+  // full name rarely appears in headlines — deliberately left out rather
+  // than risking a flood of false positives or a term that would barely
+  // ever match. Same reasoning as skipping "Rodri" (collides with the
+  // common name "Rodrigo") for this batch.
   // Football — recently retired / legends still regularly in the news
   { slug: "ronaldinho", name: "Ronaldinho", searchTerms: ["Ronaldinho"], sport: "football" },
   { slug: "zinedine-zidane", name: "Zinédine Zidane", searchTerms: ["Zidane"], sport: "football" },
@@ -47,6 +64,26 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   { slug: "joe-root", name: "Joe Root", searchTerms: ["Joe Root"], sport: "cricket" },
   { slug: "steve-smith", name: "Steve Smith", searchTerms: ["Steve Smith"], sport: "cricket" },
   { slug: "sunil-narine", name: "Sunil Narine", searchTerms: ["Narine"], sport: "cricket" },
+  { slug: "sanju-samson", name: "Sanju Samson", searchTerms: ["Samson"], sport: "cricket" },
+  { slug: "jasprit-bumrah", name: "Jasprit Bumrah", searchTerms: ["Bumrah"], sport: "cricket" },
+  { slug: "jos-buttler", name: "Jos Buttler", searchTerms: ["Buttler"], sport: "cricket" },
+  // "Pant"/"Gill"/"Rahul"/"Warner"/"Head"/"Khan" are common English words or
+  // surnames on their own — full name needed, same reasoning as "George
+  // Best"/"Shane Warne" above.
+  { slug: "rishabh-pant", name: "Rishabh Pant", searchTerms: ["Rishabh Pant"], sport: "cricket" },
+  { slug: "shubman-gill", name: "Shubman Gill", searchTerms: ["Shubman Gill"], sport: "cricket" },
+  { slug: "kl-rahul", name: "KL Rahul", searchTerms: ["KL Rahul"], sport: "cricket" },
+  { slug: "david-warner", name: "David Warner", searchTerms: ["David Warner"], sport: "cricket" },
+  { slug: "travis-head", name: "Travis Head", searchTerms: ["Travis Head"], sport: "cricket" },
+  { slug: "rashid-khan", name: "Rashid Khan", searchTerms: ["Rashid Khan"], sport: "cricket" },
+  { slug: "kane-williamson", name: "Kane Williamson", searchTerms: ["Kane Williamson"], sport: "cricket" },
+  { slug: "pat-cummins", name: "Pat Cummins", searchTerms: ["Pat Cummins"], sport: "cricket" },
+  // "Pandya" alone is ambiguous between Hardik and his brother Krunal, both
+  // active internationals — full name needed to pick the right one.
+  { slug: "hardik-pandya", name: "Hardik Pandya", searchTerms: ["Hardik Pandya"], sport: "cricket" },
+  // "Surya" alone is too common an Indian name-root; "Suryakumar" is
+  // distinctive enough on its own.
+  { slug: "suryakumar-yadav", name: "Suryakumar Yadav", searchTerms: ["Suryakumar"], sport: "cricket" },
   // Cricket — legends (previously missing entirely — football had 6
   // legends tracked, cricket had none)
   { slug: "sachin-tendulkar", name: "Sachin Tendulkar", searchTerms: ["Tendulkar"], sport: "cricket" },
