@@ -303,6 +303,11 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         </Typography>
       ))}
 
+      {/* Engagement sits before the outbound source link, not after — a
+          reader who clicks through to the source immediately after reading
+          would otherwise never see it. */}
+      <FanEngagementHub articleId={article.id} />
+
       <Box sx={{ mt: 3, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
         <a href={article.sourceUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
           <Typography variant="body2" sx={{
@@ -312,8 +317,6 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           </Typography>
         </a>
       </Box>
-
-      <FanEngagementHub articleId={article.id} />
 
       </Box>
 
