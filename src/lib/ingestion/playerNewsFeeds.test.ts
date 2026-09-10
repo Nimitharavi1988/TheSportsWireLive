@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { googleNewsSearchUrl, stripPublisherSuffix, extractPublisher } from "./playerNewsFeeds";
+import { googleNewsSearchUrl, stripPublisherSuffix, extractPublisher, looksLikeReferencePage } from "./playerNewsFeeds";
 
 describe("googleNewsSearchUrl", () => {
   it("wraps the name in quotes and adds a 3-day recency window", () => {
@@ -48,5 +48,40 @@ describe("extractPublisher", () => {
 
   it("returns undefined for an empty/whitespace-only source tag", () => {
     expect(extractPublisher({ sourceTag: { _: "   " } })).toBeUndefined();
+  });
+});
+
+describe("looksLikeReferencePage", () => {
+  // Both real examples caught live in production (2026-09-10).
+  it("rejects a bare-name title with no real headline content", () => {
+    expect(looksLikeReferencePage("Shane Warne", "Britannica", "Shane Warne")).toBe(true);
+  });
+
+  it("rejects a templated stats-aggregator title", () => {
+    expect(
+      looksLikeReferencePage(
+        "Suryakumar Yadav | Profile, Stats, Ranking, Videos, Career Info, Age, Latest News, & Highlights",
+        "Some Stats Site",
+        "Suryakumar Yadav"
+      )
+    ).toBe(true);
+  });
+
+  it("rejects anything from Britannica outright, even with a headline-shaped title", () => {
+    expect(looksLikeReferencePage("Bumrah's rise to become India's premier pacer", "Britannica", "Jasprit Bumrah")).toBe(true);
+  });
+
+  it("bare-name match is case-insensitive and ignores surrounding whitespace", () => {
+    expect(looksLikeReferencePage("  shane warne  ", "Some Site", "Shane Warne")).toBe(true);
+  });
+
+  it("does not reject a real headline that happens to contain the player's name plus real content", () => {
+    expect(looksLikeReferencePage("Bumrah fit, Yash Thakur replaces Harshit for Afghanistan T20Is", "Cricinfo", "Jasprit Bumrah")).toBe(
+      false
+    );
+  });
+
+  it("does not reject a real headline that uses 'profile' in an ordinary sentence, without the aggregator combo", () => {
+    expect(looksLikeReferencePage("A profile of Messi's incredible season so far", "The Guardian", "Lionel Messi")).toBe(false);
   });
 });

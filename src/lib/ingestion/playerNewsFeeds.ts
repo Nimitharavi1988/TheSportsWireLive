@@ -41,6 +41,25 @@ export function extractPublisher(entry: any): string | undefined {
   return typeof name === "string" && name.trim() ? name.trim() : undefined;
 }
 
+// A player-name search (unlike our fixed headline-based RSS feeds) also
+// surfaces static encyclopedia/stat-tracker profile pages alongside real
+// news — confirmed directly via 2 real examples: Britannica's "Shane
+// Warne" (the bare name, no headline at all) and "Suryakumar Yadav |
+// Profile, Stats, Ranking, Videos, Career Info, Age, Latest News, &
+// Highlights" (a templated stats-aggregator title, not organic news
+// phrasing). Neither is a "report" in any sense — the auto-generated
+// "Read the original report..." summary would be actively misleading for
+// them. Sourced from Britannica specifically both times (it's an
+// encyclopedia, not a news publisher, by its own nature) — excluded as a
+// source outright in addition to the title-shape check, since neither
+// signal alone is as reliable as both together.
+export function looksLikeReferencePage(title: string, publisher: string | undefined, playerName: string): boolean {
+  if (publisher?.toLowerCase() === "britannica") return true;
+  if (title.trim().toLowerCase() === playerName.trim().toLowerCase()) return true;
+  if (/\bprofile\b.*\b(stats|ranking|career)\b/i.test(title)) return true;
+  return false;
+}
+
 // A popular player can return up to ~100 matches, with the same real-world
 // event (e.g. a big transfer) independently covered by five-plus outlets at
 // once (confirmed directly: Messi's Eldense purchase alone had ESPN, NYT,
@@ -62,9 +81,12 @@ export async function fetchPlayerNews(): Promise<RawMatchItem[]> {
 
         const publisher = extractPublisher(entry);
         const sourceName = publisher ?? "Google News";
+        const strippedTitle = stripPublisherSuffix(entry.title, publisher);
+
+        if (looksLikeReferencePage(strippedTitle, publisher, player.name)) continue;
 
         items.push({
-          title: stripPublisherSuffix(entry.title, publisher),
+          title: strippedTitle,
           // Same "headline + attribution, no reproduced text" pattern as
           // every other RSS source (rssFeeds.ts) — see its comment for why.
           summary: `Full coverage from ${sourceName}. Read the original report at the source link below.`,
