@@ -1,5 +1,6 @@
 import { db } from "../db";
 import { fetchFootballData, type RawMatchItem } from "./footballData";
+import { fetchNflData } from "./nflData";
 import { fetchRssNews } from "./rssFeeds";
 import { fetchCricketData } from "./cricketData";
 import { computeDedupeHash } from "./dedupe";
@@ -37,12 +38,12 @@ const COMMENTARY_DELAY_MS = 4500;
 const MAX_COMMENTARY_PER_RUN = 20;
 const MAX_MATCH_RECAP_PER_RUN = 6;
 
-// football-data.org/CricketData.org items always arrive with `body` already
-// set to a template built from real match facts (see footballData.ts /
-// cricketData.ts) — that's the discriminator from RSS items, which only ever
-// set `sourceSnippet`.
+// football-data.org/CricketData.org/ESPN NFL items always arrive with `body`
+// already set to a template built from real match facts (see footballData.ts
+// / cricketData.ts / nflData.ts) — that's the discriminator from RSS items,
+// which only ever set `sourceSnippet`.
 function isMatchDataSource(sourceName: string): boolean {
-  return sourceName === "football-data.org" || sourceName === "CricketData.org";
+  return sourceName === "football-data.org" || sourceName === "CricketData.org" || sourceName === "ESPN NFL";
 }
 
 // Optional cap on how many new (non-duplicate) items to ingest in this run —
@@ -57,8 +58,9 @@ export async function runIngest() {
     create: { name: "sports" },
   });
 
-  const [scoreItems, newsItems, cricketItems, trendingKeywords, stockImagePools] = await Promise.all([
+  const [scoreItems, nflItems, newsItems, cricketItems, trendingKeywords, stockImagePools] = await Promise.all([
     fetchFootballData(),
+    fetchNflData(),
     fetchRssNews(),
     fetchCricketData(),
     fetchTrendingKeywords(),
@@ -76,7 +78,7 @@ export async function runIngest() {
   const sortedNewsItems = [...newsItems].sort(
     (a, b) => computeTrendingScore(b.title, trendingKeywords) - computeTrendingScore(a.title, trendingKeywords)
   );
-  const rawItems: RawMatchItem[] = [...scoreItems, ...sortedNewsItems, ...cricketItems];
+  const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...sortedNewsItems, ...cricketItems];
   const stockImagePicker = createStockImagePicker(stockImagePools);
 
   // Cloudflare Workers caps outbound subrequests per invocation, and every
@@ -174,7 +176,9 @@ export async function runIngest() {
     if (body && isMatchDataSource(item.sourceName) && matchRecapCalls < MAX_MATCH_RECAP_PER_RUN) {
       matchRecapCalls++;
       const competitionName =
-        item.category === "cricket" ? "cricket" : competitionFromSummary(item.summary) ?? "football";
+        item.category === "cricket" ? "cricket"
+        : item.category === "american-football" ? "the NFL"
+        : competitionFromSummary(item.summary) ?? "football";
       const recap = await generateMatchRecap(item.title, body, competitionName);
       if (recap) body = recap;
       await sleep(COMMENTARY_DELAY_MS);
@@ -236,7 +240,7 @@ export async function runIngest() {
     `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${duplicates} duplicates skipped ` +
     `(${backfilled} of those backfilled with a body they missed on a previous run), ` +
     `${commentaryCalls} RSS commentary calls, ${matchRecapCalls} match recap calls. ` +
-    `(${scoreItems.length} from football-data.org, ${newsItems.length} from RSS, ${cricketItems.length} from CricketData.org, ${trendingKeywords.length} trending keywords checked)`
+    `(${scoreItems.length} from football-data.org, ${nflItems.length} from ESPN NFL, ${newsItems.length} from RSS, ${cricketItems.length} from CricketData.org, ${trendingKeywords.length} trending keywords checked)`
   );
 }
 

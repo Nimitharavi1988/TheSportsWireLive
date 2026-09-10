@@ -10,6 +10,7 @@ import Box from "@mui/material/Box";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
 import SportsCricketIcon from "@mui/icons-material/SportsCricket";
+import SportsFootballIcon from "@mui/icons-material/SportsFootball";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import type { SvgIconComponent } from "@mui/icons-material";
 
@@ -22,6 +23,7 @@ const NAV_LINKS: { href: string; label: string; category: string | null; icon: S
   { href: "/", label: "All", category: null, icon: ViewListIcon },
   { href: "/?category=football", label: "Football", category: "football", icon: SportsSoccerIcon },
   { href: "/?category=cricket", label: "Cricket", category: "cricket", icon: SportsCricketIcon },
+  { href: "/?category=american-football", label: "NFL", category: "american-football", icon: SportsFootballIcon },
   { href: "/standings", label: "Standings", category: null, icon: EmojiEventsIcon },
 ];
 

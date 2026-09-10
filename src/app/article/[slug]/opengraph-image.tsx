@@ -9,6 +9,7 @@ export const contentType = "image/png";
 const GRADIENTS: Record<string, [string, string]> = {
   cricket: ["#1d4e8f", "#0d2a52"],
   football: ["#1d6b3f", "#123d24"],
+  "american-football": ["#6b3fa0", "#3a1f5c"],
 };
 
 function gradientFor(category: string): [string, string] {

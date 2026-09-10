@@ -78,6 +78,10 @@ const CATEGORY_META: Record<string, { title: string; description: string }> = {
     title: "Cricket News & Scores",
     description: "Latest cricket news, match reports, and transfer stories.",
   },
+  "american-football": {
+    title: "NFL News, Scores & Standings",
+    description: "Latest NFL results, previews, and news.",
+  },
 };
 
 export async function generateMetadata(
