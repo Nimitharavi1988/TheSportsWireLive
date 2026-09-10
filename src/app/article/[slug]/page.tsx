@@ -17,6 +17,7 @@ import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { TRACKED_PLAYERS } from "@/lib/players";
 import { TRACKED_CLUBS } from "@/lib/clubs";
+import { FanEngagementHub } from "@/components/FanEngagementHub";
 import { displaySummary } from "@/lib/articleSummary";
 import { relativeTime } from "@/lib/relativeTime";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
@@ -311,6 +312,8 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           </Typography>
         </a>
       </Box>
+
+      <FanEngagementHub articleId={article.id} />
 
       </Box>
 

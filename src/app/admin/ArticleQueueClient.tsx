@@ -15,6 +15,8 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import IconButton from "@mui/material/IconButton";
+import TextField from "@mui/material/TextField";
+import Divider from "@mui/material/Divider";
 import CloseIcon from "@mui/icons-material/Close";
 import { displaySummary } from "@/lib/articleSummary";
 
@@ -32,6 +34,7 @@ export interface QueueArticle {
   readabilityScore: number | null;
   reviewedAt: Date | null;
   createdAt: Date;
+  poll: { id: string; question: string; options: { id: string; text: string }[] } | null;
 }
 
 export function ArticleQueueClient({
@@ -44,6 +47,8 @@ export function ArticleQueueClient({
   highlightArticle,
   unhighlightArticle,
   approveArticles,
+  createPoll,
+  deletePoll,
 }: {
   articles: QueueArticle[];
   status: "pending_review" | "published";
@@ -54,6 +59,8 @@ export function ArticleQueueClient({
   highlightArticle: (articleId: string) => Promise<void>;
   unhighlightArticle: (articleId: string) => Promise<void>;
   approveArticles: (articleIds: string[]) => Promise<void>;
+  createPoll: (articleId: string, formData: FormData) => Promise<void>;
+  deletePoll: (pollId: string) => Promise<void>;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -232,6 +239,42 @@ export function ArticleQueueClient({
                   View original source ↗
                 </a>
               </Box>
+
+              {/* Only on published articles — a poll only makes sense once
+                  readers can actually see and vote on it. Hand-curated only,
+                  deliberately not auto-generated (see actions.ts's createPoll
+                  comment) — a predictive question is an editorial call, not
+                  a pipeline step. */}
+              {status === "published" && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography variant="subtitle2" gutterBottom>Reader poll</Typography>
+                  {detailArticle.poll ? (
+                    <>
+                      <Typography variant="body2" sx={{ mb: 1 }}>{detailArticle.poll.question}</Typography>
+                      <Stack spacing={0.5} sx={{ mb: 1.5 }}>
+                        {detailArticle.poll.options.map((o) => (
+                          <Typography key={o.id} variant="body2" sx={{ color: "text.secondary" }}>• {o.text}</Typography>
+                        ))}
+                      </Stack>
+                      <form action={deletePoll.bind(null, detailArticle.poll.id)}>
+                        <Button type="submit" size="small" variant="outlined" color="inherit">Delete poll</Button>
+                      </form>
+                    </>
+                  ) : (
+                    <form action={createPoll.bind(null, detailArticle.id)}>
+                      <Stack spacing={1.5}>
+                        <TextField name="question" label="Poll question" size="small" required fullWidth />
+                        <TextField name="option" label="Option 1" size="small" required fullWidth />
+                        <TextField name="option" label="Option 2" size="small" required fullWidth />
+                        <TextField name="option" label="Option 3 (optional)" size="small" fullWidth />
+                        <TextField name="option" label="Option 4 (optional)" size="small" fullWidth />
+                        <Button type="submit" size="small" variant="contained">Create poll</Button>
+                      </Stack>
+                    </form>
+                  )}
+                </>
+              )}
             </DialogContent>
             <DialogActions sx={{ flexWrap: "wrap" }}>
               <Button onClick={() => setDetailId(null)} color="inherit">Close</Button>

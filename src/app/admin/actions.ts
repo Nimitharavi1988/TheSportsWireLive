@@ -179,3 +179,47 @@ export async function unflagArticle(articleId: string) {
 
   revalidatePath("/admin");
 }
+
+// Hand-curated only, deliberately not auto-generated — a predictive/
+// speculative poll question ("Will X score next match?") is a different
+// content category from this site's strict "grounded in real facts only"
+// editorial line elsewhere, so it's a human decision each time, not a
+// pipeline step. One poll per article (schema-enforced via a unique
+// constraint on Poll.articleId).
+export async function createPoll(articleId: string, formData: FormData) {
+  const session = await getSession();
+  if (!session) throw new Error("Not authenticated");
+
+  const cleanQuestion = String(formData.get("question") ?? "").trim();
+  const cleanOptions = formData
+    .getAll("option")
+    .map((o) => String(o).trim())
+    .filter(Boolean);
+  if (!cleanQuestion || cleanOptions.length < 2) {
+    throw new Error("A poll needs a question and at least 2 options");
+  }
+
+  await db.poll.create({
+    data: {
+      articleId,
+      question: cleanQuestion,
+      options: { create: cleanOptions.map((text) => ({ text })) },
+    },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath(`/article/[slug]`, "page");
+}
+
+// No edit flow for MVP scope — a poll with real votes shouldn't have its
+// options silently rewritten underneath those votes, so "start over" is the
+// deliberate recovery path rather than an in-place edit.
+export async function deletePoll(pollId: string) {
+  const session = await getSession();
+  if (!session) throw new Error("Not authenticated");
+
+  await db.poll.delete({ where: { id: pollId } });
+
+  revalidatePath("/admin");
+  revalidatePath(`/article/[slug]`, "page");
+}

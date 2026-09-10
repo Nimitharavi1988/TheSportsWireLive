@@ -11,6 +11,8 @@ import {
   highlightArticle,
   unhighlightArticle,
   unflagArticle,
+  createPoll,
+  deletePoll,
 } from "./actions";
 import Container from "@mui/material/Container";
 import Box from "@mui/material/Box";
@@ -60,6 +62,7 @@ export default async function AdminQueuePage(
     where,
     orderBy: status === "published" ? [{ featured: "desc" }, { publishedAt: "desc" }] : { createdAt: "desc" },
     take: 50,
+    include: { poll: { include: { options: true } } },
   });
 
   const flagged =
@@ -163,6 +166,8 @@ export default async function AdminQueuePage(
         unfeatureArticle={unfeatureArticle}
         highlightArticle={highlightArticle}
         unhighlightArticle={unhighlightArticle}
+        createPoll={createPoll}
+        deletePoll={deletePoll}
       />
 
       {flagged.length > 0 && (

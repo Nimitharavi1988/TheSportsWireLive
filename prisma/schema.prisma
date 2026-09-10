@@ -84,6 +84,8 @@ model Article {
   highlighted      Boolean        @default(false) // manually pinned into "Transfers & Big News"; adds to (doesn't replace) the automatic keyword match
   highlightedAt    DateTime?      // when this pick was made — determines display order (latest first) among highlighted articles
   socialPosts      SocialPost[]
+  poll             Poll?
+  reactions        ArticleReaction[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
@@ -120,4 +122,66 @@ model AdminUser {
   passwordHash String
   role         String   @default("admin")
   createdAt    DateTime @default(now())
+}
+
+// Fan engagement — polls, reactions, and the sentiment leaderboard. No user
+// accounts on the site (only staff/admin auth exists), so voting is
+// anonymous, identified by a long-lived cookie (see src/lib/voterCookie.ts)
+// rather than a userId — enforced server-side via the unique constraints
+// below, not just client-side state (which is trivially bypassable).
+model Poll {
+  id        String       @id @default(cuid())
+  articleId String       @unique // one poll per article — hand-curated by an admin, not auto-generated (see PLAN.md's reasoning: predictive/speculative questions are a different content category from this site's strictly fact-grounded editorial line)
+  article   Article      @relation(fields: [articleId], references: [id])
+  question  String
+  options   PollOption[]
+  votes     PollVote[]
+  createdAt DateTime     @default(now())
+}
+
+model PollOption {
+  id     String     @id @default(cuid())
+  pollId String
+  // Cascades, unlike Article's own relations elsewhere in this file — a
+  // poll option (and its votes) has no meaning once the poll is deleted,
+  // whereas we never delete Articles at all. See admin/actions.ts's
+  // deletePoll, the deliberate "start over" recovery path for a poll.
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  text   String
+  votes  PollVote[]
+
+  @@index([pollId])
+}
+
+model PollVote {
+  id        String     @id @default(cuid())
+  pollId    String
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId  String
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  cookieId  String
+  ipAddress String?    // for abuse monitoring only, never used as an identity key
+  createdAt DateTime   @default(now())
+
+  @@unique([pollId, cookieId]) // one vote per poll per anonymous visitor
+  @@index([optionId])
+}
+
+enum ReactionType {
+  hype
+  panic
+  neutral
+}
+
+model ArticleReaction {
+  id        String       @id @default(cuid())
+  articleId String
+  article   Article      @relation(fields: [articleId], references: [id])
+  type      ReactionType
+  cookieId  String
+  ipAddress String?
+  createdAt DateTime     @default(now())
+
+  @@unique([articleId, cookieId]) // one reaction per article per anonymous visitor — changing it is an upsert, not a second row
+  @@index([articleId, type])
 }

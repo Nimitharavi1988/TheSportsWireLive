@@ -23,6 +23,7 @@ import { QuotesStrip } from "@/components/QuotesStrip";
 import { HeroCarousel } from "@/components/HeroCarousel";
 import { ArticleThumb } from "@/components/ArticleThumb";
 import { fetchPersonPhoto } from "@/lib/ingestion/wikimediaImages";
+import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import StarIcon from "@mui/icons-material/Star";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
@@ -437,6 +438,8 @@ export default async function HomePage(
                 </Stack>
               </Paper>
             )}
+
+            <SentimentLeaderboard />
 
             {justIn.length > 0 && (
               <Paper component="section" variant="outlined" sx={{ p: 2, mt: 3 }}>
