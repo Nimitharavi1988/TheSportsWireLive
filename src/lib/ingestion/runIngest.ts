@@ -51,6 +51,11 @@ const MAX_MATCH_RECAP_PER_RUN = 6;
 // extra room benefits both cricket and everything else, not just one side.
 const CRICKET_COMMENTARY_RESERVED = 15;
 
+// RSS items older than this are skipped outright rather than ingested —
+// see the skip site below for why. 3 days comfortably covers a slow news
+// day without letting genuinely stale (weeks-old) items through.
+const MAX_RSS_ITEM_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+
 // football-data.org/CricketData.org/ESPN NFL items always arrive with `body`
 // already set to a template built from real match facts (see footballData.ts
 // / cricketData.ts / nflData.ts) — that's the discriminator from RSS items,
@@ -124,6 +129,7 @@ export async function runIngest() {
   let ingested = 0;
   let duplicates = 0;
   let backfilled = 0;
+  let staleSkipped = 0;
   let flagged = 0;
   let cricketCommentaryCalls = 0;
   let otherCommentaryCalls = 0;
@@ -183,6 +189,22 @@ export async function runIngest() {
           backfilled++;
         }
       }
+      continue;
+    }
+
+    // RSS feeds aren't reliably reverse-chronological "latest only" lists —
+    // confirmed directly: ESPN Cricinfo's India feed returns items up to
+    // ~54 days old mixed in with today's news, with nothing upstream
+    // distinguishing them. Without this check they'd be ingested and shown
+    // exactly like fresh news (same "Sep X" date chip styling, competing
+    // in the same trending sort), misrepresenting stale content as current
+    // — a real accuracy problem for a "Live" news site. Only applies to
+    // RSS items; match-data sources (football-data.org/CricketData.org/
+    // ESPN NFL) already have their own intentional date-range windows
+    // (e.g. football-data.org's ±14 days for finished/scheduled matches),
+    // which this would otherwise incorrectly clip.
+    if (item.sourceSnippet && !isMatchDataSource(item.sourceName) && Date.now() - item.publishedAt.getTime() > MAX_RSS_ITEM_AGE_MS) {
+      staleSkipped++;
       continue;
     }
 
@@ -265,8 +287,8 @@ export async function runIngest() {
   }
 
   console.log(
-    `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${duplicates} duplicates skipped ` +
-    `(${backfilled} of those backfilled with a body they missed on a previous run), ` +
+    `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${staleSkipped} stale RSS items skipped (older than ${MAX_RSS_ITEM_AGE_MS / 86400000}d), ` +
+    `${duplicates} duplicates skipped (${backfilled} of those backfilled with a body they missed on a previous run), ` +
     `${cricketCommentaryCalls + otherCommentaryCalls} RSS commentary calls (${cricketCommentaryCalls} cricket, ${otherCommentaryCalls} other), ${matchRecapCalls} match recap calls. ` +
     `(${scoreItems.length} from football-data.org, ${nflItems.length} from ESPN NFL, ${newsItems.length} from RSS, ${cricketItems.length} from CricketData.org, ${trendingKeywords.length} trending keywords checked)`
   );
