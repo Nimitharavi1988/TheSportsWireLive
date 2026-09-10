@@ -90,16 +90,27 @@ export async function fetchPersonPhoto(personName: string): Promise<StockImage |
     const title: string | undefined = searchData?.query?.search?.[0]?.title;
     if (!title || !titleMatchesName(title, personName)) return null;
 
-    // 2. Get that article's main image.
+    // 2. Get that article's main image — a properly-sized thumbnail, not
+    // the full original. Confirmed directly this was the site's single
+    // biggest performance problem: original source files for these photos
+    // run 1-22MB each, downloaded in full just to render a 32-120px
+    // avatar circle. MediaWiki's own thumbnailing service (same CDN,
+    // properly compressed) serves an appropriately-sized version instead
+    // — 300px covers every current use on the site (up to 120px) with
+    // headroom for retina displays.
     const imageUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(
       title
-    )}&prop=pageimages&piprop=original&format=json`;
+    )}&prop=pageimages&piprop=thumbnail&pithumbsize=300&format=json`;
     const imageData = await wikiFetch(imageUrl);
     const page: any = imageData?.query?.pages ? Object.values(imageData.query.pages)[0] : null;
-    const originalUrl: string | undefined = page?.original?.source;
-    if (!originalUrl) return null;
+    const thumbnailUrl: string | undefined = page?.thumbnail?.source;
+    if (!thumbnailUrl) return null;
 
-    const fileName = decodeURIComponent(originalUrl.split("?")[0].split("/").pop() ?? "");
+    // Thumbnail URLs are shaped .../thumb/x/xx/FileName.ext/300px-FileName.ext
+    // — the trailing segment is "{width}px-{realFileName}", not the actual
+    // Commons file title, which the license lookup below needs.
+    const thumbFileName = decodeURIComponent(thumbnailUrl.split("?")[0].split("/").pop() ?? "");
+    const fileName = thumbFileName.replace(/^\d+px-/, "");
     if (!fileName) return null;
 
     // 3. Verify the specific file's license on Commons — don't trust the
@@ -115,7 +126,7 @@ export async function fetchPersonPhoto(personName: string): Promise<StockImage |
     const licensed = buildCredit(meta, fileName, "Photo");
     if (!licensed) return null;
 
-    return { url: originalUrl, ...licensed };
+    return { url: thumbnailUrl, ...licensed };
   } catch (err) {
     console.error(`Wikimedia photo lookup failed for "${personName}":`, err);
     return null;
