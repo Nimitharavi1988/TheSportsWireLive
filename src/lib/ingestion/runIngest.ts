@@ -21,22 +21,35 @@ const COMMENTARY_DELAY_MS = 4500;
 // Cap real Gemini calls per ingestion run. Billing IS linked on this account
 // (a card was added after Gemini's `generateContent` required one to work at
 // all), so this is real, if small, money — at gemini-2.5-flash pricing
-// (~$0.0009/call for a typical commentary request) a cap of 20 costs
-// roughly $0.018/run. Raised from the original 10 (2026-09-06) once that
-// cost was actually computed and accepted (2026-09-07) — was previously
-// leaving the large majority of RSS articles in a given run (144 of 154 in
-// one real run) with no generated body at all, just the generic fallback
-// summary line. (Briefly lowered to 10/4 on 2026-09-09 to fit Cloudflare
-// Workers Free's subrequest cap while ingestion ran inside the Worker —
-// restored now that ingestion runs directly on the GitHub Actions runner
-// instead, which has no such limit.) Revisit again once real billing data
-// from a few runs comes back from the Google Cloud usage page.
+// (~$0.0009/call for a typical commentary request) a cap of 30 costs
+// roughly $0.027/run, ~$38.88/month at the current 30-min cron interval (48
+// runs/day). Raised 10 -> 20 (2026-09-07) once that cost was computed and
+// accepted, then 20 -> 30 (2026-09-10, +~$13/month) specifically to give the
+// India-feed-driven cricket volume (see CRICKET_COMMENTARY_RESERVED below)
+// more total room rather than just reslicing the same 20. (Briefly lowered
+// to 10/4 on 2026-09-09 to fit Cloudflare Workers Free's subrequest cap
+// while ingestion ran inside the Worker — restored/raised now that
+// ingestion runs directly on the GitHub Actions runner instead, which has
+// no such limit.) Revisit again once real billing data from a few runs
+// comes back from the Google Cloud usage page.
 // Match recaps get their own separate budget so a heavy match day (dozens of
 // football-data.org fixtures, which come first in the processing order) can
 // never starve the RSS commentary budget — the trending-sort prioritization
 // above depends on RSS items actually getting a turn.
-const MAX_COMMENTARY_PER_RUN = 20;
+const MAX_COMMENTARY_PER_RUN = 30;
 const MAX_MATCH_RECAP_PER_RUN = 6;
+
+// Cricket gets a guaranteed floor of the shared RSS commentary budget above,
+// rather than competing purely on trending score against everything else.
+// Adding the India-specific Cricinfo feed (2026-09-10) roughly doubled
+// cricket's raw RSS volume — cricket is now 4 of 7 RSS feeds — without any
+// change to the shared budget, and cricket stories don't reliably win the
+// US/GB Google Trends signal the way football/superstar stories do, so
+// cricket's real body-coverage collapsed to near zero within a day (81% of
+// the pending queue body-less, entirely ESPN Cricinfo). Kept at half of the
+// (now larger) total budget when MAX_COMMENTARY_PER_RUN was raised, so the
+// extra room benefits both cricket and everything else, not just one side.
+const CRICKET_COMMENTARY_RESERVED = 15;
 
 // football-data.org/CricketData.org/ESPN NFL items always arrive with `body`
 // already set to a template built from real match facts (see footballData.ts
@@ -112,8 +125,23 @@ export async function runIngest() {
   let duplicates = 0;
   let backfilled = 0;
   let flagged = 0;
-  let commentaryCalls = 0;
+  let cricketCommentaryCalls = 0;
+  let otherCommentaryCalls = 0;
   let matchRecapCalls = 0;
+
+  // Cricket draws from its own reserved floor first; everything else shares
+  // the remainder of MAX_COMMENTARY_PER_RUN by trending priority, same as
+  // before. Total spend is unchanged — this only changes which items the
+  // existing budget goes to.
+  function canAffordCommentary(category: string): boolean {
+    return category === "cricket"
+      ? cricketCommentaryCalls < CRICKET_COMMENTARY_RESERVED
+      : otherCommentaryCalls < MAX_COMMENTARY_PER_RUN - CRICKET_COMMENTARY_RESERVED;
+  }
+  function recordCommentaryCall(category: string): void {
+    if (category === "cricket") cricketCommentaryCalls++;
+    else otherCommentaryCalls++;
+  }
 
   for (const item of rawItems) {
     if (INGEST_LIMIT !== undefined && ingested >= INGEST_LIMIT) break;
@@ -129,9 +157,9 @@ export async function runIngest() {
         existing.body === null &&
         item.sourceSnippet &&
         !isMatchDataSource(item.sourceName) &&
-        commentaryCalls < MAX_COMMENTARY_PER_RUN
+        canAffordCommentary(item.category)
       ) {
-        commentaryCalls++;
+        recordCommentaryCall(item.category);
         const { commentary, personNames } = await generateCommentary(item.title, item.sourceSnippet, item.sourceName);
         await sleep(COMMENTARY_DELAY_MS);
 
@@ -182,8 +210,8 @@ export async function runIngest() {
       const recap = await generateMatchRecap(item.title, body, competitionName);
       if (recap) body = recap;
       await sleep(COMMENTARY_DELAY_MS);
-    } else if (!body && item.sourceSnippet && commentaryCalls < MAX_COMMENTARY_PER_RUN) {
-      commentaryCalls++;
+    } else if (!body && item.sourceSnippet && canAffordCommentary(item.category)) {
+      recordCommentaryCall(item.category);
       const { commentary, personNames } = await generateCommentary(item.title, item.sourceSnippet, item.sourceName);
       if (commentary) body = commentary;
       await sleep(COMMENTARY_DELAY_MS);
@@ -239,7 +267,7 @@ export async function runIngest() {
   console.log(
     `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${duplicates} duplicates skipped ` +
     `(${backfilled} of those backfilled with a body they missed on a previous run), ` +
-    `${commentaryCalls} RSS commentary calls, ${matchRecapCalls} match recap calls. ` +
+    `${cricketCommentaryCalls + otherCommentaryCalls} RSS commentary calls (${cricketCommentaryCalls} cricket, ${otherCommentaryCalls} other), ${matchRecapCalls} match recap calls. ` +
     `(${scoreItems.length} from football-data.org, ${nflItems.length} from ESPN NFL, ${newsItems.length} from RSS, ${cricketItems.length} from CricketData.org, ${trendingKeywords.length} trending keywords checked)`
   );
 }
