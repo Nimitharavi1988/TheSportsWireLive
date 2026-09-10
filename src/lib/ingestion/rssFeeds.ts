@@ -82,6 +82,15 @@ const FEEDS: { url: string; category: string; sourceName: string }[] = [
   // or "premier league" in the title).
   { url: "https://www.skysports.com/rss/11095", category: "football", sourceName: "Sky Sports" },
   { url: "http://www.espncricinfo.com/rss/content/story/feeds/0.xml", category: "cricket", sourceName: "ESPN Cricinfo" },
+  // Cricinfo's India-specific country feed — overlaps with the general
+  // cricket feed above for stories that make the global cut (the existing
+  // title+publishedAt dedupe handles that safely), but surfaces a lot of
+  // India-specific coverage (domestic cricket, IPL-adjacent news, player
+  // stories) that doesn't make the global feed's limited item count.
+  // Confirmed live and working directly (2026-09-10) — the country feed
+  // numbering is Cricinfo's own (6 = India), not something documented
+  // publicly beyond their RSS index page.
+  { url: "https://www.cricinfo.com/rss/content/story/feeds/6.xml", category: "cricket", sourceName: "ESPN Cricinfo" },
   { url: "https://www.theguardian.com/sport/cricket/rss", category: "cricket", sourceName: "The Guardian" },
   // ESPN's general soccer feed — broader global coverage than the UK-focused
   // feeds above, more likely to pick up MLS (Messi/Inter Miami) and Saudi
