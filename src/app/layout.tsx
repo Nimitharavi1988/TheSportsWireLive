@@ -49,6 +49,13 @@ export const metadata = {
       "max-video-preview": -1,
     },
   },
+  // Bing Webmaster Tools site-ownership verification (HTML meta tag
+  // method — chosen over the CNAME method since it needs no DNS change).
+  verification: {
+    other: {
+      "msvalidate.01": "85D948396988D4A498642D52FFF524DB",
+    },
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
