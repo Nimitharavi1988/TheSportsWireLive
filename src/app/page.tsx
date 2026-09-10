@@ -13,6 +13,7 @@ import { fetchOneStockImage } from "@/lib/ingestion/stockImages";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 import { crestAltText, competitionFromSummary } from "@/lib/teamNames";
 import { displaySummary } from "@/lib/articleSummary";
+import { relativeTime } from "@/lib/relativeTime";
 import { EVENT_KEYWORDS } from "@/lib/eventKeywords";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { StandingsCarousel } from "@/components/StandingsCarousel";
@@ -37,19 +38,6 @@ import SportsFootballIcon from "@mui/icons-material/SportsFootball";
 // feedback, while keeping the larger h5 size so these still read as the
 // primary section dividers they are.
 const SECTION_HEADING_SX = { fontFamily: "var(--font-body)", color: "text.secondary" };
-
-// "2h ago" / "3d ago" style — distinct from the "Sep 6" date chips used
-// elsewhere, since the whole point of "Just In" is a freshness signal.
-function relativeTime(date: Date): string {
-  const diffMs = Date.now() - date.getTime();
-  const minutes = Math.round(diffMs / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  return `${days}d ago`;
-}
 
 export const revalidate = 60;
 

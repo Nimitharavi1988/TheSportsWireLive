@@ -45,4 +45,19 @@ export const PLAYER_QUOTES: PlayerQuote[] = [
       "I hate losing and cricket being my first love, once I enter the ground it's a different zone altogether and that hunger for winning is always there.",
     name: "Sachin Tendulkar",
   },
+  {
+    quote: "We don't want to tell our dreams. We want to show them.",
+    name: "Cristiano Ronaldo",
+    context: "Twitter, 8 February 2012",
+  },
+  {
+    quote: "In a career, you have to take difficult decisions.",
+    name: "Kylian Mbappé",
+    context: "CNN interview, 29 May 2024",
+  },
+  {
+    quote: "Till full stop doesn't come, the sentence is not complete.",
+    name: "MS Dhoni",
+    context: "asked mid-series if India were already beaten",
+  },
 ];

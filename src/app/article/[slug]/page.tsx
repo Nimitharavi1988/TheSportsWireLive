@@ -18,6 +18,9 @@ import { QuotesStrip } from "@/components/QuotesStrip";
 import { TRACKED_PLAYERS } from "@/lib/players";
 import { TRACKED_CLUBS } from "@/lib/clubs";
 import { displaySummary } from "@/lib/articleSummary";
+import { relativeTime } from "@/lib/relativeTime";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import WhatshotIcon from "@mui/icons-material/Whatshot";
 
 export const revalidate = 60;
 
@@ -49,16 +52,6 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
   const article = await db.article.findUnique({ where: { slug: params.slug } });
   if (!article || article.status !== "published") notFound();
 
-  const related = await db.article.findMany({
-    where: {
-      status: "published",
-      category: article.category,
-      id: { not: article.id },
-    },
-    orderBy: { publishedAt: "desc" },
-    take: 3,
-  });
-
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
@@ -83,6 +76,60 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
     club.searchTerms.some((term) => article.title.toLowerCase().includes(term.toLowerCase()))
   );
 
+  // Related stories for the sidebar — prioritizes the same tagged player/
+  // club over a generic "same category" match (a Messi story is more
+  // usefully followed by another Messi/Inter Miami story than an unrelated
+  // football headline), falling back to same-category-recent to fill any
+  // remaining slots. Was previously a "More in {Category}" block at the
+  // bottom of the main column, purely category-based — moved into the
+  // sidebar (where readers actually look for "what's next") and sharpened
+  // to use the tagging already computed above for the player/club chips.
+  const relatedSearchTerms = [...taggedPlayers, ...taggedClubs].flatMap((t) => t.searchTerms);
+  const taggedRelated =
+    relatedSearchTerms.length > 0
+      ? await db.article.findMany({
+          where: {
+            status: "published",
+            id: { not: article.id },
+            OR: relatedSearchTerms.map((term) => ({ title: { contains: term, mode: "insensitive" as const } })),
+          },
+          orderBy: { publishedAt: "desc" },
+          take: 3,
+        })
+      : [];
+  const related =
+    taggedRelated.length < 3
+      ? [
+          ...taggedRelated,
+          ...(await db.article.findMany({
+            where: {
+              status: "published",
+              category: article.category,
+              id: { notIn: [article.id, ...taggedRelated.map((r) => r.id)] },
+            },
+            orderBy: { publishedAt: "desc" },
+            take: 3 - taggedRelated.length,
+          })),
+        ]
+      : taggedRelated;
+
+  // "Trending Now" (right) and "Just In" (left) — an article page was
+  // otherwise a dead end beyond its own Related Stories: no way to
+  // discover what's hot sitewide right now, or what just came in, without
+  // going back to the homepage. Same trendingScore/publishedAt ordering
+  // the homepage itself uses, just sitewide rather than same-topic.
+  const excludeIds = [article.id, ...related.map((r) => r.id)];
+  const trendingNow = await db.article.findMany({
+    where: { status: "published", id: { notIn: excludeIds } },
+    orderBy: [{ trendingScore: "desc" }, { publishedAt: "desc" }],
+    take: 5,
+  });
+  const justIn = await db.article.findMany({
+    where: { status: "published", id: { notIn: [...excludeIds, ...trendingNow.map((t) => t.id)] } },
+    orderBy: { publishedAt: "desc" },
+    take: 5,
+  });
+
   // Same sidebar content as the homepage rail (Standings, Quotes) — article
   // pages are where most real traffic actually lands (search, social
   // shares), so they shouldn't be a dead end with zero discovery content
@@ -105,10 +152,59 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "1fr 300px" },
+          gridTemplateColumns: { xs: "1fr", md: "1fr 300px", lg: "220px 1fr 300px" },
           gap: 4,
         }}
       >
+      {justIn.length > 0 && (
+        <Box
+          component="aside"
+          sx={{
+            display: { xs: "none", lg: "block" },
+            position: "sticky",
+            top: 84,
+          }}
+        >
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 1.5 }}>
+              <AccessTimeIcon sx={{ fontSize: 15, color: "primary.main" }} />
+              <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, lineHeight: 1 }}>
+                Just In
+              </Typography>
+            </Stack>
+            <Stack spacing={1.25}>
+              {justIn.map((a, i) => (
+                <Box key={a.id}>
+                  {i > 0 && <Divider sx={{ mb: 1.25 }} />}
+                  <Link href={`/article/${a.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontSize: 12.5,
+                        fontWeight: 500,
+                        lineHeight: 1.35,
+                        display: "-webkit-box",
+                        WebkitLineClamp: 3,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                        "&:hover": { color: "primary.main" },
+                      }}
+                    >
+                      {a.title}
+                    </Typography>
+                    {a.publishedAt && (
+                      <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                        {relativeTime(a.publishedAt)}
+                      </Typography>
+                    )}
+                  </Link>
+                </Box>
+              ))}
+            </Stack>
+          </Paper>
+        </Box>
+      )}
+
       <Box sx={{ minWidth: 0 }}>
 
       {article.homeCrestUrl && article.awayCrestUrl ? (
@@ -216,38 +312,70 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         </a>
       </Box>
 
-      {related.length > 0 && (
-        <Paper variant="outlined" sx={{ p: 3, mt: 5 }}>
-          <Typography variant="overline" sx={{
-            color: "text.secondary"
-          }}>
-            More in {categoryChipStyle(article.category).label}
-          </Typography>
-          <Stack sx={{ mt: 1 }}>
-            {related.map((r, index) => (
-              <Box key={r.id}>
-                {index > 0 && <Divider />}
-                <Link href={`/article/${r.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
-                  <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", py: 1.25 }}>
-                    <ArticleThumb article={r} size={44} fallbackColor={categoryChipStyle(article.category).color} />
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 500,
-                        "&:hover": { color: "primary.main" }
-                      }}>
-                      {r.title}
-                    </Typography>
-                  </Stack>
-                </Link>
-              </Box>
-            ))}
-          </Stack>
-        </Paper>
-      )}
       </Box>
 
       <Box component="aside">
+        {related.length > 0 && (
+          <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
+            <Typography variant="overline" sx={{ color: "text.secondary" }}>
+              {taggedRelated.length > 0 ? "Related Stories" : `More in ${categoryChipStyle(article.category).label}`}
+            </Typography>
+            <Stack sx={{ mt: 1 }}>
+              {related.map((r, index) => (
+                <Box key={r.id}>
+                  {index > 0 && <Divider />}
+                  <Link href={`/article/${r.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+                    <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", py: 1.25 }}>
+                      <ArticleThumb article={r} size={44} fallbackColor={categoryChipStyle(article.category).color} />
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: 13,
+                          lineHeight: 1.35,
+                          fontWeight: 500,
+                          "&:hover": { color: "primary.main" }
+                        }}>
+                        {r.title}
+                      </Typography>
+                    </Stack>
+                  </Link>
+                </Box>
+              ))}
+            </Stack>
+          </Paper>
+        )}
+        {trendingNow.length > 0 && (
+          <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
+            <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 1 }}>
+              <WhatshotIcon sx={{ fontSize: 16, color: "warning.main" }} />
+              <Typography variant="overline" sx={{ color: "text.secondary" }}>
+                Trending Now
+              </Typography>
+            </Stack>
+            <Stack sx={{ mt: 0.5 }}>
+              {trendingNow.map((t, index) => (
+                <Box key={t.id}>
+                  {index > 0 && <Divider />}
+                  <Link href={`/article/${t.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+                    <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", py: 1.25 }}>
+                      <ArticleThumb article={t} size={44} fallbackColor={categoryChipStyle(t.category).color} />
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: 13,
+                          lineHeight: 1.35,
+                          fontWeight: 500,
+                          "&:hover": { color: "primary.main" }
+                        }}>
+                        {t.title}
+                      </Typography>
+                    </Stack>
+                  </Link>
+                </Box>
+              ))}
+            </Stack>
+          </Paper>
+        )}
         {standings && standings.rows.length > 0 && (
           <Box sx={{ mb: 3 }}>
             <StandingsCarousel leagues={STANDINGS_LEAGUES} initialCode="PL" initialTable={standings} />
