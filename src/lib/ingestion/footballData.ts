@@ -64,6 +64,15 @@ export interface RawMatchItem {
   // change across runs (e.g. a preview's embedded kickoff date, when the
   // upstream API revises it) — see dedupe.ts's computeStableDedupeHash.
   dedupeKey?: string;
+  // Set when the source already knows exactly which person an item is
+  // about (e.g. playerNewsFeeds.ts, which fetches per-player by name) —
+  // lets runIngest.ts look up that person's real Wikimedia photo directly,
+  // instead of only being reachable via Gemini's personNames extraction,
+  // which never runs at all when the commentary budget is exhausted for
+  // that item. Real gap this closes: budget-starved player-news items were
+  // shipping with no image whatsoever, not even though we already knew
+  // exactly who the photo should be of.
+  knownPersonName?: string;
 }
 
 function standingsContext(

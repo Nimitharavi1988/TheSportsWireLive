@@ -95,6 +95,11 @@ export async function fetchPlayerNews(): Promise<RawMatchItem[]> {
           sourceName,
           category: player.sport,
           publishedAt: entry.isoDate ? new Date(entry.isoDate) : new Date(),
+          // We already know exactly who this story is about (it came from
+          // their own name search) — runIngest.ts uses this to fetch a real
+          // photo directly, without needing Gemini's commentary call to
+          // succeed first. See RawMatchItem.knownPersonName.
+          knownPersonName: player.name,
         });
       }
     } catch (err) {

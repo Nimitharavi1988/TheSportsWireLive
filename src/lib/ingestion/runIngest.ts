@@ -213,6 +213,20 @@ export async function runIngest() {
           backfilled++;
         }
       }
+      // Independent of whether commentary ran/succeeded above — a
+      // known-person image (see RawMatchItem.knownPersonName) doesn't need
+      // Gemini's personNames extraction at all, so a budget-exhausted item
+      // can still get a real photo even with no body yet.
+      if (!existing.heroImageUrl && !item.heroImageUrl && item.knownPersonName) {
+        const personPhoto = await fetchPersonPhoto(item.knownPersonName);
+        if (personPhoto) {
+          await db.article.update({
+            where: { id: existing.id },
+            data: { heroImageUrl: personPhoto.url, heroImageCredit: personPhoto.credit, heroImageCreditUrl: personPhoto.creditUrl },
+          });
+          existing.heroImageUrl = personPhoto.url;
+        }
+      }
       continue;
     }
 
@@ -238,13 +252,21 @@ export async function runIngest() {
 
     // Priority: a real, story-specific photo the publisher's own RSS feed
     // already provides (most specific/authentic) > a team crest (no stock
-    // image needed at all) > the category stock-photo fallback. The person-
-    // photo lookup below only runs when neither of the first two applies.
-    let stockImage = item.heroImageUrl
-      ? { url: item.heroImageUrl, credit: item.heroImageCredit ?? `Photo via ${item.sourceName}`, creditUrl: item.sourceUrl }
-      : item.homeCrestUrl
-        ? null
-        : stockImagePicker.pick(item.category);
+    // image needed at all) > a known person's real Wikimedia photo (the
+    // source already told us who this is about — see
+    // RawMatchItem.knownPersonName — so this doesn't need Gemini's
+    // personNames extraction, or its budget, to run at all) > the category
+    // stock-photo fallback.
+    let stockImage: { url: string; credit?: string; creditUrl?: string } | null;
+    if (item.heroImageUrl) {
+      stockImage = { url: item.heroImageUrl, credit: item.heroImageCredit ?? `Photo via ${item.sourceName}`, creditUrl: item.sourceUrl };
+    } else if (item.homeCrestUrl) {
+      stockImage = null;
+    } else if (item.knownPersonName) {
+      stockImage = (await fetchPersonPhoto(item.knownPersonName)) ?? stockImagePicker.pick(item.category);
+    } else {
+      stockImage = stockImagePicker.pick(item.category);
+    }
 
     let body = item.body;
     if (body && isMatchDataSource(item.sourceName) && matchRecapCalls < MAX_MATCH_RECAP_PER_RUN) {
@@ -266,8 +288,12 @@ export async function runIngest() {
       // story is about over the generic category stock photo — but only
       // when the RSS feed itself didn't already give us a real photo for
       // this exact story, which is even more specific than a generic
-      // Wikimedia portrait of the person.
-      if (!item.heroImageUrl) {
+      // Wikimedia portrait of the person, AND only when knownPersonName
+      // didn't already resolve this above — re-running with Gemini's
+      // extracted names here would risk replacing a known-correct photo
+      // with a less certain guess (Gemini can name a quoted journalist or
+      // someone else mentioned in passing, not just the story's subject).
+      if (!item.heroImageUrl && !item.knownPersonName) {
         for (const personName of personNames) {
           const personPhoto = await fetchPersonPhoto(personName);
           if (personPhoto) {
