@@ -28,6 +28,7 @@ import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import ScoreboardIcon from "@mui/icons-material/Scoreboard";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import ArticleIcon from "@mui/icons-material/Article";
+import SportsFootballIcon from "@mui/icons-material/SportsFootball";
 
 // Main-column section headers (Player News, Transfers & Big News, etc.) were
 // using the theme's default h5 styling — Poppins, near-black — while the
@@ -236,8 +237,19 @@ export default async function HomePage(
   const highlightIds = new Set(highlightArticles.map((a) => a.id));
   const briefArticles = allBriefArticles.filter((a) => !highlightIds.has(a.id));
 
-  const matchArticles = allMatchArticles.slice(0, 10);
-  const moreArticles = allMatchArticles.slice(10, 25);
+  // NFL gets its own section rather than being mixed into the generic
+  // football/cricket match list — three different sports sharing one
+  // trending-sorted list diluted the feed for readers focused on any one
+  // of them. Splitting here (rather than a separate query) means this
+  // still works correctly on every filtered view for free: on `?category=
+  // american-football` the generic list is naturally empty and only this
+  // section renders; on `?category=football`/`cricket` it's the reverse.
+  const allNflArticles = allMatchArticles.filter((a) => a.sourceName === "ESPN NFL");
+  const allFootballCricketArticles = allMatchArticles.filter((a) => a.sourceName !== "ESPN NFL");
+
+  const matchArticles = allFootballCricketArticles.slice(0, 10);
+  const moreArticles = allFootballCricketArticles.slice(10, 25);
+  const nflArticles = allNflArticles.slice(0, 10);
 
   // Only fetch a generic stock photo per slide when there's no real image to
   // show instead — a match article with real team crests shouldn't also get
@@ -654,6 +666,77 @@ export default async function HomePage(
               </Stack>
               <Stack spacing={2}>
                 {matchArticles.map((article) => (
+                  <Card key={article.id} variant="outlined">
+                    <CardContent>
+                      {article.homeCrestUrl && article.awayCrestUrl ? (
+                        <Stack
+                          direction="row"
+                          spacing={1.5}
+                          sx={{
+                            alignItems: "center",
+                            mb: 1.5
+                          }}>
+                          <img src={article.homeCrestUrl} alt={crestAltText(article.summary).home} width={40} height={40} />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "text.secondary",
+                              fontWeight: 600
+                            }}>
+                            vs
+                          </Typography>
+                          <img src={article.awayCrestUrl} alt={crestAltText(article.summary).away} width={40} height={40} />
+                        </Stack>
+                      ) : article.heroImageUrl ? (
+                        <Box
+                          component="img"
+                          src={article.heroImageUrl}
+                          alt={article.title}
+                          sx={{ width: "100%", height: 160, objectFit: "cover", objectPosition: "top", borderRadius: 1, mb: 1.5 }}
+                        />
+                      ) : null}
+                      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
+                        <Chip
+                          label={categoryChipStyle(article.category).label}
+                          size="small"
+                          variant="outlined"
+                          sx={{
+                            color: categoryChipStyle(article.category).color,
+                            borderColor: categoryChipStyle(article.category).color,
+                            fontWeight: 600,
+                          }}
+                        />
+                        {article.publishedAt && (
+                          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                            {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </Typography>
+                        )}
+                      </Stack>
+                      <Typography variant="h6" component="h2" gutterBottom>
+                        <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+                          {article.title}
+                        </Link>
+                      </Typography>
+                      <Typography variant="body2" sx={{
+                        color: "text.secondary"
+                      }}>
+                        {displaySummary(article)}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                ))}
+              </Stack>
+            </Box>
+          )}
+
+          {nflArticles.length > 0 && (
+            <Box component="section" sx={{ mt: matchArticles.length > 0 ? 4 : 0 }}>
+              <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
+                <SportsFootballIcon sx={{ color: categoryChipStyle("american-football").color }} />
+                <Typography variant="h5" sx={SECTION_HEADING_SX}>NFL Scores &amp; Previews</Typography>
+              </Stack>
+              <Stack spacing={2}>
+                {nflArticles.map((article) => (
                   <Card key={article.id} variant="outlined">
                     <CardContent>
                       {article.homeCrestUrl && article.awayCrestUrl ? (
