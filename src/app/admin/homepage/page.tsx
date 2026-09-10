@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { featureArticle, unfeatureArticle, highlightArticle, unhighlightArticle } from "../actions";
-import { HERO_CAP } from "@/lib/heroConfig";
+import { HERO_CAP, sectionOf } from "@/lib/heroConfig";
 import Container from "@mui/material/Container";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -56,30 +56,45 @@ export default async function HomepageManagerPage(
 
       <Box sx={{ mb: 5 }}>
         <Typography variant="h6" gutterBottom>
-          Hero carousel ({heroArticles.length}/{HERO_CAP})
+          Hero carousel
         </Typography>
         <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
-          Shown newest pick first. Picking a {HERO_CAP + 1}th article automatically retires the oldest pick below.
-          Any remaining slots auto-fill with top trending stories on the homepage.
+          Capped per section, not sitewide — up to {HERO_CAP} picks each for football, cricket, and NFL, so
+          picking in one section never retires or blocks another. Picking a {HERO_CAP + 1}th within the same
+          section auto-retires that section&apos;s oldest pick. Any remaining slots auto-fill with top trending
+          stories on the homepage.
         </Typography>
         {heroArticles.length === 0 && (
           <Typography sx={{ color: "text.secondary" }}>Nothing picked — the hero is fully automatic right now.</Typography>
         )}
-        <Stack spacing={1}>
-          {heroArticles.map((article, i) => (
-            <Card key={article.id} variant="outlined">
-              <CardContent sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, "&:last-child": { pb: 2 } }}>
-                <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
-                  <Chip label={`#${i + 1}`} size="small" />
-                  <Typography noWrap>{article.title}</Typography>
-                </Stack>
-                <form action={unfeatureArticle.bind(null, article.id)}>
-                  <Button type="submit" size="small" color="inherit">Remove</Button>
-                </form>
-              </CardContent>
-            </Card>
-          ))}
-        </Stack>
+        {Object.entries(
+          heroArticles.reduce<Record<string, typeof heroArticles>>((groups, article) => {
+            const section = sectionOf(article.category);
+            (groups[section] ??= []).push(article);
+            return groups;
+          }, {})
+        ).map(([section, sectionArticles]) => (
+          <Box key={section} sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" sx={{ color: "text.secondary", textTransform: "capitalize", mb: 1 }}>
+              {section.replace("-", " ")} ({sectionArticles.length}/{HERO_CAP})
+            </Typography>
+            <Stack spacing={1}>
+              {sectionArticles.map((article, i) => (
+                <Card key={article.id} variant="outlined">
+                  <CardContent sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, "&:last-child": { pb: 2 } }}>
+                    <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
+                      <Chip label={`#${i + 1}`} size="small" />
+                      <Typography noWrap>{article.title}</Typography>
+                    </Stack>
+                    <form action={unfeatureArticle.bind(null, article.id)}>
+                      <Button type="submit" size="small" color="inherit">Remove</Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              ))}
+            </Stack>
+          </Box>
+        ))}
       </Box>
 
       <Box sx={{ mb: 5 }}>

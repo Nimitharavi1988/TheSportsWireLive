@@ -5,6 +5,7 @@ const {
   mockUpdate,
   mockUpdateMany,
   mockFindMany,
+  mockFindUnique,
   mockPostArticleToFacebook,
   mockRevalidatePath,
 } = vi.hoisted(() => ({
@@ -12,6 +13,7 @@ const {
   mockUpdate: vi.fn(),
   mockUpdateMany: vi.fn(),
   mockFindMany: vi.fn(),
+  mockFindUnique: vi.fn(),
   mockPostArticleToFacebook: vi.fn(),
   mockRevalidatePath: vi.fn(),
 }));
@@ -22,6 +24,7 @@ vi.mock("@/lib/db", () => ({
       update: mockUpdate,
       updateMany: mockUpdateMany,
       findMany: mockFindMany,
+      findUnique: mockFindUnique,
     },
   },
 }));
@@ -50,6 +53,7 @@ beforeEach(() => {
   mockUpdate.mockResolvedValue({});
   mockUpdateMany.mockResolvedValue({ count: 0 });
   mockFindMany.mockResolvedValue([]);
+  mockFindUnique.mockResolvedValue({ category: "football" });
   mockPostArticleToFacebook.mockResolvedValue(undefined);
 });
 
@@ -195,12 +199,16 @@ describe("featureArticle (hero pick, cap-enforced)", () => {
   it("throws and makes no changes when not authenticated", async () => {
     mockGetSession.mockResolvedValue(null);
     await expect(featureArticle("a1")).rejects.toThrow("Not authenticated");
+    expect(mockFindUnique).not.toHaveBeenCalled();
     expect(mockFindMany).not.toHaveBeenCalled();
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it("picks the article with no retirement when under the cap", async () => {
-    mockFindMany.mockResolvedValue([{ id: "x1" }, { id: "x2" }]); // 2 < HERO_CAP
+    mockFindMany.mockResolvedValue([
+      { id: "x1", category: "football" },
+      { id: "x2", category: "football" },
+    ]); // 2 < HERO_CAP
     await featureArticle("new1");
     expect(mockUpdate).toHaveBeenCalledTimes(1);
     expect(mockUpdate).toHaveBeenCalledWith({
@@ -209,11 +217,12 @@ describe("featureArticle (hero pick, cap-enforced)", () => {
     });
   });
 
-  it("retires the oldest pick when adding a new one at the cap", async () => {
-    const currentlyFeatured = Array.from({ length: HERO_CAP }, (_, i) => ({ id: `x${i}` }));
+  it("retires the oldest pick when adding a new one at the cap, within the same section", async () => {
+    const currentlyFeatured = Array.from({ length: HERO_CAP }, (_, i) => ({ id: `x${i}`, category: "football" }));
     mockFindMany.mockResolvedValue(currentlyFeatured); // already at HERO_CAP, oldest-first order
     await featureArticle("new1");
 
+    expect(mockFindUnique).toHaveBeenCalledWith({ where: { id: "new1" }, select: { category: true } });
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { featured: true }, orderBy: { featuredAt: "asc" } })
     );
@@ -231,7 +240,7 @@ describe("featureArticle (hero pick, cap-enforced)", () => {
   });
 
   it("re-picking an article already at the cap just refreshes its timestamp, retiring nobody", async () => {
-    const currentlyFeatured = Array.from({ length: HERO_CAP }, (_, i) => ({ id: `x${i}` }));
+    const currentlyFeatured = Array.from({ length: HERO_CAP }, (_, i) => ({ id: `x${i}`, category: "football" }));
     mockFindMany.mockResolvedValue(currentlyFeatured);
     await featureArticle("x2"); // already one of the 5 currently featured
 
@@ -239,6 +248,41 @@ describe("featureArticle (hero pick, cap-enforced)", () => {
     expect(mockUpdate).toHaveBeenCalledWith({
       where: { id: "x2" },
       data: { featured: true, featuredAt: expect.any(Date) },
+    });
+  });
+
+  // Real bug found and fixed (2026-09-10): the cap used to be checked
+  // across ALL featured articles regardless of section, so 5 featured
+  // cricket picks would silently block (and auto-retire!) a brand-new
+  // football pick, even though the two sections' heroes never compete for
+  // the same slide.
+  it("a full cricket cap does NOT block or retire anything when featuring a football pick", async () => {
+    mockFindUnique.mockResolvedValue({ category: "football" }); // the article being featured
+    const currentlyFeatured = Array.from({ length: HERO_CAP }, (_, i) => ({ id: `c${i}`, category: "cricket" }));
+    mockFindMany.mockResolvedValue(currentlyFeatured);
+
+    await featureArticle("new-football-pick");
+
+    expect(mockUpdate).toHaveBeenCalledTimes(1); // no retirement call at all
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "new-football-pick" },
+      data: { featured: true, featuredAt: expect.any(Date) },
+    });
+  });
+
+  it("groups a sub-category (football/world-cup) into its parent section for cap purposes", async () => {
+    mockFindUnique.mockResolvedValue({ category: "football/world-cup" });
+    const currentlyFeatured = Array.from({ length: HERO_CAP }, (_, i) => ({ id: `f${i}`, category: "football" }));
+    mockFindMany.mockResolvedValue(currentlyFeatured);
+
+    await featureArticle("new-world-cup-pick");
+
+    // Same "football" section as the 5 already-featured plain-football
+    // picks, so the cap applies and the oldest is retired.
+    expect(mockUpdate).toHaveBeenCalledTimes(2);
+    expect(mockUpdate).toHaveBeenNthCalledWith(1, {
+      where: { id: "f0" },
+      data: { featured: false, featuredAt: null },
     });
   });
 

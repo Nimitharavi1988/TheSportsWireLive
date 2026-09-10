@@ -3,7 +3,7 @@
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { postArticleToFacebook } from "@/lib/social/facebook";
-import { HERO_CAP } from "@/lib/heroConfig";
+import { HERO_CAP, sectionOf } from "@/lib/heroConfig";
 import { revalidatePath } from "next/cache";
 
 export async function approveArticle(articleId: string) {
@@ -104,23 +104,33 @@ export async function rejectArticle(articleId: string, reason?: string) {
   revalidatePath("/admin");
 }
 
-// Up to HERO_CAP articles can be manually picked for the hero carousel at
-// once, most-recently-picked first (see featuredAt). Picking one more than
-// the cap auto-retires the oldest pick rather than blocking the action or
-// replacing everything — this keeps the cap enforced without the admin
-// needing to remove one first.
+// Up to HERO_CAP articles can be manually picked per section (football,
+// cricket, american-football — see sectionOf), most-recently-picked first
+// within that section. Picking one more than the cap within the SAME
+// section auto-retires that section's oldest pick, rather than blocking
+// the action or touching any other section's picks — a cricket pick and a
+// football pick don't compete for the same budget, since they only ever
+// appear on their own section's hero anyway (found and fixed after a real
+// report: featuring 5 cricket articles was silently blocking football
+// picks from being added at all, auto-retiring cricket picks instead of
+// leaving them alone).
 export async function featureArticle(articleId: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
 
+  const target = await db.article.findUnique({ where: { id: articleId }, select: { category: true } });
+  if (!target) throw new Error("Article not found");
+  const section = sectionOf(target.category);
+
   const currentlyFeatured = await db.article.findMany({
     where: { featured: true },
     orderBy: { featuredAt: "asc" },
-    select: { id: true },
+    select: { id: true, category: true },
   });
-  const alreadyPicked = currentlyFeatured.some((a) => a.id === articleId);
-  if (!alreadyPicked && currentlyFeatured.length >= HERO_CAP) {
-    const oldest = currentlyFeatured[0];
+  const inSameSection = currentlyFeatured.filter((a) => sectionOf(a.category) === section);
+  const alreadyPicked = inSameSection.some((a) => a.id === articleId);
+  if (!alreadyPicked && inSameSection.length >= HERO_CAP) {
+    const oldest = inSameSection[0];
     await db.article.update({ where: { id: oldest.id }, data: { featured: false, featuredAt: null } });
   }
 
