@@ -24,3 +24,15 @@ export function computeDedupeHash(title: string, publishedAt: Date): string {
     .update(`${normalizedTitle}|${dayBucket}`)
     .digest("hex");
 }
+
+// For sources with a stable per-event identifier (e.g. ESPN's NFL game id).
+// The title+date hash above breaks for preview articles whose title embeds
+// a human-readable kickoff date: if the upstream API revises a not-yet-played
+// game's scheduled time (real, observed ESPN behavior as broadcast slots get
+// finalized close to game week), the title and day-bucket both change, and
+// the same game gets ingested a second time as a "new" article instead of
+// being recognized as the one already stored. Hashing the stable id instead
+// sidesteps that entirely.
+export function computeStableDedupeHash(stableId: string): string {
+  return crypto.createHash("sha256").update(stableId).digest("hex");
+}

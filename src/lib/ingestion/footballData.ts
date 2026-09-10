@@ -60,6 +60,10 @@ export interface RawMatchItem {
   // fallback in runIngest.ts, since it's the most specific image available.
   heroImageUrl?: string;
   heroImageCredit?: string;
+  // Stable per-event identifier, for sources where the title can legitimately
+  // change across runs (e.g. a preview's embedded kickoff date, when the
+  // upstream API revises it) — see dedupe.ts's computeStableDedupeHash.
+  dedupeKey?: string;
 }
 
 function standingsContext(

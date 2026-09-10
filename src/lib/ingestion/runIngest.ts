@@ -3,13 +3,21 @@ import { fetchFootballData, type RawMatchItem } from "./footballData";
 import { fetchNflData } from "./nflData";
 import { fetchRssNews } from "./rssFeeds";
 import { fetchCricketData } from "./cricketData";
-import { computeDedupeHash } from "./dedupe";
+import { computeDedupeHash, computeStableDedupeHash } from "./dedupe";
 import { runQualityChecks } from "./qualityCheck";
 import { fetchTrendingKeywords, computeTrendingScore } from "./trending";
 import { fetchStockImagePools, createStockImagePicker } from "./stockImages";
 import { generateCommentary, generateMatchRecap } from "./commentary";
 import { fetchPersonPhoto } from "./wikimediaImages";
 import { competitionFromSummary } from "../teamNames";
+
+// Prefers a source-provided stable id (see RawMatchItem.dedupeKey) over the
+// title+date hash, since a title embedding a mutable date (e.g. NFL preview
+// kickoff dates ESPN can revise) would otherwise hash differently every time
+// that date changes, defeating dedup for the same underlying event.
+function dedupeHashFor(item: RawMatchItem): string {
+  return item.dedupeKey ? computeStableDedupeHash(item.dedupeKey) : computeDedupeHash(item.title, item.publishedAt);
+}
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -108,7 +116,7 @@ export async function runIngest() {
   // single subrequest; the set is updated in-memory as items are ingested
   // so within-run duplicates (two sources reporting the same story) are
   // still caught without a query each.
-  const allHashes = rawItems.map((item) => computeDedupeHash(item.title, item.publishedAt));
+  const allHashes = rawItems.map(dedupeHashFor);
   // Keyed on id/body/heroImageUrl (not just the hash) so a duplicate that
   // was created in an earlier run without a body — because that run's
   // Gemini budget ran out before reaching it — can be opportunistically
@@ -152,7 +160,7 @@ export async function runIngest() {
   for (const item of rawItems) {
     if (INGEST_LIMIT !== undefined && ingested >= INGEST_LIMIT) break;
 
-    const dedupeHash = computeDedupeHash(item.title, item.publishedAt);
+    const dedupeHash = dedupeHashFor(item);
     const existing = existingArticles.get(dedupeHash);
 
     if (existing) {

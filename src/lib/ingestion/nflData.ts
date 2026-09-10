@@ -158,6 +158,11 @@ export async function fetchNflData(): Promise<RawMatchItem[]> {
       publishedAt: new Date(event.date),
       homeCrestUrl: home.team.logo,
       awayCrestUrl: away.team.logo,
+      // event.id is ESPN's own stable game identifier — unlike the title
+      // (which embeds a kickoff date ESPN can revise as broadcast slots get
+      // finalized), it never changes for a given game, so dedup keyed on it
+      // can't be fooled by a schedule-time update. See dedupe.ts.
+      dedupeKey: `espn-nfl-${event.id}`,
     });
   }
 
