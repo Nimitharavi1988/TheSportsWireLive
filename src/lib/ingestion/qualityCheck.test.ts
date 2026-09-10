@@ -80,6 +80,43 @@ describe("runQualityChecks — non-news filler detection", () => {
   });
 });
 
+describe("runQualityChecks — content-farm spam-ID detection", () => {
+  function titlePassed(title: string) {
+    return runQualityChecks(title, "A summary long enough to pass the broken-scrape length check.").passed;
+  }
+
+  it("flags the real spam title caught in production", () => {
+    expect(
+      titlePassed(
+        "Pakistan Vs Australia 2nd T20 Live Match Today | PAK Vs AUS 2nd T20 Live Scores & Commentary Lewandowski (PdBBl3l0s4)"
+      )
+    ).toBe(false);
+  });
+
+  it("does not flag a real year in parentheses", () => {
+    expect(titlePassed("Ballon d'Or nominees announced (2026)")).toBe(true);
+  });
+
+  it("does not flag a real short team/country code in parentheses", () => {
+    expect(titlePassed("Player of the match (AUS)")).toBe(true);
+  });
+
+  it("does not flag a real word in parentheses", () => {
+    expect(titlePassed("Watch the winning goal (video)")).toBe(true);
+  });
+
+  it("does not flag a normal headline with no trailing parenthetical at all", () => {
+    expect(titlePassed("PSV 1-1 FK Shakhtar Donetsk")).toBe(true);
+  });
+
+  it("does not flag a parenthetical that only mixes two of the three character classes", () => {
+    // Only letters (no digit) — a real abbreviation, not a bot ID.
+    expect(titlePassed("Match preview (TBC)")).toBe(true);
+    // Only lowercase + digit (no uppercase) — plausible real shorthand.
+    expect(titlePassed("Season stats update (matchday3)")).toBe(true);
+  });
+});
+
 describe("runQualityChecks — broken scrape detection", () => {
   it("flags leftover HTML tags", () => {
     expect(runQualityChecks("Title", "<p>Some text</p>").passed).toBe(false);

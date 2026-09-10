@@ -110,6 +110,23 @@ function isNonNewsFiller(title: string): boolean {
   return NON_NEWS_PATTERNS.some((pattern) => pattern.test(title));
 }
 
+// Low-quality content-farm sites append a random bot/video-ID string in
+// parentheses to game search rankings — real example caught live: "Pakistan
+// Vs Australia 2nd T20 Live Match Today | PAK Vs AUS 2nd T20 Live Scores &
+// Commentary Lewandowski (PdBBl3l0s4)". Deliberately narrow and keyed to
+// that exact shape (trailing parenthetical, 6+ chars, mixes uppercase,
+// lowercase AND a digit, no spaces inside) rather than a broad "any
+// parenthetical" rule — same false-positive-avoidance reasoning as the
+// profanity list's "Scunthorpe problem": a real headline's parenthetical is
+// almost always a readable word/abbreviation ("(video)", "(2026)", "(AUS)"),
+// never a random string mixing all three character classes with no spaces.
+function looksLikeSpamId(title: string): boolean {
+  const match = title.match(/\(([A-Za-z0-9]{6,})\)\s*$/);
+  if (!match) return false;
+  const id = match[1];
+  return /[a-z]/.test(id) && /[A-Z]/.test(id) && /[0-9]/.test(id);
+}
+
 export interface QualityCheckResult {
   passed: boolean;
   profanityFlag: boolean;
@@ -122,11 +139,14 @@ export function runQualityChecks(title: string, summary: string): QualityCheckRe
 
   const { flagged: profanityFlag, matched } = containsProfanity(combinedText);
   const nonNewsFlag = isNonNewsFiller(title);
+  const spamIdFlag = looksLikeSpamId(title);
   const profanityDetail = profanityFlag
     ? `Profanity detected: ${matched.join(", ")}`
     : nonNewsFlag
       ? "Not a news article (quiz/poll/filler content)"
-      : null;
+      : spamIdFlag
+        ? "Looks like content-farm spam (bot-generated ID in title)"
+        : null;
 
   // Stored for visibility in the admin queue, but NOT used as a pass/fail gate:
   // Flesch Reading Ease penalizes long/foreign proper nouns (team names like
@@ -139,7 +159,7 @@ export function runQualityChecks(title: string, summary: string): QualityCheckRe
   // suspiciously short (likely a truncated/garbled pull from source).
   const looksBroken = /<[^>]+>/.test(summary) || summary.trim().length < 20;
 
-  const passed = !profanityFlag && !looksBroken && !nonNewsFlag;
+  const passed = !profanityFlag && !looksBroken && !nonNewsFlag && !spamIdFlag;
 
-  return { passed, profanityFlag: profanityFlag || nonNewsFlag, profanityDetail, readabilityScore };
+  return { passed, profanityFlag: profanityFlag || nonNewsFlag || spamIdFlag, profanityDetail, readabilityScore };
 }
