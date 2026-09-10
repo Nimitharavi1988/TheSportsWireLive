@@ -105,14 +105,35 @@ export default async function HomePage(
   const searchParams = await props.searchParams;
   const category = searchParams.category;
 
-  const articles = await db.article.findMany({
-    where: {
-      status: "published",
-      ...(category ? { category: { startsWith: category } } : {}),
-    },
-    orderBy: [{ trendingScore: "desc" }, { publishedAt: "desc" }],
-    take: 80,
-  });
+  const articleWhere = {
+    status: "published" as const,
+    ...(category ? { category: { startsWith: category } } : {}),
+  };
+
+  // Fetched as two separate queries and merged, rather than relying on the
+  // trending-sorted query alone to happen to include them: an admin's
+  // manual "Feature as hero" pick is an explicit override of the automatic
+  // ranking, and a low-trending pick (a niche county cricket story, say)
+  // can genuinely fall outside the top-80-by-trendingScore cutoff below —
+  // especially now that the per-player Google News search can add
+  // hundreds of new candidates in a single run. Without this, a real admin
+  // decision was silently getting overridden by a score cutoff instead of
+  // actually taking priority. Capped at 5 (the same cap `featureArticle`
+  // itself enforces), so this can never balloon the query.
+  const [articlesRanked, manuallyFeaturedRaw] = await Promise.all([
+    db.article.findMany({
+      where: articleWhere,
+      orderBy: [{ trendingScore: "desc" }, { publishedAt: "desc" }],
+      take: 80,
+    }),
+    db.article.findMany({
+      where: { ...articleWhere, featured: true },
+      orderBy: { featuredAt: "desc" },
+      take: 5,
+    }),
+  ]);
+  const rankedIds = new Set(articlesRanked.map((a) => a.id));
+  const articles = [...manuallyFeaturedRaw.filter((a) => !rankedIds.has(a.id)), ...articlesRanked];
 
   // For each tracked player, find their single most prominent recent
   // article (reusing the already-fetched, trending-sorted `articles` list —
