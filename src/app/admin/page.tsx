@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import {
   approveArticle,
   approveArticles,
+  approveAllMatching,
   rejectArticle,
   featureArticle,
   unfeatureArticle,
@@ -74,15 +75,24 @@ export default async function AdminQueuePage(
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
+      <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
         <Typography variant="h4" gutterBottom>
           {status === "published" ? "Published articles" : "Review queue"} (
           {hasFilters ? `${matchingCount} matching, ${totalForStatus} total` : `${totalForStatus} ${status === "published" ? "published" : "pending"}`}
           )
         </Typography>
-        <Link href="/admin/homepage" style={{ color: "inherit" }}>
-          <Button variant="outlined" size="small">Manage hero &amp; highlights</Button>
-        </Link>
+        <Stack direction="row" spacing={1}>
+          {status === "pending_review" && matchingCount > 0 && (
+            <form action={approveAllMatching.bind(null, { q, source, category })}>
+              <Button type="submit" variant="contained" color="success">
+                Approve all {matchingCount}{hasFilters ? " matching" : ""}
+              </Button>
+            </form>
+          )}
+          <Link href="/admin/homepage" style={{ color: "inherit" }}>
+            <Button variant="outlined" size="small">Manage hero &amp; highlights</Button>
+          </Link>
+        </Stack>
       </Stack>
 
       <Card variant="outlined" sx={{ p: 2.5, mb: 3 }}>

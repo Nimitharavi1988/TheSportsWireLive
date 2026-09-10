@@ -32,6 +32,7 @@ vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 import {
   approveArticle,
   approveArticles,
+  approveAllMatching,
   rejectArticle,
   featureArticle,
   unfeatureArticle,
@@ -115,6 +116,46 @@ describe("approveArticles (bulk)", () => {
 
   it("never posts to Facebook, unlike single approve", async () => {
     await approveArticles(["a1", "a2"]);
+    expect(mockPostArticleToFacebook).not.toHaveBeenCalled();
+  });
+});
+
+describe("approveAllMatching", () => {
+  it("throws and makes no changes when not authenticated", async () => {
+    mockGetSession.mockResolvedValue(null);
+    await expect(approveAllMatching({})).rejects.toThrow("Not authenticated");
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("with no filters, approves every pending article in one call", async () => {
+    await approveAllMatching({});
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { status: "pending_review" },
+      data: expect.objectContaining({
+        status: "published",
+        reviewedBy: SESSION.userId,
+        publishedAt: expect.any(Date),
+        reviewedAt: expect.any(Date),
+      }),
+    });
+  });
+
+  it("applies the source/category/title filters exactly like the queue view does", async () => {
+    await approveAllMatching({ q: "arsenal", source: "BBC Sport", category: "football" });
+    expect(mockUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          status: "pending_review",
+          sourceName: "BBC Sport",
+          category: "football",
+          title: { contains: "arsenal", mode: "insensitive" },
+        },
+      })
+    );
+  });
+
+  it("never posts to Facebook", async () => {
+    await approveAllMatching({});
     expect(mockPostArticleToFacebook).not.toHaveBeenCalled();
   });
 });

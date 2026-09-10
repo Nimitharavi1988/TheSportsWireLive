@@ -55,6 +55,35 @@ export async function approveArticles(articleIds: string[]) {
   revalidatePath("/admin");
 }
 
+// "Approve all" from the queue toolbar — approves every pending article
+// matching the current search/source/category filter (not just the current
+// page's 50), in one updateMany so this stays cheap regardless of count:
+// a single UPDATE statement server-side, not N individual calls. Same as
+// the multi-select bulk approve, this skips the per-article Facebook post.
+export async function approveAllMatching(filters: { q?: string; source?: string; category?: string }) {
+  const session = await getSession();
+  if (!session) throw new Error("Not authenticated");
+
+  const { q, source, category } = filters;
+  const now = new Date();
+  await db.article.updateMany({
+    where: {
+      status: "pending_review",
+      ...(source ? { sourceName: source } : {}),
+      ...(category ? { category } : {}),
+      ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
+    },
+    data: {
+      status: "published",
+      publishedAt: now,
+      reviewedBy: session.userId,
+      reviewedAt: now,
+    },
+  });
+
+  revalidatePath("/admin");
+}
+
 export async function rejectArticle(articleId: string, reason?: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
