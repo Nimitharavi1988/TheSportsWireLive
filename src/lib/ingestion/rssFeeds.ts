@@ -99,6 +99,12 @@ const FEEDS: { url: string; category: string; sourceName: string }[] = [
   // has no Saudi Pro League at any pricing tier, and MLS only on a paid
   // tier) — a real coverage gap this at least partially closes for free.
   { url: "https://www.espn.com/espn/rss/soccer/news", category: "football", sourceName: "ESPN" },
+  // NFL editorial news (injuries, roster moves, storylines) — the American
+  // football section previously had only nflData.ts's game previews/results,
+  // no news coverage at all, unlike football and cricket which both have
+  // structured match data AND RSS news side by side. Confirmed live and
+  // working directly (2026-09-10).
+  { url: "https://www.espn.com/espn/rss/nfl/news", category: "american-football", sourceName: "ESPN" },
 ];
 
 export async function fetchRssNews(): Promise<RawMatchItem[]> {

@@ -53,7 +53,13 @@ function relativeTime(date: Date): string {
 
 export const revalidate = 60;
 
-const RSS_SOURCES = ["BBC Sport", "The Guardian", "Sky Sports", "ESPN Cricinfo"];
+// "ESPN" covers both the soccer feed and the new NFL news feed (rssFeeds.ts)
+// — both are genuine RSS editorial news, not structured match data, so both
+// belong in the sidebar/highlight sections, not mixed into the crest-based
+// Match Results/NFL Scores sections. Discovered while adding NFL news that
+// "ESPN" (soccer) was missing from this list already — a pre-existing gap
+// this also fixes, not something new-sport-specific.
+const RSS_SOURCES = ["BBC Sport", "The Guardian", "Sky Sports", "ESPN Cricinfo", "ESPN"];
 
 function isHighlightWorthy(title: string): boolean {
   const lower = title.toLowerCase();
