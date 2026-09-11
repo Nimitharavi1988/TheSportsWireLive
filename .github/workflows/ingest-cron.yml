@@ -1,8 +1,16 @@
 name: Ingestion cron
 
 on:
+  # 30-min interval had real multi-hour gaps in practice — confirmed
+  # directly via the Actions run history (e.g. 17:25 -> 19:54 -> 22:08 ->
+  # 00:18 UTC) despite each run itself only taking 6-12 minutes, a GitHub
+  # Actions platform scheduling reliability issue under load, not caused by
+  # our own code. Trying a shorter interval first (more attempts, more
+  # chances one lands) before committing to an external trigger service —
+  # this doesn't fix the root cause, so revisit with an external cron
+  # (pinging workflow_dispatch directly) if gaps are still bad at 20 min.
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "*/20 * * * *"
   workflow_dispatch: {}
 
 jobs:
