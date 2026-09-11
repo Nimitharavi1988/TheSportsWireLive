@@ -534,6 +534,10 @@ Working through the gaps found in the full-site review, in order.
 - User chose to raise the budget (over reducing player-news volume, or splitting the difference) once given the real cost. Doubled 30 → 60/run (`CRICKET_COMMENTARY_RESERVED` 15 → 30, keeping the existing "half the total" convention). Cost: ~$39/month → ~$78/month at gemini-2.5-flash pricing, 30-min cron interval — accepted with that number in hand.
 - **Not yet re-verified**: left a note in the code to re-check the actual fallback rate after this lands on a few real scheduled runs, the same way the 89.6% figure was measured (direct DB query). Worth checking back on in the next session or two.
 
+### Player-news no-body backlog: rejected once, revisit a permanent policy later (2026-09-11)
+- Following the decision to stop spending Gemini budget on player-news items entirely (they can only ever get a reworded headline, never real facts — see the earlier entry), the pending queue accumulated 146 player-news items that will **never** get real body content, permanently stuck below the auto-approve bar. User confirmed: reject the current backlog now, keep real quota for genuinely enrichable RSS sources, but explicitly deferred deciding on an ongoing/automated policy for this — for now it's a one-time manual cleanup, not a recurring job.
+- **Worth deciding later**: should future player-news items with no body auto-reject on some schedule (e.g. after N days unreviewed), or keep accumulating for occasional manual sweeps like this one? Not decided yet — flagged here so it isn't forgotten.
+
 ## Monetization plan (for reference)
 - **Phase 1 (now, low effort)**: Google AdSense, affiliate links (merch/streaming), email newsletter signup — all deferred until deployed per above
 - **Phase 2 (once there's real audience)**: Meta in-stream ads/Reels bonuses, sponsored posts, fantasy-sports affiliate deals (regulated, needs compliance research)
