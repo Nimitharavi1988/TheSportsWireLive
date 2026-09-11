@@ -60,6 +60,21 @@ export function looksLikeReferencePage(title: string, publisher: string | undefi
   return false;
 }
 
+// Google's quoted-phrase search matches anywhere in a page's full crawled
+// content, not just the headline — confirmed via a real example caught in
+// production: today.com's "Theo James on Returning to 'The Gentlemen'
+// Season 2" (a TV/entertainment piece, nothing to do with sports) got
+// ingested tagged as football, because some tracked player's exact name
+// apparently appeared somewhere in that page's full text (an ad, a related-
+// content sidebar, anything) even though the actual story never mentions
+// them. A genuinely relevant story about a player will almost always name
+// them in the headline itself — requiring that directly rules out this
+// class of full-page-text-only false match.
+export function titleMentionsPlayer(title: string, searchTerms: string[]): boolean {
+  const lower = title.toLowerCase();
+  return searchTerms.some((term) => lower.includes(term.toLowerCase()));
+}
+
 // A popular player can return up to ~100 matches, with the same real-world
 // event (e.g. a big transfer) independently covered by five-plus outlets at
 // once (confirmed directly: Messi's Eldense purchase alone had ESPN, NYT,
@@ -84,6 +99,7 @@ export async function fetchPlayerNews(): Promise<RawMatchItem[]> {
         const strippedTitle = stripPublisherSuffix(entry.title, publisher);
 
         if (looksLikeReferencePage(strippedTitle, publisher, player.name)) continue;
+        if (!titleMentionsPlayer(strippedTitle, player.searchTerms)) continue;
 
         items.push({
           title: strippedTitle,

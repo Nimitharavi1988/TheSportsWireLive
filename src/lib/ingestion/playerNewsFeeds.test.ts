@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { googleNewsSearchUrl, stripPublisherSuffix, extractPublisher, looksLikeReferencePage } from "./playerNewsFeeds";
+import {
+  googleNewsSearchUrl,
+  stripPublisherSuffix,
+  extractPublisher,
+  looksLikeReferencePage,
+  titleMentionsPlayer,
+} from "./playerNewsFeeds";
 
 describe("googleNewsSearchUrl", () => {
   it("wraps the name in quotes and adds a 3-day recency window", () => {
@@ -83,5 +89,28 @@ describe("looksLikeReferencePage", () => {
 
   it("does not reject a real headline that uses 'profile' in an ordinary sentence, without the aggregator combo", () => {
     expect(looksLikeReferencePage("A profile of Messi's incredible season so far", "The Guardian", "Lionel Messi")).toBe(false);
+  });
+});
+
+describe("titleMentionsPlayer", () => {
+  // Real bug caught live in production (2026-09-11): today.com's "Theo
+  // James on Returning to 'The Gentlemen' Season 2" — a TV/entertainment
+  // article with zero sports content — got ingested via a tracked player's
+  // search, because Google's quoted-phrase search matches anywhere in a
+  // page's full crawled content, not just the headline.
+  it("rejects an off-topic headline that doesn't actually name the player, even though it matched the search", () => {
+    expect(titleMentionsPlayer("Theo James on Returning to 'The Gentlemen' Season 2", ["Bumrah"])).toBe(false);
+  });
+
+  it("accepts a real headline that names the player via any of their search terms", () => {
+    expect(titleMentionsPlayer("Bumrah fit, Yash Thakur replaces Harshit for Afghanistan T20Is", ["Bumrah"])).toBe(true);
+  });
+
+  it("is case-insensitive", () => {
+    expect(titleMentionsPlayer("BUMRAH ruled out of series opener", ["Bumrah"])).toBe(true);
+  });
+
+  it("accepts a match via any one of several search terms (e.g. accented-name variants)", () => {
+    expect(titleMentionsPlayer("Vinicius Junior scores winner for Real Madrid", ["Vinicius", "Vinícius"])).toBe(true);
   });
 });
