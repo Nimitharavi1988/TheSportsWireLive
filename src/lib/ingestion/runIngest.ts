@@ -183,10 +183,19 @@ export async function runIngest() {
       duplicates++;
       // Only RSS items can be missing a body this way — match-data items
       // (football-data.org/CricketData.org) always get one at creation.
+      // Player-news items (knownPersonName set — see playerNewsFeeds.ts)
+      // are excluded here: confirmed directly that Google News' RSS
+      // "snippet" is always just the headline repeated verbatim (100% word
+      // overlap across every real example checked), so a commentary call
+      // for these has no real facts to expand on and can only produce a
+      // reworded headline — not worth spending scarce Gemini budget on
+      // when genuine-snippet RSS sources (BBC/Guardian/Sky) are competing
+      // for the same budget and can actually be enriched.
       if (
         existing.body === null &&
         item.sourceSnippet &&
         !isMatchDataSource(item.sourceName) &&
+        !item.knownPersonName &&
         canAffordCommentary(item.category)
       ) {
         recordCommentaryCall(item.category);
@@ -278,7 +287,9 @@ export async function runIngest() {
       const recap = await generateMatchRecap(item.title, body, competitionName);
       if (recap) body = recap;
       await sleep(COMMENTARY_DELAY_MS);
-    } else if (!body && item.sourceSnippet && canAffordCommentary(item.category)) {
+    } else if (!body && item.sourceSnippet && !item.knownPersonName && canAffordCommentary(item.category)) {
+      // knownPersonName (player-news items) excluded — see the matching
+      // comment on the duplicate-backfill path above for why.
       recordCommentaryCall(item.category);
       const { commentary, personNames } = await generateCommentary(item.title, item.sourceSnippet, item.sourceName);
       if (commentary) body = commentary;
