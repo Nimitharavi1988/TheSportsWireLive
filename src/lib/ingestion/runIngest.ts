@@ -344,6 +344,10 @@ export async function runIngest() {
         readabilityScore: quality.readabilityScore,
         trendingScore,
         status: quality.passed ? "pending_review" : "flagged",
+        // Marks this as a player-news item so autoApprove.ts knows a null
+        // body here is the finished state (summary + real photo + source
+        // link), not "not yet enriched" — see the field's schema comment.
+        playerNewsSourced: Boolean(item.knownPersonName),
       },
     });
     // Registers this hash as no longer "new" — guards against the same

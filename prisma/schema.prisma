@@ -83,6 +83,7 @@ model Article {
   featuredAt       DateTime?      // when this pick was made — determines hero order (latest first) and which pick gets retired when the cap is exceeded
   highlighted      Boolean        @default(false) // manually pinned into "Transfers & Big News"; adds to (doesn't replace) the automatic keyword match
   highlightedAt    DateTime?      // when this pick was made — determines display order (latest first) among highlighted articles
+  playerNewsSourced Boolean       @default(false) // from the per-player Google News search (playerNewsFeeds.ts) — body is deliberately never generated for these (see runIngest.ts), so a null body here means "finished" (summary + real photo + source link), not "not yet enriched". Lets autoApprove.ts tell the two apart instead of treating every body-less article the same.
   socialPosts      SocialPost[]
   poll             Poll?
   reactions        ArticleReaction[]

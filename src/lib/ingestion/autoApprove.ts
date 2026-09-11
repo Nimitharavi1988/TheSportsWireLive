@@ -22,14 +22,26 @@ export function hasRealImage(article: { heroImageUrl: string | null; homeCrestUr
   return false;
 }
 
-export function isAutoApprovable(article: { body: string | null; heroImageUrl: string | null; homeCrestUrl: string | null }): boolean {
-  return Boolean(article.body && article.body.trim().length >= MIN_BODY_LENGTH) && hasRealImage(article);
+export function isAutoApprovable(article: {
+  body: string | null;
+  heroImageUrl: string | null;
+  homeCrestUrl: string | null;
+  playerNewsSourced: boolean;
+}): boolean {
+  if (!hasRealImage(article)) return false;
+  // Player-news items (playerNewsFeeds.ts) never get a body by design — see
+  // the schema comment on Article.playerNewsSourced. A null body here means
+  // this is already the finished product (summary + real photo + source
+  // link), so it's judged on image alone rather than being held to a body
+  // bar it can structurally never clear.
+  if (article.playerNewsSourced) return true;
+  return Boolean(article.body && article.body.trim().length >= MIN_BODY_LENGTH);
 }
 
 export async function autoApproveValidArticles(): Promise<{ checked: number; approved: number }> {
   const candidates = await db.article.findMany({
     where: { status: "pending_review" },
-    select: { id: true, body: true, heroImageUrl: true, homeCrestUrl: true },
+    select: { id: true, body: true, heroImageUrl: true, homeCrestUrl: true, playerNewsSourced: true },
   });
 
   const toApprove = candidates.filter(isAutoApprovable);
@@ -56,7 +68,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
 if (require.main === module) {
   autoApproveValidArticles()
     .then(({ checked, approved }) => {
-      console.log(`Auto-approve: ${approved} of ${checked} pending articles met the bar (body >= ${MIN_BODY_LENGTH} chars + real image).`);
+      console.log(`Auto-approve: ${approved} of ${checked} pending articles met the bar (real image + either body >= ${MIN_BODY_LENGTH} chars, or a player-news item with no body by design).`);
       process.exit(0);
     })
     .catch((err) => {
