@@ -35,3 +35,13 @@ jobs:
           CRICKETDATA_API_KEY: ${{ secrets.CRICKETDATA_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # Auto-approves only the pending articles that clear a real bar on top
+      # of every automated quality gate already passed to reach
+      # pending_review: substantive real body content (not the generic
+      # fallback) AND a real image (not the generic stock-photo fallback).
+      # See autoApprove.ts for the exact thresholds and reasoning. Runs as
+      # its own step (not inside runIngest.ts) so a failure here can never
+      # affect ingestion itself, and only needs DATABASE_URL.
+      - run: npx tsx src/lib/ingestion/autoApprove.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
