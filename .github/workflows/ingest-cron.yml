@@ -1,16 +1,18 @@
 name: Ingestion cron
 
 on:
-  # 30-min interval had real multi-hour gaps in practice — confirmed
-  # directly via the Actions run history (e.g. 17:25 -> 19:54 -> 22:08 ->
-  # 00:18 UTC) despite each run itself only taking 6-12 minutes, a GitHub
-  # Actions platform scheduling reliability issue under load, not caused by
-  # our own code. Trying a shorter interval first (more attempts, more
-  # chances one lands) before committing to an external trigger service —
-  # this doesn't fix the root cause, so revisit with an external cron
-  # (pinging workflow_dispatch directly) if gaps are still bad at 20 min.
-  schedule:
-    - cron: "*/20 * * * *"
+  # No GitHub `schedule:` trigger here anymore — confirmed directly via the
+  # Actions run history that it had real multi-hour gaps (e.g. 17:25 ->
+  # 19:54 -> 22:08 -> 00:18 UTC) despite each run only taking 6-12 minutes,
+  # a GitHub Actions platform scheduling reliability issue under load, not
+  # our own code. A shorter 20-min interval didn't fix it either (still a
+  # 5-hour gap observed). Replaced entirely with an external trigger
+  # (cron-job.org, every 15 min) that calls this workflow's dispatch API
+  # directly — confirmed reliable, and removing GitHub's own schedule
+  # avoids the two occasionally firing close together and double-running
+  # ingestion (wasted Gemini commentary budget for zero extra coverage).
+  # workflow_dispatch stays enabled both for the external trigger and for
+  # manual runs via the Actions tab.
   workflow_dispatch: {}
 
 jobs:
