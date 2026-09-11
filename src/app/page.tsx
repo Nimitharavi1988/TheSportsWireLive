@@ -87,11 +87,15 @@ export async function generateMetadata(
 ) {
   const searchParams = await props.searchParams;
   const meta = searchParams.category ? CATEGORY_META[searchParams.category] : undefined;
-  if (!meta) return { alternates: { canonical: "/" } };
+  // alternates replaces (not merges with) the root layout's alternates —
+  // including its RSS feed `types` entry — so it has to be repeated here
+  // rather than relying on the layout default to survive.
+  const rssTypes = { types: { "application/rss+xml": "/feed.xml" } };
+  if (!meta) return { alternates: { canonical: "/", ...rssTypes } };
   return {
     title: meta.title,
     description: meta.description,
-    alternates: { canonical: `/?category=${searchParams.category}` },
+    alternates: { canonical: `/?category=${searchParams.category}`, ...rssTypes },
     openGraph: { title: meta.title, description: meta.description },
     twitter: { title: meta.title, description: meta.description },
   };

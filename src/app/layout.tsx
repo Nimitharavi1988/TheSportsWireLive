@@ -31,6 +31,13 @@ export const metadata = {
     siteName: "Sports Wire Live",
     type: "website",
   },
+  // Lets feed readers and aggregators (Flipboard's Publisher account, etc.)
+  // auto-discover the RSS feed instead of needing the URL typed in by hand.
+  alternates: {
+    types: {
+      "application/rss+xml": "/feed.xml",
+    },
+  },
   twitter: {
     card: "summary_large_image",
   },
