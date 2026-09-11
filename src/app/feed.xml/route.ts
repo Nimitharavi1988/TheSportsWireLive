@@ -7,9 +7,8 @@ export const revalidate = 900; // matches the ingest cron cadence — no point r
 // to pull from automatically, the same self-serve mechanism every other RSS
 // source this site itself ingests from (rssFeeds.ts) relies on. Only ever
 // our own original content (body — Gemini commentary over real facts,
-// never a source's copyrighted prose — or, for player-news items with no
-// body by design, the same summary already shown on the article page), so
-// there's no republishing concern going the other direction.
+// never a source's copyrighted prose), so there's no republishing concern
+// going the other direction.
 const MAX_ITEMS = 50;
 
 function escapeXml(value: string): string {
@@ -25,8 +24,17 @@ export async function GET() {
   const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
 
   const articles = await db.article.findMany({
-    where: { status: "published" },
-    select: { slug: true, title: true, summary: true, body: true, category: true, sourceName: true, createdAt: true, heroImageUrl: true },
+    where: {
+      status: "published",
+      // Player-news items never get a body by design (see
+      // Article.playerNewsSourced) — their only "content" is a ~80-char
+      // templated summary, well under Flipboard's own 300-char guideline
+      // for a good card. They stay published and fully visible on the site
+      // itself; this just keeps them out of external syndication, where
+      // thin content only hurts.
+      body: { not: null },
+    },
+    select: { slug: true, title: true, body: true, category: true, sourceName: true, createdAt: true, heroImageUrl: true },
     // createdAt (when it actually landed on the site), not publishedAt —
     // match-preview articles set publishedAt to the future kickoff time, so
     // ordering by that would put next week's fixture preview above today's
@@ -39,7 +47,7 @@ export async function GET() {
   const items = articles
     .map((article) => {
       const url = `${siteUrl}/article/${article.slug}`;
-      const description = (article.body ?? article.summary).slice(0, 2000);
+      const description = article.body!.slice(0, 2000);
       const pubDate = article.createdAt.toUTCString();
       const enclosure = article.heroImageUrl
         ? `<enclosure url="${escapeXml(article.heroImageUrl)}" type="image/jpeg" />`
