@@ -4,13 +4,14 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { postArticleToFacebook } from "@/lib/social/facebook";
 import { HERO_CAP, sectionOf } from "@/lib/heroConfig";
+import { submitToIndexNow, articleUrl } from "@/lib/indexNow";
 import { revalidatePath } from "next/cache";
 
 export async function approveArticle(articleId: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
 
-  await db.article.update({
+  const article = await db.article.update({
     where: { id: articleId },
     data: {
       status: "published",
@@ -31,6 +32,9 @@ export async function approveArticle(articleId: string) {
   } catch (err) {
     console.error("Facebook post failed for article", articleId, err);
   }
+
+  // Best-effort, same isolation principle as the Facebook post above.
+  await submitToIndexNow([articleUrl(article.slug)]);
 
   revalidatePath("/admin");
 }
@@ -55,6 +59,12 @@ export async function approveArticles(articleIds: string[]) {
     },
   });
 
+  // updateMany doesn't return the updated rows, so slugs need a follow-up
+  // query — cheap relative to the bulk update itself, and best-effort same
+  // as every other IndexNow call site.
+  const published = await db.article.findMany({ where: { id: { in: articleIds } }, select: { slug: true } });
+  await submitToIndexNow(published.map((a) => articleUrl(a.slug)));
+
   revalidatePath("/admin");
 }
 
@@ -68,14 +78,20 @@ export async function approveAllMatching(filters: { q?: string; source?: string;
   if (!session) throw new Error("Not authenticated");
 
   const { q, source, category } = filters;
+  const where = {
+    status: "pending_review" as const,
+    ...(source ? { sourceName: source } : {}),
+    ...(category ? { category } : {}),
+    ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
+  };
+
+  // Slugs need to come from a query against the *pre*-update state — once
+  // updateMany runs, these rows no longer match `status: "pending_review"`.
+  const matching = await db.article.findMany({ where, select: { slug: true } });
+
   const now = new Date();
   await db.article.updateMany({
-    where: {
-      status: "pending_review",
-      ...(source ? { sourceName: source } : {}),
-      ...(category ? { category } : {}),
-      ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
-    },
+    where,
     data: {
       status: "published",
       // Not touching publishedAt — see approveArticle.
@@ -83,6 +99,8 @@ export async function approveAllMatching(filters: { q?: string; source?: string;
       reviewedAt: now,
     },
   });
+
+  await submitToIndexNow(matching.map((a) => articleUrl(a.slug)));
 
   revalidatePath("/admin");
 }

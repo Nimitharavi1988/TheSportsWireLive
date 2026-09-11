@@ -44,6 +44,11 @@ jobs:
       # See autoApprove.ts for the exact thresholds and reasoning. Runs as
       # its own step (not inside runIngest.ts) so a failure here can never
       # affect ingestion itself, and only needs DATABASE_URL.
+      # SITE_URL/INDEXNOW_KEY are for the best-effort IndexNow ping on newly
+      # published articles (src/lib/indexNow.ts) — a failure or missing
+      # value there is swallowed, never fails this step.
       - run: npx tsx src/lib/ingestion/autoApprove.ts
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SITE_URL: ${{ vars.SITE_URL }}
+          INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}

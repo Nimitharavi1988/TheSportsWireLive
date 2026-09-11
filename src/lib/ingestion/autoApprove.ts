@@ -1,4 +1,5 @@
 import { db } from "../db";
+import { submitToIndexNow, articleUrl } from "../indexNow";
 
 // Runs as a follow-up step right after runIngest.ts in the same GitHub
 // Actions job — everything reaching "pending_review" has already passed
@@ -41,7 +42,7 @@ export function isAutoApprovable(article: {
 export async function autoApproveValidArticles(): Promise<{ checked: number; approved: number }> {
   const candidates = await db.article.findMany({
     where: { status: "pending_review" },
-    select: { id: true, body: true, heroImageUrl: true, homeCrestUrl: true, playerNewsSourced: true },
+    select: { id: true, slug: true, body: true, heroImageUrl: true, homeCrestUrl: true, playerNewsSourced: true },
   });
 
   const toApprove = candidates.filter(isAutoApprovable);
@@ -56,6 +57,10 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
         // admin/actions.ts for the full reasoning (same bug this once was).
       },
     });
+
+    // Best-effort, same isolation principle as the Facebook post in
+    // admin/actions.ts — a failed ping here should never affect publishing.
+    await submitToIndexNow(toApprove.map((a) => articleUrl(a.slug)));
   }
 
   // Deliberately does NOT post to Facebook — same precedent as the admin
