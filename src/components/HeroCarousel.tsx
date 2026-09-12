@@ -95,19 +95,51 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                 sx={{
                   position: "absolute",
                   inset: 0,
-                  background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.45) 45%, rgba(0,0,0,0) 75%)",
+                  background: "linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 55%, rgba(0,0,0,0) 90%)",
                 }}
               />
-              <Box sx={{ position: "absolute", left: 0, right: 0, bottom: 0, p: 3 }}>
+              {/* Was unbounded — a long headline at a fixed h4 size could
+                  need more lines than a narrower/shorter box (e.g. a 14"
+                  laptop viewport) had room for, pushing text up past the
+                  image's own top edge into an area the gradient above never
+                  darkens. maxHeight + overflow hidden is the hard guarantee
+                  text can never escape the image regardless of content
+                  length; the line-clamps below are what keep that from ever
+                  visibly truncating in practice. font-size uses clamp() for
+                  smooth fluid scaling across viewport widths instead of only
+                  jumping at MUI's fixed breakpoints. */}
+              <Box sx={{ position: "absolute", left: 0, right: 0, bottom: 0, p: { xs: 2, sm: 3 }, maxHeight: "78%", overflow: "hidden" }}>
                 <Chip
                   label="Top Story"
                   size="small"
-                  sx={{ bgcolor: "primary.main", color: "primary.contrastText", fontWeight: 700, mb: 1.5 }}
+                  sx={{ bgcolor: "primary.main", color: "primary.contrastText", fontWeight: 700, mb: 1.25 }}
                 />
-                <Typography variant="h4" component="h2" gutterBottom sx={{ color: "#fff" }}>
+                <Typography
+                  component="h2"
+                  gutterBottom
+                  sx={{
+                    color: "#fff",
+                    fontWeight: 700,
+                    lineHeight: 1.25,
+                    fontSize: "clamp(1.15rem, 1.6vw + 0.7rem, 2.125rem)",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
                   {slide.title}
                 </Typography>
-                <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.88)" }}>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: "rgba(255,255,255,0.88)",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
                   {slide.summary}
                 </Typography>
               </Box>
