@@ -91,6 +91,10 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   // "Surya" alone is too common an Indian name-root; "Suryakumar" is
   // distinctive enough on its own.
   { slug: "suryakumar-yadav", name: "Suryakumar Yadav", searchTerms: ["Suryakumar"], sport: "cricket", cricinfoPlayerId: 446507 },
+  // Both spellings appear regularly in real headlines — Cricinfo's own
+  // slug uses "Sooryavanshi", but plenty of outlets (including gulfnews.com)
+  // spell it "Suryavanshi".
+  { slug: "vaibhav-sooryavanshi", name: "Vaibhav Sooryavanshi", searchTerms: ["Sooryavanshi", "Suryavanshi"], sport: "cricket", cricinfoPlayerId: 1408688 },
   // Cricket — legends (previously missing entirely — football had 6
   // legends tracked, cricket had none)
   { slug: "sachin-tendulkar", name: "Sachin Tendulkar", searchTerms: ["Tendulkar"], sport: "cricket", cricinfoPlayerId: 35320 },

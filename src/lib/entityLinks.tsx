@@ -41,10 +41,11 @@ const ENTITY_REGEX = new RegExp(`\\b(${LINKABLE_TERMS.map((t) => escapeRegExp(t.
 
 // Distinct from the site's usual "color: inherit" inline-link style
 // (attribution captions, source links) — a body-text link needs to read as
-// clickable at a glance, same "visual clue" any style guide gives for
-// in-content links, so it gets the brand green + underline instead of
-// blending into the paragraph.
-const LINK_STYLE = { color: "#1d6b3f", textDecoration: "underline", textDecorationColor: "rgba(29,107,63,0.4)" };
+// clickable at a glance. Color + medium weight rather than an underline —
+// the underline read as dated; brand-green + weight is the same "visual
+// clue" a reader needs, in the flat, no-underline style most modern
+// editorial sites (and this site's own chips/nav) already use.
+const LINK_STYLE = { color: "#1d6b3f", fontWeight: 600, textDecoration: "none" };
 
 // One linker per ARTICLE (not per paragraph) — the returned function shares
 // a single `linked` set across every call, so a name already linked in an
