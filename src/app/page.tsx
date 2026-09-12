@@ -27,6 +27,7 @@ import { ArticleThumb } from "@/components/ArticleThumb";
 import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImages";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { LiveScoreboardCarousel } from "@/components/LiveScoreboardCarousel";
+import { LiveCricketWidget } from "@/components/LiveCricketWidget";
 import { fetchLiveCricketMatches } from "@/lib/liveCricket";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import StarIcon from "@mui/icons-material/Star";
@@ -946,6 +947,15 @@ export default async function HomePage(
               <Box sx={{ mb: 3 }}>
                 <LiveScoreboardCarousel matches={liveCricketMatches} />
               </Box>
+            )}
+
+            {(category === undefined || category === "cricket") && (
+              <Paper variant="outlined" sx={{ p: 1.5, mb: 3 }}>
+                <Typography variant="overline" sx={{ color: "text.secondary", display: "block", mb: 0.5 }}>
+                  Live Scores
+                </Typography>
+                <LiveCricketWidget />
+              </Paper>
             )}
 
             {briefArticles.length > 0 && (

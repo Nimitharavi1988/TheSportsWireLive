@@ -80,16 +80,17 @@ export function StandingsCarousel({
           justifyContent: "space-between",
           px: 1.5,
           py: 1.25,
-          bgcolor: "primary.main",
-          backgroundImage: "linear-gradient(135deg, #1d6b3f, #24894f)",
-          color: "primary.contrastText",
+          bgcolor: "rgba(29, 107, 63, 0.08)",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          color: "primary.main",
         }}
       >
         <IconButton
           size="small"
           onClick={() => go(-1)}
           aria-label="Previous league"
-          sx={{ color: "inherit", "&:hover": { bgcolor: "rgba(255,255,255,0.15)" } }}
+          sx={{ color: "inherit", "&:hover": { bgcolor: "rgba(29, 107, 63, 0.14)" } }}
         >
           <ChevronLeftIcon fontSize="small" />
         </IconButton>
@@ -99,7 +100,7 @@ export function StandingsCarousel({
             <Typography noWrap sx={{ fontWeight: 700, lineHeight: 1.2, fontSize: 14 }}>
               {current.name}
             </Typography>
-            <Typography sx={{ opacity: 0.85, fontSize: 10.5 }}>
+            <Typography sx={{ opacity: 0.75, fontSize: 10.5 }}>
               {index + 1} of {leagues.length}
             </Typography>
           </Box>
@@ -108,7 +109,7 @@ export function StandingsCarousel({
           size="small"
           onClick={() => go(1)}
           aria-label="Next league"
-          sx={{ color: "inherit", "&:hover": { bgcolor: "rgba(255,255,255,0.15)" } }}
+          sx={{ color: "inherit", "&:hover": { bgcolor: "rgba(29, 107, 63, 0.14)" } }}
         >
           <ChevronRightIcon fontSize="small" />
         </IconButton>
