@@ -189,7 +189,7 @@ export async function runIngest() {
     (
       await db.article.findMany({
         where: { dedupeHash: { in: allHashes } },
-        select: { id: true, dedupeHash: true, body: true, heroImageUrl: true },
+        select: { id: true, dedupeHash: true, body: true, heroImageUrl: true, matchStatus: true },
       })
     ).map((a) => [a.dedupeHash, a])
   );
@@ -234,19 +234,28 @@ export async function runIngest() {
       // then silently frozen forever even while the match was genuinely
       // still live. Confirmed live: an England vs Pakistan Test sat stuck at
       // "119/9 (31.4)" for 8+ hours after its real score had moved on.
-      // Refresh only the live-score fields here, not body/summary — those
-      // may already hold a nicer one-time AI-generated recap
-      // (generateMatchRecap, see below) that a raw template overwrite would
-      // regress.
+      // Refresh the live-score fields on every poll. summary/body are only
+      // refreshed on the specific scheduled->finished transition, not every
+      // poll — CricketData.org's own match.status text becomes the real
+      // result line ("England won by X wickets") exactly at that moment
+      // (see inferCricketMatchStatus), so item.summary/item.body are already
+      // the accurate result text right then. Confirmed live: the England vs
+      // Pakistan 3rd Test flipped matchStatus to "finished" with real final
+      // scores, but its displayed summary/body stayed frozen on "Day 1: 2nd
+      // Session... Pakistan Inning 1: 119/9" — a stale mid-match snapshot —
+      // because only matchStatus/scores were being refreshed here before.
       if (item.sourceName === "CricketData.org") {
+        const justFinished = existing.matchStatus !== "finished" && item.matchStatus === "finished";
         await db.article.update({
           where: { id: existing.id },
           data: {
             matchStatus: item.matchStatus,
             homeScoreText: item.homeScoreText,
             awayScoreText: item.awayScoreText,
+            ...(justFinished ? { summary: item.summary, body: item.body } : {}),
           },
         });
+        existing.matchStatus = item.matchStatus ?? null;
       }
 
       // Only RSS items can be missing a body this way — match-data items
@@ -454,7 +463,7 @@ export async function runIngest() {
     // Registers this hash as no longer "new" — guards against the same
     // story appearing twice in one run (two sources reporting it) trying
     // to create it a second time.
-    existingArticles.set(dedupeHash, { id: created.id, dedupeHash, body: created.body, heroImageUrl: created.heroImageUrl });
+    existingArticles.set(dedupeHash, { id: created.id, dedupeHash, body: created.body, heroImageUrl: created.heroImageUrl, matchStatus: created.matchStatus });
 
     ingested++;
     if (!quality.passed) flagged++;
