@@ -7,6 +7,8 @@ import Tooltip from "@mui/material/Tooltip";
 import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import XIcon from "@mui/icons-material/X";
 import FacebookIcon from "@mui/icons-material/Facebook";
+import TelegramIcon from "@mui/icons-material/Telegram";
+import RedditIcon from "@mui/icons-material/Reddit";
 import LinkIcon from "@mui/icons-material/Link";
 import CheckIcon from "@mui/icons-material/Check";
 
@@ -62,6 +64,18 @@ export function ShareButtons({ url, title }: { url: string; title: string }) {
           <XIcon fontSize="small" />
         </IconButton>
       </Tooltip>
+      <Tooltip title="Share on Telegram">
+        <IconButton
+          component="a"
+          href={`https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}`}
+          target="_blank"
+          rel="noreferrer"
+          size="small"
+          sx={{ color: "text.secondary", "&:hover": { color: "#26A5E4" } }}
+        >
+          <TelegramIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
       <Tooltip title="Share on Facebook">
         <IconButton
           component="a"
@@ -72,6 +86,18 @@ export function ShareButtons({ url, title }: { url: string; title: string }) {
           sx={{ color: "text.secondary", "&:hover": { color: "#1877F2" } }}
         >
           <FacebookIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Share on Reddit">
+        <IconButton
+          component="a"
+          href={`https://www.reddit.com/submit?url=${encodedUrl}&title=${encodedTitle}`}
+          target="_blank"
+          rel="noreferrer"
+          size="small"
+          sx={{ color: "text.secondary", "&:hover": { color: "#FF4500" } }}
+        >
+          <RedditIcon fontSize="small" />
         </IconButton>
       </Tooltip>
       <Tooltip title={copied ? "Copied!" : "Copy link"}>
