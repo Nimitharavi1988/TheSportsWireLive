@@ -27,6 +27,18 @@ export interface HeroSlideData {
 
 const AUTO_ADVANCE_MS = 8000;
 
+// Was a flat height:460 regardless of viewport width — fine on a wide
+// desktop column (~800px wide, close to a natural 16:9 ratio against
+// 460px tall) but on a narrow screen the same fixed height against a much
+// narrower width forces a near-portrait box, so a wide 16:9 editorial
+// photo (the common case — most heroImageUrl/bannerUrl sources are 16:9)
+// gets cropped down to roughly its center 50% width or less. Confirmed
+// directly: a real hero photo at 419px viewport width was cropped to a
+// tight, unrecognizable fragment. Scaling height down on narrow
+// breakpoints keeps the crop close to the source's actual ratio instead
+// of compounding into a much more aggressive one.
+const HERO_HEIGHT = { xs: 240, sm: 320, md: 400, lg: 460 };
+
 export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
   const [index, setIndex] = useState(0);
 
@@ -69,7 +81,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                 component="img"
                 src={imageUrl}
                 alt={slide.title}
-                sx={{ width: "100%", height: 460, objectFit: "cover", objectPosition: "top", display: "block" }}
+                sx={{ width: "100%", height: HERO_HEIGHT, objectFit: "cover", objectPosition: "top", display: "block" }}
               />
               <Box
                 sx={{
@@ -115,13 +127,14 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
         ) : (
           // Crest-based match hero (no single dominant photo) — the two team
           // crests carry the visual weight instead, on a brand-tinted band.
-          // minHeight matches the photo slide's fixed 460px image height and
-          // centers this shorter content within it, so the card doesn't
-          // visibly shrink/grow as the carousel rotates between slide types
-          // (measured live: was jumping between ~349px and ~464px).
-          <Link
+          // minHeight matches the photo slide's HERO_HEIGHT so the card
+          // doesn't visibly shrink/grow as the carousel rotates between
+          // slide types (measured live: was jumping between ~349px and
+          // ~464px before this was pinned).
+          <Box
+            component={Link}
             href={`/article/${slide.slug}`}
-            style={{ color: "inherit", textDecoration: "none", display: "flex", flexDirection: "column", minHeight: 460 }}
+            sx={{ color: "inherit", textDecoration: "none", display: "flex", flexDirection: "column", minHeight: HERO_HEIGHT }}
           >
             {hasCrests && (
               <Stack
@@ -156,7 +169,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                 {slide.summary}
               </Typography>
             </CardContent>
-          </Link>
+          </Box>
         )}
       </Card>
 
@@ -168,7 +181,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
             sx={{
               position: "absolute",
               left: 8,
-              top: imageUrl ? 210 : "50%",
+              top: "50%",
               transform: "translateY(-50%)",
               bgcolor: "rgba(0,0,0,0.35)",
               color: "#fff",
@@ -183,7 +196,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
             sx={{
               position: "absolute",
               right: 8,
-              top: imageUrl ? 210 : "50%",
+              top: "50%",
               transform: "translateY(-50%)",
               bgcolor: "rgba(0,0,0,0.35)",
               color: "#fff",
