@@ -4,6 +4,15 @@
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-09-07",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // SITE_URL was never set in production, so every `process.env.SITE_URL ??
+  // "http://localhost:3000"` fallback across the codebase (canonical URLs,
+  // og:url, JSON-LD, share-button links) was silently resolving to
+  // localhost on the live site — confirmed directly: sportswirelive.com's
+  // own canonical tag and WhatsApp share link both pointed at
+  // localhost:3000.
+  "vars": {
+    "SITE_URL": "https://sportswirelive.com"
+  },
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
