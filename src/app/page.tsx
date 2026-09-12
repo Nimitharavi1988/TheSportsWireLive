@@ -27,6 +27,7 @@ import { ArticleThumb } from "@/components/ArticleThumb";
 import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImages";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { LiveScoreboardCarousel } from "@/components/LiveScoreboardCarousel";
+import { InstallAppBanner } from "@/components/InstallAppBanner";
 import { fetchLiveCricketMatches } from "@/lib/liveCricket";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import StarIcon from "@mui/icons-material/Star";
@@ -357,6 +358,7 @@ export default async function HomePage(
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <InstallAppBanner />
       {articles.length === 0 && (
         <Box sx={{ textAlign: "center", py: 8 }}>
           <Typography variant="h6" gutterBottom>
