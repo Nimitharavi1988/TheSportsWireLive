@@ -3,6 +3,8 @@ import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Paper from "@mui/material/Paper";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import type { CricketMatchStatus } from "@/lib/liveCricket";
 
 export interface LiveMatchRow {
   id: string;
@@ -15,7 +17,48 @@ export interface LiveMatchRow {
   homeScoreText: string | null;
   awayScoreText: string | null;
   kickoffAt: Date | null;
-  isLive: boolean;
+  matchState: CricketMatchStatus;
+}
+
+// One shared status badge — pulsing red dot for a genuinely live match, a
+// neutral kickoff date for one that hasn't started, and a solid checkmark
+// for a settled result. Matches the visual language sports apps (ESPN,
+// Google) use so each state reads at a glance without needing to parse text.
+export function StatusBadge({ state, kickoffAt }: { state: CricketMatchStatus; kickoffAt: Date | null }) {
+  if (state === "live") {
+    return (
+      <Stack direction="row" spacing={0.75} sx={{ alignItems: "center" }}>
+        <Box
+          sx={{
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            bgcolor: "#d32f2f",
+            animation: "sw-live-pulse 1.5s ease-in-out infinite",
+            "@keyframes sw-live-pulse": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.3 } },
+          }}
+        />
+        <Typography variant="caption" sx={{ color: "#d32f2f", fontWeight: 700, letterSpacing: "0.05em" }}>
+          LIVE
+        </Typography>
+      </Stack>
+    );
+  }
+  if (state === "finished") {
+    return (
+      <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+        <CheckCircleIcon sx={{ fontSize: 13, color: "primary.main" }} />
+        <Typography variant="caption" sx={{ color: "primary.main", fontWeight: 700, letterSpacing: "0.05em" }}>
+          RESULT
+        </Typography>
+      </Stack>
+    );
+  }
+  return (
+    <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 700, letterSpacing: "0.05em" }}>
+      UPCOMING{kickoffAt ? ` · ${kickoffAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
+    </Typography>
+  );
 }
 
 function TeamRow({ crest, name, scoreText, compact }: { crest: string | null; name: string | null; scoreText: string | null; compact: boolean }) {
@@ -55,35 +98,15 @@ export function LiveScorecard({ match, compact = false }: { match: LiveMatchRow;
         variant="outlined"
         sx={{
           p: compact ? 1.5 : 2,
-          borderColor: "primary.main",
-          borderWidth: 1.5,
+          borderColor: match.matchState === "live" ? "primary.main" : "divider",
+          borderWidth: match.matchState === "live" ? 1.5 : 1,
           transition: "background-color 0.15s",
           "&:hover": { bgcolor: "action.hover" },
         }}
       >
-        <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: compact ? 1 : 1.25 }}>
-          {match.isLive ? (
-            <>
-              <Box
-                sx={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: "50%",
-                  bgcolor: "#d32f2f",
-                  animation: "sw-live-pulse 1.5s ease-in-out infinite",
-                  "@keyframes sw-live-pulse": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.3 } },
-                }}
-              />
-              <Typography variant="caption" sx={{ color: "#d32f2f", fontWeight: 700, letterSpacing: "0.05em" }}>
-                LIVE
-              </Typography>
-            </>
-          ) : (
-            <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 700, letterSpacing: "0.05em" }}>
-              UPCOMING{match.kickoffAt ? ` · ${match.kickoffAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
-            </Typography>
-          )}
-        </Stack>
+        <Box sx={{ mb: compact ? 1 : 1.25 }}>
+          <StatusBadge state={match.matchState} kickoffAt={match.kickoffAt} />
+        </Box>
         <Stack spacing={compact ? 0.5 : 0.75} sx={{ mb: compact ? 1 : 1.25 }}>
           <TeamRow crest={match.homeCrestUrl} name={match.homeTeam} scoreText={match.homeScoreText} compact={compact} />
           <TeamRow crest={match.awayCrestUrl} name={match.awayTeam} scoreText={match.awayScoreText} compact={compact} />

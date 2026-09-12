@@ -41,38 +41,63 @@ function internationalFirst<T extends { homeTeam: string | null; awayTeam: strin
   return [...international, ...domestic];
 }
 
-// Returns both matches already underway (isLive: true) and matches
-// CricketData.org's currentMatches feed already knows about but that haven't
-// started yet (isLive: false) — that feed isn't a full fixtures list days
-// out, just whatever it's currently tracking, but a match it already knows
-// about pre-kickoff is genuinely "upcoming" and worth showing instead of
-// leaving the section empty between live matches.
+// Recent finished results stay useful (a Test's result is worth showing for
+// a while after it ends) without accumulating forever — 3 days comfortably
+// covers a multi-day Test plus a day or two of "who won" relevance.
+const RESULT_LOOKBACK_MS = 3 * 24 * 60 * 60 * 1000;
+
+const SELECT = {
+  id: true, slug: true, summary: true,
+  homeTeam: true, awayTeam: true, homeCrestUrl: true, awayCrestUrl: true,
+  homeScoreText: true, awayScoreText: true, kickoffAt: true,
+} as const;
+
+export type CricketMatchStatus = "live" | "upcoming" | "finished";
+
+// A Google/ESPN-style scoreboard: matches already underway (status: "live"),
+// matches CricketData.org's currentMatches feed already knows about but
+// hasn't started yet (status: "upcoming" — that feed isn't a full fixtures
+// list days out, just whatever it's currently tracking, but a match it
+// already knows about pre-kickoff is worth showing), and recently concluded
+// matches with a real result (status: "finished"). Ordered live, then
+// finished, then upcoming — most time-sensitive/interesting first.
 export async function fetchLiveCricketMatches(take: number) {
   const now = new Date();
-  const matches = await db.article.findMany({
-    where: {
-      status: "published",
-      category: { startsWith: "cricket" },
-      matchStatus: "scheduled",
-      updatedAt: { gt: new Date(Date.now() - LIVE_STALENESS_CUTOFF_MS) },
-    },
-    orderBy: { kickoffAt: "desc" },
-    take,
-    select: {
-      id: true, slug: true, summary: true,
-      homeTeam: true, awayTeam: true, homeCrestUrl: true, awayCrestUrl: true,
-      homeScoreText: true, awayScoreText: true, kickoffAt: true,
-    },
-  });
+  const [scheduled, finishedRaw] = await Promise.all([
+    db.article.findMany({
+      where: {
+        status: "published",
+        category: { startsWith: "cricket" },
+        matchStatus: "scheduled",
+        updatedAt: { gt: new Date(now.getTime() - LIVE_STALENESS_CUTOFF_MS) },
+      },
+      orderBy: { kickoffAt: "desc" },
+      take,
+      select: SELECT,
+    }),
+    db.article.findMany({
+      where: {
+        status: "published",
+        category: { startsWith: "cricket" },
+        matchStatus: "finished",
+        kickoffAt: { gt: new Date(now.getTime() - RESULT_LOOKBACK_MS) },
+      },
+      orderBy: { kickoffAt: "desc" },
+      take,
+      select: SELECT,
+    }),
+  ]);
 
-  const live = internationalFirst(matches.filter((m) => m.kickoffAt !== null && m.kickoffAt <= now));
-  const upcomingSorted = matches
+  const live = internationalFirst(scheduled.filter((m) => m.kickoffAt !== null && m.kickoffAt <= now));
+  const upcomingSorted = scheduled
     .filter((m) => m.kickoffAt !== null && m.kickoffAt > now)
     .sort((a, b) => a.kickoffAt!.getTime() - b.kickoffAt!.getTime());
   const upcoming = internationalFirst(upcomingSorted);
+  const finished = internationalFirst(finishedRaw);
 
   return [
-    ...live.map((m) => ({ ...m, isLive: true as const })),
-    ...upcoming.map((m) => ({ ...m, isLive: false as const })),
+    ...live.map((m) => ({ ...m, matchState: "live" as const })),
+    ...finished.slice(0, take).map((m) => ({ ...m, matchState: "finished" as const })),
+    ...upcoming.map((m) => ({ ...m, matchState: "upcoming" as const })),
   ];
 }
