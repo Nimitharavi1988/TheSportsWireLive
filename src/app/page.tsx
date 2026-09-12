@@ -89,6 +89,10 @@ const CATEGORY_META: Record<string, { title: string; description: string }> = {
     title: "Athletics News",
     description: "Latest track and field news from around the world.",
   },
+  baseball: {
+    title: "MLB News, Scores & Results",
+    description: "Latest MLB results, previews, and news.",
+  },
 };
 
 export async function generateMetadata(

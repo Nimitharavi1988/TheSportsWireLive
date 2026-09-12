@@ -19,6 +19,7 @@ const CATEGORY_QUERIES: Record<string, string> = {
   football: "football stadium",
   cricket: "cricket stadium",
   "american-football": "american football stadium",
+  baseball: "baseball stadium",
 };
 
 async function searchPexels(apiKey: string, query: string, count: number): Promise<StockImage[]> {

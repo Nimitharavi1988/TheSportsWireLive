@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { fetchFootballData, type RawMatchItem } from "./footballData";
 import { fetchNflData } from "./nflData";
+import { fetchMlbData } from "./mlbData";
 import { fetchRssNews } from "./rssFeeds";
 import { fetchPlayerNews } from "./playerNewsFeeds";
 import { fetchCricinfoPlayerNews } from "./cricinfoPlayerFeeds";
@@ -77,7 +78,12 @@ const MAX_RSS_ITEM_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 // / cricketData.ts / nflData.ts) — that's the discriminator from RSS items,
 // which only ever set `sourceSnippet`.
 function isMatchDataSource(sourceName: string): boolean {
-  return sourceName === "football-data.org" || sourceName === "CricketData.org" || sourceName === "ESPN NFL";
+  return (
+    sourceName === "football-data.org" ||
+    sourceName === "CricketData.org" ||
+    sourceName === "ESPN NFL" ||
+    sourceName === "MLB Stats API"
+  );
 }
 
 // Below this, a feed's own snippet is too thin to write a real piece from —
@@ -127,10 +133,11 @@ export async function runIngest() {
     create: { name: "sports" },
   });
 
-  const [scoreItems, nflItems, newsItems, playerNewsItems, cricinfoPlayerItems, cricketItems, trendingKeywords, stockImagePools] =
+  const [scoreItems, nflItems, mlbItems, newsItems, playerNewsItems, cricinfoPlayerItems, cricketItems, trendingKeywords, stockImagePools] =
     await Promise.all([
       fetchFootballData(),
       fetchNflData(),
+      fetchMlbData(),
       fetchRssNews(),
       // Actively searches Google News per tracked player (players.ts) —
       // unlike the fixed feeds above, which only ever surface whatever a
@@ -164,7 +171,7 @@ export async function runIngest() {
   const sortedNewsItems = [...newsItems, ...playerNewsItems, ...cricinfoPlayerItems].sort(
     (a, b) => computeTrendingScore(b.title, trendingKeywords) - computeTrendingScore(a.title, trendingKeywords)
   );
-  const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...sortedNewsItems, ...cricketItems];
+  const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...mlbItems, ...sortedNewsItems, ...cricketItems];
   const stockImagePicker = createStockImagePicker(stockImagePools);
 
   // Cloudflare Workers caps outbound subrequests per invocation, and every
@@ -370,6 +377,7 @@ export async function runIngest() {
       const competitionName =
         item.category === "cricket" ? "cricket"
         : item.category === "american-football" ? "the NFL"
+        : item.category === "baseball" ? "MLB"
         : competitionFromSummary(item.summary) ?? "football";
       const recap = await generateMatchRecap(item.title, body, competitionName);
       if (recap) body = recap;
