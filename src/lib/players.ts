@@ -36,6 +36,10 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   { slug: "jamal-musiala", name: "Jamal Musiala", searchTerms: ["Musiala"], sport: "football" },
   { slug: "pedri", name: "Pedri", searchTerms: ["Pedri"], sport: "football" },
   { slug: "robert-lewandowski", name: "Robert Lewandowski", searchTerms: ["Lewandowski"], sport: "football" },
+  // Found via nameGapReport.ts (2026-09-12): 4 mentions in 2 weeks.
+  { slug: "rodrigo-de-paul", name: "Rodrigo De Paul", searchTerms: ["De Paul"], sport: "football" },
+  // Found via nameGapReport.ts (2026-09-12): 3 mentions in 2 weeks.
+  { slug: "michael-olise", name: "Michael Olise", searchTerms: ["Olise"], sport: "football" },
   // "Martinez" alone is a very common surname (several other tracked
   // players' teams have one) — "Lautaro" (his first name, how he's usually
   // referred to in headlines) is distinctive enough on its own.
@@ -85,6 +89,10 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   { slug: "rashid-khan", name: "Rashid Khan", searchTerms: ["Rashid Khan"], sport: "cricket", cricinfoPlayerId: 793463 },
   { slug: "kane-williamson", name: "Kane Williamson", searchTerms: ["Kane Williamson"], sport: "cricket", cricinfoPlayerId: 277906 },
   { slug: "pat-cummins", name: "Pat Cummins", searchTerms: ["Pat Cummins"], sport: "cricket", cricinfoPlayerId: 489889 },
+  // Found via nameGapReport.ts (2026-09-12): 3 mentions in 2 weeks, all
+  // referring to him as just "Boult" — no collision found for that surname
+  // alone.
+  { slug: "trent-boult", name: "Trent Boult", searchTerms: ["Boult"], sport: "cricket", cricinfoPlayerId: 277912 },
   // "Pandya" alone is ambiguous between Hardik and his brother Krunal, both
   // active internationals — full name needed to pick the right one.
   { slug: "hardik-pandya", name: "Hardik Pandya", searchTerms: ["Hardik Pandya"], sport: "cricket", cricinfoPlayerId: 625371 },
@@ -108,6 +116,10 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   { slug: "muttiah-muralitharan", name: "Muttiah Muralitharan", searchTerms: ["Muralitharan"], sport: "cricket", cricinfoPlayerId: 49636 },
   { slug: "jacques-kallis", name: "Jacques Kallis", searchTerms: ["Kallis"], sport: "cricket", cricinfoPlayerId: 45789 },
   { slug: "ab-de-villiers", name: "AB de Villiers", searchTerms: ["de Villiers"], sport: "cricket", cricinfoPlayerId: 44936 },
+  // Found via nameGapReport.ts (2026-09-12): 3 mentions in 2 weeks. Full
+  // name used defensively — no confirmed collision for "Akhtar" alone, but
+  // no real headline example confirmed it's safe either.
+  { slug: "shoaib-akhtar", name: "Shoaib Akhtar", searchTerms: ["Shoaib Akhtar"], sport: "cricket", cricinfoPlayerId: 42655 },
   // "Warne"/"Lara"/"Richards"/"Akram" are common enough English words or
   // surnames on their own that the full name is needed to avoid false
   // matches — same reasoning as "George Best" above.
