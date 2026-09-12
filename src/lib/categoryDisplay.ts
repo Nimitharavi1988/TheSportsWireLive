@@ -7,6 +7,7 @@ const CATEGORY_CHIP: Record<string, { label: string; color: string }> = {
   "football/world-cup": { label: "World Cup", color: "#3d5a73" },
   cricket: { label: "Cricket", color: "#b8752e" },
   "american-football": { label: "NFL", color: "#6b3fa0" },
+  athletics: { label: "Athletics", color: "#a02b5c" },
 };
 
 export function categoryChipStyle(category: string) {

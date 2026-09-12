@@ -135,6 +135,13 @@ const FEEDS: { url: string; category: string; sourceName: string }[] = [
   // for one feed; same stock-photo fallback plenty of other items already
   // use.
   { url: "https://sports.yahoo.com/nfl/rss/", category: "american-football", sourceName: "Yahoo Sports" },
+  // Athletics/track and field — news-only section (no structured match-data
+  // source exists the way football-data.org/CricketData.org/ESPN NFL do for
+  // the others; athletics is start-list/results based, not "matches"), per
+  // explicit request. Confirmed live and working directly (2026-09-12) —
+  // real current items (e.g. Ingebrigtsen/Kerr 1500m), real media:thumbnail
+  // images.
+  { url: "https://feeds.bbci.co.uk/sport/athletics/rss.xml", category: "athletics", sourceName: "BBC Sport" },
 ];
 
 export async function fetchRssNews(): Promise<RawMatchItem[]> {
