@@ -12,7 +12,7 @@ export const metadata = { title: "Clubs", alternates: { canonical: "/club" } };
 // the sitemap or incidental article-title tagging, no on-site link existed.
 export default function ClubIndexPage() {
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h4" gutterBottom>
         Clubs
       </Typography>

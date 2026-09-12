@@ -24,7 +24,7 @@ export default async function SeriesIndexPage() {
   });
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h4" gutterBottom>
         Cricket Series
       </Typography>

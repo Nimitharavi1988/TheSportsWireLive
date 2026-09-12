@@ -130,7 +130,11 @@ export default function SiteHeader() {
       }}
     >
       <Box sx={{ height: 3, bgcolor: "primary.main" }} />
-      <Toolbar sx={{ maxWidth: 1100, width: "100%", mx: "auto", flexWrap: "wrap", gap: 2, py: 1.5 }}>
+      {/* 1200px matches MUI's "lg" breakpoint, which every page's own
+          Container is standardized to below — otherwise the header's
+          content sits at a different left/right edge than the page content
+          on every single page, reading as misaligned on every navigation. */}
+      <Toolbar sx={{ maxWidth: 1200, width: "100%", mx: "auto", flexWrap: "wrap", gap: 2, py: 1.5, px: 3 }}>
         <Typography
           component={Link}
           href="/"

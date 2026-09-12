@@ -12,7 +12,7 @@ export const metadata = { title: "League Standings", alternates: { canonical: "/
 
 export default function StandingsIndexPage() {
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h4" gutterBottom>
         League Standings
       </Typography>

@@ -139,7 +139,7 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
   ]);
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
         <SportsScoreIcon sx={{ color: "primary.main" }} />
         <Typography variant="h4">Scores & Fixtures</Typography>

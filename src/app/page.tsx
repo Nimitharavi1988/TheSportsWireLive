@@ -356,7 +356,7 @@ export default async function HomePage(
   const nflStandings = category === "american-football" ? await fetchNflStandingsTable() : null;
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       {articles.length === 0 && (
         <Box sx={{ textAlign: "center", py: 8 }}>
           <Typography variant="h6" gutterBottom>

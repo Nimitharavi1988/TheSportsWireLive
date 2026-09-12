@@ -29,7 +29,7 @@ export default async function StandingsPage(props: { params: Promise<{ code: str
   if (!table || table.rows.length === 0) notFound();
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
         <EmojiEventsIcon sx={{ color: "primary.main" }} />
         <Typography variant="h4">
