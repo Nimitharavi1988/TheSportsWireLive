@@ -64,11 +64,14 @@ const MAX_MATCH_RECAP_PER_RUN = 6;
 // change to the shared budget, and cricket stories don't reliably win the
 // US/GB Google Trends signal the way football/superstar stories do, so
 // cricket's real body-coverage collapsed to near zero within a day (81% of
-// the pending queue body-less, entirely ESPN Cricinfo). Kept at half of the
-// (now larger) total budget each time MAX_COMMENTARY_PER_RUN was raised, so
-// the extra room benefits both cricket and everything else, not just one
-// side.
-const CRICKET_COMMENTARY_RESERVED = 30;
+// the pending queue body-less, entirely ESPN Cricinfo). Was 30 (half of
+// MAX_COMMENTARY_PER_RUN); trimmed to 20 (2026-09-12) to redistribute 10
+// slots to everything else — 4 new sections (Athletics, Rugby, MLB, NBA)
+// and 2 new RSS feeds now compete for the same shared budget cricket
+// doesn't touch, and the pending queue was growing largely because of that,
+// not because cricket's own floor was too low. Deliberately a rebalance,
+// not a raise — MAX_COMMENTARY_PER_RUN (real Gemini spend) is unchanged.
+const CRICKET_COMMENTARY_RESERVED = 20;
 
 // RSS items older than this are skipped outright rather than ingested —
 // see the skip site below for why. 3 days comfortably covers a slow news
