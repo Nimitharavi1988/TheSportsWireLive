@@ -6,6 +6,7 @@ import {
   looksLikeReferencePage,
   titleMentionsPlayer,
   isEntertainmentPublisher,
+  hasNonSportsSectionTag,
 } from "./playerNewsFeeds";
 
 describe("googleNewsSearchUrl", () => {
@@ -138,5 +139,31 @@ describe("isEntertainmentPublisher", () => {
 
   it("does not reject when there's no publisher at all", () => {
     expect(isEntertainmentPublisher(undefined)).toBe(false);
+  });
+});
+
+describe("hasNonSportsSectionTag", () => {
+  // Real example caught live (2026-09-12): Hindustan Times — a legitimate
+  // general-news publisher, not on the entertainment-publisher denylist —
+  // ran a genuine Bollywood casting story that happened to name Virat Kohli
+  // (married to a Bollywood actress), surfaced by his player-news search.
+  it("rejects a real off-topic story from a legitimate general-news publisher via its section tag", () => {
+    expect(
+      hasNonSportsSectionTag(
+        "Neem Karoli Baba devotees Anushka Sharma, Virat Kohli, Julia Roberts to feature in Hanuman Ansh sequel? Producer reveals | Bollywood"
+      )
+    ).toBe(true);
+  });
+
+  it("does not reject the same publisher's real cricket coverage", () => {
+    expect(hasNonSportsSectionTag("Sachin Tendulkar, Ajinkya Rahane to get Wankhede lounges | Cricket")).toBe(false);
+  });
+
+  it("does not reject a title with no section tag at all", () => {
+    expect(hasNonSportsSectionTag("Bumrah fit, Yash Thakur replaces Harshit for Afghanistan T20Is")).toBe(false);
+  });
+
+  it("is case-insensitive", () => {
+    expect(hasNonSportsSectionTag("Some Kohli gossip story | BOLLYWOOD")).toBe(true);
   });
 });

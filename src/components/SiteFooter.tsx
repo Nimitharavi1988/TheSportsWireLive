@@ -7,6 +7,7 @@ import Typography from "@mui/material/Typography";
 const FOOTER_LINKS = [
   { href: "/player", label: "Players" },
   { href: "/club", label: "Clubs" },
+  { href: "/series", label: "Series" },
   { href: "/standings", label: "Standings" },
   { href: "/privacy", label: "Privacy Policy" },
   { href: "/terms", label: "Terms of Service" },

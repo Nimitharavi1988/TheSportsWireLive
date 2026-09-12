@@ -52,11 +52,15 @@ describe("isAutoApprovable", () => {
     ).toBe(true);
   });
 
-  it("approves a player-news item with no body at all, as long as it has a real image", () => {
-    expect(isAutoApprovable({ body: null, ...realImage, playerNewsSourced: true })).toBe(true);
+  it("rejects a player-news item with no body, even with a real image (extraction now attempted for these)", () => {
+    expect(isAutoApprovable({ body: null, ...realImage, playerNewsSourced: true })).toBe(false);
+  });
+
+  it("approves a player-news item once extraction gave it a real body and it has a real image", () => {
+    expect(isAutoApprovable({ body: realBody, ...realImage, playerNewsSourced: true })).toBe(true);
   });
 
   it("still rejects a player-news item with only a generic stock photo", () => {
-    expect(isAutoApprovable({ body: null, ...stockImage, playerNewsSourced: true })).toBe(false);
+    expect(isAutoApprovable({ body: realBody, ...stockImage, playerNewsSourced: true })).toBe(false);
   });
 });

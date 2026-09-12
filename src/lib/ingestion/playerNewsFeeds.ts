@@ -81,6 +81,30 @@ export function isEntertainmentPublisher(publisher: string | undefined): boolean
   return publisher !== undefined && ENTERTAINMENT_PUBLISHERS.has(publisher.trim().toLowerCase());
 }
 
+// A real example caught live: Hindustan Times' "Neem Karoli Baba devotees
+// Anushka Sharma, Virat Kohli, Julia Roberts to feature in Hanuman Ansh
+// sequel? Producer reveals | Bollywood" — a real Bollywood casting story,
+// not sports, from a legitimate general-news publisher (unlike the
+// Kelce/Swift case above, Hindustan Times is NOT an entertainment-only
+// outlet, so isEntertainmentPublisher can't catch this one). Cricketers who
+// are also mainstream celebrities (Kohli is married to a Bollywood actress)
+// draw this kind of coverage under their own name.
+//
+// Indian general-news publishers' Google News titles reliably carry a
+// trailing "| {Section}" tag identifying the actual vertical — confirmed
+// directly: the same outlets tag real cricket stories "| Cricket". A
+// denylist of confirmed-non-sports section tags is much more reliable than
+// guessing from title keywords, and — same false-positive discipline as
+// looksLikeReferencePage/isEntertainmentPublisher above — only flags
+// sections actually observed, rather than guessing at a broader pattern.
+const NON_SPORTS_SECTION_TAGS = new Set(["bollywood", "entertainment", "movies", "lifestyle", "astrology"]);
+
+export function hasNonSportsSectionTag(title: string): boolean {
+  const match = title.match(/\|\s*([A-Za-z][A-Za-z\s&]{1,30})$/);
+  if (!match) return false;
+  return NON_SPORTS_SECTION_TAGS.has(match[1].trim().toLowerCase());
+}
+
 // Google's quoted-phrase search matches anywhere in a page's full crawled
 // content, not just the headline — confirmed via a real example caught in
 // production: today.com's "Theo James on Returning to 'The Gentlemen'
@@ -121,6 +145,7 @@ export async function fetchPlayerNews(): Promise<RawMatchItem[]> {
 
         if (looksLikeReferencePage(strippedTitle, publisher, player.name)) continue;
         if (isEntertainmentPublisher(publisher)) continue;
+        if (hasNonSportsSectionTag(strippedTitle)) continue;
         if (!titleMentionsPlayer(strippedTitle, player.searchTerms)) continue;
 
         items.push({

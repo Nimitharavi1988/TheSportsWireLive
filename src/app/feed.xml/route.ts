@@ -26,12 +26,13 @@ export async function GET() {
   const articles = await db.article.findMany({
     where: {
       status: "published",
-      // Player-news items never get a body by design (see
-      // Article.playerNewsSourced) — their only "content" is a ~80-char
-      // templated summary, well under Flipboard's own 300-char guideline
-      // for a good card. They stay published and fully visible on the site
-      // itself; this just keeps them out of external syndication, where
-      // thin content only hurts.
+      // A null body here means whatever generated it (RSS commentary, match
+      // recap, or the player-news extraction fallback — see
+      // articleTextExtractor.ts) didn't clear the bar, so all that's left is
+      // a short templated summary, well under Flipboard's own 300-char
+      // guideline for a good card. Such articles stay published and fully
+      // visible on the site itself; this just keeps them out of external
+      // syndication, where thin content only hurts.
       body: { not: null },
     },
     select: { slug: true, title: true, body: true, category: true, sourceName: true, createdAt: true, heroImageUrl: true },

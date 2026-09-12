@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { TRACKED_PLAYERS } from "@/lib/players";
-import { fetchPersonPhoto } from "@/lib/ingestion/wikimediaImages";
+import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImages";
 
 // Player pages previously had no Open Graph image at all — a share on
 // social media showed no preview image whatsoever. Same gradient-card
@@ -15,7 +15,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const { slug } = await params;
   const player = TRACKED_PLAYERS.find((p) => p.slug === slug);
   const name = player?.name ?? "Sports Wire Live";
-  const photo = player ? await fetchPersonPhoto(player.name) : null;
+  const photo = player ? await fetchPersonPhoto(player.name, sportSearchHint(player.sport)) : null;
 
   const fontsDir = join(process.cwd(), "src/assets/fonts");
   const [bold, semibold] = await Promise.all([

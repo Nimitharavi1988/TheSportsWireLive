@@ -3,13 +3,16 @@ import { fetchFootballData, type RawMatchItem } from "./footballData";
 import { fetchNflData } from "./nflData";
 import { fetchRssNews } from "./rssFeeds";
 import { fetchPlayerNews } from "./playerNewsFeeds";
+import { fetchCricinfoPlayerNews } from "./cricinfoPlayerFeeds";
 import { fetchCricketData } from "./cricketData";
+import { matchSeriesInTitle, type ActiveSeries } from "./cricketSeries";
 import { computeDedupeHash, computeStableDedupeHash } from "./dedupe";
 import { runQualityChecks } from "./qualityCheck";
 import { fetchTrendingKeywords, computeTrendingScore } from "./trending";
 import { fetchStockImagePools, createStockImagePicker } from "./stockImages";
 import { generateCommentary, generateMatchRecap } from "./commentary";
-import { fetchPersonPhoto } from "./wikimediaImages";
+import { extractArticleText } from "./articleTextExtractor";
+import { fetchPersonPhoto, sportSearchHint } from "./wikimediaImages";
 import { competitionFromSummary } from "../teamNames";
 
 // Prefers a source-provided stable id (see RawMatchItem.dedupeKey) over the
@@ -77,6 +80,30 @@ function isMatchDataSource(sourceName: string): boolean {
   return sourceName === "football-data.org" || sourceName === "CricketData.org" || sourceName === "ESPN NFL";
 }
 
+// Below this, a feed's own snippet is too thin to write a real piece from —
+// confirmed pattern across BBC/Guardian/Sky-style feeds, whose descriptions
+// are sometimes a single clause. Worth trying the richer article-page
+// extraction fallback rather than accepting a near-empty grounding input.
+const THIN_SNIPPET_THRESHOLD = 200;
+
+// Resolves the best available grounding text for a Gemini commentary call —
+// never stored, only ever used in-memory for that one call (see
+// articleTextExtractor.ts's header comment for the full reasoning).
+//
+// Driven purely by snippet quality, not by source — Google News search
+// results (playerNewsFeeds.ts) always fall through to page extraction
+// because their snippet is confirmed to be just the headline repeated, but
+// a per-player Cricinfo feed item (cricinfoPlayerFeeds.ts) has a knownPersonName
+// too AND a real snippet, so it should use that directly rather than making
+// an unnecessary extra fetch. Every other feed's own snippet is used when
+// substantive, and only falls back to page extraction when it's too thin.
+async function resolveGroundingText(item: RawMatchItem): Promise<string | null> {
+  const snippet = item.sourceSnippet?.trim();
+  if (snippet && snippet.length >= THIN_SNIPPET_THRESHOLD) return snippet;
+  const extracted = await extractArticleText(item.sourceUrl);
+  return extracted ?? snippet ?? null;
+}
+
 // Optional cap on how many new (non-duplicate) items to ingest in this run —
 // handy for a quick manual test without waiting through hundreds of
 // already-seen duplicates. Unset (the normal cron path) means no limit.
@@ -89,7 +116,7 @@ export async function runIngest() {
     create: { name: "sports" },
   });
 
-  const [scoreItems, nflItems, newsItems, playerNewsItems, cricketItems, trendingKeywords, stockImagePools] =
+  const [scoreItems, nflItems, newsItems, playerNewsItems, cricinfoPlayerItems, cricketItems, trendingKeywords, stockImagePools] =
     await Promise.all([
       fetchFootballData(),
       fetchNflData(),
@@ -101,6 +128,12 @@ export async function runIngest() {
       // zero mentions across all 4 cricket feeds at the time this was
       // added, even though real coverage of him existed elsewhere.
       fetchPlayerNews(),
+      // Each tracked cricket player's own official Cricinfo RSS feed — real
+      // article snippets and direct URLs, unlike the Google News search
+      // above (see cricinfoPlayerFeeds.ts). Primary source for cricket
+      // player coverage now; Google News search stays as the breadth
+      // fallback for whoever/whatever Cricinfo doesn't carry.
+      fetchCricinfoPlayerNews(),
       fetchCricketData(),
       fetchTrendingKeywords(),
       // Reddit engagement (redditEngagement.ts) is intentionally not called
@@ -117,11 +150,53 @@ export async function runIngest() {
   // folded in here too — they're about a tracked superstar by construction,
   // so computeTrendingScore's own superstar-name detection already tends to
   // rank them highly rather than needing a separate carve-out.
-  const sortedNewsItems = [...newsItems, ...playerNewsItems].sort(
+  const sortedNewsItems = [...newsItems, ...playerNewsItems, ...cricinfoPlayerItems].sort(
     (a, b) => computeTrendingScore(b.title, trendingKeywords) - computeTrendingScore(a.title, trendingKeywords)
   );
   const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...sortedNewsItems, ...cricketItems];
   const stockImagePicker = createStockImagePicker(stockImagePools);
+
+  // Series grouping (cricketSeries.ts) — "active" series are seeded from
+  // this run's own match-data items (which set seriesKey/seriesLabel
+  // directly in cricketData.ts) plus any series already known from recent
+  // DB history, so a same-run editorial article can be grouped alongside a
+  // same-run match-data article even before either is committed, and a
+  // player-news/Cricinfo item about a series with no live match today can
+  // still match a series seen recently. Cricket-only, matching
+  // cricketSeries.ts's own scope.
+  const seriesFromThisRun = new Map<string, ActiveSeries>();
+  for (const item of cricketItems) {
+    if (item.seriesKey && item.seriesLabel && item.homeTeam && item.awayTeam) {
+      seriesFromThisRun.set(item.seriesKey, {
+        key: item.seriesKey,
+        label: item.seriesLabel,
+        homeTeam: item.homeTeam,
+        awayTeam: item.awayTeam,
+      });
+    }
+  }
+  const recentSeriesRows = await db.article.findMany({
+    where: {
+      category: { startsWith: "cricket" },
+      seriesKey: { not: null },
+      homeTeam: { not: null },
+      awayTeam: { not: null },
+      createdAt: { gt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+    },
+    select: { seriesKey: true, seriesLabel: true, homeTeam: true, awayTeam: true },
+    distinct: ["seriesKey"],
+  });
+  for (const row of recentSeriesRows) {
+    if (row.seriesKey && row.seriesLabel && row.homeTeam && row.awayTeam && !seriesFromThisRun.has(row.seriesKey)) {
+      seriesFromThisRun.set(row.seriesKey, {
+        key: row.seriesKey,
+        label: row.seriesLabel,
+        homeTeam: row.homeTeam,
+        awayTeam: row.awayTeam,
+      });
+    }
+  }
+  const activeSeries = [...seriesFromThisRun.values()];
 
   // Cloudflare Workers caps outbound subrequests per invocation, and every
   // Prisma call here goes over HTTPS via Accelerate — so a per-item
@@ -184,42 +259,36 @@ export async function runIngest() {
       // Only RSS items can be missing a body this way — match-data items
       // (football-data.org/CricketData.org) always get one at creation.
       // Player-news items (knownPersonName set — see playerNewsFeeds.ts)
-      // are excluded here: confirmed directly that Google News' RSS
-      // "snippet" is always just the headline repeated verbatim (100% word
-      // overlap across every real example checked), so a commentary call
-      // for these has no real facts to expand on and can only produce a
-      // reworded headline — not worth spending scarce Gemini budget on
-      // when genuine-snippet RSS sources (BBC/Guardian/Sky) are competing
-      // for the same budget and can actually be enriched.
-      if (
-        existing.body === null &&
-        item.sourceSnippet &&
-        !isMatchDataSource(item.sourceName) &&
-        !item.knownPersonName &&
-        canAffordCommentary(item.category)
-      ) {
-        recordCommentaryCall(item.category);
-        const { commentary, personNames } = await generateCommentary(item.title, item.sourceSnippet, item.sourceName);
-        await sleep(COMMENTARY_DELAY_MS);
+      // used to be excluded here outright, since Google News' RSS snippet
+      // for these is just the headline repeated verbatim — now handled by
+      // resolveGroundingText falling back to a real page-text extraction
+      // (articleTextExtractor.ts) instead of skipping them.
+      if (existing.body === null && !isMatchDataSource(item.sourceName) && canAffordCommentary(item.category)) {
+        const grounding = await resolveGroundingText(item);
+        if (grounding) {
+          recordCommentaryCall(item.category);
+          const { commentary, personNames } = await generateCommentary(item.title, grounding, item.sourceName);
+          await sleep(COMMENTARY_DELAY_MS);
 
-        if (commentary) {
-          let heroImageUpdate = {};
-          if (!existing.heroImageUrl && !item.heroImageUrl) {
-            for (const personName of personNames) {
-              const personPhoto = await fetchPersonPhoto(personName);
-              if (personPhoto) {
-                heroImageUpdate = {
-                  heroImageUrl: personPhoto.url,
-                  heroImageCredit: personPhoto.credit,
-                  heroImageCreditUrl: personPhoto.creditUrl,
-                };
-                break;
+          if (commentary) {
+            let heroImageUpdate = {};
+            if (!existing.heroImageUrl && !item.heroImageUrl) {
+              for (const personName of personNames) {
+                const personPhoto = await fetchPersonPhoto(personName, sportSearchHint(item.category));
+                if (personPhoto) {
+                  heroImageUpdate = {
+                    heroImageUrl: personPhoto.url,
+                    heroImageCredit: personPhoto.credit,
+                    heroImageCreditUrl: personPhoto.creditUrl,
+                  };
+                  break;
+                }
               }
             }
+            await db.article.update({ where: { id: existing.id }, data: { body: commentary, ...heroImageUpdate } });
+            existing.body = commentary; // avoid reprocessing if the same story appears twice in this run
+            backfilled++;
           }
-          await db.article.update({ where: { id: existing.id }, data: { body: commentary, ...heroImageUpdate } });
-          existing.body = commentary; // avoid reprocessing if the same story appears twice in this run
-          backfilled++;
         }
       }
       // Independent of whether commentary ran/succeeded above — a
@@ -227,7 +296,7 @@ export async function runIngest() {
       // Gemini's personNames extraction at all, so a budget-exhausted item
       // can still get a real photo even with no body yet.
       if (!existing.heroImageUrl && !item.heroImageUrl && item.knownPersonName) {
-        const personPhoto = await fetchPersonPhoto(item.knownPersonName);
+        const personPhoto = await fetchPersonPhoto(item.knownPersonName, sportSearchHint(item.category));
         if (personPhoto) {
           await db.article.update({
             where: { id: existing.id },
@@ -272,7 +341,7 @@ export async function runIngest() {
     } else if (item.homeCrestUrl) {
       stockImage = null;
     } else if (item.knownPersonName) {
-      stockImage = (await fetchPersonPhoto(item.knownPersonName)) ?? stockImagePicker.pick(item.category);
+      stockImage = (await fetchPersonPhoto(item.knownPersonName, sportSearchHint(item.category))) ?? stockImagePicker.pick(item.category);
     } else {
       stockImage = stockImagePicker.pick(item.category);
     }
@@ -287,33 +356,48 @@ export async function runIngest() {
       const recap = await generateMatchRecap(item.title, body, competitionName);
       if (recap) body = recap;
       await sleep(COMMENTARY_DELAY_MS);
-    } else if (!body && item.sourceSnippet && !item.knownPersonName && canAffordCommentary(item.category)) {
-      // knownPersonName (player-news items) excluded — see the matching
-      // comment on the duplicate-backfill path above for why.
-      recordCommentaryCall(item.category);
-      const { commentary, personNames } = await generateCommentary(item.title, item.sourceSnippet, item.sourceName);
-      if (commentary) body = commentary;
-      await sleep(COMMENTARY_DELAY_MS);
+    } else if (!body && canAffordCommentary(item.category)) {
+      // knownPersonName (player-news) items used to be excluded here
+      // outright — see resolveGroundingText's comment for why they're now
+      // routed through page-text extraction instead of being skipped.
+      const grounding = await resolveGroundingText(item);
+      if (grounding) {
+        recordCommentaryCall(item.category);
+        const { commentary, personNames } = await generateCommentary(item.title, grounding, item.sourceName);
+        if (commentary) body = commentary;
+        await sleep(COMMENTARY_DELAY_MS);
 
-      // Prefer a real photo of the actual person (or co-central people) the
-      // story is about over the generic category stock photo — but only
-      // when the RSS feed itself didn't already give us a real photo for
-      // this exact story, which is even more specific than a generic
-      // Wikimedia portrait of the person, AND only when knownPersonName
-      // didn't already resolve this above — re-running with Gemini's
-      // extracted names here would risk replacing a known-correct photo
-      // with a less certain guess (Gemini can name a quoted journalist or
-      // someone else mentioned in passing, not just the story's subject).
-      if (!item.heroImageUrl && !item.knownPersonName) {
-        for (const personName of personNames) {
-          const personPhoto = await fetchPersonPhoto(personName);
-          if (personPhoto) {
-            stockImage = personPhoto;
-            break;
+        // Prefer a real photo of the actual person (or co-central people) the
+        // story is about over the generic category stock photo — but only
+        // when the RSS feed itself didn't already give us a real photo for
+        // this exact story, which is even more specific than a generic
+        // Wikimedia portrait of the person, AND only when knownPersonName
+        // didn't already resolve this above (it always did for player-news
+        // items — see the stockImage assignment above — so this loop is a
+        // no-op for them in practice, same as before).
+        if (!item.heroImageUrl && !item.knownPersonName) {
+          for (const personName of personNames) {
+            const personPhoto = await fetchPersonPhoto(personName, sportSearchHint(item.category));
+            if (personPhoto) {
+              stockImage = personPhoto;
+              break;
+            }
           }
         }
       }
     }
+
+    // Match-data items already have their own seriesKey/seriesLabel (set
+    // directly in cricketData.ts, from the two teams it already knows) —
+    // this only applies to editorial/player-news cricket items, matching
+    // their title against series already known from this run's match data
+    // or recent DB history.
+    const series =
+      item.seriesKey && item.seriesLabel
+        ? { key: item.seriesKey, label: item.seriesLabel }
+        : item.category.startsWith("cricket")
+          ? matchSeriesInTitle(item.title, activeSeries)
+          : null;
 
     const created = await db.article.create({
       data: {
@@ -325,6 +409,8 @@ export async function runIngest() {
         sourceUrl: item.sourceUrl,
         sourceName: item.sourceName,
         category: item.category,
+        seriesKey: series?.key,
+        seriesLabel: series?.label,
         // The article's real-world publish date (RSS pubDate, or match
         // date for structured sources) — was never actually persisted
         // here before, silently discarded until approveArticle overwrote

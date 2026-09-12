@@ -9,6 +9,13 @@ export interface TrackedPlayer {
   name: string; // full name, used for the Wikipedia/Wikimedia lookup
   searchTerms: string[]; // substrings matched against article titles (case-insensitive)
   sport: "football" | "cricket" | "american-football"; // used to scope the player page's Standings widget (no standings data exists for cricket or NFL on this API tier) and to tag the player-news search item's category (playerNewsFeeds.ts)
+  // ESPN Cricinfo's numeric player ID (the trailing number in
+  // espncricinfo.com/cricketers/{slug}-{id}) — cricket players only. Lets
+  // cricinfoPlayerFeeds.ts pull that player's own official RSS feed
+  // (real article snippets, direct article URLs) instead of relying solely
+  // on the per-player Google News search, whose links can't be resolved to
+  // real article text (see articleTextExtractor.ts's Google News finding).
+  cricinfoPlayerId?: number;
 }
 
 export const TRACKED_PLAYERS: TrackedPlayer[] = [
@@ -57,50 +64,50 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   { slug: "xavi-hernandez", name: "Xavi Hernández", searchTerms: ["Xavi"], sport: "football" },
   { slug: "roberto-baggio", name: "Roberto Baggio", searchTerms: ["Baggio"], sport: "football" },
   // Cricket — current
-  { slug: "virat-kohli", name: "Virat Kohli", searchTerms: ["Kohli"], sport: "cricket" },
-  { slug: "ben-stokes", name: "Ben Stokes", searchTerms: ["Ben Stokes"], sport: "cricket" },
-  { slug: "babar-azam", name: "Babar Azam", searchTerms: ["Babar Azam"], sport: "cricket" },
-  { slug: "rohit-sharma", name: "Rohit Sharma", searchTerms: ["Rohit Sharma"], sport: "cricket" },
-  { slug: "joe-root", name: "Joe Root", searchTerms: ["Joe Root"], sport: "cricket" },
-  { slug: "steve-smith", name: "Steve Smith", searchTerms: ["Steve Smith"], sport: "cricket" },
-  { slug: "sunil-narine", name: "Sunil Narine", searchTerms: ["Narine"], sport: "cricket" },
-  { slug: "sanju-samson", name: "Sanju Samson", searchTerms: ["Samson"], sport: "cricket" },
-  { slug: "jasprit-bumrah", name: "Jasprit Bumrah", searchTerms: ["Bumrah"], sport: "cricket" },
-  { slug: "jos-buttler", name: "Jos Buttler", searchTerms: ["Buttler"], sport: "cricket" },
+  { slug: "virat-kohli", name: "Virat Kohli", searchTerms: ["Kohli"], sport: "cricket", cricinfoPlayerId: 253802 },
+  { slug: "ben-stokes", name: "Ben Stokes", searchTerms: ["Ben Stokes"], sport: "cricket", cricinfoPlayerId: 311158 },
+  { slug: "babar-azam", name: "Babar Azam", searchTerms: ["Babar Azam"], sport: "cricket", cricinfoPlayerId: 348144 },
+  { slug: "rohit-sharma", name: "Rohit Sharma", searchTerms: ["Rohit Sharma"], sport: "cricket", cricinfoPlayerId: 34102 },
+  { slug: "joe-root", name: "Joe Root", searchTerms: ["Joe Root"], sport: "cricket", cricinfoPlayerId: 303669 },
+  { slug: "steve-smith", name: "Steve Smith", searchTerms: ["Steve Smith"], sport: "cricket", cricinfoPlayerId: 267192 },
+  { slug: "sunil-narine", name: "Sunil Narine", searchTerms: ["Narine"], sport: "cricket", cricinfoPlayerId: 230558 },
+  { slug: "sanju-samson", name: "Sanju Samson", searchTerms: ["Samson"], sport: "cricket", cricinfoPlayerId: 425943 },
+  { slug: "jasprit-bumrah", name: "Jasprit Bumrah", searchTerms: ["Bumrah"], sport: "cricket", cricinfoPlayerId: 625383 },
+  { slug: "jos-buttler", name: "Jos Buttler", searchTerms: ["Buttler"], sport: "cricket", cricinfoPlayerId: 308967 },
   // "Pant"/"Gill"/"Rahul"/"Warner"/"Head"/"Khan" are common English words or
   // surnames on their own — full name needed, same reasoning as "George
   // Best"/"Shane Warne" above.
-  { slug: "rishabh-pant", name: "Rishabh Pant", searchTerms: ["Rishabh Pant"], sport: "cricket" },
-  { slug: "shubman-gill", name: "Shubman Gill", searchTerms: ["Shubman Gill"], sport: "cricket" },
-  { slug: "kl-rahul", name: "KL Rahul", searchTerms: ["KL Rahul"], sport: "cricket" },
-  { slug: "david-warner", name: "David Warner", searchTerms: ["David Warner"], sport: "cricket" },
-  { slug: "travis-head", name: "Travis Head", searchTerms: ["Travis Head"], sport: "cricket" },
-  { slug: "rashid-khan", name: "Rashid Khan", searchTerms: ["Rashid Khan"], sport: "cricket" },
-  { slug: "kane-williamson", name: "Kane Williamson", searchTerms: ["Kane Williamson"], sport: "cricket" },
-  { slug: "pat-cummins", name: "Pat Cummins", searchTerms: ["Pat Cummins"], sport: "cricket" },
+  { slug: "rishabh-pant", name: "Rishabh Pant", searchTerms: ["Rishabh Pant"], sport: "cricket", cricinfoPlayerId: 931581 },
+  { slug: "shubman-gill", name: "Shubman Gill", searchTerms: ["Shubman Gill"], sport: "cricket", cricinfoPlayerId: 1070173 },
+  { slug: "kl-rahul", name: "KL Rahul", searchTerms: ["KL Rahul"], sport: "cricket", cricinfoPlayerId: 422108 },
+  { slug: "david-warner", name: "David Warner", searchTerms: ["David Warner"], sport: "cricket", cricinfoPlayerId: 219889 },
+  { slug: "travis-head", name: "Travis Head", searchTerms: ["Travis Head"], sport: "cricket", cricinfoPlayerId: 530011 },
+  { slug: "rashid-khan", name: "Rashid Khan", searchTerms: ["Rashid Khan"], sport: "cricket", cricinfoPlayerId: 793463 },
+  { slug: "kane-williamson", name: "Kane Williamson", searchTerms: ["Kane Williamson"], sport: "cricket", cricinfoPlayerId: 277906 },
+  { slug: "pat-cummins", name: "Pat Cummins", searchTerms: ["Pat Cummins"], sport: "cricket", cricinfoPlayerId: 489889 },
   // "Pandya" alone is ambiguous between Hardik and his brother Krunal, both
   // active internationals — full name needed to pick the right one.
-  { slug: "hardik-pandya", name: "Hardik Pandya", searchTerms: ["Hardik Pandya"], sport: "cricket" },
+  { slug: "hardik-pandya", name: "Hardik Pandya", searchTerms: ["Hardik Pandya"], sport: "cricket", cricinfoPlayerId: 625371 },
   // "Surya" alone is too common an Indian name-root; "Suryakumar" is
   // distinctive enough on its own.
-  { slug: "suryakumar-yadav", name: "Suryakumar Yadav", searchTerms: ["Suryakumar"], sport: "cricket" },
+  { slug: "suryakumar-yadav", name: "Suryakumar Yadav", searchTerms: ["Suryakumar"], sport: "cricket", cricinfoPlayerId: 446507 },
   // Cricket — legends (previously missing entirely — football had 6
   // legends tracked, cricket had none)
-  { slug: "sachin-tendulkar", name: "Sachin Tendulkar", searchTerms: ["Tendulkar"], sport: "cricket" },
-  { slug: "ms-dhoni", name: "MS Dhoni", searchTerms: ["Dhoni"], sport: "cricket" },
-  { slug: "ricky-ponting", name: "Ricky Ponting", searchTerms: ["Ponting"], sport: "cricket" },
-  { slug: "sunil-gavaskar", name: "Sunil Gavaskar", searchTerms: ["Gavaskar"], sport: "cricket" },
-  { slug: "muttiah-muralitharan", name: "Muttiah Muralitharan", searchTerms: ["Muralitharan"], sport: "cricket" },
-  { slug: "jacques-kallis", name: "Jacques Kallis", searchTerms: ["Kallis"], sport: "cricket" },
-  { slug: "ab-de-villiers", name: "AB de Villiers", searchTerms: ["de Villiers"], sport: "cricket" },
+  { slug: "sachin-tendulkar", name: "Sachin Tendulkar", searchTerms: ["Tendulkar"], sport: "cricket", cricinfoPlayerId: 35320 },
+  { slug: "ms-dhoni", name: "MS Dhoni", searchTerms: ["Dhoni"], sport: "cricket", cricinfoPlayerId: 28081 },
+  { slug: "ricky-ponting", name: "Ricky Ponting", searchTerms: ["Ponting"], sport: "cricket", cricinfoPlayerId: 7133 },
+  { slug: "sunil-gavaskar", name: "Sunil Gavaskar", searchTerms: ["Gavaskar"], sport: "cricket", cricinfoPlayerId: 28794 },
+  { slug: "muttiah-muralitharan", name: "Muttiah Muralitharan", searchTerms: ["Muralitharan"], sport: "cricket", cricinfoPlayerId: 49636 },
+  { slug: "jacques-kallis", name: "Jacques Kallis", searchTerms: ["Kallis"], sport: "cricket", cricinfoPlayerId: 45789 },
+  { slug: "ab-de-villiers", name: "AB de Villiers", searchTerms: ["de Villiers"], sport: "cricket", cricinfoPlayerId: 44936 },
   // "Warne"/"Lara"/"Richards"/"Akram" are common enough English words or
   // surnames on their own that the full name is needed to avoid false
   // matches — same reasoning as "George Best" above.
-  { slug: "shane-warne", name: "Shane Warne", searchTerms: ["Shane Warne"], sport: "cricket" },
-  { slug: "brian-lara", name: "Brian Lara", searchTerms: ["Brian Lara"], sport: "cricket" },
-  { slug: "viv-richards", name: "Viv Richards", searchTerms: ["Viv Richards"], sport: "cricket" },
-  { slug: "wasim-akram", name: "Wasim Akram", searchTerms: ["Wasim Akram"], sport: "cricket" },
-  { slug: "kapil-dev", name: "Kapil Dev", searchTerms: ["Kapil Dev"], sport: "cricket" },
+  { slug: "shane-warne", name: "Shane Warne", searchTerms: ["Shane Warne"], sport: "cricket", cricinfoPlayerId: 8166 },
+  { slug: "brian-lara", name: "Brian Lara", searchTerms: ["Brian Lara"], sport: "cricket", cricinfoPlayerId: 52337 },
+  { slug: "viv-richards", name: "Viv Richards", searchTerms: ["Viv Richards"], sport: "cricket", cricinfoPlayerId: 52812 },
+  { slug: "wasim-akram", name: "Wasim Akram", searchTerms: ["Wasim Akram"], sport: "cricket", cricinfoPlayerId: 43547 },
+  { slug: "kapil-dev", name: "Kapil Dev", searchTerms: ["Kapil Dev"], sport: "cricket", cricinfoPlayerId: 30028 },
 
   // NFL — current stars. Zero NFL players were tracked before this (only
   // football/cricket), which meant the per-player Google News search

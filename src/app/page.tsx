@@ -24,7 +24,7 @@ import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { HeroCarousel } from "@/components/HeroCarousel";
 import { ArticleThumb } from "@/components/ArticleThumb";
-import { fetchPersonPhoto } from "@/lib/ingestion/wikimediaImages";
+import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImages";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { LiveScoreboardCarousel } from "@/components/LiveScoreboardCarousel";
 import { fetchLiveCricketMatches } from "@/lib/liveCricket";
@@ -35,6 +35,8 @@ import ScoreboardIcon from "@mui/icons-material/Scoreboard";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import ArticleIcon from "@mui/icons-material/Article";
 import SportsFootballIcon from "@mui/icons-material/SportsFootball";
+import SportsCricketIcon from "@mui/icons-material/SportsCricket";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 // Main-column section headers (Player News, Transfers & Big News, etc.) were
 // using the theme's default h5 styling — Poppins, near-black — while the
@@ -128,7 +130,7 @@ export default async function HomePage(
   // decision was silently getting overridden by a score cutoff instead of
   // actually taking priority. Capped at 5 (the same cap `featureArticle`
   // itself enforces), so this can never balloon the query.
-  const [articlesRanked, manuallyFeaturedRaw, liveCricketMatches] = await Promise.all([
+  const [articlesRanked, manuallyFeaturedRaw, liveCricketMatches, activeSeriesRow] = await Promise.all([
     db.article.findMany({
       where: articleWhere,
       orderBy: [{ trendingScore: "desc" }, { publishedAt: "desc" }],
@@ -151,6 +153,18 @@ export default async function HomePage(
     // international Tests out of the carousel entirely; this is cheap
     // enough to just fetch everything currently live instead.
     category === undefined || category === "cricket" ? fetchLiveCricketMatches(30) : Promise.resolve([]),
+    // The single most recently active cricket series (cricketSeries.ts),
+    // for a discovery banner under the hero — no permanent nav item for
+    // this (same reasoning as the World Cup nav exclusion above: a series
+    // runs for a couple of weeks then goes quiet, so a fixed link would sit
+    // empty most of the time; /series stays reachable via the footer).
+    category === undefined || category === "cricket"
+      ? db.article.findFirst({
+          where: { seriesKey: { not: null }, status: "published" },
+          orderBy: { publishedAt: "desc" },
+          select: { seriesKey: true, seriesLabel: true },
+        })
+      : Promise.resolve(null),
   ]);
   const rankedIds = new Set(articlesRanked.map((a) => a.id));
   const articles = [...manuallyFeaturedRaw.filter((a) => !rankedIds.has(a.id)), ...articlesRanked];
@@ -173,7 +187,7 @@ export default async function HomePage(
   // inconsistent when you clicked through. Falls back to the initials
   // avatar (rendered below) when no free-licensed photo is found.
   const playerNewsPhotos = await Promise.all(
-    playerNewsMatches.map((entry) => fetchPersonPhoto(entry.player.name))
+    playerNewsMatches.map((entry) => fetchPersonPhoto(entry.player.name, sportSearchHint(entry.player.sport)))
   );
   const playerNews = playerNewsMatches.map((entry, i) => ({ ...entry, photo: playerNewsPhotos[i] }));
 
@@ -575,6 +589,30 @@ export default async function HomePage(
             />
           )}
 
+          {activeSeriesRow?.seriesKey && (
+            <Link href={`/series/${activeSeriesRow.seriesKey}`} style={{ textDecoration: "none", color: "inherit" }}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 1.5,
+                  mb: 3,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.25,
+                  borderColor: "primary.main",
+                  transition: "background-color 0.15s",
+                  "&:hover": { bgcolor: "action.hover" },
+                }}
+              >
+                <SportsCricketIcon sx={{ color: "primary.main" }} />
+                <Typography variant="body2" sx={{ flex: 1, fontWeight: 600 }}>
+                  All coverage: {activeSeriesRow.seriesLabel}
+                </Typography>
+                <ChevronRightIcon sx={{ color: "text.secondary" }} />
+              </Paper>
+            </Link>
+          )}
+
           {playerNews.length > 0 && (
             <Box component="section" sx={{ mb: 4 }}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
@@ -960,12 +998,51 @@ export default async function HomePage(
                     // 190 brings visible coverage up to ~55%, close to what
                     // ArticleThumb's own square crop shows (~67%) for the
                     // same source.
-                    <Box
-                      component="img"
-                      src={article.heroImageUrl}
-                      alt={article.title}
-                      sx={{ width: "100%", height: 190, objectFit: "cover", objectPosition: "top", borderRadius: 1, mb: 1 }}
-                    />
+                    <Box sx={{ position: "relative", mb: 1 }}>
+                      <Box
+                        component="img"
+                        src={article.heroImageUrl}
+                        alt={article.title}
+                        sx={{ width: "100%", height: 190, objectFit: "cover", objectPosition: "top", borderRadius: 1, display: "block" }}
+                      />
+                      {article.heroImageCredit && (
+                        // Same syndication-credit requirement the hero and
+                        // article page already honor (see schema comment on
+                        // Article.heroImageCredit) — was previously only
+                        // shown on those two, silently dropped on every
+                        // other card that reuses the same licensed photo.
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            position: "absolute",
+                            right: 6,
+                            bottom: 6,
+                            color: "rgba(255,255,255,0.9)",
+                            bgcolor: "rgba(0,0,0,0.45)",
+                            borderRadius: 1,
+                            px: 0.75,
+                            py: 0.125,
+                            fontSize: 10,
+                            lineHeight: 1.4,
+                            maxWidth: "calc(100% - 12px)",
+                          }}
+                          noWrap
+                        >
+                          {article.heroImageCreditUrl ? (
+                            <a
+                              href={article.heroImageCreditUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ color: "inherit" }}
+                            >
+                              {article.heroImageCredit}
+                            </a>
+                          ) : (
+                            article.heroImageCredit
+                          )}
+                        </Typography>
+                      )}
+                    </Box>
                   ) : null}
                   <Typography variant="subtitle2" component="h3" gutterBottom>
                     <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>

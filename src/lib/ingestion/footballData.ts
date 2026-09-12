@@ -90,6 +90,13 @@ export interface RawMatchItem {
   // extractTeamScoreLine.
   homeScoreText?: string;
   awayScoreText?: string;
+  // Cricket only, for now — groups every article (match-data AND editorial
+  // RSS/player-news alike) belonging to the same bilateral international
+  // series (e.g. "India vs Afghanistan, T20I") under one key, so /series/
+  // [seriesKey] can list them together instead of the site only ever
+  // showing a flat chronological feed. See cricketSeries.ts.
+  seriesKey?: string;
+  seriesLabel?: string;
 }
 
 function standingsContext(

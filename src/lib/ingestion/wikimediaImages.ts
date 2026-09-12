@@ -80,11 +80,29 @@ function buildCredit(meta: any, fileName: string, kind: "Photo" | "Image"): { cr
   return { credit, creditUrl };
 }
 
-export async function fetchPersonPhoto(personName: string): Promise<StockImage | null> {
+// Wikipedia's plain-name search returns whichever "Steve Smith" (etc.) is
+// most globally notable, not the one this article is actually about — a real
+// mismatch confirmed directly: a cricket story about the Australian batter
+// Steve Smith was illustrated with the NFL wide receiver's photo, because his
+// page outranks "Steve Smith (cricketer)" for the bare query. Appending the
+// sport as a disambiguating term steers the search toward the right article
+// (Wikipedia bios open with "is an Australian cricketer who...", so the term
+// appears in the indexed text even when it's not literally in the title) —
+// titleMatchesName still only requires the person's own name tokens, so the
+// hint can only narrow the result, never cause a false accept on its own.
+export function sportSearchHint(sport: "football" | "cricket" | "american-football" | string): string {
+  if (sport.startsWith("cricket")) return "cricketer";
+  if (sport.startsWith("american-football")) return "American football player";
+  if (sport.startsWith("football")) return "footballer";
+  return "";
+}
+
+export async function fetchPersonPhoto(personName: string, sportHint?: string): Promise<StockImage | null> {
   try {
     // 1. Resolve the name to the best-matching Wikipedia article.
+    const searchQuery = sportHint ? `${personName} ${sportHint}` : personName;
     const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(
-      personName
+      searchQuery
     )}&format=json&srlimit=1`;
     const searchData = await wikiFetch(searchUrl);
     const title: string | undefined = searchData?.query?.search?.[0]?.title;

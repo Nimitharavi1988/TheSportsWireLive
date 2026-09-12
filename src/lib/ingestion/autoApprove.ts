@@ -30,12 +30,14 @@ export function isAutoApprovable(article: {
   playerNewsSourced: boolean;
 }): boolean {
   if (!hasRealImage(article)) return false;
-  // Player-news items (playerNewsFeeds.ts) never get a body by design — see
-  // the schema comment on Article.playerNewsSourced. A null body here means
-  // this is already the finished product (summary + real photo + source
-  // link), so it's judged on image alone rather than being held to a body
-  // bar it can structurally never clear.
-  if (article.playerNewsSourced) return true;
+  // Player-news items (playerNewsFeeds.ts) used to be judged on image alone,
+  // since a body was structurally impossible for them — Google News' own
+  // RSS snippet for these is just the headline repeated. That's no longer
+  // true: runIngest.ts now grounds their commentary call in the real
+  // article page's text instead (articleTextExtractor.ts), so they're held
+  // to the same real-body bar as everything else. An item where extraction
+  // was blocked (robots.txt) or failed simply stays in pending_review for a
+  // human to look at, same as any other budget/extraction miss.
   return Boolean(article.body && article.body.trim().length >= MIN_BODY_LENGTH);
 }
 

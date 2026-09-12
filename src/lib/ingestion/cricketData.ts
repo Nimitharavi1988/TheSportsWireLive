@@ -10,6 +10,7 @@ import { db } from "../db";
 import type { RawMatchItem } from "./footballData";
 import { fetchCommonsFile } from "./wikimediaImages";
 import { matchCountry, isInternationalFormat, type CricketCountry } from "./cricketCountries";
+import { deriveSeriesKey } from "./cricketSeries";
 
 const BASE_URL = "https://api.cricapi.com/v1";
 const SOURCE_NAME = "CricketData.org";
@@ -215,6 +216,10 @@ export async function fetchCricketData(): Promise<RawMatchItem[]> {
     }
 
     const teams = extractTeams(title);
+    // Bilateral international series only (Test/ODI/T20I) — franchise
+    // tournaments (IPL etc.) aren't team-pair-shaped, so deriveSeriesKey
+    // returns null for them and the match simply isn't grouped.
+    const series = teams && isInternationalFormat(title) ? deriveSeriesKey(teams[0], teams[1], title) : null;
 
     items.push({
       title,
@@ -227,6 +232,8 @@ export async function fetchCricketData(): Promise<RawMatchItem[]> {
       ...crests,
       homeTeam: teams?.[0],
       awayTeam: teams?.[1],
+      seriesKey: series?.key,
+      seriesLabel: series?.label,
       // No single homeScore/awayScore here — a multi-innings cricket score
       // doesn't fit two plain integers the way football/NFL's single score
       // does. homeScoreText/awayScoreText (below) carry a short per-team

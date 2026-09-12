@@ -16,6 +16,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     take: 5000,
   });
 
+  const seriesRows = await db.article.groupBy({
+    by: ["seriesKey"],
+    where: { seriesKey: { not: null }, status: "published" },
+  });
+
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: siteUrl, changeFrequency: "hourly", priority: 1 },
     { url: `${siteUrl}/?category=football`, changeFrequency: "hourly", priority: 0.8 },
@@ -24,6 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteUrl}/standings`, changeFrequency: "daily", priority: 0.6 },
     { url: `${siteUrl}/player`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${siteUrl}/club`, changeFrequency: "weekly", priority: 0.5 },
+    { url: `${siteUrl}/series`, changeFrequency: "daily", priority: 0.5 },
     { url: `${siteUrl}/privacy`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${siteUrl}/terms`, changeFrequency: "yearly", priority: 0.2 },
     ...STANDINGS_LEAGUES.map((league) => ({
@@ -41,6 +47,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily" as const,
       priority: 0.6,
     })),
+    ...seriesRows
+      .filter((row): row is { seriesKey: string } => row.seriesKey !== null)
+      .map((row) => ({
+        url: `${siteUrl}/series/${row.seriesKey}`,
+        changeFrequency: "hourly" as const,
+        priority: 0.6,
+      })),
   ];
 
   const articleRoutes: MetadataRoute.Sitemap = articles.map((article) => ({

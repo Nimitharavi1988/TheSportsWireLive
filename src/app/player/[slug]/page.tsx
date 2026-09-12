@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { TRACKED_PLAYERS } from "@/lib/players";
-import { fetchPersonPhoto } from "@/lib/ingestion/wikimediaImages";
+import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImages";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 import { StandingsCarousel } from "@/components/StandingsCarousel";
 import { PLAYER_QUOTES } from "@/lib/quotes";
@@ -40,7 +40,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
   if (!player) notFound();
 
   const [photo, articles] = await Promise.all([
-    fetchPersonPhoto(player.name),
+    fetchPersonPhoto(player.name, sportSearchHint(player.sport)),
     db.article.findMany({
       where: {
         status: "published",

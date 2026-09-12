@@ -97,6 +97,12 @@ model Article {
   kickoffAt        DateTime?      // the match's real kickoff/start time — distinct from publishedAt, which for a "finished" match is when it ended, not when it started
   homeScoreText    String?        // cricket only — a short per-team score line (e.g. "221/3 (4.1)"); a multi-innings score doesn't fit homeScore/awayScore's plain integers. See cricketData.ts's extractTeamScoreLine.
   awayScoreText    String?
+  // Groups articles (structured match-data AND editorial RSS/player-news
+  // alike) belonging to the same bilateral international cricket series
+  // (e.g. "india-vs-afghanistan-t20i") — see cricketSeries.ts. Cricket-only
+  // for now; null for every other sport/category.
+  seriesKey        String?
+  seriesLabel      String?        // display form, e.g. "India vs Afghanistan • T20I"
   socialPosts      SocialPost[]
   poll             Poll?
   reactions        ArticleReaction[]
@@ -106,6 +112,7 @@ model Article {
   @@index([status])
   @@index([category])
   @@index([matchStatus, kickoffAt])
+  @@index([seriesKey])
 }
 
 model SocialPost {
