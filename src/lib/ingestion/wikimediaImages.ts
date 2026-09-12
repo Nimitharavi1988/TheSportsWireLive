@@ -7,9 +7,15 @@
  * this a legally safe source of real (not generic stock) photography.
  *
  * We still verify the license ourselves rather than trusting that policy
- * blindly — only Public Domain, CC0, CC-BY, and CC-BY-SA are accepted;
- * anything else is skipped. CC-BY/CC-BY-SA require attribution, which is
- * always shown (same pattern as the Pexels credit line elsewhere).
+ * blindly — only Public Domain, CC0, CC-BY, CC-BY-SA, and GODL-India are
+ * accepted; anything else is skipped. CC-BY/CC-BY-SA/GODL-India require
+ * attribution, which is always shown (same pattern as the Pexels credit
+ * line elsewhere). GODL-India (Government Open Data License – India) is
+ * the license on official Indian government photos (e.g. PIB/PMO event
+ * photos) hosted on Commons — confirmed directly (2026-09-12) via a real
+ * Sanju Samson photo blocked by this list: attribution-only, free
+ * commercial reuse, no share-alike restriction — the same shape as CC-BY,
+ * just a different name.
  *
  * Docs: https://www.mediawiki.org/wiki/API:Main_page
  */
@@ -25,7 +31,7 @@ export interface StockImage {
 // https://www.mediawiki.org/wiki/API:Etiquette
 const USER_AGENT = "TheSportsWireLiveBot/1.0 (sports news aggregator)";
 
-const FREE_LICENSE_PATTERN = /cc0|public domain|^pd$|cc[\s-]?by/i;
+const FREE_LICENSE_PATTERN = /cc0|public domain|^pd$|cc[\s-]?by|godl-india/i;
 
 export function isFreeLicense(licenseShortName: string): boolean {
   return FREE_LICENSE_PATTERN.test(licenseShortName);

@@ -34,6 +34,14 @@ describe("isFreeLicense", () => {
     expect(isFreeLicense("CC BY 3.0")).toBe(true);
   });
 
+  // Real example caught live (2026-09-12): a genuine Sanju Samson photo
+  // (India's PM's Office, via PIB) was being rejected outright — GODL-India
+  // is attribution-only with free commercial reuse and no share-alike
+  // restriction, the same shape as CC-BY under a different name.
+  it("accepts GODL-India", () => {
+    expect(isFreeLicense("GODL-India")).toBe(true);
+  });
+
   it("rejects non-free/unclear licenses", () => {
     expect(isFreeLicense("Copyrighted, all rights reserved")).toBe(false);
     expect(isFreeLicense("Fair use")).toBe(false);
