@@ -17,6 +17,7 @@ import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { TRACKED_PLAYERS } from "@/lib/players";
 import { TRACKED_CLUBS } from "@/lib/clubs";
+import { createEntityLinker } from "@/lib/entityLinks";
 import { FanEngagementHub } from "@/components/FanEngagementHub";
 import { displaySummary } from "@/lib/articleSummary";
 import { relativeTime } from "@/lib/relativeTime";
@@ -316,11 +317,17 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         </Stack>
       )}
 
-      {(article.body ?? article.summary).split(/\n+/).filter(Boolean).map((paragraph, i) => (
-        <Typography key={i} variant="body1" sx={{ mb: 2 }}>
-          {paragraph}
-        </Typography>
-      ))}
+      {(() => {
+        // One linker per render — its `linked` set is shared across every
+        // paragraph below, so a player/club name only gets turned into a
+        // link on its first mention in the article, not every repeat.
+        const linkifyEntities = createEntityLinker();
+        return (article.body ?? article.summary).split(/\n+/).filter(Boolean).map((paragraph, i) => (
+          <Typography key={i} variant="body1" sx={{ mb: 2 }}>
+            {linkifyEntities(paragraph)}
+          </Typography>
+        ));
+      })()}
 
       {/* Engagement sits before the outbound source link, not after — a
           reader who clicks through to the source immediately after reading
