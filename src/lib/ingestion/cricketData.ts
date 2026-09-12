@@ -104,12 +104,13 @@ export async function fetchInternationalFlags(
 }
 
 // A single ingest run makes exactly one call here, so the real risk to the
-// 100 req/day free-tier cap is polling frequency, not per-run volume — cron
-// firing every 15 min alone would burn 96/100. Enforce a floor independent
-// of how often ingestion actually runs, using Source.lastPolledAt (tracked
-// in the DB so it holds regardless of process restarts). 20 min caps this
-// at ~72 calls/day, leaving real headroom for manual/test runs.
-const MIN_POLL_INTERVAL_MS = 20 * 60 * 1000;
+// 100 req/day free-tier cap is polling frequency, not per-run volume.
+// Matched to the cron's own 15-min cadence (cron-job.org) — 96 calls/day,
+// leaving a small 4-call/day buffer for manual/test runs. Tightened from a
+// 20-min floor (72 calls/day) to get the freshest possible "live" cricket
+// data the free tier allows, per explicit user request — staying on free
+// rather than paying for CricketData.org's per-minute-capable paid tiers.
+const MIN_POLL_INTERVAL_MS = 15 * 60 * 1000;
 
 export async function fetchCricketData(): Promise<RawMatchItem[]> {
   const apiKey = process.env.CRICKETDATA_API_KEY;
