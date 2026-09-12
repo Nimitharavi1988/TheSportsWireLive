@@ -95,6 +95,10 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   // slug uses "Sooryavanshi", but plenty of outlets (including gulfnews.com)
   // spell it "Suryavanshi".
   { slug: "vaibhav-sooryavanshi", name: "Vaibhav Sooryavanshi", searchTerms: ["Sooryavanshi", "Suryavanshi"], sport: "cricket", cricinfoPlayerId: 1408688 },
+  // Real gap found (2026-09-12): 4 separate articles in one week quoting
+  // him on India's XI selection, ex-captain, currently a selector/mentor —
+  // recurring source of real headlines with no tracking at all.
+  { slug: "ajinkya-rahane", name: "Ajinkya Rahane", searchTerms: ["Rahane"], sport: "cricket", cricinfoPlayerId: 277916 },
   // Cricket — legends (previously missing entirely — football had 6
   // legends tracked, cricket had none)
   { slug: "sachin-tendulkar", name: "Sachin Tendulkar", searchTerms: ["Tendulkar"], sport: "cricket", cricinfoPlayerId: 35320 },
