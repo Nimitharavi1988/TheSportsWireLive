@@ -92,6 +92,17 @@ const FEEDS: { url: string; category: string; sourceName: string }[] = [
   // publicly beyond their RSS index page.
   { url: "https://www.cricinfo.com/rss/content/story/feeds/6.xml", category: "cricket", sourceName: "ESPN Cricinfo" },
   { url: "https://www.theguardian.com/sport/cricket/rss", category: "cricket", sourceName: "The Guardian" },
+  // Added specifically to close the "same repeated photo" gap for Indian
+  // cricket player coverage: confirmed live (2026-09-12) that stories like
+  // the Samson/Sooryavanshi selection debate are largely NOT covered by
+  // Cricinfo's own editorial desk (their per-player feed hadn't published
+  // anything about Samson in over two months, despite heavy coverage
+  // elsewhere) — they're covered by outlets like this one instead. Direct
+  // feed, real media:content images (1600x900, confirmed), real article
+  // URLs — same legitimate syndication pattern as every other feed here,
+  // and it sidesteps Google News search's unresolvable-redirect problem
+  // entirely for whatever this outlet covers.
+  { url: "https://www.hindustantimes.com/feeds/rss/cricket/rssfeed.xml", category: "cricket", sourceName: "Hindustan Times" },
   // ESPN's general soccer feed — broader global coverage than the UK-focused
   // feeds above, more likely to pick up MLS (Messi/Inter Miami) and Saudi
   // Pro League (Ronaldo/Al-Nassr) news, which football-data.org's structured
