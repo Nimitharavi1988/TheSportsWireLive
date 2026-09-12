@@ -78,14 +78,14 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                 size="small"
                 sx={{ bgcolor: "primary.main", color: "primary.contrastText", fontWeight: 700, mb: 1.5 }}
               />
-              <Typography variant="h4" component="h2" gutterBottom sx={{ color: "#fff" }}>
-                <Link href={`/article/${slide.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+              <Link href={`/article/${slide.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+                <Typography variant="h4" component="h2" gutterBottom sx={{ color: "#fff" }}>
                   {slide.title}
-                </Link>
-              </Typography>
-              <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.88)" }}>
-                {slide.summary}
-              </Typography>
+                </Typography>
+                <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.88)" }}>
+                  {slide.summary}
+                </Typography>
+              </Link>
             </Box>
             {slide.bannerCredit && (
               <Typography
@@ -141,14 +141,14 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                 block just sitting vertically centered as one unit. */}
             <CardContent sx={{ p: 3, mt: "auto" }}>
               <Chip label="Top Story" size="small" sx={{ color: "primary", mb: 1 }} />
-              <Typography variant="h4" component="h2" gutterBottom>
-                <Link href={`/article/${slide.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+              <Link href={`/article/${slide.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+                <Typography variant="h4" component="h2" gutterBottom>
                   {slide.title}
-                </Link>
-              </Typography>
-              <Typography variant="body1" sx={{ color: "text.secondary" }}>
-                {slide.summary}
-              </Typography>
+                </Typography>
+                <Typography variant="body1" sx={{ color: "text.secondary" }}>
+                  {slide.summary}
+                </Typography>
+              </Link>
             </CardContent>
           </Box>
         )}
