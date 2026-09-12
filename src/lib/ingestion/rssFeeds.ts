@@ -135,6 +135,16 @@ const FEEDS: { url: string; category: string; sourceName: string }[] = [
   // for one feed; same stock-photo fallback plenty of other items already
   // use.
   { url: "https://sports.yahoo.com/nfl/rss/", category: "american-football", sourceName: "Yahoo Sports" },
+  // MLB/NBA editorial news (injuries, roster moves, storylines) — mlbData.ts/
+  // nbaData.ts only ever provide game previews/results, no news coverage,
+  // the exact same gap NFL originally had (see ESPN NFL feed comment above).
+  // This is also what populates the homepage's "Also in the News" sidebar
+  // for these categories — that module only ever draws from RSS-sourced
+  // articles, so without a feed here it stayed completely empty for these
+  // two categories even with real match-data content in the main column.
+  // Confirmed live and working directly (2026-09-12).
+  { url: "https://www.espn.com/espn/rss/mlb/news", category: "baseball", sourceName: "ESPN" },
+  { url: "https://www.espn.com/espn/rss/nba/news", category: "basketball", sourceName: "ESPN" },
   // Athletics/track and field — news-only section (no structured match-data
   // source exists the way football-data.org/CricketData.org/ESPN NFL do for
   // the others; athletics is start-list/results based, not "matches"), per
