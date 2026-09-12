@@ -5,7 +5,7 @@ import { fetchRssNews } from "./rssFeeds";
 import { fetchPlayerNews } from "./playerNewsFeeds";
 import { fetchCricinfoPlayerNews } from "./cricinfoPlayerFeeds";
 import { fetchCricketData } from "./cricketData";
-import { matchSeriesInTitle, type ActiveSeries } from "./cricketSeries";
+import { detectSeriesFromTitle } from "./cricketSeries";
 import { computeDedupeHash, computeStableDedupeHash } from "./dedupe";
 import { runQualityChecks } from "./qualityCheck";
 import { fetchTrendingKeywords, computeTrendingScore } from "./trending";
@@ -155,48 +155,6 @@ export async function runIngest() {
   );
   const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...sortedNewsItems, ...cricketItems];
   const stockImagePicker = createStockImagePicker(stockImagePools);
-
-  // Series grouping (cricketSeries.ts) — "active" series are seeded from
-  // this run's own match-data items (which set seriesKey/seriesLabel
-  // directly in cricketData.ts) plus any series already known from recent
-  // DB history, so a same-run editorial article can be grouped alongside a
-  // same-run match-data article even before either is committed, and a
-  // player-news/Cricinfo item about a series with no live match today can
-  // still match a series seen recently. Cricket-only, matching
-  // cricketSeries.ts's own scope.
-  const seriesFromThisRun = new Map<string, ActiveSeries>();
-  for (const item of cricketItems) {
-    if (item.seriesKey && item.seriesLabel && item.homeTeam && item.awayTeam) {
-      seriesFromThisRun.set(item.seriesKey, {
-        key: item.seriesKey,
-        label: item.seriesLabel,
-        homeTeam: item.homeTeam,
-        awayTeam: item.awayTeam,
-      });
-    }
-  }
-  const recentSeriesRows = await db.article.findMany({
-    where: {
-      category: { startsWith: "cricket" },
-      seriesKey: { not: null },
-      homeTeam: { not: null },
-      awayTeam: { not: null },
-      createdAt: { gt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-    },
-    select: { seriesKey: true, seriesLabel: true, homeTeam: true, awayTeam: true },
-    distinct: ["seriesKey"],
-  });
-  for (const row of recentSeriesRows) {
-    if (row.seriesKey && row.seriesLabel && row.homeTeam && row.awayTeam && !seriesFromThisRun.has(row.seriesKey)) {
-      seriesFromThisRun.set(row.seriesKey, {
-        key: row.seriesKey,
-        label: row.seriesLabel,
-        homeTeam: row.homeTeam,
-        awayTeam: row.awayTeam,
-      });
-    }
-  }
-  const activeSeries = [...seriesFromThisRun.values()];
 
   // Cloudflare Workers caps outbound subrequests per invocation, and every
   // Prisma call here goes over HTTPS via Accelerate — so a per-item
@@ -389,14 +347,14 @@ export async function runIngest() {
 
     // Match-data items already have their own seriesKey/seriesLabel (set
     // directly in cricketData.ts, from the two teams it already knows) —
-    // this only applies to editorial/player-news cricket items, matching
-    // their title against series already known from this run's match data
-    // or recent DB history.
+    // this only applies to editorial/player-news cricket items, detecting
+    // the series directly from the title (see cricketSeries.ts — no
+    // match-data confirmation required).
     const series =
       item.seriesKey && item.seriesLabel
         ? { key: item.seriesKey, label: item.seriesLabel }
         : item.category.startsWith("cricket")
-          ? matchSeriesInTitle(item.title, activeSeries)
+          ? detectSeriesFromTitle(item.title)
           : null;
 
     const created = await db.article.create({

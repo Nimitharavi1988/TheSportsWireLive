@@ -10,12 +10,36 @@
  * tournament name rather than a team pair, a different shape this doesn't
  * attempt to handle yet.
  *
- * NOT gated on cricketCountries.ts's CRICKET_COUNTRIES list — Afghanistan is
- * deliberately excluded there (no freely-licensed flag), but a real India vs
- * Afghanistan T20I series still needs to group correctly, so series
- * derivation only needs the two team names as plain strings, never a
- * resolved CricketCountry.
+ * NOT gated on cricketCountries.ts's CRICKET_COUNTRIES list — Afghanistan and
+ * West Indies are deliberately excluded there (no freely-licensed flag /
+ * no single national flag), but both are entirely real, common international
+ * teams that need to group correctly here regardless.
+ *
+ * Detection is title-only (detectSeriesFromTitle), NOT anchored to
+ * CricketData.org match data — an earlier version required a live match from
+ * that feed to "seed" a series before any editorial article could be tagged.
+ * Confirmed live that this was a real design flaw, not a temporary gap: a
+ * genuine, heavily-covered England vs Pakistan Test (day four, BBC/Cricinfo/
+ * Guardian all over it) never appeared in CricketData.org's currentMatches at
+ * all — that free-tier feed reliably surfaces domestic franchise/county
+ * cricket but not every real international. Two recognized team names (see
+ * TEAM_NAMES below) plus a format word in the SAME title is a safe signal on
+ * its own: country names aren't ambiguous the way player surnames can be, and
+ * every ingested item is already recency-filtered (MAX_RSS_ITEM_AGE_MS, 3
+ * days), so a title-only match is overwhelmingly about a current series, not
+ * an old one being retrospectively discussed.
  */
+
+// Reuses cricketCountries.ts's names as the base list (still the curated,
+// hand-checked set — this only adds the two teams excluded there for
+// flag-specific reasons, which don't apply to series grouping).
+import { CRICKET_COUNTRIES } from "./cricketCountries";
+
+const TEAM_NAMES: string[] = [
+  ...CRICKET_COUNTRIES.flatMap((c) => c.names),
+  "Afghanistan",
+  "West Indies",
+];
 
 export interface SeriesInfo {
   key: string;
@@ -68,23 +92,39 @@ export function deriveSeriesKey(homeTeam: string, awayTeam: string, formatSource
   };
 }
 
-export interface ActiveSeries extends SeriesInfo {
-  homeTeam: string;
-  awayTeam: string;
-}
+// Longest names first — "South Africa" must win over a hypothetical shorter
+// substring match before "Africa" alone (not in the list, but the same
+// discipline as cricketSeries's other regexes), and prevents "New Zealand"
+// from matching only part of itself against another multi-word name.
+const TEAM_NAME_PATTERN = new RegExp(
+  `\\b(${[...TEAM_NAMES].sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`,
+  "gi"
+);
 
-// For editorial/player-news items, which don't carry structured homeTeam/
-// awayTeam — matches a title against currently-known series by requiring
-// BOTH team names present (same false-positive discipline as
-// titleMentionsPlayer/looksLikeReferencePage elsewhere in this pipeline:
-// under-grouping a real story is a much smaller problem than wrongly
-// grouping an unrelated one).
-export function matchSeriesInTitle(title: string, activeSeries: ActiveSeries[]): SeriesInfo | null {
-  const lower = title.toLowerCase();
-  for (const series of activeSeries) {
-    if (lower.includes(series.homeTeam.toLowerCase()) && lower.includes(series.awayTeam.toLowerCase())) {
-      return { key: series.key, label: series.label };
-    }
+// Finds the first two DISTINCT recognized international team names in a
+// title, in the order they appear — good enough for the overwhelming
+// majority of real headlines, which are about exactly two teams when they
+// mention a series at all. A roundup mentioning three teams just gets
+// grouped by whichever two are named first, which is an acceptable
+// approximation rather than a case worth extra complexity for.
+function findTeamPair(title: string): [string, string] | null {
+  TEAM_NAME_PATTERN.lastIndex = 0;
+  const found: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = TEAM_NAME_PATTERN.exec(title))) {
+    const name = match[0];
+    if (!found.some((f) => f.toLowerCase() === name.toLowerCase())) found.push(name);
+    if (found.length === 2) return [found[0], found[1]];
   }
   return null;
+}
+
+// The main entry point: derives a series directly from an article's title
+// alone — no CricketData.org match-data confirmation required (see the
+// module comment for why that anchor turned out to be unreliable). Used for
+// every cricket-category item, match-data and editorial alike.
+export function detectSeriesFromTitle(title: string): SeriesInfo | null {
+  const teams = findTeamPair(title);
+  if (!teams) return null;
+  return deriveSeriesKey(teams[0], teams[1], title);
 }
