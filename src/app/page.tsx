@@ -16,10 +16,10 @@ import { NflStandingsCarousel } from "@/components/NflStandingsCarousel";
 import { crestAltText, competitionFromSummary } from "@/lib/teamNames";
 import { displaySummary } from "@/lib/articleSummary";
 import { relativeTime } from "@/lib/relativeTime";
-import { EVENT_KEYWORDS } from "@/lib/eventKeywords";
+import { isHighlightWorthy } from "@/lib/highlightWorthy";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { StandingsCarousel } from "@/components/StandingsCarousel";
-import { SUPERSTAR_SEARCH_TERMS, TRACKED_PLAYERS } from "@/lib/players";
+import { TRACKED_PLAYERS } from "@/lib/players";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { HeroCarousel } from "@/components/HeroCarousel";
@@ -57,16 +57,6 @@ export const revalidate = 60;
 // this also fixes, not something new-sport-specific.
 const RSS_SOURCES = ["BBC Sport", "The Guardian", "Sky Sports", "ESPN Cricinfo", "ESPN"];
 
-function isHighlightWorthy(title: string): boolean {
-  const lower = title.toLowerCase();
-  if (EVENT_KEYWORDS.some((kw) => lower.includes(kw))) return true;
-  // Unlike HIGHLIGHT_KEYWORDS, this catches stories by WHO they're about —
-  // "record" or "transfer" shows up literally in a headline, but a match
-  // report or interview about a superstar player often doesn't contain any
-  // special trigger word at all. Shares its list (players.ts) with the
-  // /player/[slug] pages so the two never drift apart.
-  return SUPERSTAR_SEARCH_TERMS.some((term) => lower.includes(term.toLowerCase()));
-}
 
 const CATEGORY_META: Record<string, { title: string; description: string }> = {
   football: {

@@ -1,6 +1,8 @@
 import { db } from "../db";
 import { submitToIndexNow, articleUrl } from "../indexNow";
 import { isMatchDataSource } from "../matchDataSources";
+import { isHighlightWorthy } from "../highlightWorthy";
+import { postArticleToFacebook } from "../social/facebook";
 
 // Runs as a follow-up step right after runIngest.ts in the same GitHub
 // Actions job — everything reaching "pending_review" has already passed
@@ -54,7 +56,7 @@ export function isAutoApprovable(article: {
 export async function autoApproveValidArticles(): Promise<{ checked: number; approved: number }> {
   const candidates = await db.article.findMany({
     where: { status: "pending_review" },
-    select: { id: true, slug: true, body: true, heroImageUrl: true, homeCrestUrl: true, playerNewsSourced: true, sourceName: true },
+    select: { id: true, slug: true, title: true, body: true, heroImageUrl: true, homeCrestUrl: true, playerNewsSourced: true, sourceName: true },
   });
 
   const toApprove = candidates.filter(isAutoApprovable);
@@ -70,15 +72,29 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
       },
     });
 
-    // Best-effort, same isolation principle as the Facebook post in
-    // admin/actions.ts — a failed ping here should never affect publishing.
+    // Best-effort, same isolation principle as the Facebook post below —
+    // a failed ping here should never affect publishing.
     await submitToIndexNow(toApprove.map((a) => articleUrl(a.slug)));
+
+    // Unlike the admin UI's bulk approveArticles/approveAllMatching (which
+    // skip Facebook entirely — a human selecting dozens of items at once
+    // isn't asking for dozens of Page posts), this IS the dominant approval
+    // path now, so skipping it here meant most published content never
+    // reached Facebook at all. Gated to isHighlightWorthy so a routine
+    // scoreline/preview doesn't flood the Page — only genuinely notable
+    // stories (event keywords, or a tracked star player), same bar as
+    // "Transfers & Big News" on the homepage. Sequential + best-effort per
+    // article: one failed/rate-limited post must never affect another.
+    for (const article of toApprove) {
+      if (!isHighlightWorthy(article.title)) continue;
+      try {
+        await postArticleToFacebook(article.id);
+      } catch (err) {
+        console.error("Facebook post failed for article", article.id, err);
+      }
+    }
   }
 
-  // Deliberately does NOT post to Facebook — same precedent as the admin
-  // UI's bulk approveArticles/approveAllMatching actions (see
-  // admin/actions.ts): auto-posting a batch to the Page without a human
-  // choosing to do so isn't something this should do on its own.
   return { checked: candidates.length, approved: toApprove.length };
 }
 
