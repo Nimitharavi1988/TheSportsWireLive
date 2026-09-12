@@ -59,34 +59,39 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
           // directly on the image with a gradient scrim, the way most news
           // front pages treat a lead story.
           <Box sx={{ position: "relative" }}>
-            <Box
-              component="img"
-              src={imageUrl}
-              alt={slide.title}
-              sx={{ width: "100%", height: 460, objectFit: "cover", objectPosition: "top", display: "block" }}
-            />
-            <Box
-              sx={{
-                position: "absolute",
-                inset: 0,
-                background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.45) 45%, rgba(0,0,0,0) 75%)",
-              }}
-            />
-            <Box sx={{ position: "absolute", left: 0, right: 0, bottom: 0, p: 3 }}>
-              <Chip
-                label="Top Story"
-                size="small"
-                sx={{ bgcolor: "primary.main", color: "primary.contrastText", fontWeight: 700, mb: 1.5 }}
+            {/* The whole image+text block is one link now (was just the
+                text) — the photo-credit link below has to stay OUTSIDE it
+                as a sibling, not nested inside, since a real <a> can't
+                validly nest inside another one; its own absolute
+                positioning keeps it visually in the same corner either way. */}
+            <Link href={`/article/${slide.slug}`} style={{ color: "inherit", textDecoration: "none", display: "block", position: "relative" }}>
+              <Box
+                component="img"
+                src={imageUrl}
+                alt={slide.title}
+                sx={{ width: "100%", height: 460, objectFit: "cover", objectPosition: "top", display: "block" }}
               />
-              <Link href={`/article/${slide.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+              <Box
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.45) 45%, rgba(0,0,0,0) 75%)",
+                }}
+              />
+              <Box sx={{ position: "absolute", left: 0, right: 0, bottom: 0, p: 3 }}>
+                <Chip
+                  label="Top Story"
+                  size="small"
+                  sx={{ bgcolor: "primary.main", color: "primary.contrastText", fontWeight: 700, mb: 1.5 }}
+                />
                 <Typography variant="h4" component="h2" gutterBottom sx={{ color: "#fff" }}>
                   {slide.title}
                 </Typography>
                 <Typography variant="body1" sx={{ color: "rgba(255,255,255,0.88)" }}>
                   {slide.summary}
                 </Typography>
-              </Link>
-            </Box>
+              </Box>
+            </Link>
             {slide.bannerCredit && (
               <Typography
                 variant="caption"
@@ -114,7 +119,10 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
           // centers this shorter content within it, so the card doesn't
           // visibly shrink/grow as the carousel rotates between slide types
           // (measured live: was jumping between ~349px and ~464px).
-          <Box sx={{ minHeight: 460, display: "flex", flexDirection: "column" }}>
+          <Link
+            href={`/article/${slide.slug}`}
+            style={{ color: "inherit", textDecoration: "none", display: "flex", flexDirection: "column", minHeight: 460 }}
+          >
             {hasCrests && (
               <Stack
                 direction="row"
@@ -141,16 +149,14 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                 block just sitting vertically centered as one unit. */}
             <CardContent sx={{ p: 3, mt: "auto" }}>
               <Chip label="Top Story" size="small" sx={{ color: "primary", mb: 1 }} />
-              <Link href={`/article/${slide.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
-                <Typography variant="h4" component="h2" gutterBottom>
-                  {slide.title}
-                </Typography>
-                <Typography variant="body1" sx={{ color: "text.secondary" }}>
-                  {slide.summary}
-                </Typography>
-              </Link>
+              <Typography variant="h4" component="h2" gutterBottom>
+                {slide.title}
+              </Typography>
+              <Typography variant="body1" sx={{ color: "text.secondary" }}>
+                {slide.summary}
+              </Typography>
             </CardContent>
-          </Box>
+          </Link>
         )}
       </Card>
 
