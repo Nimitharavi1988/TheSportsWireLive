@@ -189,7 +189,7 @@ export async function runIngest() {
     (
       await db.article.findMany({
         where: { dedupeHash: { in: allHashes } },
-        select: { id: true, dedupeHash: true, body: true, heroImageUrl: true, matchStatus: true },
+        select: { id: true, dedupeHash: true, body: true, heroImageUrl: true, matchStatus: true, status: true },
       })
     ).map((a) => [a.dedupeHash, a])
   );
@@ -265,7 +265,7 @@ export async function runIngest() {
       // for these is just the headline repeated verbatim — now handled by
       // resolveGrounding falling back to a real page-text (and image)
       // extraction (articleTextExtractor.ts) instead of skipping them.
-      if (existing.body === null && !isMatchDataSource(item.sourceName) && canAffordCommentary(item.category)) {
+      if (existing.body === null && existing.status !== "flagged" && !isMatchDataSource(item.sourceName) && canAffordCommentary(item.category)) {
         const grounding = await resolveGrounding(item);
         if (grounding) {
           recordCommentaryCall(item.category);
@@ -359,7 +359,13 @@ export async function runIngest() {
     }
 
     let body = item.body;
-    if (body && isMatchDataSource(item.sourceName) && matchRecapCalls < MAX_MATCH_RECAP_PER_RUN) {
+    // Items that already failed the quality gate (profanity, quiz/poll
+    // filler, content-farm spam) get status "flagged" below regardless —
+    // they're essentially never going to be approved. Spending a real
+    // Gemini call (and eating into the small per-run commentary/recap
+    // budget) writing prose for something that's about to be discarded was
+    // pure waste; skip straight past both generation branches for these.
+    if (body && quality.passed && isMatchDataSource(item.sourceName) && matchRecapCalls < MAX_MATCH_RECAP_PER_RUN) {
       matchRecapCalls++;
       const competitionName =
         item.category === "cricket" ? "cricket"
@@ -368,7 +374,7 @@ export async function runIngest() {
       const recap = await generateMatchRecap(item.title, body, competitionName);
       if (recap) body = recap;
       await sleep(COMMENTARY_DELAY_MS);
-    } else if (!body && canAffordCommentary(item.category)) {
+    } else if (!body && quality.passed && canAffordCommentary(item.category)) {
       // knownPersonName (player-news) items used to be excluded here
       // outright — see resolveGrounding's comment for why they're now
       // routed through page-text extraction instead of being skipped.
@@ -463,7 +469,7 @@ export async function runIngest() {
     // Registers this hash as no longer "new" — guards against the same
     // story appearing twice in one run (two sources reporting it) trying
     // to create it a second time.
-    existingArticles.set(dedupeHash, { id: created.id, dedupeHash, body: created.body, heroImageUrl: created.heroImageUrl, matchStatus: created.matchStatus });
+    existingArticles.set(dedupeHash, { id: created.id, dedupeHash, body: created.body, heroImageUrl: created.heroImageUrl, matchStatus: created.matchStatus, status: created.status });
 
     ingested++;
     if (!quality.passed) flagged++;
