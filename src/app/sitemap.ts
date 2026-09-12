@@ -22,6 +22,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteUrl}/?category=cricket`, changeFrequency: "hourly", priority: 0.8 },
     { url: `${siteUrl}/?category=american-football`, changeFrequency: "hourly", priority: 0.8 },
     { url: `${siteUrl}/standings`, changeFrequency: "daily", priority: 0.6 },
+    { url: `${siteUrl}/player`, changeFrequency: "weekly", priority: 0.5 },
+    { url: `${siteUrl}/club`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${siteUrl}/privacy`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${siteUrl}/terms`, changeFrequency: "yearly", priority: 0.2 },
     ...STANDINGS_LEAGUES.map((league) => ({

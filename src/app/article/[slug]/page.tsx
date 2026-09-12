@@ -64,6 +64,21 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
     publisher: { "@type": "Organization", name: "Sports Wire Live" },
   };
 
+  // Lets Google show a breadcrumb trail (Home > Football > headline) in
+  // search results instead of a raw URL — real CTR impact for a search
+  // listing, and reinforces the site's actual category hierarchy to
+  // crawlers the same way the visible nav already does for users.
+  const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
+      { "@type": "ListItem", position: 2, name: categoryChipStyle(article.category).label, item: `${siteUrl}/?category=${article.category}` },
+      { "@type": "ListItem", position: 3, name: article.title, item: `${siteUrl}/article/${article.slug}` },
+    ],
+  };
+
   // Tracked players mentioned in this article's title — the only real entry
   // point into a player's dedicated page used to be the homepage's Player
   // News carousel, which only ever shows 3 players at a time (whoever
@@ -148,6 +163,10 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
 
       <Box

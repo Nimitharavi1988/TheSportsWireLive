@@ -5,6 +5,9 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
 const FOOTER_LINKS = [
+  { href: "/player", label: "Players" },
+  { href: "/club", label: "Clubs" },
+  { href: "/standings", label: "Standings" },
   { href: "/privacy", label: "Privacy Policy" },
   { href: "/terms", label: "Terms of Service" },
 ];
@@ -25,7 +28,7 @@ export default function SiteFooter() {
           }}>
             © {new Date().getFullYear()} HyperianAI LLC. All rights reserved.
           </Typography>
-          <Stack direction="row" spacing={3}>
+          <Stack direction="row" spacing={3} sx={{ flexWrap: "wrap", rowGap: 1 }}>
             {FOOTER_LINKS.map((link) => (
               <Link key={link.href} href={link.href} style={{ textDecoration: "none" }}>
                 <Typography
