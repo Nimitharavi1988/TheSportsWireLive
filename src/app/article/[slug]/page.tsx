@@ -256,10 +256,14 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
             sx={{ width: "100%", maxHeight: 460, objectFit: "cover", objectPosition: "top", borderRadius: 1.5, display: "block" }}
           />
           {article.heroImageCredit && (
+            // Same minimal treatment as the image-overlay credit badges
+            // elsewhere — still a real, clickable attribution link, just
+            // not competing visually with the headline right below it.
             <Typography
               variant="caption"
               sx={{
-                color: "text.secondary",
+                color: "text.disabled",
+                fontSize: 10,
                 mt: 0.75,
                 display: "block"
               }}>
