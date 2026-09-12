@@ -89,6 +89,7 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   { slug: "rashid-khan", name: "Rashid Khan", searchTerms: ["Rashid Khan"], sport: "cricket", cricinfoPlayerId: 793463 },
   { slug: "kane-williamson", name: "Kane Williamson", searchTerms: ["Kane Williamson"], sport: "cricket", cricinfoPlayerId: 277906 },
   { slug: "pat-cummins", name: "Pat Cummins", searchTerms: ["Pat Cummins"], sport: "cricket", cricinfoPlayerId: 489889 },
+  { slug: "tim-david", name: "Tim David", searchTerms: ["Tim David"], sport: "cricket", cricinfoPlayerId: 892749 },
   // Found via nameGapReport.ts (2026-09-12): 3 mentions in 2 weeks, all
   // referring to him as just "Boult" — no collision found for that surname
   // alone.

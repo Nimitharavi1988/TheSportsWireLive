@@ -746,33 +746,50 @@ export default async function HomePage(
               </Stack>
               <Stack spacing={2}>
                 {highlightArticles.map((article) => (
-                  <Card key={article.id} variant="outlined" sx={{ borderColor: "warning.main" }}>
-                    <CardContent>
-                      <Stack direction="row" spacing={2}>
-                        <ArticleThumb article={article} size={84} fallbackColor="#f59e0b" />
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
-                            <Chip label={article.sourceName} size="small" variant="outlined" sx={{
-                              color: "warning"
-                            }} />
-                            {article.highlighted && <Chip label="📌 Editor's pick" size="small" sx={{
-                              color: "warning"
-                            }} />}
-                            {article.publishedAt && (
-                              <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                                {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                              </Typography>
-                            )}
-                          </Stack>
-                          <Typography variant="h6" component="h2" gutterBottom>
-                            <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+                  // Whole card is now clickable (previously only the title
+                  // text was, with no hover feedback anywhere on the rest of
+                  // the card) — safe now that ArticleThumb's credit badge is
+                  // plain text, not a nested <a> (see the hydration-crash
+                  // fix earlier). Hover lift is the same "attract users"
+                  // affordance the player/club/series pages already use.
+                  <Link
+                    key={article.id}
+                    href={`/article/${article.slug}`}
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
+                    <Card
+                      variant="outlined"
+                      sx={{
+                        borderColor: "warning.main",
+                        transition: "box-shadow 0.15s, transform 0.15s",
+                        "&:hover": { boxShadow: "0 4px 14px rgba(0,0,0,0.1)", transform: "translateY(-2px)" },
+                      }}
+                    >
+                      <CardContent>
+                        <Stack direction="row" spacing={2}>
+                          <ArticleThumb article={article} size={84} fallbackColor="#f59e0b" />
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
+                              <Chip label={article.sourceName} size="small" variant="outlined" sx={{
+                                color: "warning"
+                              }} />
+                              {article.highlighted && <Chip label="📌 Editor's pick" size="small" sx={{
+                                color: "warning"
+                              }} />}
+                              {article.publishedAt && (
+                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                  {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                </Typography>
+                              )}
+                            </Stack>
+                            <Typography variant="h6" component="h2" gutterBottom>
                               {article.title}
-                            </Link>
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </CardContent>
-                  </Card>
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 ))}
               </Stack>
             </Box>
@@ -786,42 +803,56 @@ export default async function HomePage(
               </Stack>
               <Stack spacing={2}>
                 {matchArticles.map((article) => (
-                  <Card key={article.id} variant="outlined">
-                    <CardContent>
-                      <Stack direction="row" spacing={2}>
-                        <ArticleThumb article={article} size={84} fallbackColor={categoryChipStyle(article.category).color} />
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
-                            <Chip
-                              label={categoryChipStyle(article.category).label}
-                              size="small"
-                              variant="outlined"
-                              sx={{
-                                color: categoryChipStyle(article.category).color,
-                                borderColor: categoryChipStyle(article.category).color,
-                                fontWeight: 600,
-                              }}
-                            />
-                            {article.publishedAt && (
-                              <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                                {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                              </Typography>
-                            )}
-                          </Stack>
-                          <Typography variant="h6" component="h2" gutterBottom>
-                            <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+                  <Link
+                    key={article.id}
+                    href={`/article/${article.slug}`}
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
+                    <Card
+                      variant="outlined"
+                      sx={{
+                        transition: "box-shadow 0.15s, border-color 0.15s, transform 0.15s",
+                        "&:hover": {
+                          borderColor: "primary.main",
+                          boxShadow: "0 4px 14px rgba(0,0,0,0.1)",
+                          transform: "translateY(-2px)",
+                        },
+                      }}
+                    >
+                      <CardContent>
+                        <Stack direction="row" spacing={2}>
+                          <ArticleThumb article={article} size={84} fallbackColor={categoryChipStyle(article.category).color} />
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
+                              <Chip
+                                label={categoryChipStyle(article.category).label}
+                                size="small"
+                                variant="outlined"
+                                sx={{
+                                  color: categoryChipStyle(article.category).color,
+                                  borderColor: categoryChipStyle(article.category).color,
+                                  fontWeight: 600,
+                                }}
+                              />
+                              {article.publishedAt && (
+                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                  {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                </Typography>
+                              )}
+                            </Stack>
+                            <Typography variant="h6" component="h2" gutterBottom>
                               {article.title}
-                            </Link>
-                          </Typography>
-                          <Typography variant="body2" sx={{
-                            color: "text.secondary"
-                          }}>
-                            {displaySummary(article)}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </CardContent>
-                  </Card>
+                            </Typography>
+                            <Typography variant="body2" sx={{
+                              color: "text.secondary"
+                            }}>
+                              {displaySummary(article)}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 ))}
               </Stack>
             </Box>
@@ -835,42 +866,56 @@ export default async function HomePage(
               </Stack>
               <Stack spacing={2}>
                 {nflArticles.map((article) => (
-                  <Card key={article.id} variant="outlined">
-                    <CardContent>
-                      <Stack direction="row" spacing={2}>
-                        <ArticleThumb article={article} size={84} fallbackColor={categoryChipStyle(article.category).color} />
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
-                            <Chip
-                              label={categoryChipStyle(article.category).label}
-                              size="small"
-                              variant="outlined"
-                              sx={{
-                                color: categoryChipStyle(article.category).color,
-                                borderColor: categoryChipStyle(article.category).color,
-                                fontWeight: 600,
-                              }}
-                            />
-                            {article.publishedAt && (
-                              <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                                {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                              </Typography>
-                            )}
-                          </Stack>
-                          <Typography variant="h6" component="h2" gutterBottom>
-                            <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+                  <Link
+                    key={article.id}
+                    href={`/article/${article.slug}`}
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
+                    <Card
+                      variant="outlined"
+                      sx={{
+                        transition: "box-shadow 0.15s, border-color 0.15s, transform 0.15s",
+                        "&:hover": {
+                          borderColor: "primary.main",
+                          boxShadow: "0 4px 14px rgba(0,0,0,0.1)",
+                          transform: "translateY(-2px)",
+                        },
+                      }}
+                    >
+                      <CardContent>
+                        <Stack direction="row" spacing={2}>
+                          <ArticleThumb article={article} size={84} fallbackColor={categoryChipStyle(article.category).color} />
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
+                              <Chip
+                                label={categoryChipStyle(article.category).label}
+                                size="small"
+                                variant="outlined"
+                                sx={{
+                                  color: categoryChipStyle(article.category).color,
+                                  borderColor: categoryChipStyle(article.category).color,
+                                  fontWeight: 600,
+                                }}
+                              />
+                              {article.publishedAt && (
+                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                  {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                </Typography>
+                              )}
+                            </Stack>
+                            <Typography variant="h6" component="h2" gutterBottom>
                               {article.title}
-                            </Link>
-                          </Typography>
-                          <Typography variant="body2" sx={{
-                            color: "text.secondary"
-                          }}>
-                            {displaySummary(article)}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </CardContent>
-                  </Card>
+                            </Typography>
+                            <Typography variant="body2" sx={{
+                              color: "text.secondary"
+                            }}>
+                              {displaySummary(article)}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 ))}
               </Stack>
             </Box>

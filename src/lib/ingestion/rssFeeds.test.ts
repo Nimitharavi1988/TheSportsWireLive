@@ -9,11 +9,11 @@ describe("extractRssImage", () => {
     expect(extractRssImage(entry)).toEqual({ url: "https://ichef.bbci.co.uk/example.jpg", credit: undefined });
   });
 
-  it("extracts an ESPN Cricinfo-style single media:content (not an array)", () => {
+  it("extracts an ESPN Cricinfo-style single media:content (not an array), upgraded to https", () => {
     const entry = {
       mediaContent: { $: { medium: "image", url: "http://p.imgci.com/example.jpg", width: "1400", height: "984" } },
     };
-    expect(extractRssImage(entry)?.url).toBe("http://p.imgci.com/example.jpg");
+    expect(extractRssImage(entry)?.url).toBe("https://p.imgci.com/example.jpg");
   });
 
   it("picks the largest of several Guardian-style media:content size variants, with credit", () => {

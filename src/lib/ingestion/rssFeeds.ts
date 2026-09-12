@@ -29,6 +29,14 @@ function firstOrOnly<T>(value: T | T[] | undefined): T | undefined {
   return value;
 }
 
+// Some publishers (ESPN Cricinfo's coverImages field in particular) still
+// serve image URLs over plain http:// — loaded on our https:// pages, that's
+// mixed content. Browsers auto-upgrade it, but it still logs a console
+// warning and isn't guaranteed everywhere, so normalize at extraction time.
+function toHttps(url: string): string {
+  return url.startsWith("http://") ? `https://${url.slice(7)}` : url;
+}
+
 // media:content can appear once (ESPN Cricinfo) or multiple times as
 // different size variants of the same photo (Guardian) — when there are
 // several, the largest is the best fit for a hero-style display.
@@ -48,15 +56,15 @@ export function extractRssImage(entry: any): RssImage | null {
     const url: string | undefined = largest?.$?.url;
     if (url) {
       const credit = firstOrOnly(largest["media:credit"])?._;
-      return { url, credit: typeof credit === "string" ? credit.trim() : undefined };
+      return { url: toHttps(url), credit: typeof credit === "string" ? credit.trim() : undefined };
     }
   }
 
   const thumbnailUrl: string | undefined = entry.mediaThumbnail?.$?.url;
-  if (thumbnailUrl) return { url: thumbnailUrl };
+  if (thumbnailUrl) return { url: toHttps(thumbnailUrl) };
 
   if (typeof entry.coverImages === "string" && entry.coverImages.trim()) {
-    return { url: entry.coverImages.trim() };
+    return { url: toHttps(entry.coverImages.trim()) };
   }
 
   // Standard RSS 2.0 <enclosure> — a core field rss-parser already parses
@@ -66,7 +74,7 @@ export function extractRssImage(entry: any): RssImage | null {
     typeof entry.enclosure?.url === "string" && entry.enclosure.type?.startsWith("image")
       ? entry.enclosure.url
       : undefined;
-  if (enclosureUrl) return { url: enclosureUrl };
+  if (enclosureUrl) return { url: toHttps(enclosureUrl) };
 
   return null;
 }
