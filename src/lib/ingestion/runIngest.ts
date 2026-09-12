@@ -348,6 +348,15 @@ export async function runIngest() {
         // body here is the finished state (summary + real photo + source
         // link), not "not yet enriched" — see the field's schema comment.
         playerNewsSourced: Boolean(item.knownPersonName),
+        // Structured match data, when the source provided it (see the
+        // schema comment on Article.homeTeam) — powers /scores and the
+        // multi-sport MatchTicker without regex-parsing the title.
+        homeTeam: item.homeTeam,
+        awayTeam: item.awayTeam,
+        homeScore: item.homeScore,
+        awayScore: item.awayScore,
+        matchStatus: item.matchStatus,
+        kickoffAt: item.kickoffAt,
       },
     });
     // Registers this hash as no longer "new" — guards against the same

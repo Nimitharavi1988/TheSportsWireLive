@@ -84,6 +84,17 @@ model Article {
   highlighted      Boolean        @default(false) // manually pinned into "Transfers & Big News"; adds to (doesn't replace) the automatic keyword match
   highlightedAt    DateTime?      // when this pick was made — determines display order (latest first) among highlighted articles
   playerNewsSourced Boolean       @default(false) // from the per-player Google News search (playerNewsFeeds.ts) — body is deliberately never generated for these (see runIngest.ts), so a null body here means "finished" (summary + real photo + source link), not "not yet enriched". Lets autoApprove.ts tell the two apart instead of treating every body-less article the same.
+  // Structured match data, set only for football-data.org/CricketData.org/
+  // ESPN NFL items (footballData.ts/cricketData.ts/nflData.ts already have
+  // all of this before flattening it into the title/body prose — this
+  // preserves it instead of discarding it). Powers /scores and the
+  // multi-sport MatchTicker without needing to regex-parse titles.
+  homeTeam         String?
+  awayTeam         String?
+  homeScore        Int?
+  awayScore        Int?
+  matchStatus      String?        // "scheduled" | "finished"
+  kickoffAt        DateTime?      // the match's real kickoff/start time — distinct from publishedAt, which for a "finished" match is when it ended, not when it started
   socialPosts      SocialPost[]
   poll             Poll?
   reactions        ArticleReaction[]
@@ -92,6 +103,7 @@ model Article {
 
   @@index([status])
   @@index([category])
+  @@index([matchStatus, kickoffAt])
 }
 
 model SocialPost {

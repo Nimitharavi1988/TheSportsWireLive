@@ -12,6 +12,7 @@ import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
 import SportsCricketIcon from "@mui/icons-material/SportsCricket";
 import SportsFootballIcon from "@mui/icons-material/SportsFootball";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
+import SportsScoreIcon from "@mui/icons-material/SportsScore";
 import type { SvgIconComponent } from "@mui/icons-material";
 
 // World Cup is deliberately not a permanent nav item — it only runs every
@@ -24,6 +25,7 @@ const NAV_LINKS: { href: string; label: string; category: string | null; icon: S
   { href: "/?category=football", label: "Football", category: "football", icon: SportsSoccerIcon },
   { href: "/?category=cricket", label: "Cricket", category: "cricket", icon: SportsCricketIcon },
   { href: "/?category=american-football", label: "NFL", category: "american-football", icon: SportsFootballIcon },
+  { href: "/scores", label: "Scores", category: null, icon: SportsScoreIcon },
   { href: "/standings", label: "Standings", category: null, icon: EmojiEventsIcon },
 ];
 
@@ -46,8 +48,8 @@ function NavLinks() {
     <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
       {NAV_LINKS.map((link) => {
         const isActive =
-          link.href === "/standings"
-            ? pathname === "/standings"
+          link.href === "/standings" || link.href === "/scores"
+            ? pathname.startsWith(link.href)
             : pathname === "/" && activeCategory === link.category;
         const Icon = link.icon;
         return (

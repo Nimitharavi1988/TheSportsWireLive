@@ -37,6 +37,21 @@ function extractTeams(matchName: string): [string, string] | null {
   return m ? [m[1].trim(), m[2].trim()] : null;
 }
 
+// This API's currentMatches endpoint doesn't expose a clean started/ended
+// boolean (or if it does, it wasn't available to verify directly — network
+// access to cricapi.com is blocked from the environment this was built in),
+// so status is inferred from match.status's free text instead. Genuinely
+// finished matches always end with a definitive result phrase; anything
+// else (still in progress, or not yet started) is left as "scheduled" —
+// imperfect (an in-progress match isn't really "scheduled"), but /scores
+// only needs to distinguish "has a final result to show" from "doesn't"
+// for cricket, since a live in-play state is handled separately by the
+// CricketData.org widget embed, not this ingested data.
+export function inferCricketMatchStatus(status: string | undefined): "scheduled" | "finished" {
+  if (status && /\bwon by\b|\bdrawn\b|\bmatch tied\b|\bno result\b/i.test(status)) return "finished";
+  return "scheduled";
+}
+
 // CricketData.org DOES return a real per-team logo directly on the match
 // object (`teamInfo[].img`) — this was missed originally (not documented
 // clearly, and the sandbox used to investigate it was network-blocked from
@@ -180,6 +195,8 @@ export async function fetchCricketData(): Promise<RawMatchItem[]> {
       Object.assign(crests, await fetchInternationalFlags(title));
     }
 
+    const teams = extractTeams(title);
+
     items.push({
       title,
       summary,
@@ -189,6 +206,14 @@ export async function fetchCricketData(): Promise<RawMatchItem[]> {
       category: "cricket",
       publishedAt: match.dateTimeGMT ? new Date(match.dateTimeGMT) : new Date(),
       ...crests,
+      homeTeam: teams?.[0],
+      awayTeam: teams?.[1],
+      // No single homeScore/awayScore here — a multi-innings cricket score
+      // doesn't fit two plain integers the way football/NFL's single score
+      // does. matchStatus + the existing summary/body text carry the result
+      // instead; see inferCricketMatchStatus above.
+      matchStatus: inferCricketMatchStatus(match.status),
+      kickoffAt: match.dateTimeGMT ? new Date(match.dateTimeGMT) : new Date(),
     });
   }
 

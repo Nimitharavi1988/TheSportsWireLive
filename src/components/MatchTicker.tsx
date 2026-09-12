@@ -2,47 +2,60 @@ import { db } from "@/lib/db";
 import Link from "next/link";
 import Box from "@mui/material/Box";
 
-// Titles for match articles already follow a fixed, parseable shape (see
-// footballData.ts): "{home} {homeScore}-{awayScore} {away}" once finished,
-// or "Preview: {home} vs {away} — {date}" beforehand — so the ticker can
-// read team names/scores straight out of the title already stored, no new
-// structured fields needed.
-const FINISHED_PATTERN = /^(.+?) (\d+)-(\d+) (.+)$/;
-const PREVIEW_PATTERN = /^Preview: (.+?) vs (.+?) — (.+)$/;
-
 interface TickerArticle {
   id: string;
   slug: string;
-  title: string;
+  category: string;
+  homeTeam: string | null;
+  awayTeam: string | null;
+  homeScore: number | null;
+  awayScore: number | null;
+  matchStatus: string | null;
+  kickoffAt: Date | null;
   homeCrestUrl: string | null;
   awayCrestUrl: string | null;
 }
 
+// Reads the structured match fields (footballData.ts/cricketData.ts/
+// nflData.ts) directly instead of regex-parsing the title — needed once
+// cricket/NFL are included here too, since their title shapes differ from
+// football's (and cricket has no single home/away score to begin with; see
+// the schema comment on Article.homeScore).
 function parseTick(article: TickerArticle) {
-  const finished = article.title.match(FINISHED_PATTERN);
-  if (finished) {
-    const [, home, homeScore, awayScore, away] = finished;
-    return { home, away, status: "FT", score: `${homeScore}–${awayScore}` };
-  }
-  const preview = article.title.match(PREVIEW_PATTERN);
-  if (preview) {
-    const [, home, away, date] = preview;
-    return { home, away, status: date.toUpperCase(), score: null };
-  }
-  return null;
+  if (!article.homeTeam || !article.awayTeam) return null;
+
+  const hasScore = article.homeScore !== null && article.awayScore !== null;
+  const status =
+    article.matchStatus === "finished"
+      ? hasScore ? "FT" : "Result"
+      : (article.kickoffAt?.toLocaleDateString("en-US", { month: "short", day: "numeric" }) ?? "").toUpperCase();
+
+  return {
+    home: article.homeTeam,
+    away: article.awayTeam,
+    status,
+    score: hasScore ? `${article.homeScore}–${article.awayScore}` : null,
+  };
 }
 
 async function getTickerArticles(): Promise<TickerArticle[]> {
   return db.article.findMany({
     where: {
       status: "published",
-      category: { startsWith: "football" },
+      matchStatus: { not: null },
       homeCrestUrl: { not: null },
       awayCrestUrl: { not: null },
     },
-    orderBy: [{ publishedAt: "desc" }],
-    take: 10,
-    select: { id: true, slug: true, title: true, homeCrestUrl: true, awayCrestUrl: true },
+    // createdAt, not kickoffAt — a scheduled match's kickoffAt can be weeks
+    // out, which would float distant future fixtures above genuinely recent
+    // activity (same bug, same fix, as the RSS feed's ordering earlier).
+    orderBy: [{ createdAt: "desc" }],
+    take: 12,
+    select: {
+      id: true, slug: true, category: true, homeTeam: true, awayTeam: true,
+      homeScore: true, awayScore: true, matchStatus: true, kickoffAt: true,
+      homeCrestUrl: true, awayCrestUrl: true,
+    },
   });
 }
 
@@ -134,7 +147,7 @@ export default async function MatchTicker() {
             whiteSpace: "nowrap",
           }}
         >
-          Results
+          Scores
         </Box>
         {/* Angled edge so the badge reads as a distinct tag rather than a
             plain rectangle butting into the scrolling track. */}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isRealLogo, extractTeamLogos, GENERIC_PLACEHOLDER_IMG } from "./cricketData";
+import { isRealLogo, extractTeamLogos, GENERIC_PLACEHOLDER_IMG, inferCricketMatchStatus } from "./cricketData";
 
 describe("isRealLogo", () => {
   it("accepts a real CDN image URL", () => {
@@ -48,5 +48,29 @@ describe("extractTeamLogos", () => {
     expect(extractTeamLogos({})).toEqual({});
     expect(extractTeamLogos({ teamInfo: [] })).toEqual({});
     expect(extractTeamLogos({ teamInfo: [{ name: "Only One Team" }] })).toEqual({});
+  });
+});
+
+describe("inferCricketMatchStatus", () => {
+  it("recognizes a definitive result as finished", () => {
+    expect(inferCricketMatchStatus("India won by 5 wickets")).toBe("finished");
+    expect(inferCricketMatchStatus("Australia won by 42 runs")).toBe("finished");
+    expect(inferCricketMatchStatus("Match drawn")).toBe("finished");
+    expect(inferCricketMatchStatus("Match tied")).toBe("finished");
+    expect(inferCricketMatchStatus("No result")).toBe("finished");
+  });
+
+  it("is case-insensitive", () => {
+    expect(inferCricketMatchStatus("ENGLAND WON BY AN INNINGS")).toBe("finished");
+  });
+
+  it("treats an in-progress or not-yet-started match as scheduled", () => {
+    expect(inferCricketMatchStatus("India elected to bat")).toBe("scheduled");
+    expect(inferCricketMatchStatus("Match starts at 14:30 GMT")).toBe("scheduled");
+    expect(inferCricketMatchStatus("England need 45 runs")).toBe("scheduled");
+  });
+
+  it("treats missing status as scheduled", () => {
+    expect(inferCricketMatchStatus(undefined)).toBe("scheduled");
   });
 });

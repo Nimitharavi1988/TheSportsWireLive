@@ -73,6 +73,17 @@ export interface RawMatchItem {
   // shipping with no image whatsoever, not even though we already knew
   // exactly who the photo should be of.
   knownPersonName?: string;
+  // Structured match data — set only by footballData.ts/cricketData.ts/
+  // nflData.ts, which already have all of this before flattening it into
+  // the title/body prose above. Persisted on Article so /scores and the
+  // multi-sport MatchTicker can query real fields instead of regex-parsing
+  // the title.
+  homeTeam?: string;
+  awayTeam?: string;
+  homeScore?: number;
+  awayScore?: number;
+  matchStatus?: "scheduled" | "finished";
+  kickoffAt?: Date;
 }
 
 function standingsContext(
@@ -168,6 +179,12 @@ async function fetchCompetitionMatches(
       publishedAt: new Date(match.utcDate),
       homeCrestUrl,
       awayCrestUrl,
+      homeTeam,
+      awayTeam,
+      homeScore: status === "FINISHED" ? match.score?.fullTime?.home : undefined,
+      awayScore: status === "FINISHED" ? match.score?.fullTime?.away : undefined,
+      matchStatus: status === "FINISHED" ? "finished" : "scheduled",
+      kickoffAt: new Date(match.utcDate),
     });
   }
 
