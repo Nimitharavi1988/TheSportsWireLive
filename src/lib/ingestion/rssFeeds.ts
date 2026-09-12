@@ -105,6 +105,17 @@ const FEEDS: { url: string; category: string; sourceName: string }[] = [
   // structured match data AND RSS news side by side. Confirmed live and
   // working directly (2026-09-10).
   { url: "https://www.espn.com/espn/rss/nfl/news", category: "american-football", sourceName: "ESPN" },
+  // NFL previously had only this one feed (vs football's 3 / cricket's 4) —
+  // confirmed real, thin coverage as a result. Both checked live and
+  // working directly (2026-09-11).
+  { url: "https://www.cbssports.com/rss/headlines/nfl/", category: "american-football", sourceName: "CBS Sports" },
+  // Yahoo's feed embeds its image inside <content:encoded> as an <img> tag
+  // rather than media:thumbnail/media:content/enclosure like every other
+  // feed here — extractRssImage doesn't parse that, so these items fall
+  // back to the category stock photo. Not worth a bespoke HTML-parsing path
+  // for one feed; same stock-photo fallback plenty of other items already
+  // use.
+  { url: "https://sports.yahoo.com/nfl/rss/", category: "american-football", sourceName: "Yahoo Sports" },
 ];
 
 export async function fetchRssNews(): Promise<RawMatchItem[]> {

@@ -8,7 +8,7 @@ export interface TrackedPlayer {
   slug: string;
   name: string; // full name, used for the Wikipedia/Wikimedia lookup
   searchTerms: string[]; // substrings matched against article titles (case-insensitive)
-  sport: "football" | "cricket"; // used to scope the player page's Standings widget (no standings data exists for cricket on this API tier)
+  sport: "football" | "cricket" | "american-football"; // used to scope the player page's Standings widget (no standings data exists for cricket or NFL on this API tier) and to tag the player-news search item's category (playerNewsFeeds.ts)
 }
 
 export const TRACKED_PLAYERS: TrackedPlayer[] = [
@@ -101,6 +101,35 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   { slug: "viv-richards", name: "Viv Richards", searchTerms: ["Viv Richards"], sport: "cricket" },
   { slug: "wasim-akram", name: "Wasim Akram", searchTerms: ["Wasim Akram"], sport: "cricket" },
   { slug: "kapil-dev", name: "Kapil Dev", searchTerms: ["Kapil Dev"], sport: "cricket" },
+
+  // NFL — current stars. Zero NFL players were tracked before this (only
+  // football/cricket), which meant the per-player Google News search
+  // pipeline that meaningfully expands coverage for those two sports
+  // contributed nothing at all to NFL — a real, confirmed gap alongside NFL
+  // having just 1 RSS feed vs football's 3 / cricket's 4 (rssFeeds.ts).
+  { slug: "patrick-mahomes", name: "Patrick Mahomes", searchTerms: ["Mahomes"], sport: "american-football" },
+  // "Allen"/"Jackson"/"Jefferson"/"Hurts"/"Bosa"/"Herbert" are all common
+  // enough as surnames (or, for "Hurts", an ordinary English word) that
+  // multiple current NFL players or unrelated headlines could match — full
+  // name needed, same reasoning as "Declan Rice"/"George Best" above.
+  { slug: "josh-allen", name: "Josh Allen", searchTerms: ["Josh Allen"], sport: "american-football" },
+  { slug: "lamar-jackson", name: "Lamar Jackson", searchTerms: ["Lamar Jackson"], sport: "american-football" },
+  { slug: "justin-jefferson", name: "Justin Jefferson", searchTerms: ["Justin Jefferson"], sport: "american-football" },
+  { slug: "jalen-hurts", name: "Jalen Hurts", searchTerms: ["Jalen Hurts"], sport: "american-football" },
+  { slug: "nick-bosa", name: "Nick Bosa", searchTerms: ["Nick Bosa"], sport: "american-football" },
+  { slug: "justin-herbert", name: "Justin Herbert", searchTerms: ["Justin Herbert"], sport: "american-football" },
+  { slug: "christian-mccaffrey", name: "Christian McCaffrey", searchTerms: ["McCaffrey"], sport: "american-football" },
+  // "Burrow" alone is a common English word (an animal's burrow) — full
+  // name needed, same reasoning as "Jalen Hurts" above.
+  { slug: "joe-burrow", name: "Joe Burrow", searchTerms: ["Joe Burrow"], sport: "american-football" },
+  { slug: "micah-parsons", name: "Micah Parsons", searchTerms: ["Micah Parsons"], sport: "american-football" },
+  { slug: "travis-kelce", name: "Travis Kelce", searchTerms: ["Travis Kelce"], sport: "american-football" },
+  { slug: "tyreek-hill", name: "Tyreek Hill", searchTerms: ["Tyreek Hill"], sport: "american-football" },
+  { slug: "ceedee-lamb", name: "CeeDee Lamb", searchTerms: ["CeeDee Lamb"], sport: "american-football" },
+  { slug: "aaron-rodgers", name: "Aaron Rodgers", searchTerms: ["Aaron Rodgers"], sport: "american-football" },
+  // Legends.
+  { slug: "tom-brady", name: "Tom Brady", searchTerms: ["Tom Brady"], sport: "american-football" },
+  { slug: "peyton-manning", name: "Peyton Manning", searchTerms: ["Peyton Manning"], sport: "american-football" },
 ];
 
 // Flat list of every search term, for the homepage's auto-highlight check.

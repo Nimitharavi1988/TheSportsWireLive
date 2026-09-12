@@ -5,6 +5,7 @@ import {
   extractPublisher,
   looksLikeReferencePage,
   titleMentionsPlayer,
+  isEntertainmentPublisher,
 } from "./playerNewsFeeds";
 
 describe("googleNewsSearchUrl", () => {
@@ -112,5 +113,30 @@ describe("titleMentionsPlayer", () => {
 
   it("accepts a match via any one of several search terms (e.g. accented-name variants)", () => {
     expect(titleMentionsPlayer("Vinicius Junior scores winner for Real Madrid", ["Vinicius", "Vinícius"])).toBe(true);
+  });
+});
+
+describe("isEntertainmentPublisher", () => {
+  // Real example caught live in testing (2026-09-11): adding Travis Kelce
+  // as a tracked NFL player surfaced mostly Taylor Swift relationship
+  // coverage from these exact outlets — genuine headlines that name him, so
+  // titleMentionsPlayer alone doesn't catch them.
+  it("rejects known entertainment/gossip outlets", () => {
+    expect(isEntertainmentPublisher("People")).toBe(true);
+    expect(isEntertainmentPublisher("E! News")).toBe(true);
+    expect(isEntertainmentPublisher("Complex")).toBe(true);
+  });
+
+  it("is case-insensitive and trims whitespace", () => {
+    expect(isEntertainmentPublisher("  PEOPLE.COM  ")).toBe(true);
+  });
+
+  it("does not reject a real sports publisher", () => {
+    expect(isEntertainmentPublisher("ESPN")).toBe(false);
+    expect(isEntertainmentPublisher("CBS Sports")).toBe(false);
+  });
+
+  it("does not reject when there's no publisher at all", () => {
+    expect(isEntertainmentPublisher(undefined)).toBe(false);
   });
 });

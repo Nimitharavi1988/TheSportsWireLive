@@ -60,6 +60,27 @@ export function looksLikeReferencePage(title: string, publisher: string | undefi
   return false;
 }
 
+// A player who's also a mainstream celebrity (confirmed directly via a live
+// test of a newly-tracked NFL player: Travis Kelce, whose Google News
+// search returned mostly Taylor Swift relationship coverage from People,
+// E! News, and Complex) gets real entertainment-gossip headlines that
+// genuinely name him in the title — titleMentionsPlayer alone can't catch
+// these, since the name really is there. Unlike looksLikeReferencePage,
+// this isn't about the story being fake or templated; it's a real story,
+// just not sports news. A denylist of unambiguous entertainment/gossip-only
+// outlets (never legitimate sports sources, unlike a general tabloid that
+// also covers real sports) closes this without touching titleMentionsPlayer.
+const ENTERTAINMENT_PUBLISHERS = new Set([
+  "people.com", "people", "e! news", "eonline.com", "complex", "tmz", "tmz.com",
+  "us weekly", "usmagazine.com", "page six", "pagesix.com", "hollywood life",
+  "hollywoodlife.com", "entertainment tonight", "etonline.com", "ok! magazine",
+  "in touch weekly", "life & style", "sheknows",
+]);
+
+export function isEntertainmentPublisher(publisher: string | undefined): boolean {
+  return publisher !== undefined && ENTERTAINMENT_PUBLISHERS.has(publisher.trim().toLowerCase());
+}
+
 // Google's quoted-phrase search matches anywhere in a page's full crawled
 // content, not just the headline — confirmed via a real example caught in
 // production: today.com's "Theo James on Returning to 'The Gentlemen'
@@ -99,6 +120,7 @@ export async function fetchPlayerNews(): Promise<RawMatchItem[]> {
         const strippedTitle = stripPublisherSuffix(entry.title, publisher);
 
         if (looksLikeReferencePage(strippedTitle, publisher, player.name)) continue;
+        if (isEntertainmentPublisher(publisher)) continue;
         if (!titleMentionsPlayer(strippedTitle, player.searchTerms)) continue;
 
         items.push({
