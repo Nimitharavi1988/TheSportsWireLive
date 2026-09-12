@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
-import LiveCricketWidget from "@/components/LiveCricketWidget";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
@@ -114,7 +113,17 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
     homeCrestUrl: true, awayCrestUrl: true, kickoffAt: true,
   };
 
-  const [upcoming, recent] = await Promise.all([
+  // Cricket's ingestion (cricketData.ts) pulls "currentMatches" — matches
+  // that are already underway, not fixed-future fixtures like football/NFL.
+  // Their kickoffAt is in the past (the match already started) but
+  // matchStatus isn't "finished" either (no result yet) — they were falling
+  // through both the upcoming and recent queries below entirely, invisible
+  // on this page. Scoped to cricket only: football/NFL's ingestion never
+  // fetches an in-play state, so a past kickoffAt there just means the
+  // FINISHED poll hasn't landed yet, not a genuine "in progress" state.
+  const showCricketInProgress = category === null || category === "cricket";
+
+  const [upcoming, recent, cricketInProgress] = await Promise.all([
     db.article.findMany({
       where: { ...where, matchStatus: "scheduled", kickoffAt: { gte: new Date() } },
       orderBy: { kickoffAt: "asc" },
@@ -127,6 +136,14 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
       take: 25,
       select,
     }),
+    showCricketInProgress
+      ? db.article.findMany({
+          where: { status: "published", category: { startsWith: "cricket" }, matchStatus: "scheduled", kickoffAt: { lt: new Date() } },
+          orderBy: { kickoffAt: "desc" },
+          take: 10,
+          select,
+        })
+      : Promise.resolve([]),
   ]);
 
   return (
@@ -152,7 +169,18 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
         ))}
       </Box>
 
-      {(category === null || category === "cricket") && <LiveCricketWidget />}
+      {cricketInProgress.length > 0 && (
+        <>
+          <Typography variant="h6" sx={{ mb: 1.5, fontSize: 18 }}>
+            Cricket — In Progress
+          </Typography>
+          <Stack spacing={1} sx={{ mb: 4 }}>
+            {cricketInProgress.map((match) => (
+              <MatchCard key={match.id} match={match} />
+            ))}
+          </Stack>
+        </>
+      )}
 
       <Typography variant="h6" sx={{ mb: 1.5, fontSize: 18 }}>
         Upcoming Fixtures
