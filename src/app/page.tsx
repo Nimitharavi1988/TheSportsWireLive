@@ -1011,20 +1011,22 @@ export default async function HomePage(
                         // Article.heroImageCredit) — was previously only
                         // shown on those two, silently dropped on every
                         // other card that reuses the same licensed photo.
+                        // Deliberately near-invisible: no background pill, a
+                        // text-shadow instead so it stays legible without
+                        // reading as a heavy badge on a small card.
                         <Typography
                           variant="caption"
                           sx={{
                             position: "absolute",
                             right: 6,
                             bottom: 6,
-                            color: "rgba(255,255,255,0.9)",
-                            bgcolor: "rgba(0,0,0,0.45)",
-                            borderRadius: 1,
-                            px: 0.75,
-                            py: 0.125,
-                            fontSize: 10,
+                            color: "rgba(255,255,255,0.4)",
+                            fontSize: 9,
                             lineHeight: 1.4,
+                            textShadow: "0 1px 2px rgba(0,0,0,0.5)",
                             maxWidth: "calc(100% - 12px)",
+                            transition: "color 0.15s",
+                            "&:hover": { color: "rgba(255,255,255,0.85)" },
                           }}
                           noWrap
                         >

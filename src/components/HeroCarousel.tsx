@@ -113,17 +113,22 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
               </Box>
             </Link>
             {slide.bannerCredit && (
+              // Deliberately near-invisible — the required attribution still
+              // has to be present and legible on inspection/hover, but a
+              // solid pill badge on top of the lead image read as too heavy.
+              // A text-shadow (not a background) keeps it readable against
+              // any image without drawing the eye.
               <Typography
                 variant="caption"
                 sx={{
                   position: "absolute",
                   top: 10,
                   right: 12,
-                  color: "rgba(255,255,255,0.85)",
-                  bgcolor: "rgba(0,0,0,0.35)",
-                  borderRadius: 1,
-                  px: 1,
-                  py: 0.25,
+                  color: "rgba(255,255,255,0.45)",
+                  fontSize: 10,
+                  textShadow: "0 1px 2px rgba(0,0,0,0.5)",
+                  transition: "color 0.15s",
+                  "&:hover": { color: "rgba(255,255,255,0.85)" },
                 }}
               >
                 <a href={slide.bannerCreditUrl ?? undefined} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>

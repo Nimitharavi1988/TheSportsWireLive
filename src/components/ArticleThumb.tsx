@@ -43,19 +43,22 @@ export function ArticleThumb({
         {showCredit && (
           // Same syndication-credit requirement the hero and article page
           // already honor (see schema comment on Article.heroImageCredit).
+          // Deliberately near-invisible — no background pill, just a
+          // text-shadow for legibility, so it doesn't read as a heavy badge
+          // on such a small thumbnail.
           <Typography
             variant="caption"
             sx={{
               position: "absolute",
               right: 3,
               bottom: 3,
-              color: "rgba(255,255,255,0.9)",
-              bgcolor: "rgba(0,0,0,0.45)",
-              borderRadius: 0.5,
-              px: 0.5,
+              color: "rgba(255,255,255,0.4)",
               fontSize: 8,
               lineHeight: 1.4,
+              textShadow: "0 1px 1px rgba(0,0,0,0.5)",
               maxWidth: "calc(100% - 6px)",
+              transition: "color 0.15s",
+              "&:hover": { color: "rgba(255,255,255,0.85)" },
             }}
             noWrap
           >
