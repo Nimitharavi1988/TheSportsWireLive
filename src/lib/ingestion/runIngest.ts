@@ -2,6 +2,7 @@ import { db } from "../db";
 import { fetchFootballData, type RawMatchItem } from "./footballData";
 import { fetchNflData } from "./nflData";
 import { fetchMlbData } from "./mlbData";
+import { fetchNbaData } from "./nbaData";
 import { fetchRssNews } from "./rssFeeds";
 import { fetchPlayerNews } from "./playerNewsFeeds";
 import { fetchCricinfoPlayerNews } from "./cricinfoPlayerFeeds";
@@ -82,7 +83,8 @@ function isMatchDataSource(sourceName: string): boolean {
     sourceName === "football-data.org" ||
     sourceName === "CricketData.org" ||
     sourceName === "ESPN NFL" ||
-    sourceName === "MLB Stats API"
+    sourceName === "MLB Stats API" ||
+    sourceName === "ESPN NBA"
   );
 }
 
@@ -133,11 +135,12 @@ export async function runIngest() {
     create: { name: "sports" },
   });
 
-  const [scoreItems, nflItems, mlbItems, newsItems, playerNewsItems, cricinfoPlayerItems, cricketItems, trendingKeywords, stockImagePools] =
+  const [scoreItems, nflItems, mlbItems, nbaItems, newsItems, playerNewsItems, cricinfoPlayerItems, cricketItems, trendingKeywords, stockImagePools] =
     await Promise.all([
       fetchFootballData(),
       fetchNflData(),
       fetchMlbData(),
+      fetchNbaData(),
       fetchRssNews(),
       // Actively searches Google News per tracked player (players.ts) —
       // unlike the fixed feeds above, which only ever surface whatever a
@@ -171,7 +174,7 @@ export async function runIngest() {
   const sortedNewsItems = [...newsItems, ...playerNewsItems, ...cricinfoPlayerItems].sort(
     (a, b) => computeTrendingScore(b.title, trendingKeywords) - computeTrendingScore(a.title, trendingKeywords)
   );
-  const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...mlbItems, ...sortedNewsItems, ...cricketItems];
+  const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...mlbItems, ...nbaItems, ...sortedNewsItems, ...cricketItems];
   const stockImagePicker = createStockImagePicker(stockImagePools);
 
   // Cloudflare Workers caps outbound subrequests per invocation, and every
@@ -378,6 +381,7 @@ export async function runIngest() {
         item.category === "cricket" ? "cricket"
         : item.category === "american-football" ? "the NFL"
         : item.category === "baseball" ? "MLB"
+        : item.category === "basketball" ? "the NBA"
         : competitionFromSummary(item.summary) ?? "football";
       const recap = await generateMatchRecap(item.title, body, competitionName);
       if (recap) body = recap;

@@ -93,6 +93,10 @@ const CATEGORY_META: Record<string, { title: string; description: string }> = {
     title: "MLB News, Scores & Results",
     description: "Latest MLB results, previews, and news.",
   },
+  basketball: {
+    title: "NBA News, Scores & Results",
+    description: "Latest NBA results, previews, and news.",
+  },
 };
 
 export async function generateMetadata(
