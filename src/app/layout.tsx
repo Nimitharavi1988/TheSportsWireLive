@@ -4,6 +4,7 @@ import SiteHeader from "@/components/SiteHeader";
 import MatchTicker from "@/components/MatchTicker";
 import SiteFooter from "@/components/SiteFooter";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -65,11 +66,19 @@ export const metadata = {
   },
 };
 
+// themeColor/colorScheme live on a separate `viewport` export (not
+// `metadata`) since Next.js 14 — this is what tints the browser chrome/
+// status bar to match the brand when the site is installed as a PWA.
+export const viewport = {
+  themeColor: "#1d6b3f",
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${poppins.variable} ${inter.variable}`}>
       <body>
         <GoogleAnalytics />
+        <ServiceWorkerRegister />
         <ThemeRegistry>
           <SiteHeader />
           <MatchTicker />
