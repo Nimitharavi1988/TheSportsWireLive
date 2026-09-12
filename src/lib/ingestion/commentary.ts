@@ -30,6 +30,7 @@ Write a fuller original blurb (aim for 2 short paragraphs, roughly 5-8 sentences
 - Never copy phrasing verbatim or near-verbatim from the facts above — use entirely your own wording and sentence structure throughout.
 - Never invent any fact, statistic, quote, or detail not present in the facts above. Do not pad length with generic filler, speculation, or restating the same fact twice — only expand as far as the real facts given actually go.
 - If the facts above are too thin to fill that length without inventing or repeating, write a shorter piece instead — brevity is always better than padding.
+- Separate paragraphs with a literal blank line (two newlines) — never return the whole thing as one unbroken block.
 - Do not mention that you were given source material or instructions — just write the blurb itself.
 - Plain text only, no markdown.
 
@@ -51,6 +52,7 @@ Write a short, original recap (roughly 4-7 sentences, 2 short paragraphs at most
 - Use ONLY the facts given above. Never invent goalscorers, assists, cards, injuries, lineups, or any other detail not present in the facts — we deliberately don't have play-by-play data at this tier, so do not fabricate it.
 - Vary sentence structure and wording rather than restating the facts in the same order and phrasing they're given in.
 - If the facts are too thin to fill that length without inventing or repeating, write a shorter piece instead — brevity is always better than padding or fabrication.
+- Separate paragraphs with a literal blank line (two newlines) — never return the whole thing as one unbroken block.
 - Do not mention that you were given source material or instructions, and do not repeat the headline verbatim at the top — just write the recap itself.
 - Plain text only, no markdown.`;
 }

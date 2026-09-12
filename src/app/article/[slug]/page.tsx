@@ -22,7 +22,7 @@ import { TRACKED_CLUBS } from "@/lib/clubs";
 import { createEntityLinker } from "@/lib/entityLinks";
 import { FanEngagementHub } from "@/components/FanEngagementHub";
 import { ShareButtons } from "@/components/ShareButtons";
-import { displaySummary } from "@/lib/articleSummary";
+import { displaySummary, splitIntoParagraphs } from "@/lib/articleSummary";
 import { relativeTime } from "@/lib/relativeTime";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import WhatshotIcon from "@mui/icons-material/Whatshot";
@@ -414,8 +414,12 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         // paragraph below, so a player/club name only gets turned into a
         // link on its first mention in the article, not every repeat.
         const linkifyEntities = createEntityLinker();
-        return (article.body ?? article.summary).split(/\n+/).filter(Boolean).map((paragraph, i) => (
-          <Typography key={i} variant="body1" sx={{ mb: 2 }}>
+        // splitIntoParagraphs (not a plain \n split) guarantees readable-
+        // sized chunks even when the source text comes back as one long
+        // unbroken block — confirmed live: a dense 4-6 sentence wall of
+        // text with no paragraph breaks at all was the actual complaint.
+        return splitIntoParagraphs(article.body ?? article.summary).map((paragraph, i) => (
+          <Typography key={i} variant="body1" sx={{ mb: 2.25, lineHeight: 1.7 }}>
             {linkifyEntities(paragraph)}
           </Typography>
         ));
