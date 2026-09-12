@@ -46,6 +46,15 @@ export function ArticleThumb({
           // Deliberately near-invisible — no background pill, just a
           // text-shadow for legibility, so it doesn't read as a heavy badge
           // on such a small thumbnail.
+          //
+          // Plain text, NOT a nested <a> — every real usage of this
+          // component (player/club/series pages) wraps the whole card in
+          // its own <Link> to the article. A second <a> inside that is
+          // invalid HTML and was causing a real hydration crash that broke
+          // those pages outright (confirmed live: "<a> cannot contain a
+          // nested <a>"). Attribution requires visible credit text, not
+          // that the credit itself be clickable — the source is still
+          // reachable from the article/hero page's own credit link.
           <Typography
             variant="caption"
             sx={{
@@ -57,18 +66,10 @@ export function ArticleThumb({
               lineHeight: 1.4,
               textShadow: "0 1px 1px rgba(0,0,0,0.5)",
               maxWidth: "calc(100% - 6px)",
-              transition: "color 0.15s",
-              "&:hover": { color: "rgba(255,255,255,0.85)" },
             }}
             noWrap
           >
-            {article.heroImageCreditUrl ? (
-              <a href={article.heroImageCreditUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
-                {article.heroImageCredit}
-              </a>
-            ) : (
-              article.heroImageCredit
-            )}
+            {article.heroImageCredit}
           </Typography>
         )}
       </Box>

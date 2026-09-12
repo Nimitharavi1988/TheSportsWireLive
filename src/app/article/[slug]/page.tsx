@@ -34,6 +34,11 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
   if (!article) return {};
   // 160 chars — the length search engines actually display before truncating.
   const description = displaySummary(article, 160);
+  // Every article had a real photo (or crest pair) available but no
+  // openGraph/twitter `images` field ever set — every share (Twitter/X,
+  // Slack, WhatsApp, Facebook, iMessage) showed a bare text card instead of
+  // the actual article image, a real hit to click-through on shared links.
+  const shareImage = article.heroImageUrl ?? article.homeCrestUrl ?? undefined;
   return {
     title: article.title,
     description,
@@ -43,10 +48,13 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
       description,
       type: "article",
       url: `/article/${article.slug}`,
+      publishedTime: article.publishedAt?.toISOString(),
+      ...(shareImage ? { images: [{ url: shareImage }] } : {}),
     },
     twitter: {
       title: article.title,
       description,
+      ...(shareImage ? { images: [shareImage] } : {}),
     },
   };
 }
@@ -56,15 +64,28 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
   const article = await db.article.findUnique({ where: { slug: params.slug } });
   if (!article || article.status !== "published") notFound();
 
+  // author/dateModified/mainEntityOfPage were all missing — Google's Rich
+  // Results Test flags a NewsArticle with no author as a warning, and
+  // dateModified is what lets a genuinely-updated story (this one was
+  // backfilled with a real body well after its original publishedAt, for
+  // instance) show a correct "updated" time instead of a stale one.
+  // Organization, not Person: nothing here is republished verbatim under an
+  // original byline — every body is either the source's own structured
+  // match data or an original Gemini rewrite (see commentary.ts), so
+  // attributing "author" to the original source publisher would be
+  // inaccurate; it belongs to whoever's prose is actually on this page.
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
     headline: article.title,
     datePublished: article.publishedAt,
+    dateModified: article.updatedAt,
     articleSection: article.category,
     description: displaySummary(article, 160),
     ...(article.heroImageUrl ? { image: [article.heroImageUrl] } : {}),
+    author: { "@type": "Organization", name: "Sports Wire Live" },
     publisher: { "@type": "Organization", name: "Sports Wire Live" },
+    mainEntityOfPage: { "@type": "WebPage", "@id": `${process.env.SITE_URL ?? "http://localhost:3000"}/article/${article.slug}` },
   };
 
   // Lets Google show a breadcrumb trail (Home > Football > headline) in
