@@ -13,6 +13,10 @@ import SportsCricketIcon from "@mui/icons-material/SportsCricket";
 import SportsFootballIcon from "@mui/icons-material/SportsFootball";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import SportsScoreIcon from "@mui/icons-material/SportsScore";
+import SportsBasketballIcon from "@mui/icons-material/SportsBasketball";
+import SportsBaseballIcon from "@mui/icons-material/SportsBaseball";
+import SportsRugbyIcon from "@mui/icons-material/SportsRugby";
+import DirectionsRunIcon from "@mui/icons-material/DirectionsRun";
 import type { SvgIconComponent } from "@mui/icons-material";
 
 // World Cup is deliberately not a permanent nav item — it only runs every
@@ -20,11 +24,19 @@ import type { SvgIconComponent } from "@mui/icons-material";
 // It's still fully reachable (the route/category/metadata all still work)
 // and surfaces itself automatically in the homepage's "By Category" tiles
 // whenever there's real content, without needing dead nav real estate.
+// Basketball/Baseball/Rugby/Athletics DO get permanent nav items, unlike
+// World Cup — real ongoing sections (not a once-every-4-years event), per
+// explicit request after their category-only reachability wasn't
+// discoverable enough.
 const NAV_LINKS: { href: string; label: string; category: string | null; icon: SvgIconComponent }[] = [
   { href: "/", label: "All", category: null, icon: ViewListIcon },
   { href: "/?category=football", label: "Football", category: "football", icon: SportsSoccerIcon },
   { href: "/?category=cricket", label: "Cricket", category: "cricket", icon: SportsCricketIcon },
   { href: "/?category=american-football", label: "NFL", category: "american-football", icon: SportsFootballIcon },
+  { href: "/?category=basketball", label: "NBA", category: "basketball", icon: SportsBasketballIcon },
+  { href: "/?category=baseball", label: "MLB", category: "baseball", icon: SportsBaseballIcon },
+  { href: "/?category=rugby", label: "Rugby", category: "rugby", icon: SportsRugbyIcon },
+  { href: "/?category=athletics", label: "Athletics", category: "athletics", icon: DirectionsRunIcon },
   { href: "/scores", label: "Scores", category: null, icon: SportsScoreIcon },
   { href: "/standings", label: "Standings", category: null, icon: EmojiEventsIcon },
 ];

@@ -8,7 +8,7 @@ export interface TrackedPlayer {
   slug: string;
   name: string; // full name, used for the Wikipedia/Wikimedia lookup
   searchTerms: string[]; // substrings matched against article titles (case-insensitive)
-  sport: "football" | "cricket" | "american-football"; // used to scope the player page's Standings widget (no standings data exists for cricket or NFL on this API tier) and to tag the player-news search item's category (playerNewsFeeds.ts)
+  sport: "football" | "cricket" | "american-football" | "baseball" | "basketball"; // used to scope the player page's Standings widget (no standings data exists for cricket/NFL/MLB/NBA on this API tier) and to tag the player-news search item's category (playerNewsFeeds.ts)
   // ESPN Cricinfo's numeric player ID (the trailing number in
   // espncricinfo.com/cricketers/{slug}-{id}) — cricket players only. Lets
   // cricinfoPlayerFeeds.ts pull that player's own official RSS feed
@@ -100,6 +100,7 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   // "Surya" alone is too common an Indian name-root; "Suryakumar" is
   // distinctive enough on its own.
   { slug: "suryakumar-yadav", name: "Suryakumar Yadav", searchTerms: ["Suryakumar"], sport: "cricket", cricinfoPlayerId: 446507 },
+  { slug: "ishan-kishan", name: "Ishan Kishan", searchTerms: ["Ishan Kishan"], sport: "cricket", cricinfoPlayerId: 720471 },
   // Both spellings appear regularly in real headlines — Cricinfo's own
   // slug uses "Sooryavanshi", but plenty of outlets (including gulfnews.com)
   // spell it "Suryavanshi".
@@ -162,6 +163,34 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   // Legends.
   { slug: "tom-brady", name: "Tom Brady", searchTerms: ["Tom Brady"], sport: "american-football" },
   { slug: "peyton-manning", name: "Peyton Manning", searchTerms: ["Peyton Manning"], sport: "american-football" },
+
+  // MLB — current stars, tracked from day one alongside the new mlbData.ts
+  // section (mlbData.ts) rather than left as a gap the way NFL originally
+  // was. Distinctive single surnames used where safe; common-word/common-
+  // surname names paired with the full name, same reasoning as above.
+  { slug: "shohei-ohtani", name: "Shohei Ohtani", searchTerms: ["Ohtani"], sport: "baseball" },
+  { slug: "aaron-judge", name: "Aaron Judge", searchTerms: ["Aaron Judge"], sport: "baseball" },
+  { slug: "mike-trout", name: "Mike Trout", searchTerms: ["Mike Trout"], sport: "baseball" },
+  { slug: "mookie-betts", name: "Mookie Betts", searchTerms: ["Mookie Betts"], sport: "baseball" },
+  { slug: "ronald-acuna-jr", name: "Ronald Acuña Jr.", searchTerms: ["Acuña", "Acuna"], sport: "baseball" },
+  { slug: "juan-soto", name: "Juan Soto", searchTerms: ["Juan Soto"], sport: "baseball" },
+  { slug: "bryce-harper", name: "Bryce Harper", searchTerms: ["Bryce Harper"], sport: "baseball" },
+  { slug: "freddie-freeman", name: "Freddie Freeman", searchTerms: ["Freddie Freeman"], sport: "baseball" },
+  { slug: "fernando-tatis-jr", name: "Fernando Tatis Jr.", searchTerms: ["Tatis"], sport: "baseball" },
+  { slug: "gerrit-cole", name: "Gerrit Cole", searchTerms: ["Gerrit Cole"], sport: "baseball" },
+
+  // NBA — current stars, same reasoning as MLB above (tracked from day one
+  // alongside nbaData.ts).
+  { slug: "lebron-james", name: "LeBron James", searchTerms: ["LeBron"], sport: "basketball" },
+  { slug: "stephen-curry", name: "Stephen Curry", searchTerms: ["Stephen Curry", "Steph Curry"], sport: "basketball" },
+  { slug: "kevin-durant", name: "Kevin Durant", searchTerms: ["Durant"], sport: "basketball" },
+  { slug: "giannis-antetokounmpo", name: "Giannis Antetokounmpo", searchTerms: ["Giannis"], sport: "basketball" },
+  { slug: "nikola-jokic", name: "Nikola Jokić", searchTerms: ["Jokic", "Jokić"], sport: "basketball" },
+  { slug: "luka-doncic", name: "Luka Dončić", searchTerms: ["Doncic", "Dončić"], sport: "basketball" },
+  { slug: "joel-embiid", name: "Joel Embiid", searchTerms: ["Embiid"], sport: "basketball" },
+  { slug: "jayson-tatum", name: "Jayson Tatum", searchTerms: ["Jayson Tatum"], sport: "basketball" },
+  { slug: "victor-wembanyama", name: "Victor Wembanyama", searchTerms: ["Wembanyama"], sport: "basketball" },
+  { slug: "anthony-edwards", name: "Anthony Edwards", searchTerms: ["Anthony Edwards"], sport: "basketball" },
 ];
 
 // Flat list of every search term, for the homepage's auto-highlight check.
