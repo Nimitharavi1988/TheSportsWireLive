@@ -1,5 +1,23 @@
 import { db } from "@/lib/db";
 import { displaySummary } from "@/lib/articleSummary";
+import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { TRACKED_PLAYERS } from "@/lib/players";
+
+// 2-3 hashtags reads as normal on Facebook; more than that measurably hurts
+// reach on FB specifically (unlike Instagram/X, where stacking many is
+// normal) — so this is deliberately capped, not "more tags = more reach."
+// Category tag + brand tag always included; a third, more specific tag only
+// when a tracked star player is actually named in the headline.
+function hashtagsFor(title: string, category: string): string {
+  const categoryTag = categoryChipStyle(category).label.replace(/[^a-zA-Z0-9]/g, "");
+  const tags = [`#${categoryTag}`, "#SportsWireLive"];
+
+  const lower = title.toLowerCase();
+  const player = TRACKED_PLAYERS.find((p) => p.searchTerms.some((term) => lower.includes(term.toLowerCase())));
+  if (player) tags.push(`#${player.name.replace(/[^a-zA-Z0-9]/g, "")}`);
+
+  return tags.join(" ");
+}
 
 // Isolated social publisher: posts an approved article to the Facebook Page
 // configured for its vertical (each product/vertical can post to its own
@@ -23,7 +41,14 @@ export async function postArticleToFacebook(articleId: string) {
 
   const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
   const link = `${siteUrl}/article/${article.slug}`;
-  const message = `${article.title}\n\n${displaySummary(article, 400)}`;
+  // The link itself is passed as its own `link` field, not pasted into the
+  // message text — Facebook auto-generates a proper preview card (image,
+  // title, domain) from it, which gets meaningfully more reach than a raw
+  // URL sitting in the post body. That card's thumbnail comes from the
+  // article page's own og:image (generateMetadata in article/[slug]/
+  // page.tsx), so it only works correctly now that SITE_URL is set right
+  // (see the earlier production fix — before that it pointed at localhost).
+  const message = `${article.title}\n\n${displaySummary(article, 400)}\n\n${hashtagsFor(article.title, article.category)}`;
 
   const socialPost = await db.socialPost.create({
     data: { articleId, platform: "facebook", status: "queued" },

@@ -22,6 +22,15 @@ const MIN_BODY_LENGTH = 150;
 // genuinely complete MLB previews sitting at 135-149 chars. Confirmed live:
 // every one of 16 pending MLB items was stuck on this alone.
 const MIN_MATCH_DATA_BODY_LENGTH = 80;
+// isHighlightWorthy alone isn't a real volume filter here — confirmed live:
+// 412 of 592 pending items (70%) passed it, since SUPERSTAR_SEARCH_TERMS
+// now spans ~150 players across 5 sports and EVENT_KEYWORDS catches common
+// words ("record", "history"). Fine for a homepage sidebar module (one of
+// several, generous inclusion is fine); posting 70% of a run's approvals to
+// the Page would still flood it. Capped to the top N by trendingScore among
+// the isHighlightWorthy set instead — a real per-run volume ceiling, not
+// just a topical filter.
+const MAX_FACEBOOK_POSTS_PER_RUN = 5;
 
 export function hasRealImage(article: { heroImageUrl: string | null; homeCrestUrl: string | null }): boolean {
   // A team crest pair is real by construction (never a stock photo).
@@ -56,7 +65,7 @@ export function isAutoApprovable(article: {
 export async function autoApproveValidArticles(): Promise<{ checked: number; approved: number }> {
   const candidates = await db.article.findMany({
     where: { status: "pending_review" },
-    select: { id: true, slug: true, title: true, body: true, heroImageUrl: true, homeCrestUrl: true, playerNewsSourced: true, sourceName: true },
+    select: { id: true, slug: true, title: true, body: true, heroImageUrl: true, homeCrestUrl: true, playerNewsSourced: true, sourceName: true, trendingScore: true },
   });
 
   const toApprove = candidates.filter(isAutoApprovable);
@@ -80,13 +89,16 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     // skip Facebook entirely — a human selecting dozens of items at once
     // isn't asking for dozens of Page posts), this IS the dominant approval
     // path now, so skipping it here meant most published content never
-    // reached Facebook at all. Gated to isHighlightWorthy so a routine
-    // scoreline/preview doesn't flood the Page — only genuinely notable
-    // stories (event keywords, or a tracked star player), same bar as
-    // "Transfers & Big News" on the homepage. Sequential + best-effort per
-    // article: one failed/rate-limited post must never affect another.
-    for (const article of toApprove) {
-      if (!isHighlightWorthy(article.title)) continue;
+    // reached Facebook at all. isHighlightWorthy narrows to topically
+    // notable stories, then trendingScore picks the real best of that set,
+    // capped at MAX_FACEBOOK_POSTS_PER_RUN — the actual volume ceiling.
+    // Sequential + best-effort per article: one failed/rate-limited post
+    // must never affect another.
+    const toPost = toApprove
+      .filter((a) => isHighlightWorthy(a.title))
+      .sort((a, b) => b.trendingScore - a.trendingScore)
+      .slice(0, MAX_FACEBOOK_POSTS_PER_RUN);
+    for (const article of toPost) {
       try {
         await postArticleToFacebook(article.id);
       } catch (err) {
