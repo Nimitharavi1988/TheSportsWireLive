@@ -142,6 +142,16 @@ const FEEDS: { url: string; category: string; sourceName: string }[] = [
   // real current items (e.g. Ingebrigtsen/Kerr 1500m), real media:thumbnail
   // images.
   { url: "https://feeds.bbci.co.uk/sport/athletics/rss.xml", category: "athletics", sourceName: "BBC Sport" },
+  // Rugby — news-only, same reasoning as Athletics: no single clean
+  // structured-data source exists. Specifically no ESPN scoreboard-style
+  // endpoint either, unlike NBA/MLB/NFL — rugby is fragmented across many
+  // separate competitions (Six Nations, Rugby Championship, Premiership,
+  // Top 14, World Cup...), each its own ESPN tournament ID with no unified
+  // "rugby" feed, and most are out of season most of the year (checked:
+  // Six Nations' own endpoint returns its already-finished Jan-Mar season,
+  // nothing current in September). Confirmed live and working directly
+  // (2026-09-12).
+  { url: "https://feeds.bbci.co.uk/sport/rugby-union/rss.xml", category: "rugby", sourceName: "BBC Sport" },
 ];
 
 export async function fetchRssNews(): Promise<RawMatchItem[]> {

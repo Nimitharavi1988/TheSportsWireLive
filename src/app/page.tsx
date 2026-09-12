@@ -97,6 +97,10 @@ const CATEGORY_META: Record<string, { title: string; description: string }> = {
     title: "NBA News, Scores & Results",
     description: "Latest NBA results, previews, and news.",
   },
+  rugby: {
+    title: "Rugby News",
+    description: "Latest rugby union news from around the world.",
+  },
 };
 
 export async function generateMetadata(
