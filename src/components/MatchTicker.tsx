@@ -25,16 +25,26 @@ function parseTick(article: TickerArticle) {
   if (!article.homeTeam || !article.awayTeam) return null;
 
   const hasScore = article.homeScore !== null && article.awayScore !== null;
+  // A "scheduled" match with a kickoffAt already in the past is a cricket
+  // match already underway (cricketData.ts's currentMatches source — see
+  // the schema comment on Article.matchStatus) rather than a genuinely
+  // upcoming fixture. Same distinction /scores makes for its "In Progress"
+  // section — without it this just showed the kickoff date, indistinguishable
+  // from a real future fixture.
+  const isInProgress = article.matchStatus !== "finished" && (article.kickoffAt?.getTime() ?? Infinity) < Date.now();
   const status =
     article.matchStatus === "finished"
       ? hasScore ? "FT" : "Result"
-      : (article.kickoffAt?.toLocaleDateString("en-US", { month: "short", day: "numeric" }) ?? "").toUpperCase();
+      : isInProgress
+        ? "LIVE"
+        : (article.kickoffAt?.toLocaleDateString("en-US", { month: "short", day: "numeric" }) ?? "").toUpperCase();
 
   return {
     home: article.homeTeam,
     away: article.awayTeam,
     status,
     score: hasScore ? `${article.homeScore}–${article.awayScore}` : null,
+    isLive: isInProgress,
   };
 }
 
@@ -217,13 +227,30 @@ export default async function MatchTicker() {
                 {tick.away}
               </Box>
               <img src={tick.awayCrestUrl} alt="" width={19} height={19} />
+              {tick.isLive && (
+                <Box
+                  component="span"
+                  sx={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: "50%",
+                    bgcolor: "#d32f2f",
+                    flexShrink: 0,
+                    animation: "sw-ticker-live-pulse 1.5s ease-in-out infinite",
+                    "@keyframes sw-ticker-live-pulse": {
+                      "0%, 100%": { opacity: 1 },
+                      "50%": { opacity: 0.3 },
+                    },
+                  }}
+                />
+              )}
               <Box
                 component="span"
                 sx={{
                   fontSize: 10.5,
                   fontWeight: 700,
                   letterSpacing: "0.03em",
-                  color: tick.score ? "text.secondary" : "primary.main",
+                  color: tick.isLive ? "#d32f2f" : tick.score ? "text.secondary" : "primary.main",
                 }}
               >
                 {tick.status}
