@@ -49,7 +49,7 @@ export function StatusBadge({ state, kickoffAt }: { state: CricketMatchStatus; k
       <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
         <CheckCircleIcon sx={{ fontSize: 13, color: "primary.main" }} />
         <Typography variant="caption" sx={{ color: "primary.main", fontWeight: 700, letterSpacing: "0.05em" }}>
-          RESULT
+          RESULT{kickoffAt ? ` · ${kickoffAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
         </Typography>
       </Stack>
     );

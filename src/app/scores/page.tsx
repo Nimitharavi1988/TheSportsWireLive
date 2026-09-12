@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
-import { fetchLiveCricketMatches } from "@/lib/liveCricket";
-import { LiveScorecard } from "@/components/LiveScorecard";
+import { fetchLiveCricketMatches, type CricketMatchStatus } from "@/lib/liveCricket";
+import { LiveScorecard, StatusBadge } from "@/components/LiveScorecard";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
@@ -38,7 +38,7 @@ interface MatchRow {
   kickoffAt: Date | null;
 }
 
-function MatchCard({ match }: { match: MatchRow }) {
+function MatchCard({ match, state }: { match: MatchRow; state: CricketMatchStatus }) {
   const style = categoryChipStyle(match.category);
   const isCricket = match.category === "cricket";
   const hasScore = match.homeScore !== null && match.awayScore !== null;
@@ -93,9 +93,9 @@ function MatchCard({ match }: { match: MatchRow }) {
           </Typography>
           {match.awayCrestUrl && <img src={match.awayCrestUrl} alt="" width={22} height={22} style={{ flexShrink: 0 }} />}
         </Box>
-        <Typography variant="caption" sx={{ color: "text.secondary", flexShrink: 0, whiteSpace: "nowrap" }}>
-          {match.kickoffAt?.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-        </Typography>
+        <Box sx={{ flexShrink: 0 }}>
+          <StatusBadge state={state} kickoffAt={match.kickoffAt} />
+        </Box>
       </Paper>
     </Link>
   );
@@ -182,7 +182,7 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
       ) : (
         <Stack spacing={1} sx={{ mb: 4 }}>
           {upcoming.map((match) => (
-            <MatchCard key={match.id} match={match} />
+            <MatchCard key={match.id} match={match} state="upcoming" />
           ))}
         </Stack>
       )}
@@ -195,7 +195,7 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
       ) : (
         <Stack spacing={1}>
           {recent.map((match) => (
-            <MatchCard key={match.id} match={match} />
+            <MatchCard key={match.id} match={match} state="finished" />
           ))}
         </Stack>
       )}
