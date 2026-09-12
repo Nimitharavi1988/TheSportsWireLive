@@ -49,6 +49,14 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
+      <Link href="/series" style={{ color: "inherit", textDecoration: "none" }}>
+        <Typography
+          variant="caption"
+          sx={{ color: "text.secondary", display: "block", mb: 1.5, "&:hover": { color: "primary.main" } }}
+        >
+          ← All Series
+        </Typography>
+      </Link>
       <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", mb: 1 }}>
         <SportsCricketIcon sx={{ color: "primary.main" }} />
         <Typography variant="h4" component="h1">

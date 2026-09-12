@@ -60,6 +60,14 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
         }}
       >
         <Box sx={{ minWidth: 0 }}>
+          <Link href="/club" style={{ color: "inherit", textDecoration: "none" }}>
+            <Typography
+              variant="caption"
+              sx={{ color: "text.secondary", display: "block", mb: 1.5, "&:hover": { color: "primary.main" } }}
+            >
+              ← All Clubs
+            </Typography>
+          </Link>
           <Stack direction="row" spacing={3} sx={{ alignItems: "center", mb: 4 }}>
             {crestUrl ? (
               <Box component="img" src={crestUrl} alt={`${club.name} crest`} sx={{ width: 96, height: 96, objectFit: "contain", flexShrink: 0 }} />

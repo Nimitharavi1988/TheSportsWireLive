@@ -8,6 +8,8 @@ import Chip from "@mui/material/Chip";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Divider from "@mui/material/Divider";
+import Breadcrumbs from "@mui/material/Breadcrumbs";
+import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import { crestAltText } from "@/lib/teamNames";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { ArticleThumb } from "@/components/ArticleThumb";
@@ -69,14 +71,31 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
   // search results instead of a raw URL — real CTR impact for a search
   // listing, and reinforces the site's actual category hierarchy to
   // crawlers the same way the visible nav already does for users.
+  //
+  // This used to be the ONLY breadcrumb — structured data Google can render
+  // in a search snippet, but nothing an actual visitor on the page could
+  // click. A reader landing on an article (especially from a series page)
+  // had no way back except the browser's back button. Real gap, and Google
+  // explicitly discounts a BreadcrumbList that doesn't match something
+  // visible on the page — so the trail below is built from the same steps
+  // as this JSON-LD, series level included when the article has one.
   const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
+  const breadcrumbSteps: { name: string; href: string }[] = [
+    { name: "Home", href: "/" },
+    { name: categoryChipStyle(article.category).label, href: `/?category=${article.category}` },
+    ...(article.seriesKey && article.seriesLabel ? [{ name: article.seriesLabel, href: `/series/${article.seriesKey}` }] : []),
+  ];
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
-      { "@type": "ListItem", position: 2, name: categoryChipStyle(article.category).label, item: `${siteUrl}/?category=${article.category}` },
-      { "@type": "ListItem", position: 3, name: article.title, item: `${siteUrl}/article/${article.slug}` },
+      ...breadcrumbSteps.map((step, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name: step.name,
+        item: `${siteUrl}${step.href}`,
+      })),
+      { "@type": "ListItem", position: breadcrumbSteps.length + 1, name: article.title, item: `${siteUrl}/article/${article.slug}` },
     ],
   };
 
@@ -227,6 +246,38 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
       )}
 
       <Box sx={{ minWidth: 0 }}>
+
+      <Breadcrumbs
+        separator={<NavigateNextIcon sx={{ fontSize: 14 }} />}
+        sx={{ mb: 2, "& .MuiBreadcrumbs-ol": { flexWrap: "nowrap" } }}
+      >
+        {breadcrumbSteps.map((step) => (
+          <Link
+            key={step.href}
+            href={step.href}
+            style={{ color: "inherit", textDecoration: "none" }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ color: "text.secondary", whiteSpace: "nowrap", "&:hover": { color: "primary.main" } }}
+            >
+              {step.name}
+            </Typography>
+          </Link>
+        ))}
+        <Typography
+          variant="caption"
+          sx={{
+            color: "text.disabled",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            maxWidth: 220,
+          }}
+        >
+          {article.title}
+        </Typography>
+      </Breadcrumbs>
 
       {article.homeCrestUrl && article.awayCrestUrl ? (
         <Stack
