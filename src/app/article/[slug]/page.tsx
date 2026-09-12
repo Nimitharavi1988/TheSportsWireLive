@@ -21,6 +21,7 @@ import { TRACKED_PLAYERS } from "@/lib/players";
 import { TRACKED_CLUBS } from "@/lib/clubs";
 import { createEntityLinker } from "@/lib/entityLinks";
 import { FanEngagementHub } from "@/components/FanEngagementHub";
+import { ShareButtons } from "@/components/ShareButtons";
 import { displaySummary } from "@/lib/articleSummary";
 import { relativeTime } from "@/lib/relativeTime";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
@@ -364,13 +365,28 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
       <Typography variant="h4" component="h1" gutterBottom>
         {article.title}
       </Typography>
-      {article.publishedAt && (
-        <Typography variant="body2" sx={{ color: "text.secondary", mb: (taggedPlayers.length > 0 || taggedClubs.length > 0) ? 1.5 : 2.5 }}>
-          {article.publishedAt.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-          {" · "}
-          {article.sourceName}
-        </Typography>
-      )}
+      <Stack
+        direction="row"
+        sx={{
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          rowGap: 0.5,
+          mb: (taggedPlayers.length > 0 || taggedClubs.length > 0) ? 1.5 : 2.5,
+        }}
+      >
+        {article.publishedAt && (
+          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+            {article.publishedAt.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+            {" · "}
+            {article.sourceName}
+          </Typography>
+        )}
+        {/* No way to share an article previously existed except copying
+            the URL bar by hand — a real gap on a site whose model depends
+            on distribution. WhatsApp listed first (see ShareButtons.tsx). */}
+        <ShareButtons url={`${siteUrl}/article/${article.slug}`} title={article.title} />
+      </Stack>
 
       {(taggedPlayers.length > 0 || taggedClubs.length > 0) && (
         <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1, mb: 2.5 }}>
