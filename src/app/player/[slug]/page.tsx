@@ -11,6 +11,8 @@ import { ArticleThumb } from "@/components/ArticleThumb";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import { displaySummary } from "@/lib/articleSummary";
+import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
+import { buildBreadcrumbJsonLd } from "@/lib/breadcrumbs";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
@@ -59,8 +61,23 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
   const standings =
     player.sport === "football" && standingsApiKey ? await fetchStandingsTable(standingsApiKey, "PL") : null;
 
+  const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
+  const breadcrumbSteps = [
+    { name: "Home", href: "/" },
+    { name: "Players", href: "/player" },
+  ];
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd(
+    breadcrumbSteps,
+    { name: player.name, href: `/player/${player.slug}` },
+    siteUrl
+  );
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <Box
         sx={{
           display: "grid",
@@ -69,14 +86,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
         }}
       >
         <Box sx={{ minWidth: 0 }}>
-          <Link href="/player" style={{ color: "inherit", textDecoration: "none" }}>
-            <Typography
-              variant="caption"
-              sx={{ color: "text.secondary", display: "block", mb: 1.5, "&:hover": { color: "primary.main" } }}
-            >
-              ← All Players
-            </Typography>
-          </Link>
+          <SiteBreadcrumbs steps={breadcrumbSteps} current={player.name} />
           <Stack direction="row" spacing={3} sx={{ alignItems: "center", mb: 4 }}>
             {photo ? (
               <Box

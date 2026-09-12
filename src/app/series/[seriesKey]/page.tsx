@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { ArticleThumb } from "@/components/ArticleThumb";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
+import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
+import { buildBreadcrumbJsonLd } from "@/lib/breadcrumbs";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
@@ -47,16 +49,24 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
 
   if (!series) notFound();
 
+  const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
+  const breadcrumbSteps = [
+    { name: "Home", href: "/" },
+    { name: "Series", href: "/series" },
+  ];
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd(
+    breadcrumbSteps,
+    { name: series.seriesLabel ?? "Series", href: `/series/${seriesKey}` },
+    siteUrl
+  );
+
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Link href="/series" style={{ color: "inherit", textDecoration: "none" }}>
-        <Typography
-          variant="caption"
-          sx={{ color: "text.secondary", display: "block", mb: 1.5, "&:hover": { color: "primary.main" } }}
-        >
-          ← All Series
-        </Typography>
-      </Link>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <SiteBreadcrumbs steps={breadcrumbSteps} current={series.seriesLabel ?? "Series"} />
       <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", mb: 1 }}>
         <SportsCricketIcon sx={{ color: "primary.main" }} />
         <Typography variant="h4" component="h1">

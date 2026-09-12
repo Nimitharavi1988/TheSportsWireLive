@@ -10,6 +10,8 @@ import { QuotesStrip } from "@/components/QuotesStrip";
 import { ArticleThumb } from "@/components/ArticleThumb";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
+import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
+import { buildBreadcrumbJsonLd } from "@/lib/breadcrumbs";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
@@ -50,8 +52,23 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
   const standingsApiKey = process.env.FOOTBALL_DATA_API_KEY;
   const standings = standingsApiKey ? await fetchStandingsTable(standingsApiKey, "PL") : null;
 
+  const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
+  const breadcrumbSteps = [
+    { name: "Home", href: "/" },
+    { name: "Clubs", href: "/club" },
+  ];
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd(
+    breadcrumbSteps,
+    { name: club.name, href: `/club/${club.slug}` },
+    siteUrl
+  );
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <Box
         sx={{
           display: "grid",
@@ -60,14 +77,7 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
         }}
       >
         <Box sx={{ minWidth: 0 }}>
-          <Link href="/club" style={{ color: "inherit", textDecoration: "none" }}>
-            <Typography
-              variant="caption"
-              sx={{ color: "text.secondary", display: "block", mb: 1.5, "&:hover": { color: "primary.main" } }}
-            >
-              ← All Clubs
-            </Typography>
-          </Link>
+          <SiteBreadcrumbs steps={breadcrumbSteps} current={club.name} />
           <Stack direction="row" spacing={3} sx={{ alignItems: "center", mb: 4 }}>
             {crestUrl ? (
               <Box component="img" src={crestUrl} alt={`${club.name} crest`} sx={{ width: 96, height: 96, objectFit: "contain", flexShrink: 0 }} />

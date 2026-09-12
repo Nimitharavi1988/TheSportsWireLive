@@ -8,8 +8,8 @@ import Chip from "@mui/material/Chip";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Divider from "@mui/material/Divider";
-import Breadcrumbs from "@mui/material/Breadcrumbs";
-import NavigateNextIcon from "@mui/icons-material/NavigateNext";
+import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
+import { buildBreadcrumbJsonLd } from "@/lib/breadcrumbs";
 import { crestAltText } from "@/lib/teamNames";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { ArticleThumb } from "@/components/ArticleThumb";
@@ -107,19 +107,11 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
     { name: categoryChipStyle(article.category).label, href: `/?category=${article.category}` },
     ...(article.seriesKey && article.seriesLabel ? [{ name: article.seriesLabel, href: `/series/${article.seriesKey}` }] : []),
   ];
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      ...breadcrumbSteps.map((step, i) => ({
-        "@type": "ListItem",
-        position: i + 1,
-        name: step.name,
-        item: `${siteUrl}${step.href}`,
-      })),
-      { "@type": "ListItem", position: breadcrumbSteps.length + 1, name: article.title, item: `${siteUrl}/article/${article.slug}` },
-    ],
-  };
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd(
+    breadcrumbSteps,
+    { name: article.title, href: `/article/${article.slug}` },
+    siteUrl
+  );
 
   // Tracked players mentioned in this article's title — the only real entry
   // point into a player's dedicated page used to be the homepage's Player
@@ -269,37 +261,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
 
       <Box sx={{ minWidth: 0 }}>
 
-      <Breadcrumbs
-        separator={<NavigateNextIcon sx={{ fontSize: 14 }} />}
-        sx={{ mb: 2, "& .MuiBreadcrumbs-ol": { flexWrap: "nowrap" } }}
-      >
-        {breadcrumbSteps.map((step) => (
-          <Link
-            key={step.href}
-            href={step.href}
-            style={{ color: "inherit", textDecoration: "none" }}
-          >
-            <Typography
-              variant="caption"
-              sx={{ color: "text.secondary", whiteSpace: "nowrap", "&:hover": { color: "primary.main" } }}
-            >
-              {step.name}
-            </Typography>
-          </Link>
-        ))}
-        <Typography
-          variant="caption"
-          sx={{
-            color: "text.disabled",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            maxWidth: 220,
-          }}
-        >
-          {article.title}
-        </Typography>
-      </Breadcrumbs>
+      <SiteBreadcrumbs steps={breadcrumbSteps} current={article.title} />
 
       {article.homeCrestUrl && article.awayCrestUrl ? (
         <Stack
