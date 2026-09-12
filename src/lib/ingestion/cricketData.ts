@@ -37,6 +37,24 @@ function extractTeams(matchName: string): [string, string] | null {
   return m ? [m[1].trim(), m[2].trim()] : null;
 }
 
+// match.score entries are labeled by the API as "{Team Name} Inning {N}"
+// (confirmed directly from real responses, e.g. "St Kitts and Nevis
+// Patriots Inning 1") — matching by substring against the team name
+// extracts that team's own score line, e.g. "71/6 (14.3)", for a clean
+// "TeamA score vs TeamB score" scoreboard display (matching what a Google
+// live-score card shows) instead of only the prose status text. Takes the
+// LAST matching entry so a team's most recent innings wins for a Test
+// match with more than one innings per side.
+export function extractTeamScoreLine(score: unknown, teamName: string): string | undefined {
+  if (!Array.isArray(score)) return undefined;
+  const matches = score.filter(
+    (s: any) => typeof s?.inning === "string" && s.inning.toLowerCase().includes(teamName.toLowerCase())
+  );
+  if (matches.length === 0) return undefined;
+  const latest = matches[matches.length - 1];
+  return `${latest.r ?? "?"}/${latest.w ?? "?"} (${latest.o ?? "?"})`;
+}
+
 // This API's currentMatches endpoint doesn't expose a clean started/ended
 // boolean (or if it does, it wasn't available to verify directly — network
 // access to cricapi.com is blocked from the environment this was built in),
@@ -211,10 +229,14 @@ export async function fetchCricketData(): Promise<RawMatchItem[]> {
       awayTeam: teams?.[1],
       // No single homeScore/awayScore here — a multi-innings cricket score
       // doesn't fit two plain integers the way football/NFL's single score
-      // does. matchStatus + the existing summary/body text carry the result
-      // instead; see inferCricketMatchStatus above.
+      // does. homeScoreText/awayScoreText (below) carry a short per-team
+      // score line instead, for a "TeamA score vs TeamB score" scoreboard
+      // display; matchStatus + the existing summary/body text carry the
+      // fuller result/status; see inferCricketMatchStatus above.
       matchStatus: inferCricketMatchStatus(match.status),
       kickoffAt: match.dateTimeGMT ? new Date(match.dateTimeGMT) : new Date(),
+      homeScoreText: teams ? extractTeamScoreLine(match.score, teams[0]) : undefined,
+      awayScoreText: teams ? extractTeamScoreLine(match.score, teams[1]) : undefined,
     });
   }
 

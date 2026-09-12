@@ -76,6 +76,63 @@ async function fetchTeamRecords(): Promise<Map<string, TeamRecord>> {
   }
 }
 
+export interface NflStandingsRow {
+  teamId: string;
+  teamName: string;
+  teamLogo: string | null;
+  wins: number;
+  losses: number;
+  ties: number;
+  playoffSeed: number;
+}
+
+export interface NflConferenceStandings {
+  conferenceName: string;
+  rows: NflStandingsRow[];
+}
+
+// Same underlying ESPN standings endpoint as fetchTeamRecords above, but
+// keeping team name/logo/full record for direct display (fetchTeamRecords
+// only keeps what's needed for match-article context text and discards
+// the rest) — same fetchStandings-vs-fetchStandingsTable split as
+// standings.ts uses for football. Team logo field name (`team.logo` vs
+// `team.logos[0].href`) wasn't verified against a live response — network
+// access to ESPN's API was blocked in the environment this was built in —
+// so both shapes are checked defensively; a missing logo just renders
+// without one rather than breaking.
+export async function fetchNflStandingsTable(): Promise<NflConferenceStandings[] | null> {
+  try {
+    const res = await fetch(`${STANDINGS_URL}?season=${new Date().getFullYear()}`, { next: { revalidate: 300 } });
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const conferences: NflConferenceStandings[] = [];
+
+    for (const conference of data.children ?? []) {
+      const rows: NflStandingsRow[] = (conference.standings?.entries ?? []).map((entry: any) => {
+        const stat = (name: string) =>
+          Number(entry.stats?.find((s: { name: string }) => s.name === name)?.displayValue ?? 0);
+        return {
+          teamId: entry.team?.id ?? "",
+          teamName: entry.team?.displayName ?? "Unknown",
+          teamLogo: entry.team?.logo ?? entry.team?.logos?.[0]?.href ?? null,
+          wins: stat("wins"),
+          losses: stat("losses"),
+          ties: stat("ties"),
+          playoffSeed: stat("playoffSeed"),
+        };
+      });
+      rows.sort((a, b) => (a.playoffSeed || 99) - (b.playoffSeed || 99));
+      conferences.push({ conferenceName: conference.name ?? "Conference", rows });
+    }
+
+    return conferences.length > 0 ? conferences : null;
+  } catch (err) {
+    console.error("NFL standings table fetch failed:", err);
+    return null;
+  }
+}
+
 function recordContext(teamName: string, record: TeamRecord | undefined): string {
   if (!record) return "";
   const recordStr = record.ties > 0 ? `${record.wins}-${record.losses}-${record.ties}` : `${record.wins}-${record.losses}`;

@@ -357,6 +357,8 @@ export async function runIngest() {
         awayScore: item.awayScore,
         matchStatus: item.matchStatus,
         kickoffAt: item.kickoffAt,
+        homeScoreText: item.homeScoreText,
+        awayScoreText: item.awayScoreText,
       },
     });
     // Registers this hash as no longer "new" — guards against the same

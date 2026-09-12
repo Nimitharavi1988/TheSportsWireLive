@@ -12,28 +12,54 @@ export interface LiveMatchRow {
   awayTeam: string | null;
   homeCrestUrl: string | null;
   awayCrestUrl: string | null;
+  homeScoreText: string | null;
+  awayScoreText: string | null;
 }
 
-// A Google-style live score card: pulsing LIVE badge, bigger team crests,
-// and the rich per-innings status text (cricketData.ts's summary, e.g.
-// "India need 45 runs. India Inning: 187/4 (18.2 ov)...") as the main
-// content — that data was already being fetched and stored every poll, it
-// just wasn't surfaced anywhere prominently before. Shared between /scores
-// and the homepage sidebar so both stay visually identical.
+function TeamRow({ crest, name, scoreText, compact }: { crest: string | null; name: string | null; scoreText: string | null; compact: boolean }) {
+  return (
+    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+      {crest && <img src={crest} alt="" width={compact ? 22 : 28} height={compact ? 22 : 28} style={{ flexShrink: 0 }} />}
+      <Typography sx={{ fontSize: compact ? 13.5 : 15, fontWeight: 600, flex: 1, minWidth: 0 }} noWrap>
+        {name ?? "—"}
+      </Typography>
+      <Typography
+        sx={{
+          fontSize: compact ? 14 : 16,
+          fontWeight: 700,
+          fontVariantNumeric: "tabular-nums",
+          flexShrink: 0,
+          color: scoreText ? "text.primary" : "text.secondary",
+        }}
+      >
+        {scoreText ?? "yet to bat"}
+      </Typography>
+    </Stack>
+  );
+}
+
+// A Google-style live score card: pulsing LIVE badge, each team on its own
+// row with its score right-aligned (rather than a single horizontal
+// "TeamA v TeamB" line), and the fuller status text (cricketData.ts's
+// summary, e.g. "India need 45 runs to win") below as secondary context.
+// The score line itself (e.g. "221/3 (4.1)") comes from
+// extractTeamScoreLine — real per-innings data that was already being
+// fetched every poll, just not surfaced this way before. Shared between
+// /scores and the homepage sidebar so both stay visually identical.
 export function LiveScorecard({ match, compact = false }: { match: LiveMatchRow; compact?: boolean }) {
   return (
     <Link href={`/article/${match.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
       <Paper
         variant="outlined"
         sx={{
-          p: compact ? 1.75 : 2.25,
+          p: compact ? 1.5 : 2,
           borderColor: "primary.main",
           borderWidth: 1.5,
           transition: "background-color 0.15s",
           "&:hover": { bgcolor: "action.hover" },
         }}
       >
-        <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: compact ? 1 : 1.5 }}>
+        <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: compact ? 1 : 1.25 }}>
           <Box
             sx={{
               width: 7,
@@ -48,18 +74,21 @@ export function LiveScorecard({ match, compact = false }: { match: LiveMatchRow;
             LIVE
           </Typography>
         </Stack>
-        <Stack direction="row" spacing={compact ? 1 : 1.5} sx={{ alignItems: "center", mb: compact ? 1 : 1.25, flexWrap: "wrap" }}>
-          {match.homeCrestUrl && <img src={match.homeCrestUrl} alt="" width={compact ? 26 : 36} height={compact ? 26 : 36} />}
-          <Typography variant="h6" sx={{ fontSize: compact ? 15 : 18, fontWeight: 700 }}>
-            {match.homeTeam}
-          </Typography>
-          <Typography sx={{ color: "text.secondary", fontSize: compact ? 13 : 14 }}>v</Typography>
-          <Typography variant="h6" sx={{ fontSize: compact ? 15 : 18, fontWeight: 700 }}>
-            {match.awayTeam}
-          </Typography>
-          {match.awayCrestUrl && <img src={match.awayCrestUrl} alt="" width={compact ? 26 : 36} height={compact ? 26 : 36} />}
+        <Stack spacing={compact ? 0.5 : 0.75} sx={{ mb: compact ? 1 : 1.25 }}>
+          <TeamRow crest={match.homeCrestUrl} name={match.homeTeam} scoreText={match.homeScoreText} compact={compact} />
+          <TeamRow crest={match.awayCrestUrl} name={match.awayTeam} scoreText={match.awayScoreText} compact={compact} />
         </Stack>
-        <Typography variant="body2" sx={{ color: "text.secondary", fontSize: compact ? 12.5 : 14 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: "text.secondary",
+            fontSize: compact ? 12 : 13,
+            display: "-webkit-box",
+            WebkitLineClamp: compact ? 2 : 3,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
           {match.summary}
         </Typography>
       </Paper>

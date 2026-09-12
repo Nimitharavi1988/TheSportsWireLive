@@ -20,6 +20,7 @@ export function fetchLiveCricketMatches(take: number) {
     select: {
       id: true, slug: true, summary: true,
       homeTeam: true, awayTeam: true, homeCrestUrl: true, awayCrestUrl: true,
+      homeScoreText: true, awayScoreText: true,
     },
   });
 }

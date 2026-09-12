@@ -105,7 +105,7 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
                               </Typography>
                             )}
                           </Stack>
-                          <Typography variant="h6" component="h2" gutterBottom sx={{ fontSize: 18 }}>
+                          <Typography variant="h6" component="h2" gutterBottom>
                             {article.title}
                           </Typography>
                           <Typography variant="body2" sx={{ color: "text.secondary" }}>

@@ -114,7 +114,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
           // centers this shorter content within it, so the card doesn't
           // visibly shrink/grow as the carousel rotates between slide types
           // (measured live: was jumping between ~349px and ~464px).
-          <Box sx={{ minHeight: 460, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <Box sx={{ minHeight: 460, display: "flex", flexDirection: "column" }}>
             {hasCrests && (
               <Stack
                 direction="row"
@@ -135,7 +135,11 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                 <img src={slide.awayCrestUrl!} alt={crestAltText(slide.summary).away} width={96} height={96} />
               </Stack>
             )}
-            <CardContent sx={{ p: 3 }}>
+            {/* mt: "auto" pins this to the bottom of the card regardless of
+                how short the crest row above is — matching the photo
+                variant's bottom-anchored text overlay instead of the whole
+                block just sitting vertically centered as one unit. */}
+            <CardContent sx={{ p: 3, mt: "auto" }}>
               <Chip label="Top Story" size="small" sx={{ color: "primary", mb: 1 }} />
               <Typography variant="h4" component="h2" gutterBottom>
                 <Link href={`/article/${slide.slug}`} style={{ color: "inherit", textDecoration: "none" }}>

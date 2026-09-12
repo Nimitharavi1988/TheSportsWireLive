@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isRealLogo, extractTeamLogos, GENERIC_PLACEHOLDER_IMG, inferCricketMatchStatus } from "./cricketData";
+import { isRealLogo, extractTeamLogos, GENERIC_PLACEHOLDER_IMG, inferCricketMatchStatus, extractTeamScoreLine } from "./cricketData";
 
 describe("isRealLogo", () => {
   it("accepts a real CDN image URL", () => {
@@ -72,5 +72,39 @@ describe("inferCricketMatchStatus", () => {
 
   it("treats missing status as scheduled", () => {
     expect(inferCricketMatchStatus(undefined)).toBe("scheduled");
+  });
+});
+
+describe("extractTeamScoreLine", () => {
+  const score = [
+    { inning: "St Kitts and Nevis Patriots Inning 1", r: 71, w: 6, o: 14.3 },
+    { inning: "Barbados Tridents Inning 1", r: 120, w: 6, o: 18 },
+  ];
+
+  it("finds a team's own innings by matching the team name inside the inning label", () => {
+    expect(extractTeamScoreLine(score, "St Kitts and Nevis Patriots")).toBe("71/6 (14.3)");
+    expect(extractTeamScoreLine(score, "Barbados Tridents")).toBe("120/6 (18)");
+  });
+
+  it("is case-insensitive", () => {
+    expect(extractTeamScoreLine(score, "barbados tridents")).toBe("120/6 (18)");
+  });
+
+  it("takes the most recent (last) innings for a team with more than one", () => {
+    const multiInnings = [
+      { inning: "England Inning 1", r: 300, w: 10, o: 90 },
+      { inning: "England Inning 2", r: 150, w: 4, o: 40 },
+    ];
+    expect(extractTeamScoreLine(multiInnings, "England")).toBe("150/4 (40)");
+  });
+
+  it("returns undefined when the team hasn't batted yet (no matching innings)", () => {
+    expect(extractTeamScoreLine(score, "Trinbago Knight Riders")).toBeUndefined();
+  });
+
+  it("returns undefined when score is missing or not an array", () => {
+    expect(extractTeamScoreLine(undefined, "Barbados Tridents")).toBeUndefined();
+    expect(extractTeamScoreLine(null, "Barbados Tridents")).toBeUndefined();
+    expect(extractTeamScoreLine([], "Barbados Tridents")).toBeUndefined();
   });
 });

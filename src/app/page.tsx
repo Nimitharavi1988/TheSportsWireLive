@@ -11,6 +11,8 @@ import Stack from "@mui/material/Stack";
 import Divider from "@mui/material/Divider";
 import { fetchOneStockImage } from "@/lib/ingestion/stockImages";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
+import { fetchNflStandingsTable } from "@/lib/ingestion/nflData";
+import { NflStandingsCarousel } from "@/components/NflStandingsCarousel";
 import { crestAltText, competitionFromSummary } from "@/lib/teamNames";
 import { displaySummary } from "@/lib/articleSummary";
 import { relativeTime } from "@/lib/relativeTime";
@@ -24,7 +26,7 @@ import { HeroCarousel } from "@/components/HeroCarousel";
 import { ArticleThumb } from "@/components/ArticleThumb";
 import { fetchPersonPhoto } from "@/lib/ingestion/wikimediaImages";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
-import { LiveScorecard } from "@/components/LiveScorecard";
+import { LiveScoreboardCarousel } from "@/components/LiveScoreboardCarousel";
 import { fetchLiveCricketMatches } from "@/lib/liveCricket";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import StarIcon from "@mui/icons-material/Star";
@@ -137,10 +139,18 @@ export default async function HomePage(
       orderBy: { featuredAt: "desc" },
       take: 5,
     }),
-    // Capped small (2) — this is a compact sidebar module, not the full
-    // /scores page. Only fetched here regardless of category filter, since
-    // "live right now" is worth surfacing even when browsing football/NFL.
-    fetchLiveCricketMatches(2),
+    // Capped at 6 — the right-sidebar carousel cycles through these one at
+    // a time via prev/next arrows, so a slightly higher cap than a stacked
+    // list doesn't cost extra vertical space. Only fetched on "All" or
+    // "Cricket" — showing cricket scores while browsing a Football-only or
+    // NFL-only view read as wrong/out of place (same rule /scores already
+    // follows for its own in-progress section).
+    // Not just a "top few" — a real Test match runs 5 days, so it sorts
+    // toward the back of a kickoffAt-desc order behind every shorter-format
+    // domestic match that started more recently. A low cap silently cut
+    // international Tests out of the carousel entirely; this is cheap
+    // enough to just fetch everything currently live instead.
+    category === undefined || category === "cricket" ? fetchLiveCricketMatches(30) : Promise.resolve([]),
   ]);
   const rankedIds = new Set(articlesRanked.map((a) => a.id));
   const articles = [...manuallyFeaturedRaw.filter((a) => !rankedIds.has(a.id)), ...articlesRanked];
@@ -262,7 +272,14 @@ export default async function HomePage(
     .slice(0, Math.max(0, 4 - manuallyHighlighted.length));
   const highlightArticles = [...manuallyHighlighted, ...automaticHighlights];
   const highlightIds = new Set(highlightArticles.map((a) => a.id));
-  const briefArticles = allBriefArticles.filter((a) => !highlightIds.has(a.id));
+  // Was completely uncapped — every RSS article not already used as a hero
+  // or highlight pick landed here, which could genuinely be 30+ items,
+  // making this sidebar module far taller than the main column next to it
+  // (both are in the same sticky grid row, so a much-taller sidebar means
+  // scrolling past the main column's real content into visually empty
+  // space before this one's is exhausted too). Capped to match the scale
+  // of every other sidebar list module ("Just In" caps at 3).
+  const briefArticles = allBriefArticles.filter((a) => !highlightIds.has(a.id)).slice(0, 8);
 
   // NFL gets its own section rather than being mixed into the generic
   // football/cricket match list — three different sports sharing one
@@ -298,6 +315,11 @@ export default async function HomePage(
   const standingsApiKey = process.env.FOOTBALL_DATA_API_KEY;
   const standings =
     showStandings && standingsApiKey ? await fetchStandingsTable(standingsApiKey, "PL") : null;
+
+  // NFL's left rail was otherwise nearly empty (Standings is football-only,
+  // By Category/Competition are "All"-view-only) — real conference standings
+  // data, same ESPN source nflData.ts already draws on for match context.
+  const nflStandings = category === "american-football" ? await fetchNflStandingsTable() : null;
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -336,7 +358,7 @@ export default async function HomePage(
           alignItems: "start",
         }}
       >
-        {(liveCricketMatches.length > 0 || (standings && standings.rows.length > 0) || categoryTiles.length > 0 || justIn.length > 0 || PLAYER_QUOTES.length > 0) && (
+        {((standings && standings.rows.length > 0) || (nflStandings && nflStandings.length > 0) || categoryTiles.length > 0 || justIn.length > 0 || PLAYER_QUOTES.length > 0) && (
           <Box
             component="aside"
             sx={{
@@ -361,17 +383,15 @@ export default async function HomePage(
               // fine fallback.
             }}
           >
-            {liveCricketMatches.length > 0 && (
-              <Stack spacing={1.25} sx={{ mb: 3 }}>
-                {liveCricketMatches.map((match) => (
-                  <LiveScorecard key={match.id} match={match} compact />
-                ))}
-              </Stack>
-            )}
-
             {standings && standings.rows.length > 0 && (
               <Box sx={{ mb: 3 }}>
                 <StandingsCarousel leagues={STANDINGS_LEAGUES} initialCode="PL" initialTable={standings} />
+              </Box>
+            )}
+
+            {nflStandings && nflStandings.length > 0 && (
+              <Box sx={{ mb: 3 }}>
+                <NflStandingsCarousel conferences={nflStandings} />
               </Box>
             )}
 
@@ -670,24 +690,29 @@ export default async function HomePage(
                 {highlightArticles.map((article) => (
                   <Card key={article.id} variant="outlined" sx={{ borderColor: "warning.main" }}>
                     <CardContent>
-                      <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                        <Chip label={article.sourceName} size="small" variant="outlined" sx={{
-                          color: "warning"
-                        }} />
-                        {article.highlighted && <Chip label="📌 Editor's pick" size="small" sx={{
-                          color: "warning"
-                        }} />}
-                        {article.publishedAt && (
-                          <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                            {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      <Stack direction="row" spacing={2}>
+                        <ArticleThumb article={article} size={84} fallbackColor="#f59e0b" />
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
+                            <Chip label={article.sourceName} size="small" variant="outlined" sx={{
+                              color: "warning"
+                            }} />
+                            {article.highlighted && <Chip label="📌 Editor's pick" size="small" sx={{
+                              color: "warning"
+                            }} />}
+                            {article.publishedAt && (
+                              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                              </Typography>
+                            )}
+                          </Stack>
+                          <Typography variant="h6" component="h2" gutterBottom>
+                            <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+                              {article.title}
+                            </Link>
                           </Typography>
-                        )}
+                        </Box>
                       </Stack>
-                      <Typography variant="h6" component="h2" gutterBottom>
-                        <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
-                          {article.title}
-                        </Link>
-                      </Typography>
                     </CardContent>
                   </Card>
                 ))}
@@ -705,60 +730,38 @@ export default async function HomePage(
                 {matchArticles.map((article) => (
                   <Card key={article.id} variant="outlined">
                     <CardContent>
-                      {article.homeCrestUrl && article.awayCrestUrl ? (
-                        <Stack
-                          direction="row"
-                          spacing={1.5}
-                          sx={{
-                            alignItems: "center",
-                            mb: 1.5
+                      <Stack direction="row" spacing={2}>
+                        <ArticleThumb article={article} size={84} fallbackColor={categoryChipStyle(article.category).color} />
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
+                            <Chip
+                              label={categoryChipStyle(article.category).label}
+                              size="small"
+                              variant="outlined"
+                              sx={{
+                                color: categoryChipStyle(article.category).color,
+                                borderColor: categoryChipStyle(article.category).color,
+                                fontWeight: 600,
+                              }}
+                            />
+                            {article.publishedAt && (
+                              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                              </Typography>
+                            )}
+                          </Stack>
+                          <Typography variant="h6" component="h2" gutterBottom>
+                            <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+                              {article.title}
+                            </Link>
+                          </Typography>
+                          <Typography variant="body2" sx={{
+                            color: "text.secondary"
                           }}>
-                          <img src={article.homeCrestUrl} alt={crestAltText(article.summary).home} width={40} height={40} />
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              color: "text.secondary",
-                              fontWeight: 600
-                            }}>
-                            vs
+                            {displaySummary(article)}
                           </Typography>
-                          <img src={article.awayCrestUrl} alt={crestAltText(article.summary).away} width={40} height={40} />
-                        </Stack>
-                      ) : article.heroImageUrl ? (
-                        <Box
-                          component="img"
-                          src={article.heroImageUrl}
-                          alt={article.title}
-                          sx={{ width: "100%", height: 160, objectFit: "cover", objectPosition: "top", borderRadius: 1, mb: 1.5 }}
-                        />
-                      ) : null}
-                      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
-                        <Chip
-                          label={categoryChipStyle(article.category).label}
-                          size="small"
-                          variant="outlined"
-                          sx={{
-                            color: categoryChipStyle(article.category).color,
-                            borderColor: categoryChipStyle(article.category).color,
-                            fontWeight: 600,
-                          }}
-                        />
-                        {article.publishedAt && (
-                          <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                            {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                          </Typography>
-                        )}
+                        </Box>
                       </Stack>
-                      <Typography variant="h6" component="h2" gutterBottom>
-                        <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
-                          {article.title}
-                        </Link>
-                      </Typography>
-                      <Typography variant="body2" sx={{
-                        color: "text.secondary"
-                      }}>
-                        {displaySummary(article)}
-                      </Typography>
                     </CardContent>
                   </Card>
                 ))}
@@ -776,60 +779,38 @@ export default async function HomePage(
                 {nflArticles.map((article) => (
                   <Card key={article.id} variant="outlined">
                     <CardContent>
-                      {article.homeCrestUrl && article.awayCrestUrl ? (
-                        <Stack
-                          direction="row"
-                          spacing={1.5}
-                          sx={{
-                            alignItems: "center",
-                            mb: 1.5
+                      <Stack direction="row" spacing={2}>
+                        <ArticleThumb article={article} size={84} fallbackColor={categoryChipStyle(article.category).color} />
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
+                            <Chip
+                              label={categoryChipStyle(article.category).label}
+                              size="small"
+                              variant="outlined"
+                              sx={{
+                                color: categoryChipStyle(article.category).color,
+                                borderColor: categoryChipStyle(article.category).color,
+                                fontWeight: 600,
+                              }}
+                            />
+                            {article.publishedAt && (
+                              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                              </Typography>
+                            )}
+                          </Stack>
+                          <Typography variant="h6" component="h2" gutterBottom>
+                            <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
+                              {article.title}
+                            </Link>
+                          </Typography>
+                          <Typography variant="body2" sx={{
+                            color: "text.secondary"
                           }}>
-                          <img src={article.homeCrestUrl} alt={crestAltText(article.summary).home} width={40} height={40} />
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              color: "text.secondary",
-                              fontWeight: 600
-                            }}>
-                            vs
+                            {displaySummary(article)}
                           </Typography>
-                          <img src={article.awayCrestUrl} alt={crestAltText(article.summary).away} width={40} height={40} />
-                        </Stack>
-                      ) : article.heroImageUrl ? (
-                        <Box
-                          component="img"
-                          src={article.heroImageUrl}
-                          alt={article.title}
-                          sx={{ width: "100%", height: 160, objectFit: "cover", objectPosition: "top", borderRadius: 1, mb: 1.5 }}
-                        />
-                      ) : null}
-                      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
-                        <Chip
-                          label={categoryChipStyle(article.category).label}
-                          size="small"
-                          variant="outlined"
-                          sx={{
-                            color: categoryChipStyle(article.category).color,
-                            borderColor: categoryChipStyle(article.category).color,
-                            fontWeight: 600,
-                          }}
-                        />
-                        {article.publishedAt && (
-                          <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                            {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                          </Typography>
-                        )}
+                        </Box>
                       </Stack>
-                      <Typography variant="h6" component="h2" gutterBottom>
-                        <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
-                          {article.title}
-                        </Link>
-                      </Typography>
-                      <Typography variant="body2" sx={{
-                        color: "text.secondary"
-                      }}>
-                        {displaySummary(article)}
-                      </Typography>
                     </CardContent>
                   </Card>
                 ))}
@@ -838,21 +819,41 @@ export default async function HomePage(
           )}
         </Box>
 
-        {briefArticles.length > 0 && (
-          <Paper
-            component="aside"
-            variant="outlined"
+        {(liveCricketMatches.length > 0 || briefArticles.length > 0) && (
+          // Both modules share ONE sticky wrapper, same pattern as the left
+          // rail's multiple stacked modules — two independent
+          // position:"sticky" siblings at the same top offset was the actual
+          // bug here: each stuck on its own once scrolled past, so "Also in
+          // the News" could end up pinned in a place that didn't match its
+          // normal-flow position, reading as "not where it should be."
+          <Box
             sx={{
-              p: 3,
               gridColumn: { xs: "1 / -1", md: "2", lg: "3" },
+              // Without this, "order:0" (the default) falls back to DOM
+              // source order on mobile/tablet — landing thousands of pixels
+              // down, after every article in <main>, since this block comes
+              // later in the JSX. A live scoreboard needs to be prominent
+              // on every screen size, not just desktop's 3-column layout.
+              order: { xs: -1, md: 0 },
               position: { md: "sticky" },
-              // Same 68px header + 16px gap fix as the left rail.
               top: { md: 84 },
             }}
           >
+            {liveCricketMatches.length > 0 && (
+              <Box sx={{ mb: 3 }}>
+                <LiveScoreboardCarousel matches={liveCricketMatches} />
+              </Box>
+            )}
+
+            {briefArticles.length > 0 && (
+              <Paper
+                component="aside"
+                variant="outlined"
+                sx={{ p: 3 }}
+              >
             <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 0.5 }}>
               <ArticleIcon sx={{ fontSize: 18, color: "primary.main" }} />
-              <Typography variant="h6" sx={{ fontSize: 17 }}>
+              <Typography variant="h6">
                 Also in the News
               </Typography>
             </Stack>
@@ -904,7 +905,9 @@ export default async function HomePage(
                 </Box>
               ))}
             </Stack>
-          </Paper>
+              </Paper>
+            )}
+          </Box>
         )}
       </Box>
 
@@ -950,11 +953,18 @@ export default async function HomePage(
                       <img src={article.awayCrestUrl} alt={crestAltText(article.summary).away} width={32} height={32} />
                     </Stack>
                   ) : article.heroImageUrl ? (
+                    // height:110 on a 260-wide card was a 2.36:1 crop —
+                    // checked directly against a real portrait photo (330x495
+                    // Wikimedia source): that only showed the top 32% of the
+                    // image, cutting well below the chin on most headshots.
+                    // 190 brings visible coverage up to ~55%, close to what
+                    // ArticleThumb's own square crop shows (~67%) for the
+                    // same source.
                     <Box
                       component="img"
                       src={article.heroImageUrl}
                       alt={article.title}
-                      sx={{ width: "100%", height: 110, objectFit: "cover", objectPosition: "top", borderRadius: 1, mb: 1 }}
+                      sx={{ width: "100%", height: 190, objectFit: "cover", objectPosition: "top", borderRadius: 1, mb: 1 }}
                     />
                   ) : null}
                   <Typography variant="subtitle2" component="h3" gutterBottom>

@@ -131,7 +131,11 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
       take: 25,
       select,
     }),
-    showCricketInProgress ? fetchLiveCricketMatches(10) : Promise.resolve([]),
+    // See page.tsx's comment on the same cap — a low take() silently cut
+    // multi-day Test matches out entirely (they sort toward the back of a
+    // kickoffAt-desc order behind shorter-format matches that started more
+    // recently), so this fetches everything currently live instead.
+    showCricketInProgress ? fetchLiveCricketMatches(30) : Promise.resolve([]),
   ]);
 
   return (
@@ -159,7 +163,7 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
 
       {cricketInProgress.length > 0 && (
         <>
-          <Typography variant="h6" sx={{ mb: 1.5, fontSize: 18 }}>
+          <Typography variant="h6" sx={{ mb: 1.5 }}>
             Cricket — In Progress
           </Typography>
           <Stack spacing={1.5} sx={{ mb: 4 }}>
@@ -170,7 +174,7 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
         </>
       )}
 
-      <Typography variant="h6" sx={{ mb: 1.5, fontSize: 18 }}>
+      <Typography variant="h6" sx={{ mb: 1.5 }}>
         Upcoming Fixtures
       </Typography>
       {upcoming.length === 0 ? (
@@ -183,7 +187,7 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
         </Stack>
       )}
 
-      <Typography variant="h6" sx={{ mb: 1.5, fontSize: 18 }}>
+      <Typography variant="h6" sx={{ mb: 1.5 }}>
         Recent Results
       </Typography>
       {recent.length === 0 ? (

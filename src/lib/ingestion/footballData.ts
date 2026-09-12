@@ -84,6 +84,12 @@ export interface RawMatchItem {
   awayScore?: number;
   matchStatus?: "scheduled" | "finished";
   kickoffAt?: Date;
+  // Cricket only — a short per-team score line (e.g. "221/3 (4.1)"), since
+  // a multi-innings cricket score doesn't fit the single homeScore/
+  // awayScore integer football/NFL use. See cricketData.ts's
+  // extractTeamScoreLine.
+  homeScoreText?: string;
+  awayScoreText?: string;
 }
 
 function standingsContext(

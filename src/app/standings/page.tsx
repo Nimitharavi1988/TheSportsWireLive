@@ -52,7 +52,7 @@ export default function StandingsIndexPage() {
               >
                 <EmojiEventsIcon sx={{ color: "primary.main", fontSize: 20 }} />
               </Box>
-              <Typography variant="h6" sx={{ flex: 1, fontSize: 17 }}>
+              <Typography variant="h6" sx={{ flex: 1 }}>
                 {league.name}
               </Typography>
               <ChevronRightIcon sx={{ color: "text.secondary" }} />
