@@ -27,17 +27,25 @@ export interface HeroSlideData {
 
 const AUTO_ADVANCE_MS = 8000;
 
-// Was a flat height:460 regardless of viewport width — fine on a wide
-// desktop column (~800px wide, close to a natural 16:9 ratio against
-// 460px tall) but on a narrow screen the same fixed height against a much
-// narrower width forces a near-portrait box, so a wide 16:9 editorial
-// photo (the common case — most heroImageUrl/bannerUrl sources are 16:9)
-// gets cropped down to roughly its center 50% width or less. Confirmed
-// directly: a real hero photo at 419px viewport width was cropped to a
-// tight, unrecognizable fragment. Scaling height down on narrow
-// breakpoints keeps the crop close to the source's actual ratio instead
-// of compounding into a much more aggressive one.
-const HERO_HEIGHT = { xs: 240, sm: 320, md: 400, lg: 460 };
+// Was a flat height:460 regardless of viewport width, which cropped wide
+// 16:9 editorial photos down to their center ~50% width or less on narrow
+// screens. Fixed breakpoint heights (240/320/400/460) "fixed" that but
+// over-corrected the other way: hero images come from two very different
+// source shapes — wide 16:9 editorial/stock photos AND portrait Wikimedia
+// player headshots (~330x495, common for player-news heroes in the
+// Football/Cricket sections) — and a box wide enough to stop over-cropping
+// the former started badly over-cropping the latter instead (confirmed
+// directly: a real player headshot showed only its top ~39% at the 1.73:1
+// ratio those breakpoints produced on a narrow screen).
+//
+// A single fixed ratio can't be *optimal* for both shapes at once, but 4:3
+// is a real, measured improvement for both over either extreme: at 415px
+// width it shows ~75% of a 16:9 source's width (vs ~51% under the original
+// flat 460px height) and ~50% of a portrait source's height (vs ~39% under
+// the over-corrected wide breakpoints). aspect-ratio also scales correctly
+// at every width, not just the four breakpoints a fixed-height table can
+// cover.
+const HERO_ASPECT_RATIO = "4 / 3";
 
 export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
   const [index, setIndex] = useState(0);
@@ -81,7 +89,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                 component="img"
                 src={imageUrl}
                 alt={slide.title}
-                sx={{ width: "100%", height: HERO_HEIGHT, objectFit: "cover", objectPosition: "top", display: "block" }}
+                sx={{ width: "100%", aspectRatio: HERO_ASPECT_RATIO, objectFit: "cover", objectPosition: "top", display: "block" }}
               />
               <Box
                 sx={{
@@ -127,14 +135,16 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
         ) : (
           // Crest-based match hero (no single dominant photo) — the two team
           // crests carry the visual weight instead, on a brand-tinted band.
-          // minHeight matches the photo slide's HERO_HEIGHT so the card
-          // doesn't visibly shrink/grow as the carousel rotates between
-          // slide types (measured live: was jumping between ~349px and
-          // ~464px before this was pinned).
+          // Same aspect-ratio as the photo slide (rather than a fixed
+          // minHeight) so the card doesn't visibly shrink/grow as the
+          // carousel rotates between slide types (measured live: was
+          // jumping between ~349px and ~464px before this was pinned) —
+          // content taller than the ratio implies (e.g. a long title) can
+          // still grow the box, same as min-height would have allowed.
           <Box
             component={Link}
             href={`/article/${slide.slug}`}
-            sx={{ color: "inherit", textDecoration: "none", display: "flex", flexDirection: "column", minHeight: HERO_HEIGHT }}
+            sx={{ color: "inherit", textDecoration: "none", display: "flex", flexDirection: "column", aspectRatio: HERO_ASPECT_RATIO }}
           >
             {hasCrests && (
               <Stack
