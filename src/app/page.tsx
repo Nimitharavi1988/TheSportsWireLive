@@ -174,12 +174,32 @@ export default async function HomePage(
   // no extra queries) and show that real headline instead of a bare
   // nav-shortcut chip. Players with nothing recent are left out entirely,
   // since an empty card under a "Player News" heading would be confusing.
-  const playerNewsMatches = TRACKED_PLAYERS.map((player) => {
-    const match = articles.find((a) =>
+  const allPlayerNewsMatches = TRACKED_PLAYERS.map((player) => {
+    const articleIndex = articles.findIndex((a) =>
       player.searchTerms.some((term) => a.title.toLowerCase().includes(term.toLowerCase()))
     );
-    return match ? { player, article: match } : null;
-  }).filter((entry): entry is { player: (typeof TRACKED_PLAYERS)[number]; article: (typeof articles)[number] } => entry !== null);
+    return articleIndex === -1 ? null : { player, article: articles[articleIndex], articleIndex };
+  }).filter(
+    (entry): entry is { player: (typeof TRACKED_PLAYERS)[number]; article: (typeof articles)[number]; articleIndex: number } =>
+      entry !== null
+  );
+
+  // Capped, and sorted by how trending the matched article is (articles is
+  // already trending-sorted, so a lower articleIndex is a hotter story) —
+  // real production outage caused by this NOT being capped: TRACKED_PLAYERS
+  // has grown to 85 entries, 35 of which matched simultaneously on one real
+  // day's news (confirmed live), each triggering its own multi-step
+  // Wikipedia photo lookup in the same Promise.all below. That blew past
+  // Cloudflare Workers' per-request execution budget — reproduced
+  // consistently in production while working fine in unconstrained local
+  // dev, which is exactly the signature of a platform resource limit, not
+  // a code exception (fetchPersonPhoto already catches everything). This
+  // cap is both the fix and, incidentally, a real UX improvement — a
+  // horizontal strip of 35 avatars was never a reasonable display anyway.
+  const MAX_PLAYER_NEWS = 10;
+  const playerNewsMatches = allPlayerNewsMatches
+    .sort((a, b) => a.articleIndex - b.articleIndex)
+    .slice(0, MAX_PLAYER_NEWS);
 
   // Real Wikimedia photo per player, same source the player's own page uses
   // — previously this rail showed a generic colored-initials avatar even for
