@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { matchCountry } from "./ingestion/cricketCountries";
+import { isInternationalFormat } from "./ingestion/cricketCountries";
 
 // Cricket's ingestion (cricketData.ts) pulls "currentMatches" — matches
 // already underway, not fixed-future fixtures like football/NFL. Their
@@ -11,13 +11,16 @@ import { matchCountry } from "./ingestion/cricketCountries";
 // Real fan interest skews heavily toward international cricket (England vs
 // Pakistan, India vs Australia) over the many concurrent domestic franchise
 // matches (CPL, BBL, various T20 leagues) that otherwise flood this list and
-// bury the international game further down the carousel. matchCountry()
-// (cricketCountries.ts) is the same exact-match-against-a-curated-list check
-// already used for national flags, so "international" here can't be fooled
-// by a franchise name that happens to look like a country (e.g. "Barbados
-// Tridents").
-function isInternationalMatch(homeTeam: string | null, awayTeam: string | null): boolean {
-  return !!homeTeam && !!awayTeam && !!matchCountry(homeTeam) && !!matchCountry(awayTeam);
+// bury the international game further down the carousel. Uses
+// isInternationalFormat (title terminology: T20I/ODI/Test) rather than
+// matchCountry (cricketCountries.ts) — matchCountry is deliberately curated
+// for flag-display safety and excludes Afghanistan (politically contested
+// flag) and West Indies (no single national flag), which would silently
+// misclassify a real India vs Afghanistan international as "domestic" and
+// bury it. Format terminology has no such gap: only genuine internationals
+// are ever labeled T20I/ODI/Test.
+function isInternationalMatch(title: string): boolean {
+  return isInternationalFormat(title);
 }
 
 // A match still genuinely live in CricketData.org's currentMatches feed gets
@@ -35,19 +38,26 @@ const LIVE_STALENESS_CUTOFF_MS = 90 * 60 * 1000;
 // International-first, stable within each half (not a re-sort by date) —
 // international matches keep their existing order, just moved ahead of every
 // domestic match rather than interleaved with them.
-function internationalFirst<T extends { homeTeam: string | null; awayTeam: string | null }>(matches: T[]): T[] {
-  const international = matches.filter((m) => isInternationalMatch(m.homeTeam, m.awayTeam));
-  const domestic = matches.filter((m) => !isInternationalMatch(m.homeTeam, m.awayTeam));
+function internationalFirst<T extends { title: string }>(matches: T[]): T[] {
+  const international = matches.filter((m) => isInternationalMatch(m.title));
+  const domestic = matches.filter((m) => !isInternationalMatch(m.title));
   return [...international, ...domestic];
 }
 
 // Recent finished results stay useful (a Test's result is worth showing for
-// a while after it ends) without accumulating forever — 3 days comfortably
-// covers a multi-day Test plus a day or two of "who won" relevance.
+// a while after it ends) without accumulating forever — 3 days of
+// post-finish relevance. Deliberately measured from updatedAt (when we last
+// touched the row, i.e. roughly when it was detected as finished), not
+// kickoffAt (when it started) — a multi-day Test can easily run 4-5 days
+// past its kickoff, so a kickoffAt-based cutoff was excluding exactly the
+// international Tests it's meant to highlight right at the moment they
+// finished. Confirmed live: an England vs Pakistan 3rd Test correctly
+// flipped to "finished" but had already aged out of a kickoffAt-based
+// window by the time it did.
 const RESULT_LOOKBACK_MS = 3 * 24 * 60 * 60 * 1000;
 
 const SELECT = {
-  id: true, slug: true, summary: true,
+  id: true, slug: true, title: true, summary: true,
   homeTeam: true, awayTeam: true, homeCrestUrl: true, awayCrestUrl: true,
   homeScoreText: true, awayScoreText: true, kickoffAt: true,
 } as const;
@@ -80,7 +90,7 @@ export async function fetchLiveCricketMatches(take: number) {
         status: "published",
         category: { startsWith: "cricket" },
         matchStatus: "finished",
-        kickoffAt: { gt: new Date(now.getTime() - RESULT_LOOKBACK_MS) },
+        updatedAt: { gt: new Date(now.getTime() - RESULT_LOOKBACK_MS) },
       },
       orderBy: { kickoffAt: "desc" },
       take,
