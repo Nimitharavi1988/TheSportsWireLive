@@ -24,6 +24,8 @@ import { HeroCarousel } from "@/components/HeroCarousel";
 import { ArticleThumb } from "@/components/ArticleThumb";
 import { fetchPersonPhoto } from "@/lib/ingestion/wikimediaImages";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
+import { LiveScorecard } from "@/components/LiveScorecard";
+import { fetchLiveCricketMatches } from "@/lib/liveCricket";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import StarIcon from "@mui/icons-material/Star";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
@@ -124,7 +126,7 @@ export default async function HomePage(
   // decision was silently getting overridden by a score cutoff instead of
   // actually taking priority. Capped at 5 (the same cap `featureArticle`
   // itself enforces), so this can never balloon the query.
-  const [articlesRanked, manuallyFeaturedRaw] = await Promise.all([
+  const [articlesRanked, manuallyFeaturedRaw, liveCricketMatches] = await Promise.all([
     db.article.findMany({
       where: articleWhere,
       orderBy: [{ trendingScore: "desc" }, { publishedAt: "desc" }],
@@ -135,6 +137,10 @@ export default async function HomePage(
       orderBy: { featuredAt: "desc" },
       take: 5,
     }),
+    // Capped small (2) — this is a compact sidebar module, not the full
+    // /scores page. Only fetched here regardless of category filter, since
+    // "live right now" is worth surfacing even when browsing football/NFL.
+    fetchLiveCricketMatches(2),
   ]);
   const rankedIds = new Set(articlesRanked.map((a) => a.id));
   const articles = [...manuallyFeaturedRaw.filter((a) => !rankedIds.has(a.id)), ...articlesRanked];
@@ -330,7 +336,7 @@ export default async function HomePage(
           alignItems: "start",
         }}
       >
-        {((standings && standings.rows.length > 0) || categoryTiles.length > 0 || justIn.length > 0 || PLAYER_QUOTES.length > 0) && (
+        {(liveCricketMatches.length > 0 || (standings && standings.rows.length > 0) || categoryTiles.length > 0 || justIn.length > 0 || PLAYER_QUOTES.length > 0) && (
           <Box
             component="aside"
             sx={{
@@ -355,6 +361,14 @@ export default async function HomePage(
               // fine fallback.
             }}
           >
+            {liveCricketMatches.length > 0 && (
+              <Stack spacing={1.25} sx={{ mb: 3 }}>
+                {liveCricketMatches.map((match) => (
+                  <LiveScorecard key={match.id} match={match} compact />
+                ))}
+              </Stack>
+            )}
+
             {standings && standings.rows.length > 0 && (
               <Box sx={{ mb: 3 }}>
                 <StandingsCarousel leagues={STANDINGS_LEAGUES} initialCode="PL" initialTable={standings} />
