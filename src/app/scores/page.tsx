@@ -13,11 +13,16 @@ import SportsScoreIcon from "@mui/icons-material/SportsScore";
 
 export const revalidate = 300;
 
+// Rugby/Athletics deliberately excluded — news-only categories with no
+// structured match data (no kickoffAt/score fields to filter by here at
+// all), same reasoning as everywhere else those two are scoped out.
 const SPORT_FILTERS = [
   { label: "All", category: null },
   { label: "Football", category: "football" },
   { label: "Cricket", category: "cricket" },
   { label: "NFL", category: "american-football" },
+  { label: "NBA", category: "basketball" },
+  { label: "MLB", category: "baseball" },
 ];
 
 export const metadata = { title: "Scores & Fixtures", alternates: { canonical: "/scores" } };
@@ -145,7 +150,7 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
         <Typography variant="h4">Scores & Fixtures</Typography>
       </Stack>
       <Typography variant="body1" sx={{ color: "text.secondary", mb: 3 }}>
-        Recent results and upcoming fixtures across football, cricket, and NFL.
+        Recent results and upcoming fixtures across football, cricket, NFL, NBA, and MLB.
       </Typography>
 
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 3 }}>
