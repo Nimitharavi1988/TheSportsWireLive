@@ -20,6 +20,18 @@ function isInternationalMatch(homeTeam: string | null, awayTeam: string | null):
   return !!homeTeam && !!awayTeam && !!matchCountry(homeTeam) && !!matchCountry(awayTeam);
 }
 
+// A match still genuinely live in CricketData.org's currentMatches feed gets
+// touched every ~15-min poll (see runIngest.ts's duplicate-handling branch).
+// Once a match actually finishes, CricketData.org typically stops returning
+// it as "current" at all — so its row here just stops being touched forever,
+// with no explicit "finished" signal we can rely on. Without this cutoff, a
+// long-finished match sat stuck showing a score hours (in one confirmed
+// case, 8+) out of date. 90 minutes is a generous multiple of the 15-min
+// poll interval — enough to absorb a missed cron tick or two without
+// mistaking a genuinely live match (which should update every cycle, even
+// during a lunch/rain break) for a stale one.
+const LIVE_STALENESS_CUTOFF_MS = 90 * 60 * 1000;
+
 export async function fetchLiveCricketMatches(take: number) {
   const matches = await db.article.findMany({
     where: {
@@ -27,6 +39,7 @@ export async function fetchLiveCricketMatches(take: number) {
       category: { startsWith: "cricket" },
       matchStatus: "scheduled",
       kickoffAt: { lt: new Date() },
+      updatedAt: { gt: new Date(Date.now() - LIVE_STALENESS_CUTOFF_MS) },
     },
     orderBy: { kickoffAt: "desc" },
     take,

@@ -225,6 +225,30 @@ export async function runIngest() {
 
     if (existing) {
       duplicates++;
+
+      // CricketData.org match titles ("England vs Pakistan, 1st Test") don't
+      // embed the score the way football/NFL titles do (e.g. "Team A 1-2
+      // Team B"), so the SAME live match hashes identically on every 15-min
+      // poll and is always treated as a duplicate below — meaning its score/
+      // status were previously only ever written once, at article creation,
+      // then silently frozen forever even while the match was genuinely
+      // still live. Confirmed live: an England vs Pakistan Test sat stuck at
+      // "119/9 (31.4)" for 8+ hours after its real score had moved on.
+      // Refresh only the live-score fields here, not body/summary — those
+      // may already hold a nicer one-time AI-generated recap
+      // (generateMatchRecap, see below) that a raw template overwrite would
+      // regress.
+      if (item.sourceName === "CricketData.org") {
+        await db.article.update({
+          where: { id: existing.id },
+          data: {
+            matchStatus: item.matchStatus,
+            homeScoreText: item.homeScoreText,
+            awayScoreText: item.awayScoreText,
+          },
+        });
+      }
+
       // Only RSS items can be missing a body this way — match-data items
       // (football-data.org/CricketData.org) always get one at creation.
       // Player-news items (knownPersonName set — see playerNewsFeeds.ts)
