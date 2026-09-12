@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { isMatchDataSource } from "@/lib/matchDataSources";
 import { postArticleToFacebook } from "@/lib/social/facebook";
 import { HERO_CAP, sectionOf } from "@/lib/heroConfig";
 import { submitToIndexNow, articleUrl } from "@/lib/indexNow";
@@ -177,6 +178,14 @@ export async function unfeatureArticle(articleId: string) {
 export async function highlightArticle(articleId: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
+
+  // A raw auto-generated scoreline ("Yankees 6-4 Mets") isn't "big news" —
+  // "📌 Editor's pick" is meant for genuinely notable curated stories.
+  // Enforced server-side (not just hidden in the UI) so this can't drift.
+  const article = await db.article.findUnique({ where: { id: articleId }, select: { sourceName: true } });
+  if (article && isMatchDataSource(article.sourceName)) {
+    throw new Error("Match-data results can't be highlighted as Editor's pick — that's for editorial stories.");
+  }
 
   await db.article.update({ where: { id: articleId }, data: { highlighted: true, highlightedAt: new Date() } });
 

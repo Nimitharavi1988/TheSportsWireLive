@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { isMatchDataSource } from "@/lib/matchDataSources";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
@@ -201,9 +202,14 @@ export function ArticleQueueClient({
                   <Button type="submit" variant="outlined" color="warning">Remove highlight</Button>
                 </form>
               ) : (
-                <form action={highlightArticle.bind(null, article.id)}>
-                  <Button type="submit" variant="outlined" color="warning">Highlight (transfers/big news)</Button>
-                </form>
+                // Raw match-data results (a scoreline, not a story) can't be
+                // highlighted — enforced server-side in the action too; this
+                // just avoids a dead-end click that would fail.
+                !isMatchDataSource(article.sourceName) && (
+                  <form action={highlightArticle.bind(null, article.id)}>
+                    <Button type="submit" variant="outlined" color="warning">Highlight (transfers/big news)</Button>
+                  </form>
+                )
               )}
             </CardActions>
           </Card>
@@ -283,9 +289,11 @@ export function ArticleQueueClient({
                   <Button type="submit" variant="outlined" color="warning">Remove highlight</Button>
                 </form>
               ) : (
-                <form action={highlightArticle.bind(null, detailArticle.id)}>
-                  <Button type="submit" variant="outlined" color="warning">Highlight</Button>
-                </form>
+                !isMatchDataSource(detailArticle.sourceName) && (
+                  <form action={highlightArticle.bind(null, detailArticle.id)}>
+                    <Button type="submit" variant="outlined" color="warning">Highlight</Button>
+                  </form>
+                )
               )}
               {detailArticle.featured ? (
                 <form action={unfeatureArticle.bind(null, detailArticle.id)}>

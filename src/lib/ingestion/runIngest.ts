@@ -16,6 +16,7 @@ import { generateCommentary, generateMatchRecap } from "./commentary";
 import { extractArticleContent } from "./articleTextExtractor";
 import { fetchPersonPhoto, sportSearchHint } from "./wikimediaImages";
 import { competitionFromSummary } from "../teamNames";
+import { isMatchDataSource } from "../matchDataSources";
 
 // Prefers a source-provided stable id (see RawMatchItem.dedupeKey) over the
 // title+date hash, since a title embedding a mutable date (e.g. NFL preview
@@ -77,16 +78,8 @@ const MAX_RSS_ITEM_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 // football-data.org/CricketData.org/ESPN NFL items always arrive with `body`
 // already set to a template built from real match facts (see footballData.ts
 // / cricketData.ts / nflData.ts) — that's the discriminator from RSS items,
-// which only ever set `sourceSnippet`.
-function isMatchDataSource(sourceName: string): boolean {
-  return (
-    sourceName === "football-data.org" ||
-    sourceName === "CricketData.org" ||
-    sourceName === "ESPN NFL" ||
-    sourceName === "MLB Stats API" ||
-    sourceName === "ESPN NBA"
-  );
-}
+// which only ever set `sourceSnippet`. Shared with the admin highlight
+// action — see matchDataSources.ts.
 
 // Below this, a feed's own snippet is too thin to write a real piece from —
 // confirmed pattern across BBC/Guardian/Sky-style feeds, whose descriptions
