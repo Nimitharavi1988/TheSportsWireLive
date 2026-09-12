@@ -164,7 +164,7 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
       {cricketInProgress.length > 0 && (
         <>
           <Typography variant="h6" sx={{ mb: 1.5 }}>
-            Cricket — In Progress
+            Cricket
           </Typography>
           <Stack spacing={1.5} sx={{ mb: 4 }}>
             {cricketInProgress.map((match) => (

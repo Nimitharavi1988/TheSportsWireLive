@@ -14,6 +14,8 @@ export interface LiveMatchRow {
   awayCrestUrl: string | null;
   homeScoreText: string | null;
   awayScoreText: string | null;
+  kickoffAt: Date | null;
+  isLive: boolean;
 }
 
 function TeamRow({ crest, name, scoreText, compact }: { crest: string | null; name: string | null; scoreText: string | null; compact: boolean }) {
@@ -60,19 +62,27 @@ export function LiveScorecard({ match, compact = false }: { match: LiveMatchRow;
         }}
       >
         <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: compact ? 1 : 1.25 }}>
-          <Box
-            sx={{
-              width: 7,
-              height: 7,
-              borderRadius: "50%",
-              bgcolor: "#d32f2f",
-              animation: "sw-live-pulse 1.5s ease-in-out infinite",
-              "@keyframes sw-live-pulse": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.3 } },
-            }}
-          />
-          <Typography variant="caption" sx={{ color: "#d32f2f", fontWeight: 700, letterSpacing: "0.05em" }}>
-            LIVE
-          </Typography>
+          {match.isLive ? (
+            <>
+              <Box
+                sx={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  bgcolor: "#d32f2f",
+                  animation: "sw-live-pulse 1.5s ease-in-out infinite",
+                  "@keyframes sw-live-pulse": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.3 } },
+                }}
+              />
+              <Typography variant="caption" sx={{ color: "#d32f2f", fontWeight: 700, letterSpacing: "0.05em" }}>
+                LIVE
+              </Typography>
+            </>
+          ) : (
+            <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 700, letterSpacing: "0.05em" }}>
+              UPCOMING{match.kickoffAt ? ` · ${match.kickoffAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
+            </Typography>
+          )}
         </Stack>
         <Stack spacing={compact ? 0.5 : 0.75} sx={{ mb: compact ? 1 : 1.25 }}>
           <TeamRow crest={match.homeCrestUrl} name={match.homeTeam} scoreText={match.homeScoreText} compact={compact} />

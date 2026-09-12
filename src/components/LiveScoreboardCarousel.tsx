@@ -72,7 +72,7 @@ export function LiveScoreboardCarousel({ matches }: { matches: LiveMatchRow[] })
           <SportsCricketIcon sx={{ opacity: 0.85, fontSize: 18 }} />
           <Box sx={{ minWidth: 0 }}>
             <Typography noWrap sx={{ fontWeight: 700, lineHeight: 1.2, fontSize: 14 }}>
-              Live Cricket
+              {current.isLive ? "Live Cricket" : "Cricket"}
             </Typography>
             <Typography sx={{ opacity: 0.75, fontSize: 10.5 }}>
               {index + 1} of {matches.length}
@@ -93,19 +93,27 @@ export function LiveScoreboardCarousel({ matches }: { matches: LiveMatchRow[] })
       <Link href={`/article/${current.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
         <Box sx={{ p: 1.5, "&:hover": { bgcolor: "action.hover" } }}>
           <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 1 }}>
-            <Box
-              sx={{
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                bgcolor: "#d32f2f",
-                animation: "sw-live-pulse 1.5s ease-in-out infinite",
-                "@keyframes sw-live-pulse": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.3 } },
-              }}
-            />
-            <Typography variant="caption" sx={{ color: "#d32f2f", fontWeight: 700, letterSpacing: "0.05em" }}>
-              LIVE
-            </Typography>
+            {current.isLive ? (
+              <>
+                <Box
+                  sx={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: "50%",
+                    bgcolor: "#d32f2f",
+                    animation: "sw-live-pulse 1.5s ease-in-out infinite",
+                    "@keyframes sw-live-pulse": { "0%, 100%": { opacity: 1 }, "50%": { opacity: 0.3 } },
+                  }}
+                />
+                <Typography variant="caption" sx={{ color: "#d32f2f", fontWeight: 700, letterSpacing: "0.05em" }}>
+                  LIVE
+                </Typography>
+              </>
+            ) : (
+              <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 700, letterSpacing: "0.05em" }}>
+                UPCOMING{current.kickoffAt ? ` · ${current.kickoffAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
+              </Typography>
+            )}
           </Stack>
           <Stack spacing={0.5} sx={{ mb: 1 }}>
             <TeamRow crest={current.homeCrestUrl} name={current.homeTeam} scoreText={current.homeScoreText} />
