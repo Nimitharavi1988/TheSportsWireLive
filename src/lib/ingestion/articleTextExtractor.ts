@@ -1,26 +1,37 @@
 /**
  * Fetches ONE specific, already-known article page (its URL always comes
  * from an RSS entry or a Google News search hit we already have — never
- * discovered by crawling) and extracts just its main readable text, for use
- * as PRIVATE grounding input to commentary.ts's Gemini rewrite. The
- * extracted text itself is never stored or rendered anywhere — only
- * Gemini's original rewritten prose becomes an article's `body`, same
- * discipline already applied to RSS `sourceSnippet` everywhere else in this
- * pipeline (see commentary.ts's header comment).
+ * discovered by crawling) and extracts (a) its main readable text, for use
+ * as PRIVATE grounding input to commentary.ts's Gemini rewrite, and (b) the
+ * publisher's own og:image, for use as the article's real, story-specific
+ * heroImageUrl. Different governance for the two: the TEXT is never stored
+ * or rendered anywhere — only Gemini's original rewritten prose becomes an
+ * article's `body`, same discipline already applied to RSS `sourceSnippet`
+ * everywhere else in this pipeline (see commentary.ts's header comment).
+ * The IMAGE, by contrast, is meant to be shown, same as every other
+ * publisher-provided image on this site — og:image exists specifically so a
+ * publisher controls how their story looks when displayed by someone else
+ * (a social share, an aggregator), the exact same category of signal as the
+ * media:content/media:thumbnail RSS fields rssFeeds.ts already extracts,
+ * just discovered via meta tag instead of RSS for sources whose feed
+ * doesn't carry one (confirmed live: Google News' RSS carries zero image
+ * data at all — a bare headline link, nothing else).
  *
  * Built specifically for two thin-content cases:
  *  - Player-news items (playerNewsFeeds.ts): Google News' RSS "snippet" for
  *    these is confirmed to be just the headline repeated verbatim — no real
- *    facts to ground a rewrite on, so these previously got no body at all.
+ *    facts to ground a rewrite on, so these previously got no body at all,
+ *    and (separately) no way to escape the same one static Wikipedia photo
+ *    on every single article about that person.
  *  - Any RSS item whose own feed-provided snippet is too short to write a
  *    real piece from.
  *
  * Deliberately NOT a general crawler: one page per already-identified
  * article, capped by the same commentary budget as everything else,
  * robots.txt-checked first, and never attempting to bypass a paywall — a
- * blocked or unextractable page just means no grounding text, which the
- * caller treats the same as if this module didn't exist (fall back to
- * whatever thin snippet is available, or no body).
+ * blocked or unextractable page just means no grounding text/image, which
+ * the caller treats the same as if this module didn't exist (fall back to
+ * whatever thin snippet/generic photo is otherwise available).
  */
 import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
@@ -111,7 +122,27 @@ export async function robotsAllows(url: string): Promise<boolean> {
   return bestMatch ? bestMatch.allow : true;
 }
 
-export async function extractArticleText(url: string): Promise<string | null> {
+export interface ArticleExtraction {
+  text: string;
+  imageUrl?: string;
+}
+
+// og:image first — the standard, deliberate "this is how my page should
+// look when shared" signal. twitter:image as a fallback for the rare page
+// that sets one but not the other. Absolute URLs only — a relative path
+// would need the page's own origin resolved in, and a malformed or
+// data:-URI value here isn't worth the extra code to handle when simply
+// skipping it (falls back to the generic photo, no different from a page
+// with no image meta tags at all) is just as safe.
+function extractOgImage(doc: Document): string | undefined {
+  const og = doc.querySelector('meta[property="og:image"]')?.getAttribute("content");
+  if (og && /^https?:\/\//.test(og)) return og;
+  const twitter = doc.querySelector('meta[name="twitter:image"]')?.getAttribute("content");
+  if (twitter && /^https?:\/\//.test(twitter)) return twitter;
+  return undefined;
+}
+
+export async function extractArticleContent(url: string): Promise<ArticleExtraction | null> {
   try {
     if (!(await robotsAllows(url))) return null;
 
@@ -123,13 +154,14 @@ export async function extractArticleText(url: string): Promise<string | null> {
 
     const html = await res.text();
     const dom = new JSDOM(html, { url });
-    const article = new Readability(dom.window.document).parse();
+    const document = dom.window.document;
+    const article = new Readability(document).parse();
     const text = article?.textContent?.trim();
     if (!text || text.length < 100) return null;
 
-    return text.slice(0, MAX_EXTRACT_CHARS);
+    return { text: text.slice(0, MAX_EXTRACT_CHARS), imageUrl: extractOgImage(document) };
   } catch (err) {
-    console.error(`Article text extraction failed for "${url}":`, err);
+    console.error(`Article content extraction failed for "${url}":`, err);
     return null;
   }
 }

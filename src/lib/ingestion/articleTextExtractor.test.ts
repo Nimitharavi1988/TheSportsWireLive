@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { robotsAllows, extractArticleText } from "./articleTextExtractor";
+import { robotsAllows, extractArticleContent } from "./articleTextExtractor";
 
 function textResponse(body: string, ok = true, contentType = "text/plain") {
   return { ok, status: ok ? 200 : 404, headers: { get: () => contentType }, text: async () => body };
@@ -57,7 +57,7 @@ describe("robotsAllows", () => {
   });
 });
 
-describe("extractArticleText", () => {
+describe("extractArticleContent", () => {
   it("extracts the main readable text from a real article page", async () => {
     vi.stubGlobal(
       "fetch",
@@ -67,10 +67,74 @@ describe("extractArticleText", () => {
       })
     );
 
-    const text = await extractArticleText("https://example.com/sport/story-1");
-    expect(text).not.toBeNull();
-    expect(text).toContain("real sentence about a cricket match");
-    expect(text).not.toContain("Login");
+    const result = await extractArticleContent("https://example.com/sport/story-1");
+    expect(result).not.toBeNull();
+    expect(result!.text).toContain("real sentence about a cricket match");
+    expect(result!.text).not.toContain("Login");
+  });
+
+  it("extracts the publisher's og:image", async () => {
+    const htmlWithImage = ARTICLE_HTML.replace(
+      "<head><title>Real headline</title></head>",
+      '<head><title>Real headline</title><meta property="og:image" content="https://example.com/photos/story-1.jpg"></head>'
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.endsWith("/robots.txt")) return textResponse("", false);
+        return htmlResponse(htmlWithImage);
+      })
+    );
+
+    const result = await extractArticleContent("https://example.com/sport/story-1");
+    expect(result?.imageUrl).toBe("https://example.com/photos/story-1.jpg");
+  });
+
+  it("falls back to twitter:image when there's no og:image", async () => {
+    const htmlWithImage = ARTICLE_HTML.replace(
+      "<head><title>Real headline</title></head>",
+      '<head><title>Real headline</title><meta name="twitter:image" content="https://example.com/photos/tw.jpg"></head>'
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.endsWith("/robots.txt")) return textResponse("", false);
+        return htmlResponse(htmlWithImage);
+      })
+    );
+
+    const result = await extractArticleContent("https://example.com/sport/story-1");
+    expect(result?.imageUrl).toBe("https://example.com/photos/tw.jpg");
+  });
+
+  it("leaves imageUrl undefined when the page has no image meta tags", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.endsWith("/robots.txt")) return textResponse("", false);
+        return htmlResponse(ARTICLE_HTML);
+      })
+    );
+
+    const result = await extractArticleContent("https://example.com/sport/story-1");
+    expect(result?.imageUrl).toBeUndefined();
+  });
+
+  it("ignores a non-absolute og:image value", async () => {
+    const htmlWithImage = ARTICLE_HTML.replace(
+      "<head><title>Real headline</title></head>",
+      '<head><title>Real headline</title><meta property="og:image" content="/relative/path.jpg"></head>'
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.endsWith("/robots.txt")) return textResponse("", false);
+        return htmlResponse(htmlWithImage);
+      })
+    );
+
+    const result = await extractArticleContent("https://example.com/sport/story-1");
+    expect(result?.imageUrl).toBeUndefined();
   });
 
   it("returns null when robots.txt disallows the path", async () => {
@@ -82,7 +146,7 @@ describe("extractArticleText", () => {
       })
     );
 
-    expect(await extractArticleText("https://example.com/sport/story-1")).toBeNull();
+    expect(await extractArticleContent("https://example.com/sport/story-1")).toBeNull();
   });
 
   it("returns null when the page fetch fails", async () => {
@@ -94,7 +158,7 @@ describe("extractArticleText", () => {
       })
     );
 
-    expect(await extractArticleText("https://example.com/sport/story-1")).toBeNull();
+    expect(await extractArticleContent("https://example.com/sport/story-1")).toBeNull();
   });
 
   it("returns null for a non-HTML response", async () => {
@@ -106,7 +170,7 @@ describe("extractArticleText", () => {
       })
     );
 
-    expect(await extractArticleText("https://example.com/sport/story-1.pdf")).toBeNull();
+    expect(await extractArticleContent("https://example.com/sport/story-1.pdf")).toBeNull();
   });
 
   it("returns null when there's too little extractable content", async () => {
@@ -118,6 +182,6 @@ describe("extractArticleText", () => {
       })
     );
 
-    expect(await extractArticleText("https://example.com/sport/story-1")).toBeNull();
+    expect(await extractArticleContent("https://example.com/sport/story-1")).toBeNull();
   });
 });

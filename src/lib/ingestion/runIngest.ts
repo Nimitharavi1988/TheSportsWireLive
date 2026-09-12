@@ -11,7 +11,7 @@ import { runQualityChecks } from "./qualityCheck";
 import { fetchTrendingKeywords, computeTrendingScore } from "./trending";
 import { fetchStockImagePools, createStockImagePicker } from "./stockImages";
 import { generateCommentary, generateMatchRecap } from "./commentary";
-import { extractArticleText } from "./articleTextExtractor";
+import { extractArticleContent } from "./articleTextExtractor";
 import { fetchPersonPhoto, sportSearchHint } from "./wikimediaImages";
 import { competitionFromSummary } from "../teamNames";
 
@@ -86,9 +86,19 @@ function isMatchDataSource(sourceName: string): boolean {
 // extraction fallback rather than accepting a near-empty grounding input.
 const THIN_SNIPPET_THRESHOLD = 200;
 
-// Resolves the best available grounding text for a Gemini commentary call —
-// never stored, only ever used in-memory for that one call (see
-// articleTextExtractor.ts's header comment for the full reasoning).
+interface Grounding {
+  text: string;
+  // Real, story-specific photo pulled from the article page's own og:image
+  // (see articleTextExtractor.ts) — only present when page extraction ran
+  // at all, i.e. only for the thin-snippet path below.
+  imageUrl?: string;
+}
+
+// Resolves the best available grounding text (and, incidentally, a real
+// per-story image) for a Gemini commentary call. The text is never stored,
+// only ever used in-memory for that one call (see articleTextExtractor.ts's
+// header comment for the full reasoning) — the image, by contrast, IS meant
+// to be stored/shown, same as any other publisher-provided image.
 //
 // Driven purely by snippet quality, not by source — Google News search
 // results (playerNewsFeeds.ts) always fall through to page extraction
@@ -97,11 +107,12 @@ const THIN_SNIPPET_THRESHOLD = 200;
 // too AND a real snippet, so it should use that directly rather than making
 // an unnecessary extra fetch. Every other feed's own snippet is used when
 // substantive, and only falls back to page extraction when it's too thin.
-async function resolveGroundingText(item: RawMatchItem): Promise<string | null> {
+async function resolveGrounding(item: RawMatchItem): Promise<Grounding | null> {
   const snippet = item.sourceSnippet?.trim();
-  if (snippet && snippet.length >= THIN_SNIPPET_THRESHOLD) return snippet;
-  const extracted = await extractArticleText(item.sourceUrl);
-  return extracted ?? snippet ?? null;
+  if (snippet && snippet.length >= THIN_SNIPPET_THRESHOLD) return { text: snippet };
+  const extracted = await extractArticleContent(item.sourceUrl);
+  if (extracted) return { text: extracted.text, imageUrl: extracted.imageUrl };
+  return snippet ? { text: snippet } : null;
 }
 
 // Optional cap on how many new (non-duplicate) items to ingest in this run —
@@ -219,32 +230,42 @@ export async function runIngest() {
       // Player-news items (knownPersonName set — see playerNewsFeeds.ts)
       // used to be excluded here outright, since Google News' RSS snippet
       // for these is just the headline repeated verbatim — now handled by
-      // resolveGroundingText falling back to a real page-text extraction
-      // (articleTextExtractor.ts) instead of skipping them.
+      // resolveGrounding falling back to a real page-text (and image)
+      // extraction (articleTextExtractor.ts) instead of skipping them.
       if (existing.body === null && !isMatchDataSource(item.sourceName) && canAffordCommentary(item.category)) {
-        const grounding = await resolveGroundingText(item);
+        const grounding = await resolveGrounding(item);
         if (grounding) {
           recordCommentaryCall(item.category);
-          const { commentary, personNames } = await generateCommentary(item.title, grounding, item.sourceName);
+          const { commentary, personNames } = await generateCommentary(item.title, grounding.text, item.sourceName);
           await sleep(COMMENTARY_DELAY_MS);
 
           if (commentary) {
-            let heroImageUpdate = {};
+            let heroImageUpdate: { heroImageUrl?: string; heroImageCredit?: string; heroImageCreditUrl?: string } = {};
             if (!existing.heroImageUrl && !item.heroImageUrl) {
-              for (const personName of personNames) {
-                const personPhoto = await fetchPersonPhoto(personName, sportSearchHint(item.category));
-                if (personPhoto) {
-                  heroImageUpdate = {
-                    heroImageUrl: personPhoto.url,
-                    heroImageCredit: personPhoto.credit,
-                    heroImageCreditUrl: personPhoto.creditUrl,
-                  };
-                  break;
+              // Real per-story image from the article page itself takes
+              // priority over the generic per-person Wikipedia photo — the
+              // exact fix for every article about the same person
+              // otherwise showing the identical photo (see
+              // articleTextExtractor.ts's header comment).
+              if (grounding.imageUrl) {
+                heroImageUpdate = { heroImageUrl: grounding.imageUrl, heroImageCredit: `Photo via ${item.sourceName}` };
+              } else {
+                for (const personName of personNames) {
+                  const personPhoto = await fetchPersonPhoto(personName, sportSearchHint(item.category));
+                  if (personPhoto) {
+                    heroImageUpdate = {
+                      heroImageUrl: personPhoto.url,
+                      heroImageCredit: personPhoto.credit,
+                      heroImageCreditUrl: personPhoto.creditUrl,
+                    };
+                    break;
+                  }
                 }
               }
             }
             await db.article.update({ where: { id: existing.id }, data: { body: commentary, ...heroImageUpdate } });
             existing.body = commentary; // avoid reprocessing if the same story appears twice in this run
+            existing.heroImageUrl = heroImageUpdate.heroImageUrl ?? existing.heroImageUrl;
             backfilled++;
           }
         }
@@ -316,24 +337,25 @@ export async function runIngest() {
       await sleep(COMMENTARY_DELAY_MS);
     } else if (!body && canAffordCommentary(item.category)) {
       // knownPersonName (player-news) items used to be excluded here
-      // outright — see resolveGroundingText's comment for why they're now
+      // outright — see resolveGrounding's comment for why they're now
       // routed through page-text extraction instead of being skipped.
-      const grounding = await resolveGroundingText(item);
+      const grounding = await resolveGrounding(item);
       if (grounding) {
         recordCommentaryCall(item.category);
-        const { commentary, personNames } = await generateCommentary(item.title, grounding, item.sourceName);
+        const { commentary, personNames } = await generateCommentary(item.title, grounding.text, item.sourceName);
         if (commentary) body = commentary;
         await sleep(COMMENTARY_DELAY_MS);
 
-        // Prefer a real photo of the actual person (or co-central people) the
-        // story is about over the generic category stock photo — but only
-        // when the RSS feed itself didn't already give us a real photo for
-        // this exact story, which is even more specific than a generic
-        // Wikimedia portrait of the person, AND only when knownPersonName
-        // didn't already resolve this above (it always did for player-news
-        // items — see the stockImage assignment above — so this loop is a
-        // no-op for them in practice, same as before).
-        if (!item.heroImageUrl && !item.knownPersonName) {
+        // Real per-story image from the article page itself takes priority
+        // over the generic per-person Wikipedia photo already set in
+        // stockImage above (the fetchPersonPhoto call near the top of this
+        // loop) — the exact fix for every player-news article about the
+        // same person otherwise showing the identical photo. Only when the
+        // RSS feed itself didn't already give us a real photo for this
+        // exact story, which is even more specific than either.
+        if (!item.heroImageUrl && grounding.imageUrl) {
+          stockImage = { url: grounding.imageUrl, credit: `Photo via ${item.sourceName}`, creditUrl: item.sourceUrl };
+        } else if (!item.heroImageUrl && !item.knownPersonName) {
           for (const personName of personNames) {
             const personPhoto = await fetchPersonPhoto(personName, sportSearchHint(item.category));
             if (personPhoto) {

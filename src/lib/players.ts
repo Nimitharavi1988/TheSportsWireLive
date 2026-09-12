@@ -107,6 +107,10 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   // him on India's XI selection, ex-captain, currently a selector/mentor —
   // recurring source of real headlines with no tracking at all.
   { slug: "ajinkya-rahane", name: "Ajinkya Rahane", searchTerms: ["Rahane"], sport: "cricket", cricinfoPlayerId: 277916 },
+  // Real gap (2026-09-12): India's current white-ball captain, already
+  // appearing in real headlines ("Shreyas Iyer on tough start to
+  // captaincy") with zero tracking — arguably a bigger miss than Rahane.
+  { slug: "shreyas-iyer", name: "Shreyas Iyer", searchTerms: ["Shreyas Iyer"], sport: "cricket", cricinfoPlayerId: 642519 },
   // Cricket — legends (previously missing entirely — football had 6
   // legends tracked, cricket had none)
   { slug: "sachin-tendulkar", name: "Sachin Tendulkar", searchTerms: ["Tendulkar"], sport: "cricket", cricinfoPlayerId: 35320 },
