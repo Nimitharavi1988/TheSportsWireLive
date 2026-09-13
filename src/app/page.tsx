@@ -600,8 +600,15 @@ export default async function HomePage(
             without it, the Star Players horizontal-scroll strip's intrinsic
             content width pushes this whole column (and the page) wider
             instead of scrolling inside its own box, a classic CSS Grid trap. */}
-        <Box component="main" sx={{ gridColumn: { xs: "1 / -1", md: "1", lg: "2" }, minWidth: 0 }}>
-          {heroSlides.length > 0 && (
+        {/* Split out from <main> below so it can carry its own mobile
+            `order` — the hero is the site's first impression and needs to
+            render immediately after the nav on mobile, ahead of the Live
+            Cricket sidebar block (order -1) which itself needs to beat
+            everything else in <main> (order 0, thousands of pixels down
+            otherwise). Same gridColumn as <main> below so desktop/tablet
+            layout is unaffected. */}
+        {heroSlides.length > 0 && (
+          <Box sx={{ gridColumn: { xs: "1 / -1", md: "1", lg: "2" }, order: { xs: -2, md: 0 }, minWidth: 0 }}>
             <HeroCarousel
               slides={heroSlides.map(({ article, banner }) => ({
                 slug: article.slug,
@@ -615,8 +622,10 @@ export default async function HomePage(
                 bannerCreditUrl: banner?.creditUrl ?? null,
               }))}
             />
-          )}
+          </Box>
+        )}
 
+        <Box component="main" sx={{ gridColumn: { xs: "1 / -1", md: "1", lg: "2" }, minWidth: 0 }}>
           {activeSeriesRow?.seriesKey && (
             <Link href={`/series/${activeSeriesRow.seriesKey}`} style={{ textDecoration: "none", color: "inherit" }}>
               <Paper
