@@ -31,21 +31,21 @@ const MIN_MATCH_DATA_BODY_LENGTH = 80;
 // the Page would still flood it. Capped to the top N by trendingScore among
 // the isHighlightWorthy set instead — a real per-run volume ceiling, not
 // just a topical filter.
-const MAX_FACEBOOK_POSTS_PER_RUN = 7;
+const MAX_FACEBOOK_POSTS_PER_RUN = 6;
 // Per-run cap alone let volume run away: with a 15-min cron, 5/run could mean
 // up to ~480/day. Confirmed live: 73 posts went out in a single 24h window,
 // almost maxing the per-run cap on nearly every cycle — too aggressive for a
 // Page and risky for a newly-published App. This is the real ceiling.
-const MAX_FACEBOOK_POSTS_PER_DAY = 40;
+const MAX_FACEBOOK_POSTS_PER_DAY = 25;
 // Pure trendingScore ranking let NBA/MLB (higher volume post-expansion) crowd
 // out the site's two flagship sports some runs. Reserve slots so cricket/
-// football are never silently dropped from the Page — cricket gets 2 (vs
-// football's 1) while the India vs Afghanistan T20I series is live, since
-// that's the highest-traffic story on the site right now and deserves more
-// than one shot per run at a Facebook slot. Revert cricket to 1 once the
-// series wraps.
+// football are never silently dropped from the Page. Cricket briefly ran at
+// 4 slots/40-a-day for the 1st India vs Afghanistan T20I; back to the normal
+// baseline now that match is done (2 more T20Is remain in the series, so
+// cricket still gets a slight edge over the 1-slot default, just not the
+// live-match crowding level).
 const RESERVED_CATEGORIES: { category: string; slots: number }[] = [
-  { category: "cricket", slots: 4 },
+  { category: "cricket", slots: 2 },
   { category: "football", slots: 1 },
 ];
 
