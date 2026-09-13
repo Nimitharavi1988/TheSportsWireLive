@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { db } from "@/lib/db";
 import { TRACKED_PLAYERS } from "@/lib/players";
 import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImages";
@@ -90,10 +91,13 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
           <Stack direction="row" spacing={3} sx={{ alignItems: "center", mb: 4 }}>
             {photo ? (
               <Box
-                component="img"
+                component={Image}
                 src={photo.url}
                 alt={player.name}
-                sx={{ width: 120, height: 120, borderRadius: "50%", objectFit: "cover", objectPosition: "top", flexShrink: 0 }}
+                width={120}
+                height={120}
+                priority
+                sx={{ borderRadius: "50%", objectFit: "cover", objectPosition: "top", flexShrink: 0 }}
               />
             ) : (
               <Box

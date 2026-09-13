@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { db } from "@/lib/db";
 import { TRACKED_CLUBS } from "@/lib/clubs";
 import { findClubCrest } from "@/lib/teamNames";
@@ -80,7 +81,7 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
           <SiteBreadcrumbs steps={breadcrumbSteps} current={club.name} />
           <Stack direction="row" spacing={3} sx={{ alignItems: "center", mb: 4 }}>
             {crestUrl ? (
-              <Box component="img" src={crestUrl} alt={`${club.name} crest`} sx={{ width: 96, height: 96, objectFit: "contain", flexShrink: 0 }} />
+              <Box component={Image} src={crestUrl} alt={`${club.name} crest`} width={96} height={96} sx={{ objectFit: "contain", flexShrink: 0 }} />
             ) : (
               <Box
                 sx={{

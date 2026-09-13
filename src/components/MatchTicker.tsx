@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import Link from "next/link";
+import Image from "next/image";
 import Box from "@mui/material/Box";
 
 interface TickerArticle {
@@ -200,7 +201,7 @@ export default async function MatchTicker() {
                 "&:hover": { bgcolor: "rgba(29, 107, 63, 0.06)" },
               }}
             >
-              <img src={tick.homeCrestUrl} alt="" width={19} height={19} />
+              <Image src={tick.homeCrestUrl} alt="" width={19} height={19} />
               <Box component="span" sx={{ color: "text.secondary", fontWeight: 500 }}>
                 {tick.home}
               </Box>
@@ -226,7 +227,7 @@ export default async function MatchTicker() {
               <Box component="span" sx={{ color: "text.secondary", fontWeight: 500 }}>
                 {tick.away}
               </Box>
-              <img src={tick.awayCrestUrl} alt="" width={19} height={19} />
+              <Image src={tick.awayCrestUrl} alt="" width={19} height={19} />
               {tick.isLive && (
                 <Box
                   component="span"

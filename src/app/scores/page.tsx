@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { db } from "@/lib/db";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { fetchLiveCricketMatches, type CricketMatchStatus } from "@/lib/liveCricket";
@@ -67,7 +68,7 @@ function MatchCard({ match, state }: { match: MatchRow; state: CricketMatchStatu
           sx={{ bgcolor: `${style.color}1a`, color: style.color, fontWeight: 600, flexShrink: 0 }}
         />
         <Box sx={{ minWidth: 0, flex: 1, display: "flex", alignItems: "center", gap: 1, flexWrap: "nowrap" }}>
-          {match.homeCrestUrl && <img src={match.homeCrestUrl} alt="" width={22} height={22} style={{ flexShrink: 0 }} />}
+          {match.homeCrestUrl && <Image src={match.homeCrestUrl} alt="" width={22} height={22} style={{ flexShrink: 0 }} />}
           <Typography variant="body2" sx={{ fontWeight: 600, minWidth: 0, flex: "1 1 0" }} noWrap>
             {match.homeTeam ?? "—"}
           </Typography>
@@ -96,7 +97,7 @@ function MatchCard({ match, state }: { match: MatchRow; state: CricketMatchStatu
           <Typography variant="body2" sx={{ fontWeight: 600, minWidth: 0, flex: "1 1 0", textAlign: "right" }} noWrap>
             {match.awayTeam ?? "—"}
           </Typography>
-          {match.awayCrestUrl && <img src={match.awayCrestUrl} alt="" width={22} height={22} style={{ flexShrink: 0 }} />}
+          {match.awayCrestUrl && <Image src={match.awayCrestUrl} alt="" width={22} height={22} style={{ flexShrink: 0 }} />}
         </Box>
         <Box sx={{ flexShrink: 0 }}>
           <StatusBadge state={state} kickoffAt={match.kickoffAt} />

@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import Container from "@mui/material/Container";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -271,7 +272,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
             alignItems: "center",
             mb: 2.5
           }}>
-          <img src={article.homeCrestUrl} alt={crestAltText(article.summary).home} width={64} height={64} />
+          <Image src={article.homeCrestUrl} alt={crestAltText(article.summary).home} width={64} height={64} />
           <Typography
             variant="body1"
             sx={{
@@ -280,16 +281,21 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
             }}>
             vs
           </Typography>
-          <img src={article.awayCrestUrl} alt={crestAltText(article.summary).away} width={64} height={64} />
+          <Image src={article.awayCrestUrl} alt={crestAltText(article.summary).away} width={64} height={64} />
         </Stack>
       ) : article.heroImageUrl ? (
         <Box component="figure" sx={{ m: 0, mb: 2.5 }}>
-          <Box
-            component="img"
-            src={article.heroImageUrl}
-            alt={article.title}
-            sx={{ width: "100%", maxHeight: 460, objectFit: "cover", objectPosition: "top", borderRadius: 1.5, display: "block" }}
-          />
+          <Box sx={{ position: "relative", width: "100%", height: 460 }}>
+            <Box
+              component={Image}
+              src={article.heroImageUrl}
+              alt={article.title}
+              fill
+              priority
+              sizes="(max-width: 900px) 100vw, 700px"
+              sx={{ objectFit: "cover", objectPosition: "top", borderRadius: 1.5 }}
+            />
+          </Box>
           {article.heroImageCredit && (
             // Same minimal treatment as the image-overlay credit badges
             // elsewhere — still a real, clickable attribution link, just

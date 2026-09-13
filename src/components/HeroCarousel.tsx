@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
@@ -84,12 +85,21 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                 as a sibling, not nested inside, since a real <a> can't
                 validly nest inside another one; its own absolute
                 positioning keeps it visually in the same corner either way. */}
-            <Link href={`/article/${slide.slug}`} style={{ color: "inherit", textDecoration: "none", display: "block", position: "relative" }}>
+            <Link
+              href={`/article/${slide.slug}`}
+              style={{ color: "inherit", textDecoration: "none", display: "block", position: "relative", aspectRatio: HERO_ASPECT_RATIO, overflow: "hidden" }}
+            >
+              {/* priority only on the slide shown at first paint — this is
+                  the site's actual LCP image; later slide switches from
+                  clicking the carousel arrows don't need eager preloading. */}
               <Box
-                component="img"
+                component={Image}
                 src={imageUrl}
                 alt={slide.title}
-                sx={{ width: "100%", aspectRatio: HERO_ASPECT_RATIO, objectFit: "cover", objectPosition: "top", display: "block" }}
+                fill
+                sizes="100vw"
+                priority={safeIndex === 0}
+                sx={{ objectFit: "cover", objectPosition: "top" }}
               />
               <Box
                 sx={{
@@ -196,11 +206,11 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                   borderColor: "divider",
                 }}
               >
-                <img src={slide.homeCrestUrl!} alt={crestAltText(slide.summary).home} width={96} height={96} />
+                <Image src={slide.homeCrestUrl!} alt={crestAltText(slide.summary).home} width={96} height={96} />
                 <Typography variant="h6" sx={{ color: "text.secondary", fontWeight: 600 }}>
                   vs
                 </Typography>
-                <img src={slide.awayCrestUrl!} alt={crestAltText(slide.summary).away} width={96} height={96} />
+                <Image src={slide.awayCrestUrl!} alt={crestAltText(slide.summary).away} width={96} height={96} />
               </Stack>
             )}
             {/* mt: "auto" pins this to the bottom of the card regardless of

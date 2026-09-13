@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
@@ -15,7 +16,7 @@ import { StatusBadge, type LiveMatchRow } from "./LiveScorecard";
 function TeamRow({ crest, name, scoreText }: { crest: string | null; name: string | null; scoreText: string | null }) {
   return (
     <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-      {crest && <img src={crest} alt="" width={26} height={26} style={{ flexShrink: 0 }} />}
+      {crest && <Image src={crest} alt="" width={26} height={26} style={{ flexShrink: 0 }} />}
       <Typography sx={{ fontSize: 14, fontWeight: 600, flex: 1, minWidth: 0 }} noWrap>
         {name ?? "—"}
       </Typography>

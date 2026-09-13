@@ -1,5 +1,6 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
+import Image from "next/image";
 
 // Below this, a credit caption doesn't fit legibly — the row-icon-sized
 // avatars (40/48px) this component is mostly used at have no room for
@@ -35,10 +36,12 @@ export function ArticleThumb({
     return (
       <Box sx={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
         <Box
-          component="img"
+          component={Image}
           src={article.heroImageUrl}
           alt=""
-          sx={{ width: size, height: size, borderRadius: 1.5, objectFit: "cover", objectPosition: "top", display: "block" }}
+          fill
+          sizes={`${size}px`}
+          sx={{ borderRadius: 1.5, objectFit: "cover", objectPosition: "top" }}
         />
         {showCredit && (
           // Same syndication-credit requirement the hero and article page
@@ -90,8 +93,8 @@ export function ArticleThumb({
           gap: 0.25,
         }}
       >
-        <img src={article.homeCrestUrl} alt="" width={size * 0.38} height={size * 0.38} />
-        <img src={article.awayCrestUrl} alt="" width={size * 0.38} height={size * 0.38} />
+        <Image src={article.homeCrestUrl} alt="" width={size * 0.38} height={size * 0.38} />
+        <Image src={article.awayCrestUrl} alt="" width={size * 0.38} height={size * 0.38} />
       </Box>
     );
   }

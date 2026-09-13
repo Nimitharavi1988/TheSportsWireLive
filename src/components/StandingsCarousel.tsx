@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
@@ -149,7 +150,7 @@ export function StandingsCarousel({
                       <TableCell sx={{ maxWidth: 120 }}>
                         <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", flexWrap: "nowrap" }}>
                           {row.teamCrest && (
-                            <img src={row.teamCrest} alt={`${row.teamName} crest`} width={16} height={16} style={{ flexShrink: 0 }} />
+                            <Image src={row.teamCrest} alt={`${row.teamName} crest`} width={16} height={16} style={{ flexShrink: 0 }} />
                           )}
                           <Typography variant="body2" noWrap sx={{ fontSize: 12 }}>
                             {row.teamName}

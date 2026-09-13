@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import Link from "next/link";
+import Image from "next/image";
 import Container from "@mui/material/Container";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
@@ -701,10 +702,12 @@ export default async function HomePage(
                       >
                         {photo ? (
                           <Box
-                            component="img"
+                            component={Image}
                             src={photo.url}
                             alt={player.name}
-                            sx={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", objectPosition: "top", flexShrink: 0 }}
+                            width={32}
+                            height={32}
+                            sx={{ borderRadius: "50%", objectFit: "cover", objectPosition: "top", flexShrink: 0 }}
                           />
                         ) : (
                           <Box
@@ -1070,7 +1073,7 @@ export default async function HomePage(
                         alignItems: "center",
                         mb: 1
                       }}>
-                      <img src={article.homeCrestUrl} alt={crestAltText(article.summary).home} width={32} height={32} />
+                      <Image src={article.homeCrestUrl} alt={crestAltText(article.summary).home} width={32} height={32} />
                       <Typography
                         variant="caption"
                         sx={{
@@ -1079,7 +1082,7 @@ export default async function HomePage(
                         }}>
                         vs
                       </Typography>
-                      <img src={article.awayCrestUrl} alt={crestAltText(article.summary).away} width={32} height={32} />
+                      <Image src={article.awayCrestUrl} alt={crestAltText(article.summary).away} width={32} height={32} />
                     </Stack>
                   ) : article.heroImageUrl ? (
                     // height:110 on a 260-wide card was a 2.36:1 crop —
@@ -1089,12 +1092,14 @@ export default async function HomePage(
                     // 190 brings visible coverage up to ~55%, close to what
                     // ArticleThumb's own square crop shows (~67%) for the
                     // same source.
-                    <Box sx={{ position: "relative", mb: 1 }}>
+                    <Box sx={{ position: "relative", mb: 1, height: 190 }}>
                       <Box
-                        component="img"
+                        component={Image}
                         src={article.heroImageUrl}
                         alt={article.title}
-                        sx={{ width: "100%", height: 190, objectFit: "cover", objectPosition: "top", borderRadius: 1, display: "block" }}
+                        fill
+                        sizes="(max-width: 900px) 100vw, 33vw"
+                        sx={{ objectFit: "cover", objectPosition: "top", borderRadius: 1 }}
                       />
                       {article.heroImageCredit && (
                         // Same syndication-credit requirement the hero and

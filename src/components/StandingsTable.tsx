@@ -9,6 +9,7 @@
 // Server Components). Every other MUI component (Stack, Typography, Card,
 // Chip, etc.) rendered fine directly in Server Components in this app — this
 // bug is specific to the Table family.
+import Image from "next/image";
 import Table from "@mui/material/Table";
 import TableHead from "@mui/material/TableHead";
 import TableBody from "@mui/material/TableBody";
@@ -38,7 +39,7 @@ export function CompactStandingsTable({ rows }: { rows: StandingsTableRow[] }) {
               <TableCell sx={{ maxWidth: 140 }}>
                 <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", flexWrap: "nowrap" }}>
                   {row.teamCrest && (
-                    <img src={row.teamCrest} alt={`${row.teamName} crest`} width={16} height={16} style={{ flexShrink: 0 }} />
+                    <Image src={row.teamCrest} alt={`${row.teamName} crest`} width={16} height={16} style={{ flexShrink: 0 }} />
                   )}
                   <Typography variant="body2" noWrap sx={{ fontSize: 12 }}>
                     {row.teamName}
@@ -94,7 +95,7 @@ export function FullStandingsTable({ rows }: { rows: StandingsTableRow[] }) {
               <TableCell sx={{ ...stickyCellSx, left: 28, maxWidth: 130 }}>
                 <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", flexWrap: "nowrap" }}>
                   {row.teamCrest && (
-                    <img src={row.teamCrest} alt={`${row.teamName} crest`} width={16} height={16} style={{ flexShrink: 0 }} />
+                    <Image src={row.teamCrest} alt={`${row.teamName} crest`} width={16} height={16} style={{ flexShrink: 0 }} />
                   )}
                   <Typography variant="body2" noWrap sx={{ fontSize: 12 }}>
                     {row.teamName}

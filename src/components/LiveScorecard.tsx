@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
@@ -70,7 +71,7 @@ export function StatusBadge({ state, kickoffAt }: { state: CricketMatchStatus; k
 function TeamRow({ crest, name, scoreText, compact }: { crest: string | null; name: string | null; scoreText: string | null; compact: boolean }) {
   return (
     <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-      {crest && <img src={crest} alt="" width={compact ? 22 : 28} height={compact ? 22 : 28} style={{ flexShrink: 0 }} />}
+      {crest && <Image src={crest} alt="" width={compact ? 22 : 28} height={compact ? 22 : 28} style={{ flexShrink: 0 }} />}
       <Typography sx={{ fontSize: compact ? 13.5 : 15, fontWeight: 600, flex: 1, minWidth: 0 }} noWrap>
         {name ?? "—"}
       </Typography>
