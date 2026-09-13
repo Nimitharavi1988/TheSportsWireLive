@@ -96,10 +96,19 @@ function buildCredit(meta: any, fileName: string, kind: "Photo" | "Image"): { cr
 // appears in the indexed text even when it's not literally in the title) —
 // titleMatchesName still only requires the person's own name tokens, so the
 // hint can only narrow the result, never cause a false accept on its own.
-export function sportSearchHint(sport: "football" | "cricket" | "american-football" | string): string {
+export function sportSearchHint(sport: "football" | "cricket" | "american-football" | "basketball" | "baseball" | string): string {
   if (sport.startsWith("cricket")) return "cricketer";
   if (sport.startsWith("american-football")) return "American football player";
   if (sport.startsWith("football")) return "footballer";
+  // Missing entirely until now — basketball/baseball player-news items
+  // (players.ts) were falling back to a bare-name Wikipedia search with no
+  // disambiguating hint, and confirmed live: every single pending NBA
+  // player-news item (Durant, Embiid, Tatum, etc.) got the generic Pexels
+  // stock photo instead of a real Wikipedia photo, which blocks
+  // auto-approval regardless of having a real body (see autoApprove.ts's
+  // hasRealImage bar).
+  if (sport.startsWith("basketball")) return "basketball player";
+  if (sport.startsWith("baseball")) return "baseball player";
   return "";
 }
 
