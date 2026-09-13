@@ -57,11 +57,15 @@ export const metadata = {
       "max-video-preview": -1,
     },
   },
-  // Bing Webmaster Tools site-ownership verification (HTML meta tag
-  // method — chosen over the CNAME method since it needs no DNS change).
+  // Bing Webmaster Tools + Meta (Facebook) domain-verification meta tags —
+  // both HTML meta tag methods (no DNS change needed for either). The Meta
+  // one is required for the Facebook Developer App to go Live and have its
+  // posts actually distributed publicly (see the App Settings -> Brand
+  // Safety domain-verification flow this was generated from, 2026-09-13).
   verification: {
     other: {
       "msvalidate.01": "85D948396988D4A498642D52FFF524DB",
+      "facebook-domain-verification": "1wu4e0sq15ic02ovi486rzv199i54t",
     },
   },
 };
