@@ -133,7 +133,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
             // still a real, clickable attribution link, just not visually
             // competing with the player's name/stats above it.
             <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 10, display: "block", mb: 3 }}>
-              <a href={photo.creditUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
+              <a href={photo.creditUrl} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
                 {photo.credit}
               </a>
             </Typography>

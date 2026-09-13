@@ -173,7 +173,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                   "&:hover": { color: "rgba(255,255,255,0.85)" },
                 }}
               >
-                <a href={slide.bannerCreditUrl ?? undefined} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
+                <a href={slide.bannerCreditUrl ?? undefined} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
                   {slide.bannerCredit}
                 </a>
               </Typography>

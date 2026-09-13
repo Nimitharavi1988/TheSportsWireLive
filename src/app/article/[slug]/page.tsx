@@ -310,7 +310,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
                 display: "block"
               }}>
               {article.heroImageCreditUrl ? (
-                <a href={article.heroImageCreditUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
+                <a href={article.heroImageCreditUrl} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
                   {article.heroImageCredit}
                 </a>
               ) : (

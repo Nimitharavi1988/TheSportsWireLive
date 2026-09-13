@@ -208,7 +208,7 @@ export function ArticleQueueClient({
                   </Typography>
                   <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                     <Button size="small" onClick={() => setDetailId(article.id)}>View details</Button>
-                    <a href={article.sourceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: "inherit" }}>
+                    <a href={article.sourceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: "inherit", textDecoration: "none" }}>
                       Source ↗
                     </a>
                   </Stack>
