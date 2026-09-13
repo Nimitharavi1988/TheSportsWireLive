@@ -7,6 +7,7 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import LinearProgress from "@mui/material/LinearProgress";
+import Tooltip from "@mui/material/Tooltip";
 
 type ReactionType = "hype" | "panic" | "neutral";
 
@@ -139,40 +140,36 @@ export function FanEngagementHub({ articleId }: { articleId: string }) {
         </Box>
       )}
 
-      <Box>
-        <Typography variant="subtitle2" sx={{ color: "text.secondary", mb: 1 }}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: "space-between" }}>
+        <Typography variant="subtitle2" sx={{ color: "text.secondary", flexShrink: 0 }} noWrap>
           How are you feeling about this?
         </Typography>
-        <Stack direction="row" spacing={1.5}>
+        {/* Icon + count only (label moves to the tooltip) — was a
+            heading line above a button row with the full "emoji Label
+            (count)" text, which is two lines' worth of vertical space and
+            still wrapped the emoji onto its own line at phone width. This
+            keeps the whole thing, heading included, to one row at any
+            width, matching the icon-row treatment ShareButtons/FollowUs
+            already use elsewhere. */}
+        <Stack direction="row" spacing={0.5}>
           {REACTIONS.map(({ type, emoji, label }) => {
             const isMine = state.reactions.myReaction === type;
             return (
-              <Button
-                key={type}
-                variant={isMine ? "contained" : "outlined"}
-                size="small"
-                disabled={pending}
-                onClick={() => react(type)}
-                sx={{
-                  textTransform: "none",
-                  flex: 1,
-                  minWidth: 0,
-                  // The full "emoji Label (count)" text didn't fit one line
-                  // at phone width — the browser wrapped right after the
-                  // emoji, leaving it stranded on its own line above the
-                  // label (confirmed live at 375px). Smaller text + padding
-                  // on mobile keeps it to one line instead.
-                  px: { xs: 0.5, sm: 2 },
-                  fontSize: { xs: 12, sm: 14 },
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {emoji} {label} ({state.reactions.counts[type]})
-              </Button>
+              <Tooltip key={type} title={label}>
+                <Button
+                  variant={isMine ? "contained" : "outlined"}
+                  size="small"
+                  disabled={pending}
+                  onClick={() => react(type)}
+                  sx={{ textTransform: "none", minWidth: 0, px: 1 }}
+                >
+                  {emoji} {state.reactions.counts[type]}
+                </Button>
+              </Tooltip>
             );
           })}
         </Stack>
-      </Box>
+      </Stack>
     </Paper>
   );
 }
