@@ -34,14 +34,16 @@ const MIN_MATCH_DATA_BODY_LENGTH = 80;
 const MAX_FACEBOOK_POSTS_PER_RUN = 6;
 // Per-run cap alone let volume run away: with a 15-min cron, 5/run could mean
 // up to ~480/day. Confirmed live: the site's real organic highlight-worthy
-// volume is ~200+ distinct articles/day (verified: 216 of 219 "posted" rows
-// on a representative day were genuinely distinct articles, not duplicates —
-// duplicates were a separate, now-fixed bug, see postArticleToFacebook's
-// idempotency guard). 25 was set before that data existed and was blocking
-// real content, not spam. 60 is a deliberate curation cap — posts the best/
-// most highlight-worthy stories rather than everything that qualifies — not
-// an estimate of "normal" volume.
-const MAX_FACEBOOK_POSTS_PER_DAY = 60;
+// volume is ~200-225+ distinct articles/day. 60 turned out too low — it was
+// hit hours before the UTC-midnight reset, so every run for the rest of the
+// day silently posted nothing at all, which reads as "auto-approve stopped
+// posting to Facebook" even though every other part of the pipeline was
+// working correctly. The whole point of "continuous posting on every
+// ingestion run" and "a daily cap" are in tension once the cap sits below
+// real volume — 300 keeps a real safety-net ceiling (still stops a genuine
+// runaway/bug) while sitting comfortably above observed daily volume so it
+// doesn't realistically bind under normal-to-high content days.
+const MAX_FACEBOOK_POSTS_PER_DAY = 300;
 // Pure trendingScore ranking let NBA/MLB (higher volume post-expansion) crowd
 // out the site's two flagship sports some runs. Reserve slots so cricket/
 // football are never silently dropped from the Page. Cricket briefly ran at
