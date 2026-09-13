@@ -12,7 +12,21 @@ export function SiteBreadcrumbs({ steps, current }: { steps: BreadcrumbStep[]; c
   return (
     <Breadcrumbs
       separator={<NavigateNextIcon sx={{ fontSize: 14 }} />}
-      sx={{ mb: 2, "& .MuiBreadcrumbs-ol": { flexWrap: "nowrap" } }}
+      sx={{
+        mb: 2,
+        // flexWrap:nowrap on the <ol> with no overflow constraint here let a
+        // long current-step title push the whole <ol> wider than the
+        // viewport — since nothing wraps, the overflow wasn't clipped or
+        // scrollable, it just stretched the entire page horizontally
+        // (confirmed live: a long article title produced a mobile page with
+        // real blank space off to the side once scrolled). maxWidth+overflow
+        // here is the hard backstop; the current step's own maxWidth+
+        // ellipsis below is what actually keeps it readable rather than
+        // just clipped.
+        maxWidth: "100%",
+        overflow: "hidden",
+        "& .MuiBreadcrumbs-ol": { flexWrap: "nowrap" },
+      }}
     >
       {steps.map((step) => (
         <Link key={step.href} href={step.href} style={{ color: "inherit", textDecoration: "none" }}>
@@ -31,7 +45,7 @@ export function SiteBreadcrumbs({ steps, current }: { steps: BreadcrumbStep[]; c
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
-          maxWidth: 220,
+          maxWidth: { xs: 130, sm: 220 },
         }}
       >
         {current}
