@@ -19,6 +19,31 @@ function hashtagsFor(title: string, category: string): string {
   return tags.join(" ");
 }
 
+// A Business System User's own token (what FACEBOOK_PAGE_ACCESS_TOKEN
+// actually is, per the Meta setup this uses) is NOT directly valid for
+// posting to a Page's /feed — confirmed live: every real post attempt
+// failed with "(#200) ... requires ... as an admin with sufficient
+// administrative permission" using that token as-is, even though the
+// System User genuinely has pages_manage_posts/pages_read_engagement
+// assigned. The fix is a one-call exchange: GET /{page-id}?fields=
+// access_token with the System User token returns the actual Page-scoped
+// token, which posting requires. Confirmed live: the exact same token that
+// failed on /feed succeeded immediately once exchanged this way. Falls
+// back to the original token if the exchange call itself fails, in case a
+// genuine Page token was configured directly (no exchange needed then).
+async function resolvePageAccessToken(pageId: string, token: string): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v20.0/${pageId}?fields=access_token&access_token=${encodeURIComponent(token)}`
+    );
+    if (!res.ok) return token;
+    const data = await res.json();
+    return typeof data?.access_token === "string" ? data.access_token : token;
+  } catch {
+    return token;
+  }
+}
+
 // Isolated social publisher: posts an approved article to the Facebook Page
 // configured for its vertical (each product/vertical can post to its own
 // Page). Falls back to the global env vars when a vertical has no Page of
@@ -55,12 +80,13 @@ export async function postArticleToFacebook(articleId: string) {
   });
 
   try {
+    const postToken = await resolvePageAccessToken(pageId, accessToken);
     const res = await fetch(
       `https://graph.facebook.com/v20.0/${pageId}/feed`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, link, access_token: accessToken }),
+        body: JSON.stringify({ message, link, access_token: postToken }),
       }
     );
     const data = await res.json();
