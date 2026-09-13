@@ -100,6 +100,17 @@ export async function resolvePageAccessToken(pageId: string, token: string): Pro
 // A missing token/page id is treated as "not configured" rather than an
 // error, since Facebook posting is optional (see README).
 export async function postArticleToFacebook(articleId: string) {
+  // Idempotency guard: confirmed live that repeated calls for the same
+  // article (a manual admin re-click before the page re-rendered the
+  // "already posted" state, or any future automated retry) were creating
+  // multiple real Page posts for one story — 4 duplicate posts of the same
+  // article within 16 seconds, observed directly in SocialPost rows.
+  // Checking for an existing "posted" row makes every caller safe to retry.
+  const alreadyPosted = await db.socialPost.findFirst({
+    where: { articleId, platform: "facebook", status: "posted" },
+  });
+  if (alreadyPosted) return;
+
   const article = await db.article.findUniqueOrThrow({
     where: { id: articleId },
     include: { vertical: true },

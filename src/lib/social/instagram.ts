@@ -35,6 +35,14 @@ function hashtagsForInstagram(title: string, category: string): string {
 // then publish it) and — unlike Facebook — has no text-only post type at
 // all, so an article without a real image simply can't go to Instagram.
 export async function postArticleToInstagram(articleId: string) {
+  // Idempotency guard — same reasoning as postArticleToFacebook's (see
+  // facebook.ts): a repeated call for an already-posted article must be a
+  // safe no-op, not a second real post.
+  const alreadyPosted = await db.socialPost.findFirst({
+    where: { articleId, platform: "instagram", status: "posted" },
+  });
+  if (alreadyPosted) return;
+
   const article = await db.article.findUniqueOrThrow({
     where: { id: articleId },
     include: { vertical: true },
