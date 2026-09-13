@@ -11,7 +11,13 @@
   // own canonical tag and WhatsApp share link both pointed at
   // localhost:3000.
   "vars": {
-    "SITE_URL": "https://sportswirelive.com"
+    "SITE_URL": "https://sportswirelive.com",
+    // Not secret — a Page ID is publicly visible on the Page itself. The
+    // access token is the actual secret and must never go here (this file
+    // is committed to git); it's set as a Cloudflare secret instead, via
+    // the dashboard (Workers & Pages -> thesportswirelive -> Settings ->
+    // Variables and Secrets -> Add -> FACEBOOK_PAGE_ACCESS_TOKEN, encrypted).
+    "FACEBOOK_PAGE_ID": "1287339801134616"
   },
   "assets": {
     "directory": ".open-next/assets",

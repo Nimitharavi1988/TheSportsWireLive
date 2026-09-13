@@ -47,8 +47,16 @@ jobs:
       # SITE_URL/INDEXNOW_KEY are for the best-effort IndexNow ping on newly
       # published articles (src/lib/indexNow.ts) — a failure or missing
       # value there is swallowed, never fails this step.
+      # FACEBOOK_PAGE_ID/FACEBOOK_PAGE_ACCESS_TOKEN drive the top-5-per-run
+      # notable-story auto-post (postArticleToFacebook, called from within
+      # autoApprove.ts) — this runner is where that automated posting
+      # actually executes, not the Cloudflare Worker (which only needs these
+      # for the separate manual-approval-button path). Missing/empty is
+      # treated as "not configured" and silently skipped, same as always.
       - run: npx tsx src/lib/ingestion/autoApprove.ts
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SITE_URL: ${{ vars.SITE_URL }}
           INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
