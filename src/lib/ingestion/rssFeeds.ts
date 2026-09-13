@@ -152,6 +152,14 @@ const FEEDS: { url: string; category: string; sourceName: string }[] = [
   // real current items (e.g. Ingebrigtsen/Kerr 1500m), real media:thumbnail
   // images.
   { url: "https://feeds.bbci.co.uk/sport/athletics/rss.xml", category: "athletics", sourceName: "BBC Sport" },
+  // Second athletics source — BBC alone was too thin (only 6 published
+  // items even after several days), most of which get consumed by the
+  // hero carousel/highlight picks before "Also in the News" has anything
+  // left. Confirmed live and working directly (2026-09-13): real current
+  // items (Ultimate Championship coverage), no native RSS image tags (no
+  // media:thumbnail/content/enclosure) — falls back to og:image extraction
+  // during commentary grounding, same as any other image-less feed.
+  { url: "https://athleticsweekly.com/feed/", category: "athletics", sourceName: "Athletics Weekly" },
   // Rugby — news-only, same reasoning as Athletics: no single clean
   // structured-data source exists. Specifically no ESPN scoreboard-style
   // endpoint either, unlike NBA/MLB/NFL — rugby is fragmented across many

@@ -55,7 +55,7 @@ export const revalidate = 60;
 // Match Results/NFL Scores sections. Discovered while adding NFL news that
 // "ESPN" (soccer) was missing from this list already — a pre-existing gap
 // this also fixes, not something new-sport-specific.
-const RSS_SOURCES = ["BBC Sport", "The Guardian", "Sky Sports", "ESPN Cricinfo", "ESPN"];
+const RSS_SOURCES = ["BBC Sport", "The Guardian", "Sky Sports", "ESPN Cricinfo", "ESPN", "Athletics Weekly"];
 
 
 const CATEGORY_META: Record<string, { title: string; description: string }> = {
