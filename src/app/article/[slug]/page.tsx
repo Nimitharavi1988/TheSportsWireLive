@@ -402,10 +402,14 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
       <FollowUs />
 
       <Box sx={{ mt: 3, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
-        <a href={article.sourceUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
-          <Typography variant="body2" sx={{
-            color: "text.secondary"
-          }}>
+        {/* Attribution requirement, not a call to action — kept deliberately
+            quiet (caption size, text.disabled, no underline) so it doesn't
+            compete with FollowUs right above it. The plain <a> had no
+            text-decoration reset, unlike every other link on the site, so
+            it rendered with a default browser underline none of the site's
+            other links have. */}
+        <a href={article.sourceUrl} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
+          <Typography variant="caption" sx={{ color: "text.disabled" }}>
             Original source: {article.sourceName} ↗
           </Typography>
         </a>
