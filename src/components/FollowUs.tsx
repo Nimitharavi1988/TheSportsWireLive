@@ -18,26 +18,28 @@ const SOCIAL_LINKS: { name: string; url: string; Icon: typeof FacebookIcon; colo
 // as that component's own placement: before the reader clicks through to
 // the outbound source and leaves).
 //
-// Mirrors ShareButtons.tsx's icon-row treatment exactly (same IconButton +
-// Tooltip pattern, same borderTop line as the "Original source" line right
-// below it) rather than a standalone tinted card — reads as part of the
-// page instead of an ad banner, stays a single row at any width since
-// icon buttons don't wrap, and scales to more platforms without redesign.
+// Same IconButton + Tooltip pattern as ShareButtons.tsx, but on a light
+// brand-tinted pill rather than a plain borderTop line — the plain version
+// read as too easy to miss entirely; this keeps the single-row, no-wrap
+// discipline while actually catching the eye. Each platform icon shows in
+// its own brand color by default (not just on hover) for the same reason.
 export function FollowUs() {
   return (
     <Box
       sx={{
         mt: 3,
-        pt: 2,
-        borderTop: "1px solid",
-        borderColor: "divider",
+        p: 1.75,
+        borderRadius: 2,
+        bgcolor: "rgba(29, 107, 63, 0.06)",
+        border: "1px solid",
+        borderColor: "rgba(29, 107, 63, 0.18)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         gap: 2,
       }}
     >
-      <Typography variant="body2" sx={{ color: "text.secondary" }}>
+      <Typography variant="body2" sx={{ color: "primary.main", fontWeight: 600 }}>
         Follow us for live scores &amp; news
       </Typography>
       <Stack direction="row" spacing={0.5}>
@@ -49,7 +51,7 @@ export function FollowUs() {
               target="_blank"
               rel="noreferrer"
               size="small"
-              sx={{ color: "text.secondary", "&:hover": { color } }}
+              sx={{ color, bgcolor: "background.paper", "&:hover": { bgcolor: "background.paper", opacity: 0.8 } }}
             >
               <Icon fontSize="small" />
             </IconButton>
