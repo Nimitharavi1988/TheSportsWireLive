@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import Link from "next/link";
 import Image from "next/image";
+import { ScrollRow } from "@/components/ScrollRow";
 import Container from "@mui/material/Container";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
@@ -657,16 +658,7 @@ export default async function HomePage(
                 <StarIcon sx={{ fontSize: 20, color: "primary.main" }} />
                 <Typography variant="h5" sx={SECTION_HEADING_SX}>Player News</Typography>
               </Stack>
-              <Box
-                sx={{
-                  display: "flex",
-                  gap: 1.5,
-                  overflowX: "auto",
-                  pb: 1,
-                  "&::-webkit-scrollbar": { height: 8 },
-                  "&::-webkit-scrollbar-thumb": { backgroundColor: "divider", borderRadius: 4 },
-                }}
-              >
+              <ScrollRow>
                 {playerNews.map(({ player, article, photo }) => (
                   <Paper
                     key={player.slug}
@@ -754,7 +746,7 @@ export default async function HomePage(
                     </Link>
                   </Paper>
                 ))}
-              </Box>
+              </ScrollRow>
             </Box>
           )}
 
@@ -1048,16 +1040,7 @@ export default async function HomePage(
           <Typography variant="h5" sx={{ ...SECTION_HEADING_SX, mb: 2 }}>
             More Headlines
           </Typography>
-          <Box
-            sx={{
-              display: "flex",
-              gap: 2,
-              overflowX: "auto",
-              pb: 1,
-              "&::-webkit-scrollbar": { height: 8 },
-              "&::-webkit-scrollbar-thumb": { backgroundColor: "divider", borderRadius: 4 },
-            }}
-          >
+          <ScrollRow gap={2}>
             {moreArticles.map((article) => (
               <Card
                 key={article.id}
@@ -1150,7 +1133,7 @@ export default async function HomePage(
                 </CardContent>
               </Card>
             ))}
-          </Box>
+          </ScrollRow>
         </Box>
       )}
     </Container>

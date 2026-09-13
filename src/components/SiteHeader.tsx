@@ -7,6 +7,7 @@ import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
+import { ScrollRow } from "./ScrollRow";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
 import SportsCricketIcon from "@mui/icons-material/SportsCricket";
@@ -57,22 +58,11 @@ function NavLinks() {
   const activeCategory = searchParams.get("category");
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        gap: 0.5,
-        // Wrapping into 3 rows on a phone-width screen ate ~140px of
-        // vertical space before any real content — a horizontal scroll
-        // strip (same pattern as the homepage's Star Players rail) keeps
-        // the nav to one compact row instead. sm+ still wraps since it
-        // comfortably fits within 1-2 rows at that width.
-        flexWrap: { xs: "nowrap", sm: "wrap" },
-        overflowX: { xs: "auto", sm: "visible" },
-        pb: { xs: 0.5, sm: 0 },
-        "&::-webkit-scrollbar": { height: 0 },
-        scrollbarWidth: "none",
-      }}
-    >
+    // Wrapping into 3 rows on a phone-width screen ate ~140px of vertical
+    // space before any real content — same shared scroll-strip pattern the
+    // homepage's Player News/More Headlines rails use, wrapping normally
+    // again from sm up since it comfortably fits within 1-2 rows there.
+    <ScrollRow gap={0.5} wrapFrom="sm">
       {NAV_LINKS.map((link) => {
         const isActive =
           link.href === "/standings" || link.href === "/scores"
@@ -107,7 +97,7 @@ function NavLinks() {
           </Box>
         );
       })}
-    </Box>
+    </ScrollRow>
   );
 }
 
@@ -116,17 +106,7 @@ function NavLinks() {
 // nav's own width/shape identical to the real thing so nothing shifts.
 function NavLinksFallback() {
   return (
-    <Box
-      sx={{
-        display: "flex",
-        gap: 0.5,
-        flexWrap: { xs: "nowrap", sm: "wrap" },
-        overflowX: { xs: "auto", sm: "visible" },
-        pb: { xs: 0.5, sm: 0 },
-        "&::-webkit-scrollbar": { height: 0 },
-        scrollbarWidth: "none",
-      }}
-    >
+    <ScrollRow gap={0.5} wrapFrom="sm">
       {NAV_LINKS.map((link) => {
         const Icon = link.icon;
         return (
@@ -154,7 +134,7 @@ function NavLinksFallback() {
           </Box>
         );
       })}
-    </Box>
+    </ScrollRow>
   );
 }
 
