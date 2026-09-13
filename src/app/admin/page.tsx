@@ -13,6 +13,7 @@ import {
   unflagArticle,
   createPoll,
   deletePoll,
+  postToFacebookManually,
 } from "./actions";
 import Container from "@mui/material/Container";
 import Box from "@mui/material/Box";
@@ -71,7 +72,13 @@ export default async function AdminQueuePage(
     orderBy: status === "published" ? [{ featured: "desc" }, { publishedAt: "desc" }] : { createdAt: "desc" },
     skip: (page - 1) * PAGE_SIZE,
     take: PAGE_SIZE,
-    include: { poll: { include: { options: true } } },
+    include: {
+      poll: { include: { options: true } },
+      // Only meaningful for the published list (whether "Post to Facebook"
+      // should show as done/retry/not-yet), but cheap enough to always
+      // include rather than branch the query on status.
+      socialPosts: { where: { platform: "facebook" }, orderBy: { createdAt: "desc" }, take: 1 },
+    },
   });
   const totalPages = Math.max(1, Math.ceil(matchingCount / PAGE_SIZE));
   // Build a query string that carries every current filter forward, only
@@ -189,6 +196,7 @@ export default async function AdminQueuePage(
         unhighlightArticle={unhighlightArticle}
         createPoll={createPoll}
         deletePoll={deletePoll}
+        postToFacebookManually={postToFacebookManually}
       />
 
       {totalPages > 1 && (

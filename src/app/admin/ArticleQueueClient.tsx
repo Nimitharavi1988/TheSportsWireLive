@@ -36,6 +36,7 @@ export interface QueueArticle {
   reviewedAt: Date | null;
   createdAt: Date;
   poll: { id: string; question: string; options: { id: string; text: string }[] } | null;
+  socialPosts: { status: "queued" | "posted" | "failed"; errorMessage: string | null; externalPostId: string | null }[];
 }
 
 export function ArticleQueueClient({
@@ -50,6 +51,7 @@ export function ArticleQueueClient({
   approveArticles,
   createPoll,
   deletePoll,
+  postToFacebookManually,
 }: {
   articles: QueueArticle[];
   status: "pending_review" | "published";
@@ -62,6 +64,7 @@ export function ArticleQueueClient({
   approveArticles: (articleIds: string[]) => Promise<void>;
   createPoll: (articleId: string, formData: FormData) => Promise<void>;
   deletePoll: (pollId: string) => Promise<void>;
+  postToFacebookManually: (articleId: string) => Promise<void>;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -211,6 +214,35 @@ export function ArticleQueueClient({
                   </form>
                 )
               )}
+              {/* Catch-up for articles the automated post either skipped
+                  (isHighlightWorthy/volume-cap filter in autoApprove.ts) or
+                  that failed to send (rate limit, transient API error) —
+                  only ever shown for already-published articles, since
+                  postArticleToFacebook needs a real slug to link to. */}
+              {status === "published" && (() => {
+                const lastPost = article.socialPosts[0];
+                if (lastPost?.status === "posted") {
+                  return (
+                    <Chip
+                      label="✓ Posted to Facebook"
+                      size="small"
+                      variant="outlined"
+                      color="success"
+                      component={lastPost.externalPostId ? "a" : "div"}
+                      href={lastPost.externalPostId ? `https://facebook.com/${lastPost.externalPostId}` : undefined}
+                      target={lastPost.externalPostId ? "_blank" : undefined}
+                      clickable={Boolean(lastPost.externalPostId)}
+                    />
+                  );
+                }
+                return (
+                  <form action={postToFacebookManually.bind(null, article.id)} title={lastPost?.status === "failed" ? lastPost.errorMessage ?? undefined : undefined}>
+                    <Button type="submit" variant="outlined" color="info">
+                      {lastPost?.status === "failed" ? "Retry Facebook post" : "Post to Facebook"}
+                    </Button>
+                  </form>
+                );
+              })()}
             </CardActions>
           </Card>
         ))}
@@ -318,6 +350,19 @@ export function ArticleQueueClient({
                   </form>
                 </>
               )}
+              {status === "published" && (() => {
+                const lastPost = detailArticle.socialPosts[0];
+                if (lastPost?.status === "posted") {
+                  return <Chip label="✓ Posted to Facebook" size="small" variant="outlined" color="success" />;
+                }
+                return (
+                  <form action={postToFacebookManually.bind(null, detailArticle.id)}>
+                    <Button type="submit" variant="outlined" color="info">
+                      {lastPost?.status === "failed" ? "Retry Facebook post" : "Post to Facebook"}
+                    </Button>
+                  </form>
+                );
+              })()}
             </DialogActions>
           </>
         )}

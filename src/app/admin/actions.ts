@@ -40,6 +40,20 @@ export async function approveArticle(articleId: string) {
   revalidatePath("/admin");
 }
 
+// Manual catch-up for an already-published article that never made it to
+// Facebook — either autoApprove.ts's isHighlightWorthy/volume-cap filter
+// left it out, or a post attempt failed (rate limit, transient API error).
+// No gating here: an admin explicitly choosing "Post to Facebook" for one
+// specific article is a deliberate action, same reasoning as the single-
+// article approveArticle's own always-post behavior above.
+export async function postToFacebookManually(articleId: string) {
+  const session = await getSession();
+  if (!session) throw new Error("Not authenticated");
+
+  await postArticleToFacebook(articleId);
+  revalidatePath("/admin");
+}
+
 // Bulk approve from the multi-select queue UI. Unlike the single-article
 // approveArticle above, this deliberately skips the per-article Facebook
 // post — auto-posting dozens of articles to the Page in one shot at once
