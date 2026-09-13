@@ -49,6 +49,7 @@ model Vertical {
   domain                   String?
   facebookPageId           String?   // Page to post this vertical's approved articles to
   facebookPageAccessToken  String?   // long-lived Page access token for that Page
+  instagramBusinessAccountId String? // IG Business Account linked to the Page above — same access token posts to both
   articles                 Article[]
   sources                  Source[]
   createdAt                DateTime  @default(now())

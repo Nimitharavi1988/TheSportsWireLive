@@ -36,7 +36,45 @@ export interface QueueArticle {
   reviewedAt: Date | null;
   createdAt: Date;
   poll: { id: string; question: string; options: { id: string; text: string }[] } | null;
-  socialPosts: { status: "queued" | "posted" | "failed"; errorMessage: string | null; externalPostId: string | null }[];
+  socialPosts: { platform: "facebook" | "x" | "instagram"; status: "queued" | "posted" | "failed"; errorMessage: string | null; externalPostId: string | null }[];
+}
+
+const SOCIAL_LABEL: Record<"facebook" | "instagram", string> = { facebook: "Facebook", instagram: "Instagram" };
+
+// Shared between the card view and the detail dialog, and between Facebook
+// and Instagram — same "already posted (link out if we have an id) / retry
+// after a failure / not posted yet" logic for both platforms. Instagram post
+// ids aren't a usable public URL without a separate permalink lookup we
+// don't do here, so its success chip just isn't clickable.
+function renderSocialButton(
+  platform: "facebook" | "instagram",
+  socialPosts: QueueArticle["socialPosts"],
+  action: () => Promise<void>
+) {
+  const lastPost = socialPosts.find((p) => p.platform === platform);
+  const label = SOCIAL_LABEL[platform];
+  if (lastPost?.status === "posted") {
+    const href = platform === "facebook" && lastPost.externalPostId ? `https://facebook.com/${lastPost.externalPostId}` : undefined;
+    return (
+      <Chip
+        label={`✓ Posted to ${label}`}
+        size="small"
+        variant="outlined"
+        color="success"
+        component={href ? "a" : "div"}
+        href={href}
+        target={href ? "_blank" : undefined}
+        clickable={Boolean(href)}
+      />
+    );
+  }
+  return (
+    <form action={action} title={lastPost?.status === "failed" ? lastPost.errorMessage ?? undefined : undefined}>
+      <Button type="submit" variant="outlined" color="info">
+        {lastPost?.status === "failed" ? `Retry ${label} post` : `Post to ${label}`}
+      </Button>
+    </form>
+  );
 }
 
 export function ArticleQueueClient({
@@ -52,6 +90,7 @@ export function ArticleQueueClient({
   createPoll,
   deletePoll,
   postToFacebookManually,
+  postToInstagramManually,
 }: {
   articles: QueueArticle[];
   status: "pending_review" | "published";
@@ -65,6 +104,7 @@ export function ArticleQueueClient({
   createPoll: (articleId: string, formData: FormData) => Promise<void>;
   deletePoll: (pollId: string) => Promise<void>;
   postToFacebookManually: (articleId: string) => Promise<void>;
+  postToInstagramManually: (articleId: string) => Promise<void>;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -219,30 +259,8 @@ export function ArticleQueueClient({
                   that failed to send (rate limit, transient API error) —
                   only ever shown for already-published articles, since
                   postArticleToFacebook needs a real slug to link to. */}
-              {status === "published" && (() => {
-                const lastPost = article.socialPosts[0];
-                if (lastPost?.status === "posted") {
-                  return (
-                    <Chip
-                      label="✓ Posted to Facebook"
-                      size="small"
-                      variant="outlined"
-                      color="success"
-                      component={lastPost.externalPostId ? "a" : "div"}
-                      href={lastPost.externalPostId ? `https://facebook.com/${lastPost.externalPostId}` : undefined}
-                      target={lastPost.externalPostId ? "_blank" : undefined}
-                      clickable={Boolean(lastPost.externalPostId)}
-                    />
-                  );
-                }
-                return (
-                  <form action={postToFacebookManually.bind(null, article.id)} title={lastPost?.status === "failed" ? lastPost.errorMessage ?? undefined : undefined}>
-                    <Button type="submit" variant="outlined" color="info">
-                      {lastPost?.status === "failed" ? "Retry Facebook post" : "Post to Facebook"}
-                    </Button>
-                  </form>
-                );
-              })()}
+              {status === "published" && renderSocialButton("facebook", article.socialPosts, postToFacebookManually.bind(null, article.id))}
+              {status === "published" && renderSocialButton("instagram", article.socialPosts, postToInstagramManually.bind(null, article.id))}
             </CardActions>
           </Card>
         ))}
@@ -350,19 +368,8 @@ export function ArticleQueueClient({
                   </form>
                 </>
               )}
-              {status === "published" && (() => {
-                const lastPost = detailArticle.socialPosts[0];
-                if (lastPost?.status === "posted") {
-                  return <Chip label="✓ Posted to Facebook" size="small" variant="outlined" color="success" />;
-                }
-                return (
-                  <form action={postToFacebookManually.bind(null, detailArticle.id)}>
-                    <Button type="submit" variant="outlined" color="info">
-                      {lastPost?.status === "failed" ? "Retry Facebook post" : "Post to Facebook"}
-                    </Button>
-                  </form>
-                );
-              })()}
+              {status === "published" && renderSocialButton("facebook", detailArticle.socialPosts, postToFacebookManually.bind(null, detailArticle.id))}
+              {status === "published" && renderSocialButton("instagram", detailArticle.socialPosts, postToInstagramManually.bind(null, detailArticle.id))}
             </DialogActions>
           </>
         )}

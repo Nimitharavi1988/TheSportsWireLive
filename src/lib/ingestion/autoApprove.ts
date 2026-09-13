@@ -3,6 +3,7 @@ import { submitToIndexNow, articleUrl } from "../indexNow";
 import { isMatchDataSource } from "../matchDataSources";
 import { isHighlightWorthy } from "../highlightWorthy";
 import { postArticleToFacebook } from "../social/facebook";
+import { postArticleToInstagram } from "../social/instagram";
 
 // Runs as a follow-up step right after runIngest.ts in the same GitHub
 // Actions job — everything reaching "pending_review" has already passed
@@ -140,6 +141,14 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
         await postArticleToFacebook(article.id);
       } catch (err) {
         console.error("Facebook post failed for article", article.id, err);
+      }
+      // Same selection as Facebook — Instagram has no text-only post type,
+      // so postArticleToInstagram itself no-ops for an article with no real
+      // image rather than needing a separate filter here.
+      try {
+        await postArticleToInstagram(article.id);
+      } catch (err) {
+        console.error("Instagram post failed for article", article.id, err);
       }
     }
   }

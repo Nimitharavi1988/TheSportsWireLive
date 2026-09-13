@@ -17,7 +17,10 @@
     // is committed to git); it's set as a Cloudflare secret instead, via
     // the dashboard (Workers & Pages -> thesportswirelive -> Settings ->
     // Variables and Secrets -> Add -> FACEBOOK_PAGE_ACCESS_TOKEN, encrypted).
-    "FACEBOOK_PAGE_ID": "1287339801134616"
+    "FACEBOOK_PAGE_ID": "1287339801134616",
+    // Also not secret — same reasoning as FACEBOOK_PAGE_ID above. Reuses
+    // the same FACEBOOK_PAGE_ACCESS_TOKEN Cloudflare secret to post here.
+    "INSTAGRAM_BUSINESS_ACCOUNT_ID": "17841425222958075"
   },
   "assets": {
     "directory": ".open-next/assets",

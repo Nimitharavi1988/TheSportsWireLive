@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import { postArticleToFacebook } from "@/lib/social/facebook";
+import { postArticleToInstagram } from "@/lib/social/instagram";
 import { HERO_CAP, sectionOf } from "@/lib/heroConfig";
 import { submitToIndexNow, articleUrl } from "@/lib/indexNow";
 import { revalidatePath } from "next/cache";
@@ -33,6 +34,11 @@ export async function approveArticle(articleId: string) {
   } catch (err) {
     console.error("Facebook post failed for article", articleId, err);
   }
+  try {
+    await postArticleToInstagram(articleId);
+  } catch (err) {
+    console.error("Instagram post failed for article", articleId, err);
+  }
 
   // Best-effort, same isolation principle as the Facebook post above.
   await submitToIndexNow([articleUrl(article.slug)]);
@@ -51,6 +57,15 @@ export async function postToFacebookManually(articleId: string) {
   if (!session) throw new Error("Not authenticated");
 
   await postArticleToFacebook(articleId);
+  revalidatePath("/admin");
+}
+
+// Same manual catch-up as postToFacebookManually above, for Instagram.
+export async function postToInstagramManually(articleId: string) {
+  const session = await getSession();
+  if (!session) throw new Error("Not authenticated");
+
+  await postArticleToInstagram(articleId);
   revalidatePath("/admin");
 }
 

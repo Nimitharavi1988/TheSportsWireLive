@@ -80,7 +80,7 @@ function hashtagsFor(title: string, category: string): string {
 // failed on /feed succeeded immediately once exchanged this way. Falls
 // back to the original token if the exchange call itself fails, in case a
 // genuine Page token was configured directly (no exchange needed then).
-async function resolvePageAccessToken(pageId: string, token: string): Promise<string> {
+export async function resolvePageAccessToken(pageId: string, token: string): Promise<string> {
   try {
     const res = await fetch(
       `https://graph.facebook.com/v20.0/${pageId}?fields=access_token&access_token=${encodeURIComponent(token)}`

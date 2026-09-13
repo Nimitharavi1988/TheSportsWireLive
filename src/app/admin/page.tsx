@@ -14,6 +14,7 @@ import {
   createPoll,
   deletePoll,
   postToFacebookManually,
+  postToInstagramManually,
 } from "./actions";
 import Container from "@mui/material/Container";
 import Box from "@mui/material/Box";
@@ -74,10 +75,10 @@ export default async function AdminQueuePage(
     take: PAGE_SIZE,
     include: {
       poll: { include: { options: true } },
-      // Only meaningful for the published list (whether "Post to Facebook"
-      // should show as done/retry/not-yet), but cheap enough to always
-      // include rather than branch the query on status.
-      socialPosts: { where: { platform: "facebook" }, orderBy: { createdAt: "desc" }, take: 1 },
+      // Only meaningful for the published list (whether "Post to Facebook"/
+      // "Post to Instagram" should show as done/retry/not-yet), but cheap
+      // enough to always include rather than branch the query on status.
+      socialPosts: { where: { platform: { in: ["facebook", "instagram"] } }, orderBy: { createdAt: "desc" } },
     },
   });
   const totalPages = Math.max(1, Math.ceil(matchingCount / PAGE_SIZE));
@@ -197,6 +198,7 @@ export default async function AdminQueuePage(
         createPoll={createPoll}
         deletePoll={deletePoll}
         postToFacebookManually={postToFacebookManually}
+        postToInstagramManually={postToInstagramManually}
       />
 
       {totalPages > 1 && (
