@@ -153,7 +153,19 @@ export function FanEngagementHub({ articleId }: { articleId: string }) {
                 size="small"
                 disabled={pending}
                 onClick={() => react(type)}
-                sx={{ textTransform: "none", flex: 1 }}
+                sx={{
+                  textTransform: "none",
+                  flex: 1,
+                  minWidth: 0,
+                  // The full "emoji Label (count)" text didn't fit one line
+                  // at phone width — the browser wrapped right after the
+                  // emoji, leaving it stranded on its own line above the
+                  // label (confirmed live at 375px). Smaller text + padding
+                  // on mobile keeps it to one line instead.
+                  px: { xs: 0.5, sm: 2 },
+                  fontSize: { xs: 12, sm: 14 },
+                  whiteSpace: "nowrap",
+                }}
               >
                 {emoji} {label} ({state.reactions.counts[type]})
               </Button>
