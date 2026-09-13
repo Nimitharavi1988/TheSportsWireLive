@@ -16,4 +16,9 @@ export const EVENT_KEYWORDS = [
   // regardless of which player it's about.
   "record", "milestone", "history", "historic", "breaks", "first player",
   "youngest", "oldest", "hat-trick", "hat trick",
+  // India vs Afghanistan T20I series (Sept 2026) — match reports/previews
+  // often don't name a single tracked player in the title, so without this
+  // they'd miss isHighlightWorthy entirely despite being exactly the kind
+  // of high-interest, high-traffic content this list exists to surface.
+  "ind vs afg", "india vs afghanistan", "afghanistan t20i", "afghanistan t20",
 ];

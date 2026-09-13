@@ -30,7 +30,23 @@ const MIN_MATCH_DATA_BODY_LENGTH = 80;
 // the Page would still flood it. Capped to the top N by trendingScore among
 // the isHighlightWorthy set instead — a real per-run volume ceiling, not
 // just a topical filter.
-const MAX_FACEBOOK_POSTS_PER_RUN = 5;
+const MAX_FACEBOOK_POSTS_PER_RUN = 7;
+// Per-run cap alone let volume run away: with a 15-min cron, 5/run could mean
+// up to ~480/day. Confirmed live: 73 posts went out in a single 24h window,
+// almost maxing the per-run cap on nearly every cycle — too aggressive for a
+// Page and risky for a newly-published App. This is the real ceiling.
+const MAX_FACEBOOK_POSTS_PER_DAY = 40;
+// Pure trendingScore ranking let NBA/MLB (higher volume post-expansion) crowd
+// out the site's two flagship sports some runs. Reserve slots so cricket/
+// football are never silently dropped from the Page — cricket gets 2 (vs
+// football's 1) while the India vs Afghanistan T20I series is live, since
+// that's the highest-traffic story on the site right now and deserves more
+// than one shot per run at a Facebook slot. Revert cricket to 1 once the
+// series wraps.
+const RESERVED_CATEGORIES: { category: string; slots: number }[] = [
+  { category: "cricket", slots: 4 },
+  { category: "football", slots: 1 },
+];
 
 export function hasRealImage(article: { heroImageUrl: string | null; homeCrestUrl: string | null }): boolean {
   // A team crest pair is real by construction (never a stock photo).
@@ -65,7 +81,7 @@ export function isAutoApprovable(article: {
 export async function autoApproveValidArticles(): Promise<{ checked: number; approved: number }> {
   const candidates = await db.article.findMany({
     where: { status: "pending_review" },
-    select: { id: true, slug: true, title: true, body: true, heroImageUrl: true, homeCrestUrl: true, playerNewsSourced: true, sourceName: true, trendingScore: true },
+    select: { id: true, slug: true, title: true, body: true, heroImageUrl: true, homeCrestUrl: true, playerNewsSourced: true, sourceName: true, trendingScore: true, category: true },
   });
 
   const toApprove = candidates.filter(isAutoApprovable);
@@ -94,10 +110,31 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     // capped at MAX_FACEBOOK_POSTS_PER_RUN — the actual volume ceiling.
     // Sequential + best-effort per article: one failed/rate-limited post
     // must never affect another.
-    const toPost = toApprove
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const postedToday = await db.socialPost.count({
+      where: { platform: "facebook", createdAt: { gte: todayStart } },
+    });
+    const remainingToday = Math.max(0, MAX_FACEBOOK_POSTS_PER_DAY - postedToday);
+    const runCap = Math.min(MAX_FACEBOOK_POSTS_PER_RUN, remainingToday);
+
+    const eligible = toApprove
       .filter((a) => isHighlightWorthy(a.title))
-      .sort((a, b) => b.trendingScore - a.trendingScore)
-      .slice(0, MAX_FACEBOOK_POSTS_PER_RUN);
+      .sort((a, b) => b.trendingScore - a.trendingScore);
+
+    const toPost: typeof eligible = [];
+    for (const { category, slots } of RESERVED_CATEGORIES) {
+      const matches = eligible.filter((a) => a.category === category && !toPost.includes(a));
+      for (const article of matches.slice(0, slots)) {
+        if (toPost.length >= runCap) break;
+        toPost.push(article);
+      }
+    }
+    for (const article of eligible) {
+      if (toPost.length >= runCap) break;
+      if (!toPost.includes(article)) toPost.push(article);
+    }
+
     for (const article of toPost) {
       try {
         await postArticleToFacebook(article.id);
