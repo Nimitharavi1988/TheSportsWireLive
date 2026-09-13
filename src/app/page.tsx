@@ -414,6 +414,16 @@ export default async function HomePage(
               // after main there; lg has its own explicit column already so
               // order doesn't affect that layout.
               order: { xs: 2, lg: 0 },
+              // At lg, the hero image and <main> are now two separate grid
+              // items in the same column (split so the hero can reorder
+              // ahead of the Live Cricket block on mobile — see that Box's
+              // own order comment below) — without this, auto-placement put
+              // this aside in the SAME implicit row as the (short) hero,
+              // forcing that row to stretch to this aside's full height and
+              // leaving a large visible gap between the hero and <main>
+              // (confirmed live). Spanning both implicit rows here lets
+              // hero's row stay hero-sized and <main>'s row size to <main>.
+              gridRow: { lg: "1 / span 2" },
               position: { lg: "sticky" },
               // 68px sticky header + a 16px gap — without this it sticks at
               // the old top:32 offset and slides up underneath the header.
@@ -950,6 +960,14 @@ export default async function HomePage(
               // later in the JSX. A live scoreboard needs to be prominent
               // on every screen size, not just desktop's 3-column layout.
               order: { xs: -1, md: 0 },
+              // Same fix as the aside's own gridRow comment above — at md/lg
+              // this block shares a column with the hero image (a separate,
+              // short grid item now — see the hero Box's own comment) and
+              // <main>. Without spanning both implicit rows, auto-placement
+              // put this block in the same row as the hero alone, stretching
+              // that row to this block's full height and pushing <main> down
+              // by the difference — a large visible gap (confirmed live).
+              gridRow: { md: "1 / span 2" },
               position: { md: "sticky" },
               top: { md: 84 },
             }}
