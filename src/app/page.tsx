@@ -930,7 +930,7 @@ export default async function HomePage(
           )}
         </Box>
 
-        {(liveCricketMatches.length > 0 || briefArticles.length > 0) && (
+        {(liveCricketMatches.length > 0 || briefArticles.length > 0 || PLAYER_QUOTES.length > 0) && (
           // Both modules share ONE sticky wrapper, same pattern as the left
           // rail's multiple stacked modules — two independent
           // position:"sticky" siblings at the same top offset was the actual
@@ -1017,6 +1017,15 @@ export default async function HomePage(
               ))}
             </Stack>
               </Paper>
+            )}
+
+            {/* Generic fallback so this column is never a bare empty gap —
+                confirmed live: a sparse category (e.g. NBA during preseason,
+                ESPN's own feed down to a single item) can genuinely have
+                neither a live cricket match nor any brief articles, and
+                previously that meant nothing rendered here at all. */}
+            {liveCricketMatches.length === 0 && briefArticles.length === 0 && PLAYER_QUOTES.length > 0 && (
+              <QuotesStrip quotes={PLAYER_QUOTES} />
             )}
           </Box>
         )}
