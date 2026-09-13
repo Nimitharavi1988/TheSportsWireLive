@@ -95,10 +95,16 @@ export function LiveScoreboardCarousel({ matches }: { matches: LiveMatchRow[] })
           <Box sx={{ mb: 1 }}>
             <StatusBadge state={current.matchState} kickoffAt={current.kickoffAt} />
           </Box>
-          <Stack spacing={0.5} sx={{ mb: 1 }}>
-            <TeamRow crest={current.homeCrestUrl} name={current.homeTeam} scoreText={current.homeScoreText} />
-            <TeamRow crest={current.awayCrestUrl} name={current.awayTeam} scoreText={current.awayScoreText} />
-          </Stack>
+          {current.isNewsDerived ? (
+            <Typography sx={{ fontSize: 14, fontWeight: 700, mb: 1 }}>
+              {current.homeTeam} vs {current.awayTeam}
+            </Typography>
+          ) : (
+            <Stack spacing={0.5} sx={{ mb: 1 }}>
+              <TeamRow crest={current.homeCrestUrl} name={current.homeTeam} scoreText={current.homeScoreText} />
+              <TeamRow crest={current.awayCrestUrl} name={current.awayTeam} scoreText={current.awayScoreText} />
+            </Stack>
+          )}
           <Typography
             variant="body2"
             sx={{ color: "text.secondary", fontSize: 12, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}

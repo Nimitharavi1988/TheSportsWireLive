@@ -18,6 +18,12 @@ export interface LiveMatchRow {
   awayScoreText: string | null;
   kickoffAt: Date | null;
   matchState: CricketMatchStatus;
+  // True for a match with no structured score data at all (see
+  // liveCricket.ts's news-headline fallback) — real team names and a real
+  // headline, but no per-team score to show, so the per-team rows below
+  // would otherwise fall back to a "yet to bat" that's simply untrue for a
+  // match already in progress. Renders as a plain team-names line instead.
+  isNewsDerived?: boolean;
 }
 
 // One shared status badge — pulsing red dot for a genuinely live match, a
@@ -107,10 +113,16 @@ export function LiveScorecard({ match, compact = false }: { match: LiveMatchRow;
         <Box sx={{ mb: compact ? 1 : 1.25 }}>
           <StatusBadge state={match.matchState} kickoffAt={match.kickoffAt} />
         </Box>
-        <Stack spacing={compact ? 0.5 : 0.75} sx={{ mb: compact ? 1 : 1.25 }}>
-          <TeamRow crest={match.homeCrestUrl} name={match.homeTeam} scoreText={match.homeScoreText} compact={compact} />
-          <TeamRow crest={match.awayCrestUrl} name={match.awayTeam} scoreText={match.awayScoreText} compact={compact} />
-        </Stack>
+        {match.isNewsDerived ? (
+          <Typography sx={{ fontSize: compact ? 13.5 : 15, fontWeight: 700, mb: compact ? 1 : 1.25 }}>
+            {match.homeTeam} vs {match.awayTeam}
+          </Typography>
+        ) : (
+          <Stack spacing={compact ? 0.5 : 0.75} sx={{ mb: compact ? 1 : 1.25 }}>
+            <TeamRow crest={match.homeCrestUrl} name={match.homeTeam} scoreText={match.homeScoreText} compact={compact} />
+            <TeamRow crest={match.awayCrestUrl} name={match.awayTeam} scoreText={match.awayScoreText} compact={compact} />
+          </Stack>
+        )}
         <Typography
           variant="body2"
           sx={{

@@ -113,7 +113,7 @@ const NEWS_MATCH_LOOKBACK_MS = 24 * 60 * 60 * 1000;
 async function fetchNewsBasedCricketMatches(
   take: number,
   excludePairs: Set<string>
-): Promise<Array<{ id: string; slug: string; summary: string; homeTeam: string; awayTeam: string; homeCrestUrl: null; awayCrestUrl: null; homeScoreText: null; awayScoreText: null; kickoffAt: null; matchState: CricketMatchStatus }>> {
+): Promise<Array<{ id: string; slug: string; summary: string; homeTeam: string; awayTeam: string; homeCrestUrl: null; awayCrestUrl: null; homeScoreText: null; awayScoreText: null; kickoffAt: null; matchState: CricketMatchStatus; isNewsDerived: true }>> {
   const rows = await db.article.findMany({
     where: {
       status: "published",
@@ -150,6 +150,7 @@ async function fetchNewsBasedCricketMatches(
       awayScoreText: null,
       kickoffAt: null,
       matchState: r.state,
+      isNewsDerived: true,
     }));
 }
 
