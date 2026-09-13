@@ -273,12 +273,21 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
             }}
           >
             {slides.map((s, i) => (
+              // A real <button> with a label — was a plain clickable Box
+              // with no accessible name at all, unlike the prev/next arrows
+              // right above, which already have aria-label.
               <Box
+                component="button"
                 key={s.slug}
+                type="button"
                 onClick={() => setIndex(i)}
+                aria-label={`Go to story ${i + 1} of ${slides.length}`}
+                aria-current={i === safeIndex}
                 sx={{
                   width: 7,
                   height: 7,
+                  p: 0,
+                  border: "none",
                   borderRadius: "50%",
                   cursor: "pointer",
                   bgcolor: i === safeIndex ? (imageUrl ? "#fff" : "primary.main") : imageUrl ? "rgba(255,255,255,0.5)" : "divider",

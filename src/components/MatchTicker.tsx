@@ -229,8 +229,13 @@ export default async function MatchTicker() {
               </Box>
               <Image src={tick.awayCrestUrl} alt="" width={19} height={19} />
               {tick.isLive && (
+                // Purely decorative — the adjacent status span below already
+                // renders the literal text "LIVE", so a screen reader isn't
+                // missing any information here; aria-hidden just keeps this
+                // dot from being announced as an unlabeled element.
                 <Box
                   component="span"
+                  aria-hidden="true"
                   sx={{
                     width: 5,
                     height: 5,
