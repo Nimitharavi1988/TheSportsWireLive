@@ -64,6 +64,95 @@ const SELECT = {
 
 export type CricketMatchStatus = "live" | "upcoming" | "finished";
 
+// CricketData.org's free API tier doesn't carry every bilateral series (the
+// India vs Afghanistan T20Is, confirmed live via a direct DB check, never
+// appeared in it at all) — so structured scores above can be entirely
+// missing for a real, currently-live international. Rather than showing
+// nothing, this derives a lightweight scoreboard entry straight from the
+// RSS headlines themselves: publishers like Hindustan Times re-publish a
+// fresh "LIVE Score" title as the match progresses, so the latest headline
+// IS a genuine live update even with no numeric score field. Deliberately
+// restricted to full-member country names (not club/franchise names) to
+// avoid false-positive pairings from domestic league headlines.
+const TEAM_CODES: Record<string, string> = {
+  IND: "India", AUS: "Australia", ENG: "England", PAK: "Pakistan", SA: "South Africa",
+  NZ: "New Zealand", SL: "Sri Lanka", BAN: "Bangladesh", AFG: "Afghanistan", ZIM: "Zimbabwe",
+  IRE: "Ireland", SCO: "Scotland", NED: "Netherlands", NEP: "Nepal", UAE: "UAE", USA: "USA",
+};
+const FULL_NAMES = new Set(Object.values(TEAM_CODES));
+
+function resolveTeamToken(token: string): string | null {
+  const t = token.trim();
+  if (TEAM_CODES[t.toUpperCase()]) return TEAM_CODES[t.toUpperCase()];
+  if (FULL_NAMES.has(t)) return t;
+  return null;
+}
+
+// Matches "IND vs AFG LIVE Score, ..." / "India vs Afghanistan, 1st T20I" —
+// team tokens sit between the start of the title and the first comma/colon/
+// status word, so both plain names and abbreviations resolve the same way.
+function extractInternationalPair(title: string): { home: string; away: string } | null {
+  const m = title.match(/^\s*([A-Za-z .]{2,20}?)\s+v(?:s\.?)?\s+([A-Za-z .]{2,20}?)(?:\s*[,:]|\s+LIVE\b|\s+Live\b|$)/);
+  if (!m) return null;
+  const home = resolveTeamToken(m[1]);
+  const away = resolveTeamToken(m[2]);
+  if (!home || !away || home === away) return null;
+  return { home, away };
+}
+
+function classifyNewsStatus(title: string): CricketMatchStatus | null {
+  const lower = title.toLowerCase();
+  if (/\blive\b/.test(lower)) return "live";
+  if (/\b(beat|beats|won by|win by|wins by|clinch|seal|as it happened)\b/.test(lower)) return "finished";
+  if (/\b(preview|set to face|will face|squad announced|series begins|to begin)\b/.test(lower)) return "upcoming";
+  return null;
+}
+
+const NEWS_MATCH_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+
+async function fetchNewsBasedCricketMatches(
+  take: number,
+  excludePairs: Set<string>
+): Promise<Array<{ id: string; slug: string; summary: string; homeTeam: string; awayTeam: string; homeCrestUrl: null; awayCrestUrl: null; homeScoreText: null; awayScoreText: null; kickoffAt: null; matchState: CricketMatchStatus }>> {
+  const rows = await db.article.findMany({
+    where: {
+      status: "published",
+      category: { startsWith: "cricket" },
+      createdAt: { gt: new Date(Date.now() - NEWS_MATCH_LOOKBACK_MS) },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, slug: true, title: true },
+    take: 200,
+  });
+
+  const byPair = new Map<string, { id: string; slug: string; home: string; away: string; state: CricketMatchStatus; title: string }>();
+  for (const r of rows) {
+    const pair = extractInternationalPair(r.title);
+    if (!pair) continue;
+    const key = [pair.home, pair.away].sort().join("|");
+    if (excludePairs.has(key) || byPair.has(key)) continue; // rows already sorted newest-first — first hit per pair wins
+    const state = classifyNewsStatus(r.title);
+    if (!state) continue;
+    byPair.set(key, { id: r.id, slug: r.slug, home: pair.home, away: pair.away, state, title: r.title });
+  }
+
+  return Array.from(byPair.values())
+    .slice(0, take)
+    .map((r) => ({
+      id: r.id,
+      slug: r.slug,
+      summary: r.title,
+      homeTeam: r.home,
+      awayTeam: r.away,
+      homeCrestUrl: null,
+      awayCrestUrl: null,
+      homeScoreText: null,
+      awayScoreText: null,
+      kickoffAt: null,
+      matchState: r.state,
+    }));
+}
+
 // A Google/ESPN-style scoreboard: matches already underway (status: "live"),
 // matches CricketData.org's currentMatches feed already knows about but
 // hasn't started yet (status: "upcoming" — that feed isn't a full fixtures
@@ -105,9 +194,22 @@ export async function fetchLiveCricketMatches(take: number) {
   const upcoming = internationalFirst(upcomingSorted);
   const finished = internationalFirst(finishedRaw);
 
+  const coveredPairs = new Set(
+    [...scheduled, ...finishedRaw]
+      .filter((m) => m.homeTeam && m.awayTeam)
+      .map((m) => [m.homeTeam, m.awayTeam].sort().join("|"))
+  );
+  const newsBased = await fetchNewsBasedCricketMatches(take, coveredPairs);
+  const newsLive = newsBased.filter((m) => m.matchState === "live");
+  const newsFinished = newsBased.filter((m) => m.matchState === "finished");
+  const newsUpcoming = newsBased.filter((m) => m.matchState === "upcoming");
+
   return [
+    ...newsLive,
     ...live.map((m) => ({ ...m, matchState: "live" as const })),
+    ...newsFinished,
     ...finished.slice(0, take).map((m) => ({ ...m, matchState: "finished" as const })),
+    ...newsUpcoming,
     ...upcoming.map((m) => ({ ...m, matchState: "upcoming" as const })),
   ];
 }
