@@ -22,6 +22,7 @@ import { TRACKED_PLAYERS } from "@/lib/players";
 import { TRACKED_CLUBS } from "@/lib/clubs";
 import { createEntityLinker } from "@/lib/entityLinks";
 import { FanEngagementHub } from "@/components/FanEngagementHub";
+import { FollowFacebookPrompt } from "@/components/FollowFacebookPrompt";
 import { ShareButtons } from "@/components/ShareButtons";
 import { displaySummary, splitIntoParagraphs } from "@/lib/articleSummary";
 import { relativeTime } from "@/lib/relativeTime";
@@ -397,6 +398,8 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           reader who clicks through to the source immediately after reading
           would otherwise never see it. */}
       <FanEngagementHub articleId={article.id} />
+
+      <FollowFacebookPrompt />
 
       <Box sx={{ mt: 3, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
         <a href={article.sourceUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
