@@ -40,9 +40,16 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
 
   const [series, articles] = await Promise.all([
     findSeries(seriesKey),
+    // Chronological, not trending — a series page is followed like a live
+    // blog during an active match, so the newest update belongs at the top
+    // even before it's accumulated any engagement. trendingScore-first
+    // ordering was burying today's live-match articles (trendingScore still
+    // low, minutes old) beneath 1-2 day old preview stories that had time to
+    // build score — confirmed live: the actual newest 5 articles were absent
+    // from the first 8 shown.
     db.article.findMany({
       where: { seriesKey, status: "published" },
-      orderBy: [{ trendingScore: "desc" }, { publishedAt: "desc" }],
+      orderBy: [{ publishedAt: "desc" }],
       take: 60,
     }),
   ]);
