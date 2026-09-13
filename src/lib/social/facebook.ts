@@ -3,14 +3,63 @@ import { displaySummary } from "@/lib/articleSummary";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { TRACKED_PLAYERS } from "@/lib/players";
 
+// A sport emoji at the start of the post text is a small, low-risk
+// engagement lever on Facebook (unlike extra hashtags, which hurt reach —
+// see below, this has no such downside since it's not a discoverability
+// mechanism, just visual attention in the feed).
+const CATEGORY_EMOJI: Record<string, string> = {
+  cricket: "🏏",
+  football: "⚽",
+  "american-football": "🏈",
+  basketball: "🏀",
+  baseball: "⚾",
+  rugby: "🏉",
+  athletics: "🏃",
+};
+
+function emojiFor(category: string): string {
+  return CATEGORY_EMOJI[category] ?? "🏆";
+}
+
+// International team names/codes as they commonly appear in headlines —
+// used only to build a series-specific hashtag ("#INDvAFG"), not for flag
+// display (see cricketCountries.ts for why Afghanistan is excluded there),
+// so there's no "wrong flag" risk in including it here.
+const TEAM_TO_CODE: Record<string, string> = {};
+for (const [name, code] of [
+  ["India", "IND"], ["Australia", "AUS"], ["England", "ENG"], ["Pakistan", "PAK"],
+  ["South Africa", "SA"], ["New Zealand", "NZ"], ["Sri Lanka", "SL"], ["Bangladesh", "BAN"],
+  ["Afghanistan", "AFG"], ["Zimbabwe", "ZIM"], ["Ireland", "IRE"], ["Scotland", "SCO"],
+  ["Netherlands", "NED"], ["Nepal", "NEP"],
+] as const) {
+  TEAM_TO_CODE[name.toLowerCase()] = code;
+  TEAM_TO_CODE[code.toLowerCase()] = code;
+}
+
+// Matches "IND vs AFG LIVE Score, ..." / "India vs Afghanistan, 1st T20I" —
+// same shape as liveCricket.ts's extractInternationalPair, kept separate
+// here since this only needs the resulting hashtag, not team display names.
+function seriesHashtag(title: string): string | null {
+  const m = title.match(/^\s*([A-Za-z .]{2,20}?)\s+v(?:s\.?)?\s+([A-Za-z .]{2,20}?)(?:\s*[,:]|\s+LIVE\b|\s+Live\b|$)/i);
+  if (!m) return null;
+  const home = TEAM_TO_CODE[m[1].trim().toLowerCase()];
+  const away = TEAM_TO_CODE[m[2].trim().toLowerCase()];
+  if (!home || !away || home === away) return null;
+  return `#${home}v${away}`;
+}
+
 // 2-3 hashtags reads as normal on Facebook; more than that measurably hurts
 // reach on FB specifically (unlike Instagram/X, where stacking many is
 // normal) — so this is deliberately capped, not "more tags = more reach."
-// Category tag + brand tag always included; a third, more specific tag only
-// when a tracked star player is actually named in the headline.
+// A series-specific tag (e.g. #INDvAFG) replaces the generic category tag
+// when the headline is clearly about a specific international matchup —
+// more discoverable without adding to the total count. Brand tag always
+// included; a third, more specific tag only when a tracked star player is
+// actually named in the headline.
 function hashtagsFor(title: string, category: string): string {
   const categoryTag = categoryChipStyle(category).label.replace(/[^a-zA-Z0-9]/g, "");
-  const tags = [`#${categoryTag}`, "#SportsWireLive"];
+  const primaryTag = seriesHashtag(title) ?? `#${categoryTag}`;
+  const tags = [primaryTag, "#SportsWireLive"];
 
   const lower = title.toLowerCase();
   const player = TRACKED_PLAYERS.find((p) => p.searchTerms.some((term) => lower.includes(term.toLowerCase())));
@@ -73,7 +122,7 @@ export async function postArticleToFacebook(articleId: string) {
   // article page's own og:image (generateMetadata in article/[slug]/
   // page.tsx), so it only works correctly now that SITE_URL is set right
   // (see the earlier production fix — before that it pointed at localhost).
-  const message = `${article.title}\n\n${displaySummary(article, 400)}\n\n${hashtagsFor(article.title, article.category)}`;
+  const message = `${emojiFor(article.category)} ${article.title}\n\n${displaySummary(article, 400)}\n\n${hashtagsFor(article.title, article.category)}`;
 
   const socialPost = await db.socialPost.create({
     data: { articleId, platform: "facebook", status: "queued" },
