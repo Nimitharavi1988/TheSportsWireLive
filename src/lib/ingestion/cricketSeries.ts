@@ -41,6 +41,19 @@ const TEAM_NAMES: string[] = [
   "West Indies",
 ];
 
+// Abbreviated codes ("IND vs AFG") are extremely common in real cricket
+// headlines — confirmed live: several of a live series' own "LIVE Score"
+// update articles used ONLY the codes, never spelling out both full names
+// anywhere in the title, so findTeamPair (full-name-only) found at most one
+// recognized team and never tagged them into the series at all. Resolved to
+// the matching full name below so the key/label output is unchanged either
+// way a headline happens to phrase it.
+const CODE_TO_NAME: Record<string, string> = {
+  IND: "India", AUS: "Australia", ENG: "England", PAK: "Pakistan", SA: "South Africa",
+  NZ: "New Zealand", SL: "Sri Lanka", BAN: "Bangladesh", AFG: "Afghanistan", ZIM: "Zimbabwe",
+  IRE: "Ireland", SCO: "Scotland", NED: "Netherlands", NEP: "Nepal", WI: "West Indies",
+};
+
 export interface SeriesInfo {
   key: string;
   label: string;
@@ -49,9 +62,18 @@ export interface SeriesInfo {
 // Matches both singular ("T20I") and plural ("T20Is") — real editorial
 // headlines overwhelmingly use the plural ("Afghanistan T20Is"), which a
 // bare \bT20I\b word-boundary check misses entirely (no boundary between
-// "I" and a following "s", both word characters).
+// "I" and a following "s", both word characters). Bare "T20" (no trailing
+// "I") is also common in real headlines for an international match
+// ("India thrash Afghanistan... in first T20", "India-Afghanistan T20
+// tie") — confirmed live: this alone silently excluded several genuine
+// match-day articles from a series already confirmed live elsewhere on the
+// site. Checked after the stricter T20I pattern so "T20I" itself still
+// resolves precisely; both map to the same "T20I" label since this
+// function already requires two recognized COUNTRY names in the same
+// title, which rules out a bare domestic "T20" (club names, not countries).
 const FORMAT_LABELS: [RegExp, string][] = [
   [/\bT20Is?\b/i, "T20I"],
+  [/\bT20\b/i, "T20I"],
   [/\bODIs?\b/i, "ODI"],
   [/\bTests?\b/i, "Test"],
 ];
@@ -92,17 +114,25 @@ export function deriveSeriesKey(homeTeam: string, awayTeam: string, formatSource
   };
 }
 
-// Longest names first — "South Africa" must win over a hypothetical shorter
+// Longest tokens first — "South Africa" must win over a hypothetical shorter
 // substring match before "Africa" alone (not in the list, but the same
 // discipline as cricketSeries's other regexes), and prevents "New Zealand"
 // from matching only part of itself against another multi-word name.
+const TEAM_TOKENS = [...TEAM_NAMES, ...Object.keys(CODE_TO_NAME)];
 const TEAM_NAME_PATTERN = new RegExp(
-  `\\b(${[...TEAM_NAMES].sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`,
+  `\\b(${[...TEAM_TOKENS].sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`,
   "gi"
 );
 
-// Finds the first two DISTINCT recognized international team names in a
-// title, in the order they appear — good enough for the overwhelming
+function resolveMatchedToken(raw: string): string {
+  const code = CODE_TO_NAME[raw.toUpperCase()];
+  if (code) return code;
+  return TEAM_NAMES.find((n) => n.toLowerCase() === raw.toLowerCase()) ?? raw;
+}
+
+// Finds the first two DISTINCT recognized international teams in a title
+// (full name or abbreviation, resolved to a canonical full name either
+// way), in the order they appear — good enough for the overwhelming
 // majority of real headlines, which are about exactly two teams when they
 // mention a series at all. A roundup mentioning three teams just gets
 // grouped by whichever two are named first, which is an acceptable
@@ -112,7 +142,7 @@ function findTeamPair(title: string): [string, string] | null {
   const found: string[] = [];
   let match: RegExpExecArray | null;
   while ((match = TEAM_NAME_PATTERN.exec(title))) {
-    const name = match[0];
+    const name = resolveMatchedToken(match[0]);
     if (!found.some((f) => f.toLowerCase() === name.toLowerCase())) found.push(name);
     if (found.length === 2) return [found[0], found[1]];
   }
