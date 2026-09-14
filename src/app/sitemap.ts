@@ -9,11 +9,17 @@ export const revalidate = 3600;
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
 
+  // 5000 was close to binding: 3,646 published articles already, growing
+  // ~200+/day — would have started silently dropping the oldest articles
+  // out of the sitemap within 1-2 weeks. 20000 gives a multi-month runway
+  // at the current pace; well under the 50000-URL hard limit for a single
+  // sitemap.xml (Next.js's generateSitemaps() is the pattern to reach for
+  // once actually approaching that, not needed yet).
   const articles = await db.article.findMany({
     where: { status: "published" },
-    select: { slug: true, publishedAt: true },
+    select: { slug: true, publishedAt: true, updatedAt: true },
     orderBy: { publishedAt: "desc" },
-    take: 5000,
+    take: 20000,
   });
 
   const seriesRows = await db.article.groupBy({
@@ -65,7 +71,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const articleRoutes: MetadataRoute.Sitemap = articles.map((article) => ({
     url: `${siteUrl}/article/${article.slug}`,
-    lastModified: article.publishedAt ?? undefined,
+    // updatedAt, not publishedAt — a match-data article's content really
+    // does change after publish (scheduled -> live -> finished score
+    // updates, see runIngest.ts's duplicate-refresh branch), and lastmod is
+    // the signal that tells crawlers a page is worth re-fetching. publishedAt
+    // never moves once set, so real post-publish content changes were
+    // invisible to this signal entirely.
+    lastModified: article.updatedAt,
     changeFrequency: "never",
     priority: 0.7,
   }));
