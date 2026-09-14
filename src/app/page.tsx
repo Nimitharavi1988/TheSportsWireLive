@@ -810,11 +810,15 @@ export default async function HomePage(
                           <ArticleThumb article={article} size={84} fallbackColor="#f59e0b" />
                           <Box sx={{ minWidth: 0, flex: 1 }}>
                             <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
+                              {/* "warning" alone isn't a valid CSS color — sx needs the full
+                                  theme path ("warning.main"), unlike the color prop which
+                                  accepts the bare palette key. Silently fell back to default
+                                  text color instead of the intended amber tint. */}
                               <Chip label={article.sourceName} size="small" variant="outlined" sx={{
-                                color: "warning"
+                                color: "warning.main", borderColor: "warning.main"
                               }} />
                               {article.highlighted && <Chip label="📌 Editor's pick" size="small" sx={{
-                                color: "warning"
+                                color: "warning.contrastText", bgcolor: "warning.main"
                               }} />}
                               {article.publishedAt && (
                                 <Typography variant="caption" sx={{ color: "text.secondary" }}>
