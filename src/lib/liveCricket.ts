@@ -85,6 +85,23 @@ function resolveTeamToken(token: string): string | null {
   const t = token.trim();
   if (TEAM_CODES[t.toUpperCase()]) return TEAM_CODES[t.toUpperCase()];
   if (FULL_NAMES.has(t)) return t;
+  // extractInternationalPair's regex captures up to the first comma/colon —
+  // when that's not immediately after the team token, it swallows the next
+  // word(s) too (e.g. "SL Highlights," from "IND vs SL Highlights, Women's
+  // Asia Cup Final..."). Confirmed live: this silently dropped a genuine
+  // finished-match article (no team pair recognized) and left an OLDER
+  // still-"LIVE" article as the pair's latest classified result — a real
+  // finished match stuck showing live. Falling back to just the first word
+  // (or first two, for "South Africa"/"New Zealand"-style names) recovers
+  // the real team without loosening the exact-match check itself.
+  const words = t.split(/\s+/);
+  if (words.length > 1) {
+    const twoWord = words.slice(0, 2).join(" ");
+    if (FULL_NAMES.has(twoWord)) return twoWord;
+    const first = words[0];
+    if (TEAM_CODES[first.toUpperCase()]) return TEAM_CODES[first.toUpperCase()];
+    if (FULL_NAMES.has(first)) return first;
+  }
   return null;
 }
 
@@ -102,8 +119,18 @@ function extractInternationalPair(title: string): { home: string; away: string }
 
 function classifyNewsStatus(title: string): CricketMatchStatus | null {
   const lower = title.toLowerCase();
+  // Checked before "live" — confirmed live: a real post-match wrap-up
+  // ("IND vs AFG Highlights... India cruise to seven-wicket win") matched
+  // none of the original finished-keywords (no "won by"/"win by" — real
+  // headlines say "seven-wicket win", "cruise to a win", etc., not that
+  // exact phrasing), so it fell through as unclassified and got skipped by
+  // the caller, leaving an OLDER still-"LIVE"-titled article as the latest
+  // classified result — a real finished match stuck showing "LIVE" with no
+  // staleness cutoff at all, unlike the structured-data path above.
+  // "Highlights"/"recap" are unambiguous post-match-only words no preview
+  // or in-progress headline would ever use.
+  if (/\b(highlights|recap|beat|beats|won by|win by|wins by|clinch|seal|as it happened)\b/.test(lower)) return "finished";
   if (/\blive\b/.test(lower)) return "live";
-  if (/\b(beat|beats|won by|win by|wins by|clinch|seal|as it happened)\b/.test(lower)) return "finished";
   if (/\b(preview|set to face|will face|squad announced|series begins|to begin)\b/.test(lower)) return "upcoming";
   return null;
 }
