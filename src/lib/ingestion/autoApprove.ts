@@ -31,7 +31,7 @@ const MIN_MATCH_DATA_BODY_LENGTH = 80;
 // the Page would still flood it. Capped to the top N by trendingScore among
 // the isHighlightWorthy set instead — a real per-run volume ceiling, not
 // just a topical filter.
-const MAX_FACEBOOK_POSTS_PER_RUN = 6;
+const MAX_FACEBOOK_POSTS_PER_RUN = 5;
 // Per-run cap alone let volume run away: with a 15-min cron, 5/run could mean
 // up to ~480/day. Confirmed live: the site's real organic highlight-worthy
 // volume is ~200-225+ distinct articles/day. 60 turned out too low — it was
@@ -45,14 +45,12 @@ const MAX_FACEBOOK_POSTS_PER_RUN = 6;
 // doesn't realistically bind under normal-to-high content days.
 const MAX_FACEBOOK_POSTS_PER_DAY = 300;
 // Pure trendingScore ranking let NBA/MLB (higher volume post-expansion) crowd
-// out the site's two flagship sports some runs. Reserve slots so cricket/
-// football are never silently dropped from the Page. Cricket briefly ran at
-// 4 slots/40-a-day for the 1st India vs Afghanistan T20I; back to the normal
-// baseline now that match is done (2 more T20Is remain in the series, so
-// cricket still gets a slight edge over the 1-slot default, just not the
-// live-match crowding level).
+// out the site's two flagship sports some runs. Reserve one slot each so
+// cricket/football are never silently dropped from the Page — the rest of
+// each run's 5 slots fill by trending score across every sport rather than
+// being reserved further.
 const RESERVED_CATEGORIES: { category: string; slots: number }[] = [
-  { category: "cricket", slots: 2 },
+  { category: "cricket", slots: 1 },
   { category: "football", slots: 1 },
 ];
 
