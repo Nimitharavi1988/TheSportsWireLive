@@ -341,8 +341,20 @@ export default async function HomePage(
   const allFootballCricketArticles = allMatchArticles.filter((a) => a.sourceName !== "ESPN NFL");
 
   const matchArticles = allFootballCricketArticles.slice(0, 10);
-  const moreArticles = allFootballCricketArticles.slice(10, 25);
   const nflArticles = allNflArticles.slice(0, 10);
+  // Was allFootballCricketArticles.slice(10, 25) — that pool is genuine
+  // match-data sources only (football-data.org/CricketData.org), which is
+  // correct for "Match Results & Previews" above but far too small a pool
+  // to also slice a 15-item overflow from (a finite number of real matches
+  // per day, often under 10 total). Confirmed live: this section was
+  // rendering empty/near-empty after allMatchArticlesFull was correctly
+  // narrowed to match-data-only sources (see isMatchDataSource fix) — this
+  // section was accidentally relying on that pool being oversized (a bug)
+  // to have any volume at all. Draws from the large editorial pool instead
+  // (same source as "Also in the News"), excluding whatever's already
+  // shown in Transfers & Big News / Also in the News just above it.
+  const usedBriefIds = new Set([...highlightIds, ...briefArticles.map((a) => a.id)]);
+  const moreArticles = allBriefArticles.filter((a) => !usedBriefIds.has(a.id)).slice(0, 15);
 
   // Only fetch a generic stock photo per slide when there's no real image to
   // show instead — a match article with real team crests shouldn't also get
