@@ -42,7 +42,10 @@ const MAX_FACEBOOK_POSTS_PER_RUN = 5;
 // ingestion run" and "a daily cap" are in tension once the cap sits below
 // real volume — 300 keeps a real safety-net ceiling (still stops a genuine
 // runaway/bug) while sitting comfortably above observed daily volume so it
-// doesn't realistically bind under normal-to-high content days.
+// doesn't realistically bind under normal-to-high content days. Now a soft
+// ceiling, not hard: runCap below floors at 1 rather than 0 once this is
+// exceeded, so a run always attempts at least one post rather than going
+// fully silent for the rest of the day.
 const MAX_FACEBOOK_POSTS_PER_DAY = 300;
 // Cricket is the only reserved slot now — every other sport, football
 // included, competes purely on trendingScore for the remaining 4 of each
@@ -119,7 +122,15 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
       where: { platform: "facebook", createdAt: { gte: todayStart } },
     });
     const remainingToday = Math.max(0, MAX_FACEBOOK_POSTS_PER_DAY - postedToday);
-    const runCap = Math.min(MAX_FACEBOOK_POSTS_PER_RUN, remainingToday);
+    // Floored at 1, not 0 — the daily cap is a volume throttle, not meant to
+    // fully silence posting for the rest of the day once it's hit (confirmed
+    // live: exactly that happened once postedToday reached 300, zeroing out
+    // every run for hours). One guaranteed post per run keeps both Facebook
+    // and Instagram (which shares this same selection) minimally active even
+    // once the day's bulk cap is exhausted, at the cost of the daily total
+    // being a soft ceiling rather than a hard one — worst case adds at most
+    // one extra post per ~15-min run beyond MAX_FACEBOOK_POSTS_PER_DAY.
+    const runCap = Math.max(1, Math.min(MAX_FACEBOOK_POSTS_PER_RUN, remainingToday));
 
     const eligible = toApprove
       .filter((a) => isHighlightWorthy(a.title))
