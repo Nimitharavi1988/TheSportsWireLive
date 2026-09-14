@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { isMatchDataSource } from "@/lib/matchDataSources";
 import Link from "next/link";
 import Image from "next/image";
 import { ScrollRow } from "@/components/ScrollRow";
@@ -51,13 +52,18 @@ const SECTION_HEADING_SX = { fontFamily: "var(--font-body)", color: "text.second
 
 export const revalidate = 60;
 
-// "ESPN" covers both the soccer feed and the new NFL news feed (rssFeeds.ts)
-// — both are genuine RSS editorial news, not structured match data, so both
-// belong in the sidebar/highlight sections, not mixed into the crest-based
-// Match Results/NFL Scores sections. Discovered while adding NFL news that
-// "ESPN" (soccer) was missing from this list already — a pre-existing gap
-// this also fixes, not something new-sport-specific.
-const RSS_SOURCES = ["BBC Sport", "The Guardian", "Sky Sports", "ESPN Cricinfo", "ESPN", "Athletics Weekly"];
+// Was a hardcoded allowlist of RSS source names — confirmed live (twice
+// now) that this drifts stale every time a new RSS feed or player-news
+// source is added: CBS Sports/Yahoo Sports/Hindustan Times (real editorial
+// RSS feeds) and every dynamic Google News player-news source name were
+// all missing, so those articles were silently miscategorized as "match
+// data" and never reached "Also in the News" — confirmed live for NFL
+// (CBS Sports/Yahoo Sports specifically). isMatchDataSource is the
+// actively-maintained single source of truth for the opposite
+// classification (matchDataSources.ts) — inverting it here means a new
+// structured-data source only ever needs adding in one place, and every
+// genuine editorial article (any source, RSS feed or player-news) is
+// correctly treated as "brief" content by default.
 
 
 const CATEGORY_META: Record<string, { title: string; description: string }> = {
@@ -287,8 +293,8 @@ export default async function HomePage(
   const manuallyHighlightedIds = new Set(manuallyHighlighted.map((a) => a.id));
   const remainingAfterHighlighted = remainingAfterFeatured.filter((a) => !manuallyHighlightedIds.has(a.id));
 
-  const allMatchArticlesFull = remainingAfterHighlighted.filter((a) => !RSS_SOURCES.includes(a.sourceName));
-  const allBriefArticlesFull = remainingAfterHighlighted.filter((a) => RSS_SOURCES.includes(a.sourceName));
+  const allMatchArticlesFull = remainingAfterHighlighted.filter((a) => isMatchDataSource(a.sourceName));
+  const allBriefArticlesFull = remainingAfterHighlighted.filter((a) => !isMatchDataSource(a.sourceName));
 
   // Hero carousel: manual picks (up to 5, latest first) always win the
   // first slots; any remaining slots fill with the top-ranked match
