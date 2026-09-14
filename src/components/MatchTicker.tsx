@@ -134,7 +134,9 @@ export default async function MatchTicker() {
           alignItems: "center",
           pl: 2,
           pr: 1.5,
-          bgcolor: "primary.main",
+          // A flat solid fill read as a heavy, plain block — a subtle
+          // gradient keeps the same brand green but gives it some depth.
+          background: "linear-gradient(135deg, #2f8a5c 0%, #17512f 100%)",
         }}
       >
         <Box
@@ -169,7 +171,7 @@ export default async function MatchTicker() {
             borderTop: "18px solid transparent",
             borderBottom: "18px solid transparent",
             borderLeft: "10px solid",
-            borderLeftColor: "primary.main",
+            borderLeftColor: "#17512f",
             ml: 1.5,
           }}
         />
@@ -191,14 +193,23 @@ export default async function MatchTicker() {
                 display: "flex",
                 alignItems: "center",
                 gap: 1.1,
-                px: 2.5,
-                py: 1.4,
-                borderRight: "1px solid",
+                px: 1.75,
+                py: 1,
+                mx: 0.75,
+                my: 1,
+                borderRadius: 2,
+                // Plain text separated by a divider line read as flat/bland
+                // against the panel's own tint — a distinct card per match
+                // (white against the tinted backdrop) gives the row some
+                // visual texture without changing the actual color scheme.
+                bgcolor: "background.paper",
+                border: "1px solid",
                 borderColor: "divider",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                 whiteSpace: "nowrap",
                 fontSize: 13.5,
-                transition: "background-color 0.15s",
-                "&:hover": { bgcolor: "rgba(29, 107, 63, 0.06)" },
+                transition: "box-shadow 0.15s, border-color 0.15s",
+                "&:hover": { boxShadow: "0 2px 8px rgba(0,0,0,0.1)", borderColor: "primary.main" },
               }}
             >
               <Image src={tick.homeCrestUrl} alt="" width={19} height={19} />
