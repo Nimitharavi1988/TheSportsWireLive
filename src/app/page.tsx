@@ -47,8 +47,13 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 // left rail's headers (By Category, Just In) use Inter and a muted gray.
 // Standardizing the main column on the sidebar's font/color per user
 // feedback, while keeping the larger h5 size so these still read as the
-// primary section dividers they are.
-const SECTION_HEADING_SX = { fontFamily: "var(--font-body)", color: "text.secondary" };
+// primary section dividers they are. fontWeight explicitly dialed back
+// from the inherited theme h5 weight (700, tuned for Poppins) to 600 —
+// Inter's bold cut reads visibly heavier than Poppins bold at the same
+// numeric weight, so switching font family alone (without this) made these
+// headers look bolder than every other heading on the page even though the
+// CSS weight number was identical.
+const SECTION_HEADING_SX = { fontFamily: "var(--font-body)", color: "text.secondary", fontWeight: 600 };
 
 export const revalidate = 60;
 
