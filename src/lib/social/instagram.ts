@@ -63,7 +63,10 @@ export async function postArticleToInstagram(articleId: string) {
   const accessToken = await resolvePageAccessToken(pageId, rawToken);
 
   const emoji = CATEGORY_EMOJI[article.category] ?? "🏆";
-  const caption = `${emoji} ${article.title}\n\n${displaySummary(article, 300)}\n\n${hashtagsForInstagram(article.title, article.category)}`;
+  // Not a clickable link (Instagram captions don't render URLs as links —
+  // see FollowUs.tsx's own comment on the same limitation), just plain text
+  // pointing readers to the site as the source for more coverage.
+  const caption = `${emoji} ${article.title}\n\n${displaySummary(article, 300)}\n\n📲 More sports news at sportswirelive.com\n\n${hashtagsForInstagram(article.title, article.category)}`;
 
   const socialPost = await db.socialPost.create({
     data: { articleId, platform: "instagram", status: "queued" },
