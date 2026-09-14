@@ -43,6 +43,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteUrl}/player`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${siteUrl}/club`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${siteUrl}/series`, changeFrequency: "daily", priority: 0.5 },
+    { url: `${siteUrl}/about`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${siteUrl}/privacy`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${siteUrl}/terms`, changeFrequency: "yearly", priority: 0.2 },
     ...STANDINGS_LEAGUES.map((league) => ({

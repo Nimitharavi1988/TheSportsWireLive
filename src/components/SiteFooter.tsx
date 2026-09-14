@@ -9,6 +9,7 @@ const FOOTER_LINKS = [
   { href: "/club", label: "Clubs" },
   { href: "/series", label: "Series" },
   { href: "/standings", label: "Standings" },
+  { href: "/about", label: "About" },
   { href: "/privacy", label: "Privacy Policy" },
   { href: "/terms", label: "Terms of Service" },
 ];
