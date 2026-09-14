@@ -4,12 +4,14 @@ import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import FacebookIcon from "@mui/icons-material/Facebook";
+import InstagramIcon from "@mui/icons-material/Instagram";
 
-// One entry per platform the Page is actually live on — add Instagram/X
-// here the same way once they're wired up (each just needs a url, Icon,
-// and hover color), no layout changes needed elsewhere in this component.
+// One entry per platform the Page is actually live on — add X here the same
+// way once it's wired up (each just needs a url, Icon, and hover color), no
+// layout changes needed elsewhere in this component.
 const SOCIAL_LINKS: { name: string; url: string; Icon: typeof FacebookIcon; color: string }[] = [
   { name: "Facebook", url: "https://www.facebook.com/SportsWireLiveNews", Icon: FacebookIcon, color: "#1877F2" },
+  { name: "Instagram", url: "https://www.instagram.com/sportswirelivenews", Icon: InstagramIcon, color: "#E1306C" },
 ];
 
 // Article-page traffic converts to page views far more than it converts to
