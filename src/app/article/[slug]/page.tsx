@@ -115,6 +115,35 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
     siteUrl
   );
 
+  // Only for genuine structured match-data articles (homeTeam/awayTeam
+  // populated by footballData.ts/cricketData.ts/nflData.ts/mlbData.ts/
+  // nbaData.ts — see runIngest.ts) — an editorial/player-news article has
+  // no real two-competitor event to describe. No score property: there's no
+  // standard schema.org field for a final score on SportsEvent (the real
+  // content of a result article — "who won 3-1" — belongs in the
+  // NewsArticle's own headline/body above, not invented non-standard JSON-LD
+  // here). eventStatus/competitor/startDate are what's actually
+  // well-supported and accurate to include.
+  const sportsEventJsonLd =
+    article.homeTeam && article.awayTeam
+      ? {
+          "@context": "https://schema.org",
+          "@type": "SportsEvent",
+          name: `${article.homeTeam} vs ${article.awayTeam}`,
+          sport: categoryChipStyle(article.category).label,
+          ...(article.kickoffAt ? { startDate: article.kickoffAt } : {}),
+          eventStatus:
+            article.matchStatus === "finished"
+              ? "https://schema.org/EventCompleted"
+              : "https://schema.org/EventScheduled",
+          competitor: [
+            { "@type": "SportsTeam", name: article.homeTeam },
+            { "@type": "SportsTeam", name: article.awayTeam },
+          ],
+          url: `${siteUrl}/article/${article.slug}`,
+        }
+      : null;
+
   // Tracked players mentioned in this article's title — the only real entry
   // point into a player's dedicated page used to be the homepage's Player
   // News carousel, which only ever shows 3 players at a time (whoever
@@ -204,6 +233,12 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
+      {sportsEventJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(sportsEventJsonLd) }}
+        />
+      )}
 
       <Box
         sx={{
