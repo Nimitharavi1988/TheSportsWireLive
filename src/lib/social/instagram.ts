@@ -86,30 +86,17 @@ export async function postArticleToInstagram(articleId: string) {
     // Instagram processes the container asynchronously (fetching/validating
     // the image at image_url) — publishing immediately after creation is a
     // race: confirmed live, a real container failed to publish with "Media
-    // ID is not available" because it wasn't done processing yet. Poll
-    // status_code (IN_PROGRESS -> FINISHED/ERROR) instead of guessing a
-    // fixed delay; 10 tries * 2s covers Instagram's typical processing time
-    // with margin, and a container that's still stuck after 20s almost
-    // certainly won't finish on its own.
-    let ready = false;
-    for (let attempt = 0; attempt < 10; attempt++) {
-      await new Promise((r) => setTimeout(r, 2000));
-      const statusRes = await fetch(
-        `https://graph.facebook.com/v20.0/${createData.id}?fields=status_code&access_token=${encodeURIComponent(accessToken)}`
-      );
-      const statusData = await statusRes.json();
-      if (statusData.status_code === "FINISHED") {
-        ready = true;
-        break;
-      }
-      if (statusData.status_code === "ERROR" || statusData.status_code === "EXPIRED") {
-        throw new Error(`Instagram media processing failed: ${statusData.status_code}`);
-      }
-      // IN_PROGRESS (or PUBLISHED, if somehow already done) — keep polling.
-    }
-    if (!ready) {
-      throw new Error("Instagram media container never finished processing in time");
-    }
+    // ID is not available" because it wasn't done processing yet. A polling
+    // loop (up to 10 extra status_code GET calls per post) fixed that race
+    // but caused a far worse regression: confirmed live, it multiplied our
+    // Graph API call volume enough to hit Meta's own app-level rate limit
+    // ("Application request limit reached") for 6+ straight hours, failing
+    // nearly every post. A single fixed wait covers Instagram's typical
+    // processing time without the extra calls — the rare container still
+    // not ready after 8s just fails that one post (same acceptable
+    // occasional-failure rate as before the polling loop existed), instead
+    // of burning the whole app's rate limit checking on every single post.
+    await new Promise((r) => setTimeout(r, 8000));
 
     const publishRes = await fetch(`https://graph.facebook.com/v20.0/${igUserId}/media_publish`, {
       method: "POST",
