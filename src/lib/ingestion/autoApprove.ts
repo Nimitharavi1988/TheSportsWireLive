@@ -32,21 +32,19 @@ const MIN_MATCH_DATA_BODY_LENGTH = 80;
 // the isHighlightWorthy set instead — a real per-run volume ceiling, not
 // just a topical filter.
 const MAX_FACEBOOK_POSTS_PER_RUN = 5;
-// Per-run cap alone let volume run away: with a 15-min cron, 5/run could mean
-// up to ~480/day. Confirmed live: the site's real organic highlight-worthy
-// volume is ~200-225+ distinct articles/day. 60 turned out too low — it was
-// hit hours before the UTC-midnight reset, so every run for the rest of the
-// day silently posted nothing at all, which reads as "auto-approve stopped
-// posting to Facebook" even though every other part of the pipeline was
-// working correctly. The whole point of "continuous posting on every
-// ingestion run" and "a daily cap" are in tension once the cap sits below
-// real volume — 300 keeps a real safety-net ceiling (still stops a genuine
-// runaway/bug) while sitting comfortably above observed daily volume so it
-// doesn't realistically bind under normal-to-high content days. Now a soft
-// ceiling, not hard: runCap below floors at 1 rather than 0 once this is
-// exceeded, so a run always attempts at least one post rather than going
-// fully silent for the rest of the day.
-const MAX_FACEBOOK_POSTS_PER_DAY = 300;
+// 199 — deliberately just under Instagram's own ~200/hour app-level rate
+// limit ballpark (200 * Number_of_Users, see the Instagram rate-limit
+// investigation; this app effectively has ~1 real "user"), so Facebook's
+// volume stays aligned with what Instagram can realistically sustain too,
+// since autoApprove.ts posts the same selection to both.
+const MAX_FACEBOOK_POSTS_PER_DAY = 199;
+// Every ~15-min cron run in a day — used to PACE the daily budget evenly
+// across all 24 hours instead of letting it front-load into whichever
+// hours happen to have the most eligible content. Confirmed live: a flat
+// per-run cap with only a total daily ceiling let 300 posts land by 16:54
+// UTC some days, leaving the rest of the day silent even before the "floor
+// of 1" fix — that's the opposite of "one per interval, all day."
+const RUNS_PER_DAY = 96;
 // Cricket is the only reserved slot now — every other sport, football
 // included, competes purely on trendingScore for the remaining 4 of each
 // run's 5 slots.
@@ -122,15 +120,23 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
       where: { platform: "facebook", createdAt: { gte: todayStart } },
     });
     const remainingToday = Math.max(0, MAX_FACEBOOK_POSTS_PER_DAY - postedToday);
-    // Floored at 1, not 0 — the daily cap is a volume throttle, not meant to
-    // fully silence posting for the rest of the day once it's hit (confirmed
-    // live: exactly that happened once postedToday reached 300, zeroing out
-    // every run for hours). One guaranteed post per run keeps both Facebook
-    // and Instagram (which shares this same selection) minimally active even
-    // once the day's bulk cap is exhausted, at the cost of the daily total
-    // being a soft ceiling rather than a hard one — worst case adds at most
-    // one extra post per ~15-min run beyond MAX_FACEBOOK_POSTS_PER_DAY.
-    const runCap = Math.max(1, Math.min(MAX_FACEBOOK_POSTS_PER_RUN, remainingToday));
+
+    // Paced allocation: how many posts SHOULD have gone out by this point in
+    // the day, proportional to how many of today's 96 runs have elapsed —
+    // e.g. 2 hours (8 runs) into the day, ~8/96ths of 199 (~17) is the
+    // target, not the full 199 all at once. Without this, a burst of
+    // eligible content early in the day front-loads the whole daily budget
+    // and leaves the rest of the day silent — confirmed live with the old
+    // flat-cap approach (300 posts landed by 16:54 UTC some days). Floored
+    // at 1 so a run always attempts at least one post even when already on
+    // or ahead of pace, matching the earlier "never go fully silent" fix.
+    const now = new Date();
+    const minutesSinceMidnight = (now.getTime() - todayStart.getTime()) / 60000;
+    const currentRunIndex = Math.min(RUNS_PER_DAY, Math.floor(minutesSinceMidnight / 15) + 1);
+    const expectedByNow = Math.round((MAX_FACEBOOK_POSTS_PER_DAY * currentRunIndex) / RUNS_PER_DAY);
+    const paceTarget = Math.max(1, expectedByNow - postedToday);
+
+    const runCap = Math.max(1, Math.min(MAX_FACEBOOK_POSTS_PER_RUN, remainingToday, paceTarget));
 
     const eligible = toApprove
       .filter((a) => isHighlightWorthy(a.title))
