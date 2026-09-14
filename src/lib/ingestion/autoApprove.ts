@@ -44,14 +44,11 @@ const MAX_FACEBOOK_POSTS_PER_RUN = 5;
 // runaway/bug) while sitting comfortably above observed daily volume so it
 // doesn't realistically bind under normal-to-high content days.
 const MAX_FACEBOOK_POSTS_PER_DAY = 300;
-// Pure trendingScore ranking let NBA/MLB (higher volume post-expansion) crowd
-// out the site's two flagship sports some runs. Reserve one slot each so
-// cricket/football are never silently dropped from the Page — the rest of
-// each run's 5 slots fill by trending score across every sport rather than
-// being reserved further.
+// Cricket is the only reserved slot now — every other sport, football
+// included, competes purely on trendingScore for the remaining 4 of each
+// run's 5 slots.
 const RESERVED_CATEGORIES: { category: string; slots: number }[] = [
   { category: "cricket", slots: 1 },
-  { category: "football", slots: 1 },
 ];
 
 export function hasRealImage(article: { heroImageUrl: string | null; homeCrestUrl: string | null }): boolean {
