@@ -132,7 +132,7 @@ export default function TermsPage() {
       <Section title="Contact us">
         <p>
           Questions about these Terms can be sent to{" "}
-          <a href="mailto:hyperianaillc@gmail.com">hyperianaillc@gmail.com</a>.
+          <a href="mailto:contact@hyperianai.com">contact@hyperianai.com</a>.
         </p>
       </Section>
     </Container>

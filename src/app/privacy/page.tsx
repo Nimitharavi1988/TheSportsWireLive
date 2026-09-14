@@ -165,7 +165,7 @@ export default function PrivacyPolicyPage() {
       <Section title="Contact us">
         <p>
           Questions about this policy can be sent to{" "}
-          <a href="mailto:hyperianaillc@gmail.com">hyperianaillc@gmail.com</a>.
+          <a href="mailto:contact@hyperianai.com">contact@hyperianai.com</a>.
         </p>
       </Section>
     </Container>

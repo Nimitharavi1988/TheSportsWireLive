@@ -68,7 +68,7 @@ export default function AboutPage() {
 
       <Section title="Contact us">
         <p>
-          Questions, corrections, or anything else: <a href="mailto:hyperianaillc@gmail.com">hyperianaillc@gmail.com</a>.
+          Questions, corrections, or anything else: <a href="mailto:contact@hyperianai.com">contact@hyperianai.com</a>.
         </p>
       </Section>
     </Container>
