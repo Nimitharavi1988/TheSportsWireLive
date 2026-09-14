@@ -34,14 +34,19 @@ function hashtagsForInstagram(title: string, category: string): string {
 // Instagram's Graph API is a two-step publish (create a media container,
 // then publish it) and — unlike Facebook — has no text-only post type at
 // all, so an article without a real image simply can't go to Instagram.
-export async function postArticleToInstagram(articleId: string) {
+// Returns whether a real post actually happened — false for a silent no-op
+// (already posted, or no real image to post), so a caller trying to
+// guarantee "at least one post this run" can tell that apart from a real
+// success and correctly move on to the next candidate article instead of
+// mistaking a skip for a completed post.
+export async function postArticleToInstagram(articleId: string): Promise<boolean> {
   // Idempotency guard — same reasoning as postArticleToFacebook's (see
   // facebook.ts): a repeated call for an already-posted article must be a
   // safe no-op, not a second real post.
   const alreadyPosted = await db.socialPost.findFirst({
     where: { articleId, platform: "instagram", status: "posted" },
   });
-  if (alreadyPosted) return;
+  if (alreadyPosted) return false;
 
   const article = await db.article.findUniqueOrThrow({
     where: { id: articleId },
@@ -54,7 +59,7 @@ export async function postArticleToInstagram(articleId: string) {
   const imageUrl = article.heroImageUrl;
 
   if (!igUserId || !pageId || !rawToken || !imageUrl) {
-    return;
+    return false;
   }
 
   // Same token-exchange requirement as Facebook posting (facebook.ts) — a
@@ -112,6 +117,7 @@ export async function postArticleToInstagram(articleId: string) {
       where: { id: socialPost.id },
       data: { status: "posted", externalPostId: publishData.id, postedAt: new Date() },
     });
+    return true;
   } catch (err) {
     await db.socialPost.update({
       where: { id: socialPost.id },

@@ -138,19 +138,39 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
       if (!toPost.includes(article)) toPost.push(article);
     }
 
+    // Instagram capped to at most 2 attempts per run, stopping as soon as
+    // one succeeds — not one attempt per Facebook post (up to 5). Confirmed
+    // live: attempting it for every article was 5x the API call volume
+    // Instagram actually needed, and that extra volume is exactly what
+    // pushed the app over Meta's rate limit for 6+ hours straight. This app
+    // has essentially no real "active users" of its own (just a System
+    // User posting on its behalf), which keeps that ceiling low regardless
+    // of Advanced Access — so the real lever we control is call volume, not
+    // the limit itself. Two tries (not one) gives a real second chance if
+    // the first candidate simply has no usable image, without multiplying
+    // calls the way trying all 5 would.
+    let instagramAttempts = 0;
+    let instagramDone = false;
     for (const article of toPost) {
       try {
         await postArticleToFacebook(article.id);
       } catch (err) {
         console.error("Facebook post failed for article", article.id, err);
       }
-      // Same selection as Facebook — Instagram has no text-only post type,
-      // so postArticleToInstagram itself no-ops for an article with no real
-      // image rather than needing a separate filter here.
-      try {
-        await postArticleToInstagram(article.id);
-      } catch (err) {
-        console.error("Instagram post failed for article", article.id, err);
+      if (!instagramDone && instagramAttempts < 2) {
+        instagramAttempts++;
+        try {
+          const posted = await postArticleToInstagram(article.id);
+          if (posted) instagramDone = true;
+        } catch (err) {
+          console.error("Instagram post failed for article", article.id, err);
+          // A persistent app-level rate-limit error will fail identically
+          // for every article — stop immediately rather than spending the
+          // second attempt on the same guaranteed failure.
+          if (err instanceof Error && err.message.includes("Application request limit reached")) {
+            instagramDone = true;
+          }
+        }
       }
     }
   }
