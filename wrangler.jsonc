@@ -20,7 +20,7 @@
     "FACEBOOK_PAGE_ID": "1287339801134616",
     // Also not secret — same reasoning as FACEBOOK_PAGE_ID above. Reuses
     // the same FACEBOOK_PAGE_ACCESS_TOKEN Cloudflare secret to post here.
-    "INSTAGRAM_BUSINESS_ACCOUNT_ID": "17841425222958075"
+    "INSTAGRAM_BUSINESS_ACCOUNT_ID": "17841426520820898"
   },
   "assets": {
     "directory": ".open-next/assets",
