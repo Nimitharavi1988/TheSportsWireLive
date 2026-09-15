@@ -18,6 +18,8 @@ import DialogActions from "@mui/material/DialogActions";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
 import Divider from "@mui/material/Divider";
+import Snackbar from "@mui/material/Snackbar";
+import Alert from "@mui/material/Alert";
 import CloseIcon from "@mui/icons-material/Close";
 import { displaySummary } from "@/lib/articleSummary";
 
@@ -46,13 +48,25 @@ const SOCIAL_LABEL: Record<"facebook" | "instagram", string> = { facebook: "Face
 // after a failure / not posted yet" logic for both platforms. Instagram post
 // ids aren't a usable public URL without a separate permalink lookup we
 // don't do here, so its success chip just isn't clickable.
-function renderSocialButton(
-  platform: "facebook" | "instagram",
-  socialPosts: QueueArticle["socialPosts"],
-  action: () => Promise<void>
-) {
+//
+// A stateful component (not a plain function) so a failed manual post can
+// show its error inline via a Snackbar instead of throwing — an uncaught
+// error from a plain <form action> used to crash the whole admin page into
+// the generic error.tsx boundary, with the real reason never shown.
+function SocialPostButton({
+  platform,
+  socialPosts,
+  action,
+}: {
+  platform: "facebook" | "instagram";
+  socialPosts: QueueArticle["socialPosts"];
+  action: () => Promise<{ success: boolean; error?: string }>;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const lastPost = socialPosts.find((p) => p.platform === platform);
   const label = SOCIAL_LABEL[platform];
+
   if (lastPost?.status === "posted") {
     const href = platform === "facebook" && lastPost.externalPostId ? `https://facebook.com/${lastPost.externalPostId}` : undefined;
     return (
@@ -68,12 +82,37 @@ function renderSocialButton(
       />
     );
   }
+
+  function handleClick() {
+    setErrorMessage(null);
+    startTransition(async () => {
+      const result = await action();
+      if (!result.success) setErrorMessage(result.error ?? "Post failed");
+    });
+  }
+
   return (
-    <form action={action} title={lastPost?.status === "failed" ? lastPost.errorMessage ?? undefined : undefined}>
-      <Button type="submit" variant="outlined" color="info">
-        {lastPost?.status === "failed" ? `Retry ${label} post` : `Post to ${label}`}
+    <>
+      <Button
+        variant="outlined"
+        color="info"
+        onClick={handleClick}
+        disabled={isPending}
+        title={lastPost?.status === "failed" ? lastPost.errorMessage ?? undefined : undefined}
+      >
+        {isPending ? "Posting…" : lastPost?.status === "failed" ? `Retry ${label} post` : `Post to ${label}`}
       </Button>
-    </form>
+      <Snackbar
+        open={errorMessage !== null}
+        autoHideDuration={8000}
+        onClose={() => setErrorMessage(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity="error" onClose={() => setErrorMessage(null)} sx={{ maxWidth: 480 }}>
+          {label} post failed: {errorMessage}
+        </Alert>
+      </Snackbar>
+    </>
   );
 }
 
@@ -103,8 +142,8 @@ export function ArticleQueueClient({
   approveArticles: (articleIds: string[]) => Promise<void>;
   createPoll: (articleId: string, formData: FormData) => Promise<void>;
   deletePoll: (pollId: string) => Promise<void>;
-  postToFacebookManually: (articleId: string) => Promise<void>;
-  postToInstagramManually: (articleId: string) => Promise<void>;
+  postToFacebookManually: (articleId: string) => Promise<{ success: boolean; error?: string }>;
+  postToInstagramManually: (articleId: string) => Promise<{ success: boolean; error?: string }>;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -259,8 +298,12 @@ export function ArticleQueueClient({
                   that failed to send (rate limit, transient API error) —
                   only ever shown for already-published articles, since
                   postArticleToFacebook needs a real slug to link to. */}
-              {status === "published" && renderSocialButton("facebook", article.socialPosts, postToFacebookManually.bind(null, article.id))}
-              {status === "published" && renderSocialButton("instagram", article.socialPosts, postToInstagramManually.bind(null, article.id))}
+              {status === "published" && (
+                <SocialPostButton platform="facebook" socialPosts={article.socialPosts} action={postToFacebookManually.bind(null, article.id)} />
+              )}
+              {status === "published" && (
+                <SocialPostButton platform="instagram" socialPosts={article.socialPosts} action={postToInstagramManually.bind(null, article.id)} />
+              )}
             </CardActions>
           </Card>
         ))}
@@ -368,8 +411,12 @@ export function ArticleQueueClient({
                   </form>
                 </>
               )}
-              {status === "published" && renderSocialButton("facebook", detailArticle.socialPosts, postToFacebookManually.bind(null, detailArticle.id))}
-              {status === "published" && renderSocialButton("instagram", detailArticle.socialPosts, postToInstagramManually.bind(null, detailArticle.id))}
+              {status === "published" && (
+                <SocialPostButton platform="facebook" socialPosts={detailArticle.socialPosts} action={postToFacebookManually.bind(null, detailArticle.id)} />
+              )}
+              {status === "published" && (
+                <SocialPostButton platform="instagram" socialPosts={detailArticle.socialPosts} action={postToInstagramManually.bind(null, detailArticle.id)} />
+              )}
             </DialogActions>
           </>
         )}

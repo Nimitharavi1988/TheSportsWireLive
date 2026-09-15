@@ -52,21 +52,37 @@ export async function approveArticle(articleId: string) {
 // No gating here: an admin explicitly choosing "Post to Facebook" for one
 // specific article is a deliberate action, same reasoning as the single-
 // article approveArticle's own always-post behavior above.
-export async function postToFacebookManually(articleId: string) {
+// Returns a result instead of throwing — a plain <form action> letting this
+// throw uncaught was crashing the whole admin page into the generic
+// error.tsx boundary ("Something went wrong") on any real failure (a rate
+// limit, a transient API error), with the actual reason never shown to the
+// admin. The client button now calls this directly and displays whatever
+// error comes back instead.
+export async function postToFacebookManually(articleId: string): Promise<{ success: boolean; error?: string }> {
   const session = await getSession();
-  if (!session) throw new Error("Not authenticated");
+  if (!session) return { success: false, error: "Not authenticated" };
 
-  await postArticleToFacebook(articleId);
-  revalidatePath("/admin");
+  try {
+    await postArticleToFacebook(articleId);
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 // Same manual catch-up as postToFacebookManually above, for Instagram.
-export async function postToInstagramManually(articleId: string) {
+export async function postToInstagramManually(articleId: string): Promise<{ success: boolean; error?: string }> {
   const session = await getSession();
-  if (!session) throw new Error("Not authenticated");
+  if (!session) return { success: false, error: "Not authenticated" };
 
-  await postArticleToInstagram(articleId);
-  revalidatePath("/admin");
+  try {
+    await postArticleToInstagram(articleId);
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 // Bulk approve from the multi-select queue UI. Unlike the single-article
