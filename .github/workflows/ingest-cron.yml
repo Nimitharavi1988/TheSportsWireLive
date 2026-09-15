@@ -54,15 +54,16 @@ jobs:
       # SITE_URL/INDEXNOW_KEY are for the best-effort IndexNow ping on newly
       # published articles (src/lib/indexNow.ts) — a failure or missing
       # value there is swallowed, never fails this step.
-      # FACEBOOK_PAGE_ID/FACEBOOK_PAGE_ACCESS_TOKEN drive the top-5-per-run
-      # notable-story auto-post (postArticleToFacebook, called from within
-      # autoApprove.ts) — this runner is where that automated posting
-      # actually executes, not the Cloudflare Worker (which only needs these
-      # for the separate manual-approval-button path). Missing/empty is
-      # treated as "not configured" and silently skipped, same as always.
-      # GEMINI_API_KEY is for the Instagram poster's per-article hook/table
-      # copy (postInstagramPoster.ts's generatePosterContent call) — a
-      # separate Gemini call from runIngest.ts's own commentary budget above.
+      # FACEBOOK_PAGE_ID/FACEBOOK_PAGE_ACCESS_TOKEN/INSTAGRAM_BUSINESS_ACCOUNT_ID
+      # drive the notable-story auto-post to both platforms (postSocialPoster,
+      # called from within autoApprove.ts, capped at 2 attempts per platform
+      # per run) — this runner is where that automated posting actually
+      # executes, not the Cloudflare Worker (which only needs these for the
+      # separate manual-approval-button path). Missing/empty is treated as
+      # "not configured" and silently skipped, same as always.
+      # GEMINI_API_KEY is for the shared poster's per-article hook/table copy
+      # (socialPoster.ts's generatePosterContent call) — a separate Gemini
+      # call from runIngest.ts's own commentary budget above.
       - run: npx tsx src/lib/ingestion/autoApprove.ts
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
