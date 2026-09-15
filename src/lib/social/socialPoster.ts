@@ -213,14 +213,18 @@ export async function postSocialPoster(
   git("commit", "-m", `Add social poster for ${article.slug}`);
   git("push");
 
-  console.log(`Waiting for ${publicUrl} to go live...`);
-  await waitUntilLive(publicUrl);
-
   try {
+    console.log(`Waiting for ${publicUrl} to go live...`);
+    await waitUntilLive(publicUrl);
+
     const instagramPosted = needInstagram ? await postToInstagram(article, publicUrl, content) : false;
     const facebookPosted = needFacebook ? await postToFacebook(article, publicUrl, content, articleUrl) : false;
     return { instagramPosted, facebookPosted };
   } finally {
+    // Runs even if waitUntilLive itself throws (confirmed live: it did,
+    // during local testing against a non-production SITE_URL) — otherwise
+    // the poster commit is left orphaned in the repo with nothing ever
+    // cleaning it up.
     console.log("Cleaning up poster file from the repo...");
     try {
       await unlink(absolutePath);
