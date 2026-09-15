@@ -34,7 +34,9 @@ Write a fuller original blurb (aim for 2 short paragraphs, roughly 5-8 sentences
 - Do not mention that you were given source material or instructions — just write the blurb itself.
 - Plain text only, no markdown.
 
-Also list the real, named individuals (athletes, coaches, or officials) this story is centrally about — not team names, and not any journalist, reporter, or pundit merely cited as the source of the report. Order them by prominence to the story (most central first), fullest real name as it would appear as a Wikipedia article title (e.g. "Ben Stokes", not "Stokes" or "the England captain"). Include more than one only when multiple people are genuinely co-central (e.g. a batter and a bowler both credited for a result) — don't pad the list with minor mentions. If no specific named athlete/coach/official is truly central, leave personNames empty.`;
+Also list the real, named individuals (athletes, coaches, or officials) this story is centrally about — not team names, and not any journalist, reporter, or pundit merely cited as the source of the report. Order them by prominence to the story (most central first), fullest real name as it would appear as a Wikipedia article title (e.g. "Ben Stokes", not "Stokes" or "the England captain"). Include more than one only when multiple people are genuinely co-central (e.g. a batter and a bowler both credited for a result) — don't pad the list with minor mentions. If no specific named athlete/coach/official is truly central, leave personNames empty.
+
+Also extract the real-world venue/stadium name (e.g. "Old Trafford", "Lord's", "the MCG") ONLY if the facts above genuinely state where this happened — never guess, infer from the teams/competition, or fill in a team's usual home ground. If no venue is explicitly stated in the facts, leave venue empty.`;
 }
 
 function buildMatchPrompt(title: string, factsText: string, competitionName: string): string {
@@ -104,9 +106,17 @@ async function callGemini(prompt: string, options: GeminiCallOptions): Promise<a
 export interface CommentaryResult {
   commentary: string | null;
   personNames: string[];
+  // Real venue/stadium name, only when genuinely stated in the source
+  // text — never inferred from the teams/competition. Extracted from the
+  // same Gemini call rather than a separate one, since the model is
+  // already reading the full grounded text here. Powers SportsEvent
+  // JSON-LD's "location" field (see article/[slug]/page.tsx) for
+  // editorial/RSS match reports, extending real venue coverage beyond the
+  // structured match-data sources (CricketData.org/ESPN NFL).
+  venue: string | null;
 }
 
-const EMPTY_RESULT: CommentaryResult = { commentary: null, personNames: [] };
+const EMPTY_RESULT: CommentaryResult = { commentary: null, personNames: [], venue: null };
 
 export async function generateCommentary(
   title: string,
@@ -121,8 +131,9 @@ export async function generateCommentary(
       properties: {
         commentary: { type: "STRING" },
         personNames: { type: "ARRAY", items: { type: "STRING" } },
+        venue: { type: "STRING" },
       },
-      required: ["commentary", "personNames"],
+      required: ["commentary", "personNames", "venue"],
     },
   });
   if (!parsed) return EMPTY_RESULT;
@@ -133,7 +144,8 @@ export async function generateCommentary(
         .filter((n: unknown): n is string => typeof n === "string" && n.trim().length > 0)
         .map((n: string) => n.trim())
     : [];
-  return { commentary: commentary || null, personNames };
+  const venue = typeof parsed.venue === "string" && parsed.venue.trim().length > 0 ? parsed.venue.trim() : null;
+  return { commentary: commentary || null, personNames, venue };
 }
 
 function buildPosterPrompt(title: string, body: string): string {

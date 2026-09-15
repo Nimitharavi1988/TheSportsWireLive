@@ -277,7 +277,7 @@ export async function runIngest() {
         const grounding = await resolveGrounding(item);
         if (grounding) {
           recordCommentaryCall(item.category);
-          const { commentary, personNames } = await generateCommentary(item.title, grounding.text, item.sourceName);
+          const { commentary, personNames, venue: extractedVenue } = await generateCommentary(item.title, grounding.text, item.sourceName);
           await sleep(COMMENTARY_DELAY_MS);
 
           if (commentary) {
@@ -304,7 +304,10 @@ export async function runIngest() {
                 }
               }
             }
-            await db.article.update({ where: { id: existing.id }, data: { body: commentary, ...heroImageUpdate } });
+            await db.article.update({
+              where: { id: existing.id },
+              data: { body: commentary, ...heroImageUpdate, ...(extractedVenue ? { venue: extractedVenue } : {}) },
+            });
             existing.body = commentary; // avoid reprocessing if the same story appears twice in this run
             existing.heroImageUrl = heroImageUpdate.heroImageUrl ?? existing.heroImageUrl;
             backfilled++;
@@ -369,6 +372,11 @@ export async function runIngest() {
     }
 
     let body = item.body;
+    // Structured match-data sources (cricketData.ts/nflData.ts) already set
+    // this directly; generateCommentary below can also fill it in for
+    // editorial/RSS match reports when the source text genuinely states a
+    // venue — see commentary.ts's CommentaryResult.venue.
+    let venue = item.venue ?? null;
     // Items that already failed the quality gate (profanity, quiz/poll
     // filler, content-farm spam) get status "flagged" below regardless —
     // they're essentially never going to be approved. Spending a real
@@ -407,9 +415,10 @@ export async function runIngest() {
       const grounding = await resolveGrounding(item);
       if (grounding) {
         recordCommentaryCall(item.category);
-        const { commentary, personNames } = await generateCommentary(item.title, grounding.text, item.sourceName);
+        const { commentary, personNames, venue: extractedVenue } = await generateCommentary(item.title, grounding.text, item.sourceName);
         if (commentary) body = commentary;
         else commentaryAttemptFailed = true;
+        if (extractedVenue) venue = extractedVenue;
         await sleep(COMMENTARY_DELAY_MS);
 
         // Real per-story image from the article page itself takes priority
@@ -519,7 +528,7 @@ export async function runIngest() {
         kickoffAt: item.kickoffAt,
         homeScoreText: item.homeScoreText,
         awayScoreText: item.awayScoreText,
-        venue: item.venue,
+        venue,
       },
     });
     // Registers this hash as no longer "new" — guards against the same
