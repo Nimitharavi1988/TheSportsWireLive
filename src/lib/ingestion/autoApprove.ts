@@ -3,7 +3,7 @@ import { submitToIndexNow, articleUrl } from "../indexNow";
 import { isMatchDataSource } from "../matchDataSources";
 import { isHighlightWorthy } from "../highlightWorthy";
 import { postArticleToFacebook } from "../social/facebook";
-import { postArticleToInstagram } from "../social/instagram";
+import { postInstagramPoster } from "../social/postInstagramPoster";
 
 // Runs as a follow-up step right after runIngest.ts in the same GitHub
 // Actions job — everything reaching "pending_review" has already passed
@@ -166,6 +166,10 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     // the limit itself. Two tries (not one) gives a real second chance if
     // the first candidate simply has no usable image, without multiplying
     // calls the way trying all 5 would.
+    // Now posts the generated-poster format (postInstagramPoster.ts) rather
+    // than the plain article photo — a Gemini call plus a real git commit/
+    // push/deploy-poll per attempt, notably more expensive than the old
+    // plain post, which is one more reason this stays capped at 2.
     let instagramAttempts = 0;
     let instagramDone = false;
     for (const article of toPost) {
@@ -177,7 +181,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
       if (!instagramDone && instagramAttempts < 2) {
         instagramAttempts++;
         try {
-          const posted = await postArticleToInstagram(article.id);
+          const posted = await postInstagramPoster(article.id);
           if (posted) instagramDone = true;
         } catch (err) {
           console.error("Instagram post failed for article", article.id, err);

@@ -136,6 +136,70 @@ export async function generateCommentary(
   return { commentary: commentary || null, personNames };
 }
 
+function buildPosterPrompt(title: string, body: string): string {
+  return `You are writing the on-image copy for a single sports-news Instagram poster (bold cover graphic, not the caption).
+
+Headline: "${title}"
+
+Full article text (the ONLY source of facts you may use):
+"""
+${body}
+"""
+
+Produce:
+- eyebrow: a short all-caps category/context label, 2-4 words (e.g. "MANCHESTER DERBY", "TRANSFER NEWS", "MATCH REPORT"). No punctuation.
+- hook: a bold, attention-grabbing headline for the poster, under 10 words, that is strictly true to the article — dramatic phrasing is fine, but never state anything not actually supported by the text. Do not use clickbait that misrepresents the facts (e.g. don't imply a twist that didn't happen).
+- rows: 3 to 5 short label/value pairs, a quick-read fact summary of the story (e.g. score, key name, key stat, outcome) — every value must be a real fact stated in the article text above, never invented or estimated. label is 1-3 words, value is under 8 words. Fewer, real rows are better than padding with invented or vague ones.
+
+If the article doesn't contain enough concrete facts for at least 3 real rows, return fewer rows rather than inventing any.`;
+}
+
+export interface PosterContent {
+  eyebrow: string;
+  hook: string;
+  rows: { label: string; value: string }[];
+}
+
+// Bespoke per-article poster copy (bold hook headline + a quick-read fact
+// table) for the Instagram poster format — see instagramPoster.tsx for the
+// actual image rendering. Grounded strictly in the article's own text, same
+// no-invented-facts policy as generateCommentary/generateMatchRecap above.
+export async function generatePosterContent(title: string, body: string): Promise<PosterContent | null> {
+  if (!body || body.trim().length < 40) return null;
+
+  const parsed = await callGemini(buildPosterPrompt(title, body), {
+    responseSchema: {
+      type: "OBJECT",
+      properties: {
+        eyebrow: { type: "STRING" },
+        hook: { type: "STRING" },
+        rows: {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: { label: { type: "STRING" }, value: { type: "STRING" } },
+            required: ["label", "value"],
+          },
+        },
+      },
+      required: ["eyebrow", "hook", "rows"],
+    },
+  });
+  if (!parsed) return null;
+
+  const eyebrow = typeof parsed.eyebrow === "string" ? parsed.eyebrow.trim() : "";
+  const hook = typeof parsed.hook === "string" ? parsed.hook.trim() : "";
+  const rows = Array.isArray(parsed.rows)
+    ? parsed.rows
+        .filter((r: any) => typeof r?.label === "string" && typeof r?.value === "string" && r.label.trim() && r.value.trim())
+        .map((r: any) => ({ label: r.label.trim(), value: r.value.trim() }))
+        .slice(0, 5)
+    : [];
+
+  if (!hook || rows.length < 3) return null;
+  return { eyebrow: eyebrow || "SPORTS NEWS", hook, rows };
+}
+
 // Expands a match-data template (score/fixture + standings context, already
 // built from football-data.org/CricketData.org's structured data — see
 // footballData.ts/cricketData.ts) into a proper recap, instead of leaving

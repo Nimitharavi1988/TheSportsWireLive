@@ -15,6 +15,7 @@ import {
   deletePoll,
   postToFacebookManually,
   postToInstagramManually,
+  postInstagramPosterManually,
 } from "./actions";
 import Container from "@mui/material/Container";
 import Box from "@mui/material/Box";
@@ -199,6 +200,7 @@ export default async function AdminQueuePage(
         deletePoll={deletePoll}
         postToFacebookManually={postToFacebookManually}
         postToInstagramManually={postToInstagramManually}
+        postInstagramPosterManually={postInstagramPosterManually}
       />
 
       {totalPages > 1 && (

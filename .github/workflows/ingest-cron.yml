@@ -15,6 +15,13 @@ on:
   # manual runs via the Actions tab.
   workflow_dispatch: {}
 
+# contents: write — autoApprove.ts's Instagram posting now generates and
+# commits a poster image per post (postInstagramPoster.ts), since next/og
+# can't render in the deployed Cloudflare Worker. Default GITHUB_TOKEN
+# permissions would otherwise be read-only for contents on some repos.
+permissions:
+  contents: write
+
 jobs:
   run-ingest:
     runs-on: ubuntu-latest
@@ -53,11 +60,15 @@ jobs:
       # actually executes, not the Cloudflare Worker (which only needs these
       # for the separate manual-approval-button path). Missing/empty is
       # treated as "not configured" and silently skipped, same as always.
+      # GEMINI_API_KEY is for the Instagram poster's per-article hook/table
+      # copy (postInstagramPoster.ts's generatePosterContent call) — a
+      # separate Gemini call from runIngest.ts's own commentary budget above.
       - run: npx tsx src/lib/ingestion/autoApprove.ts
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SITE_URL: ${{ vars.SITE_URL }}
           INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
           INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}

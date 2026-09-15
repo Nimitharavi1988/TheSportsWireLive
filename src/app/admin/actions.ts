@@ -85,6 +85,48 @@ export async function postToInstagramManually(articleId: string): Promise<{ succ
   }
 }
 
+// Queues the bold-poster Instagram format (bespoke per-article hook + fact
+// table over a real photo — see instagramPoster.tsx) instead of posting
+// inline. This can't run inline here the way postToInstagramManually does:
+// next/og can't render in this deployed Cloudflare Worker (confirmed bad
+// fit for Workers/WASM), so poster generation has to happen in a plain
+// Node runner. Triggers the post-instagram-poster.yml GitHub Actions
+// workflow via its dispatch API, which does the actual generation +
+// posting — this only kicks that off and returns immediately, it does not
+// wait for the result. GITHUB_DISPATCH_TOKEN is a repo-scoped GitHub PAT
+// with Actions read/write, set as a Cloudflare secret (never in this repo).
+const GITHUB_REPO = "Nimitharavi1988/TheSportsWireLive";
+
+export async function postInstagramPosterManually(articleId: string): Promise<{ success: boolean; error?: string }> {
+  const session = await getSession();
+  if (!session) return { success: false, error: "Not authenticated" };
+
+  const token = process.env.GITHUB_DISPATCH_TOKEN;
+  if (!token) return { success: false, error: "GITHUB_DISPATCH_TOKEN is not configured" };
+
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/post-instagram-poster.yml/dispatches`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ref: "master", inputs: { article_id: articleId } }),
+      }
+    );
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`GitHub dispatch failed (${res.status}): ${text}`);
+    }
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 // Bulk approve from the multi-select queue UI. Unlike the single-article
 // approveArticle above, this deliberately skips the per-article Facebook
 // post — auto-posting dozens of articles to the Page in one shot at once

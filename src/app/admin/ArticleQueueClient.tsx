@@ -116,6 +116,52 @@ function SocialPostButton({
   );
 }
 
+// A second, alternative way to reach the same "posted to Instagram" end
+// state as SocialPostButton's plain "Post to Instagram" — this one queues
+// the bold-poster format (bespoke hook + fact table) instead of posting
+// the raw article photo inline. Only shown until Instagram is actually
+// posted (same socialPosts row either button writes), and unlike
+// SocialPostButton this doesn't get a result back — the real work happens
+// in a GitHub Actions job (see postInstagramPosterManually's own comment
+// for why), so this just confirms the job was queued.
+function InstagramPosterButton({
+  socialPosts,
+  action,
+}: {
+  socialPosts: QueueArticle["socialPosts"];
+  action: () => Promise<{ success: boolean; error?: string }>;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [message, setMessage] = useState<{ text: string; severity: "success" | "error" } | null>(null);
+  const alreadyPosted = socialPosts.some((p) => p.platform === "instagram" && p.status === "posted");
+  if (alreadyPosted) return null;
+
+  function handleClick() {
+    setMessage(null);
+    startTransition(async () => {
+      const result = await action();
+      setMessage(
+        result.success
+          ? { text: "Queued — the poster will post to Instagram in about a minute.", severity: "success" }
+          : { text: `Could not queue poster post: ${result.error}`, severity: "error" }
+      );
+    });
+  }
+
+  return (
+    <>
+      <Button variant="outlined" color="secondary" onClick={handleClick} disabled={isPending}>
+        {isPending ? "Queuing…" : "Post Instagram poster"}
+      </Button>
+      <Snackbar open={message !== null} autoHideDuration={8000} onClose={() => setMessage(null)} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <Alert severity={message?.severity ?? "success"} onClose={() => setMessage(null)} sx={{ maxWidth: 480 }}>
+          {message?.text}
+        </Alert>
+      </Snackbar>
+    </>
+  );
+}
+
 export function ArticleQueueClient({
   articles,
   status,
@@ -130,6 +176,7 @@ export function ArticleQueueClient({
   deletePoll,
   postToFacebookManually,
   postToInstagramManually,
+  postInstagramPosterManually,
 }: {
   articles: QueueArticle[];
   status: "pending_review" | "published";
@@ -144,6 +191,7 @@ export function ArticleQueueClient({
   deletePoll: (pollId: string) => Promise<void>;
   postToFacebookManually: (articleId: string) => Promise<{ success: boolean; error?: string }>;
   postToInstagramManually: (articleId: string) => Promise<{ success: boolean; error?: string }>;
+  postInstagramPosterManually: (articleId: string) => Promise<{ success: boolean; error?: string }>;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -304,6 +352,9 @@ export function ArticleQueueClient({
               {status === "published" && (
                 <SocialPostButton platform="instagram" socialPosts={article.socialPosts} action={postToInstagramManually.bind(null, article.id)} />
               )}
+              {status === "published" && (
+                <InstagramPosterButton socialPosts={article.socialPosts} action={postInstagramPosterManually.bind(null, article.id)} />
+              )}
             </CardActions>
           </Card>
         ))}
@@ -416,6 +467,9 @@ export function ArticleQueueClient({
               )}
               {status === "published" && (
                 <SocialPostButton platform="instagram" socialPosts={detailArticle.socialPosts} action={postToInstagramManually.bind(null, detailArticle.id)} />
+              )}
+              {status === "published" && (
+                <InstagramPosterButton socialPosts={detailArticle.socialPosts} action={postInstagramPosterManually.bind(null, detailArticle.id)} />
               )}
             </DialogActions>
           </>
