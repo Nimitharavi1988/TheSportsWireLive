@@ -60,7 +60,7 @@ async function postToInstagram(article: ArticleWithVertical, publicUrl: string, 
   // original report..." placeholder for RSS-sourced content, never the
   // real text — confirmed live, it leaked straight into a poster caption
   // this way. displaySummary correctly prefers the real generated body.
-  const caption = `${emoji} ${content.hook}\n\n${displaySummary(article, 300)}\n\nWhere do you land? 👇\n\n👉 Full breakdown — link in bio${creditLine}\n\n#${categoryTag} #Sportswirelivenews #SportsNews`;
+  const caption = `${emoji} ${content.hook}\n\n${displaySummary(article, 300)}\n\nWhere do you land? 👇\n\n👉 Full breakdown — link in bio${creditLine}\n\n#${categoryTag} #sportsWireLiveNews #SportsNews`;
   const altText = article.heroImageCredit ? `${article.title}. ${article.heroImageCredit}.` : article.title;
 
   const socialPost = await db.socialPost.create({ data: { articleId: article.id, platform: "instagram", status: "queued" } });
@@ -122,7 +122,7 @@ async function postToFacebook(article: ArticleWithVertical, publicUrl: string, c
   const emoji = CATEGORY_EMOJI[article.category] ?? "🏆";
   const categoryTag = categoryChipStyle(article.category).label.replace(/[^a-zA-Z0-9]/g, "");
   const creditLine = article.heroImageCredit ? `\n\n📷 ${article.heroImageCredit}` : "";
-  const caption = `${emoji} ${content.hook}\n\n${displaySummary(article, 300)}\n\nWhere do you land? 👇\n\nFull breakdown linked in the comments below!${creditLine}\n\n#${categoryTag} #Sportswirelivenews`;
+  const caption = `${emoji} ${content.hook}\n\n${displaySummary(article, 300)}\n\nWhere do you land? 👇\n\nFull breakdown linked in the comments below!${creditLine}\n\n#${categoryTag} #SportsWireLive`;
 
   const socialPost = await db.socialPost.create({ data: { articleId: article.id, platform: "facebook", status: "queued" } });
 

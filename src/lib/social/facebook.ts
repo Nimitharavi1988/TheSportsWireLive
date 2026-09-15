@@ -59,7 +59,7 @@ function seriesHashtag(title: string): string | null {
 function hashtagsFor(title: string, category: string): string {
   const categoryTag = categoryChipStyle(category).label.replace(/[^a-zA-Z0-9]/g, "");
   const primaryTag = seriesHashtag(title) ?? `#${categoryTag}`;
-  const tags = [primaryTag, "#Sportswirelivenews"];
+  const tags = [primaryTag, "#SportsWireLive"];
 
   const lower = title.toLowerCase();
   const player = TRACKED_PLAYERS.find((p) => p.searchTerms.some((term) => lower.includes(term.toLowerCase())));
