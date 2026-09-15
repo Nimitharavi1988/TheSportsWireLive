@@ -145,7 +145,16 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           name: `${article.homeTeam} vs ${article.awayTeam}`,
           sport: categoryChipStyle(article.category).label,
           description: displaySummary(article, 300),
-          ...(article.heroImageUrl ? { image: article.heroImageUrl } : {}),
+          // Falls back to the home team's crest when there's no hero photo
+          // — match articles commonly have one but not the other (see
+          // hasRealImage in autoApprove.ts: a crest pair alone already
+          // counts as a real image). Confirmed live: the Elche CF vs Real
+          // Madrid CF article had heroImageUrl null (crests only), so
+          // "image" was still missing from Search Console's live test
+          // without this fallback.
+          ...(article.heroImageUrl || article.homeCrestUrl
+            ? { image: article.heroImageUrl || article.homeCrestUrl }
+            : {}),
           ...(article.kickoffAt ? { startDate: article.kickoffAt } : {}),
           eventStatus:
             article.matchStatus === "finished"
@@ -158,6 +167,10 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           organizer: {
             "@type": "Organization",
             name: article.seriesLabel || categoryChipStyle(article.category).label,
+            // Real, accurate URL — our own category listing for this
+            // sport — rather than inventing a link to an external
+            // governing body we don't actually represent.
+            url: `${siteUrl}/?category=${article.category}`,
           },
           ...(article.venue
             ? { location: { "@type": "Place", name: article.venue } }
