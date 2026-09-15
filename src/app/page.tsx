@@ -281,8 +281,22 @@ export default async function HomePage(
   // slots, most-recently-picked first — the rest of the hero carousel
   // auto-fills with top-ranked stories below. Capped at 5 in actions.ts
   // (picking a 6th auto-retires the oldest pick), so no need to slice here.
+  //
+  // A pick older than HERO_FEATURE_MAX_AGE_DAYS stops qualifying here —
+  // confirmed live: an admin's pick with nothing rotating it out could sit
+  // in the hero indefinitely, advertising stale news on a site whose own
+  // content turns over multiple times an hour. Filtered at query time
+  // rather than a separate cleanup job that flips `featured` back to
+  // false: self-correcting the moment a pick ages out (no risk of a missed
+  // cron run leaving it stuck), and the admin's pick/featuredAt stay
+  // intact in the database — re-featuring later needs no extra step. A
+  // stale pick simply falls back into the normal candidate pool below like
+  // any other article, rather than becoming ineligible for the hero
+  // entirely.
+  const HERO_FEATURE_MAX_AGE_DAYS = 2;
+  const heroFeatureCutoff = Date.now() - HERO_FEATURE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
   const manuallyFeatured = articles
-    .filter((a) => a.featured)
+    .filter((a) => a.featured && (a.featuredAt?.getTime() ?? 0) >= heroFeatureCutoff)
     .sort((a, b) => (b.featuredAt?.getTime() ?? 0) - (a.featuredAt?.getTime() ?? 0));
   const manuallyFeaturedIds = new Set(manuallyFeatured.map((a) => a.id));
   const remainingAfterFeatured = articles.filter((a) => !manuallyFeaturedIds.has(a.id));
