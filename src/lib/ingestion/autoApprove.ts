@@ -30,7 +30,12 @@ const MIN_MATCH_DATA_BODY_LENGTH = 80;
 // the Page would still flood it. Capped to the top N by trendingScore among
 // the isHighlightWorthy set instead — a real per-run volume ceiling, not
 // just a topical filter.
-const MAX_FACEBOOK_POSTS_PER_RUN = 5;
+// Temporarily raised from 5 — Facebook's real-link fix (socialPoster.ts)
+// needs a volume boost to help recover traffic while it takes effect. The
+// daily total is still capped by MAX_FACEBOOK_POSTS_PER_DAY below, so this
+// only lets a single run post more within that same overall budget, not
+// exceed it. Revert to 5 once traffic recovers.
+const MAX_FACEBOOK_POSTS_PER_RUN = 10;
 // 199 — deliberately just under Instagram's own ~200/hour app-level rate
 // limit ballpark (200 * Number_of_Users, see the Instagram rate-limit
 // investigation; this app effectively has ~1 real "user"), so Facebook's
@@ -166,14 +171,23 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     // Graph API and gained the same per-attempt generation cost. When an
     // article is still wanted on both platforms, postSocialPoster generates
     // the poster once and posts to both — not once per platform.
+    // Facebook's own cap is temporarily raised well above Instagram's —
+    // Facebook is posting reliably (real link restored in the caption,
+    // see socialPoster.ts) while Instagram is blocked by Meta's app-level
+    // rate limit regardless of our own cap, so there's no cost benefit to
+    // raising Instagram's attempts right now. Revert FACEBOOK_ATTEMPT_CAP
+    // back to 2 once traffic recovers and there's no more need for the
+    // temporary volume boost.
+    const FACEBOOK_ATTEMPT_CAP = 10;
+    const INSTAGRAM_ATTEMPT_CAP = 2;
     let instagramAttempts = 0;
     let instagramDone = false;
     let facebookAttempts = 0;
     let facebookDone = false;
     for (const article of toPost) {
       if (instagramDone && facebookDone) break;
-      const wantInstagram = !instagramDone && instagramAttempts < 2;
-      const wantFacebook = !facebookDone && facebookAttempts < 2;
+      const wantInstagram = !instagramDone && instagramAttempts < INSTAGRAM_ATTEMPT_CAP;
+      const wantFacebook = !facebookDone && facebookAttempts < FACEBOOK_ATTEMPT_CAP;
       if (!wantInstagram && !wantFacebook) continue;
       if (wantInstagram) instagramAttempts++;
       if (wantFacebook) facebookAttempts++;

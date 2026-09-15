@@ -122,12 +122,19 @@ async function postToFacebook(article: ArticleWithVertical, publicUrl: string, c
   const emoji = CATEGORY_EMOJI[article.category] ?? "🏆";
   const categoryTag = categoryChipStyle(article.category).label.replace(/[^a-zA-Z0-9]/g, "");
   const creditLine = article.heroImageCredit ? `\n\n📷 ${article.heroImageCredit}` : "";
-  const caption = `${emoji} ${content.hook}\n\n${displaySummary(article, 300)}\n\nWhere do you land? 👇\n\nFull breakdown linked in the comments below!${creditLine}\n\n#${categoryTag} #SportsWireLive`;
+  // Temporary reversion to a real link directly in the post — confirmed
+  // live: with pages_manage_engagement still pending App Review, the
+  // comment step never actually lands, so the caption's old "linked in the
+  // comments below" line was a promise with nothing behind it, and site
+  // traffic dropped as a result. Once pages_manage_engagement is approved,
+  // switch this back to the no-link/first-comment version for the reach
+  // benefit.
+  const caption = `${emoji} ${content.hook}\n\n${displaySummary(article, 300)}\n\nFull breakdown: ${articleUrl}${creditLine}\n\n#${categoryTag} #SportsWireLive`;
 
   const socialPost = await db.socialPost.create({ data: { articleId: article.id, platform: "facebook", status: "queued" } });
 
   try {
-    console.log("[facebook] Posting photo (no link attached)...");
+    console.log("[facebook] Posting photo with link in caption...");
     const photoRes = await fetch(`https://graph.facebook.com/v20.0/${pageId}/photos`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -144,11 +151,11 @@ async function postToFacebook(article: ArticleWithVertical, publicUrl: string, c
     });
     console.log("[facebook] Posted! post id:", photoData.post_id);
 
-    // Best-effort — the post itself already succeeded and is recorded
-    // "posted" above regardless of whether this comment goes through
-    // (e.g. a missing pages_manage_engagement permission), so a comment
-    // failure here never rolls back or fails the whole attempt.
-    console.log("[facebook] Adding first comment with the article link...");
+    // Best-effort extra comment with the same link, in case
+    // pages_manage_engagement starts working mid-flight (e.g. right after
+    // App Review approval) — harmless duplicate if it fails, and the post
+    // itself is already recorded "posted" above regardless of this outcome.
+    console.log("[facebook] Attempting first comment with the article link too...");
     const commentRes = await fetch(`https://graph.facebook.com/v20.0/${photoData.post_id}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
