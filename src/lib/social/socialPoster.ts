@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { writeFile, unlink } from "node:fs/promises";
+import { writeFile, unlink, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { db } from "@/lib/db";
 import type { Prisma } from "../../../generated/prisma/client";
@@ -195,6 +195,11 @@ export async function postSocialPoster(
 
   const relativePath = `public/social-posters/${article.slug}.png`;
   const absolutePath = join(process.cwd(), relativePath);
+  // Git doesn't track empty directories, so public/social-posters/ doesn't
+  // exist in a fresh checkout — confirmed live, this crashed the very
+  // first real post attempt with ENOENT before it ever reached either
+  // platform's API.
+  await mkdir(join(process.cwd(), "public/social-posters"), { recursive: true });
   await writeFile(absolutePath, png);
 
   const siteUrl = process.env.SITE_URL ?? "https://sportswirelive.com";
