@@ -421,6 +421,18 @@ export async function runIngest() {
         // exact story, which is even more specific than either.
         if (!item.heroImageUrl && grounding.imageUrl) {
           stockImage = { url: grounding.imageUrl, credit: `Photo via ${item.sourceName}`, creditUrl: item.sourceUrl };
+        } else if (!item.heroImageUrl && item.knownPersonName && personNames.length > 0) {
+          // Gemini's personNames is a stronger signal than the title-text
+          // heuristic used for the initial stockImage above — it's ranked
+          // by actual prominence in the full grounded article text, not
+          // just which tracked name appears earliest in the headline. Only
+          // worth a second lookup when it actually disagrees with what we
+          // already used.
+          const primaryPlayerName = resolvePrimaryPlayerName(item.title, item.knownPersonName);
+          if (personNames[0] !== primaryPlayerName) {
+            const betterPhoto = await fetchPersonPhoto(personNames[0], sportSearchHint(item.category), slug);
+            if (betterPhoto) stockImage = betterPhoto;
+          }
         } else if (!item.heroImageUrl && !item.knownPersonName) {
           for (const personName of personNames) {
             const personPhoto = await fetchPersonPhoto(personName, sportSearchHint(item.category), slug);
