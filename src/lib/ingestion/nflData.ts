@@ -27,11 +27,16 @@ interface EspnCompetitor {
   team: EspnTeam;
 }
 
+interface EspnVenue {
+  fullName: string;
+  address?: { city?: string; state?: string; country?: string };
+}
+
 interface EspnEvent {
   id: string;
   date: string;
   status: { type: { state: string; completed: boolean } };
-  competitions: { competitors: EspnCompetitor[] }[];
+  competitions: { competitors: EspnCompetitor[]; venue?: EspnVenue }[];
 }
 
 interface TeamRecord {
@@ -169,6 +174,16 @@ export async function fetchNflData(): Promise<RawMatchItem[]> {
     const away = competitors.find((c) => c.homeAway === "away");
     if (!home || !away) continue;
 
+    // Real venue data, confirmed live in ESPN's own scoreboard response —
+    // unlike football-data.org, which doesn't provide this on our tier.
+    // Powers SportsEvent JSON-LD's "location" field (see
+    // article/[slug]/page.tsx) — Google Search Console flagged this as a
+    // critical missing field for Events structured data (2026-09-15).
+    const venueInfo = event.competitions?.[0]?.venue;
+    const venue = venueInfo
+      ? [venueInfo.fullName, venueInfo.address?.city, venueInfo.address?.state].filter(Boolean).join(", ")
+      : undefined;
+
     const homeTeam = home.team.displayName;
     const awayTeam = away.team.displayName;
     const context = recordContext(homeTeam, teamRecords.get(home.team.id)) + recordContext(awayTeam, teamRecords.get(away.team.id));
@@ -226,6 +241,7 @@ export async function fetchNflData(): Promise<RawMatchItem[]> {
       // finalized), it never changes for a given game, so dedup keyed on it
       // can't be fooled by a schedule-time update. See dedupe.ts.
       dedupeKey: `espn-nfl-${event.id}`,
+      venue,
     });
   }
 

@@ -104,7 +104,7 @@ model Article {
   // for now; null for every other sport/category.
   seriesKey        String?
   seriesLabel      String?        // display form, e.g. "India vs Afghanistan • T20I"
-  venue            String?        // cricket only, from CricketData.org's match.venue — powers SportsEvent JSON-LD's "location" field (see article/[slug]/page.tsx); football-data.org/ESPN NFL don't provide real venue data, so this stays null for those sports.
+  venue            String?        // cricket (CricketData.org's match.venue) and NFL (ESPN's venue field) — powers SportsEvent JSON-LD's "location" field (see article/[slug]/page.tsx); football-data.org doesn't provide real venue data on our tier, so this stays null for football.
   socialPosts      SocialPost[]
   poll             Poll?
   reactions        ArticleReaction[]

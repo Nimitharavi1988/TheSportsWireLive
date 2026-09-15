@@ -97,12 +97,12 @@ export interface RawMatchItem {
   // showing a flat chronological feed. See cricketSeries.ts.
   seriesKey?: string;
   seriesLabel?: string;
-  // Cricket only, for now — CricketData.org's own match.venue field. Real
-  // venue data isn't available from football-data.org or ESPN's NFL feed,
-  // so SportsEvent JSON-LD's "location" (see article/[slug]/page.tsx) only
-  // ever populates for cricket articles — Google's Events structured-data
-  // report flagged this as a critical missing field, and fabricating a
-  // venue for the other sports isn't an option.
+  // Cricket (CricketData.org's match.venue) and NFL (ESPN's venue field) —
+  // football-data.org doesn't provide real venue data on our tier, so
+  // SportsEvent JSON-LD's "location" (see article/[slug]/page.tsx) stays
+  // unset for football. Google's Events structured-data report flagged
+  // this as a critical missing field, and fabricating a venue isn't an
+  // option.
   venue?: string;
 }
 
