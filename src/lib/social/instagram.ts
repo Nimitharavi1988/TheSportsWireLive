@@ -19,7 +19,7 @@ const CATEGORY_EMOJI: Record<string, string> = {
 
 function hashtagsForInstagram(title: string, category: string): string {
   const categoryTag = categoryChipStyle(category).label.replace(/[^a-zA-Z0-9]/g, "");
-  const tags = [`#${categoryTag}`, "#SportsWireLive", "#SportsNews"];
+  const tags = [`#${categoryTag}`, "#Sportswirelivenews", "#SportsNews"];
 
   const lower = title.toLowerCase();
   const player = TRACKED_PLAYERS.find((p) => p.searchTerms.some((term) => lower.includes(term.toLowerCase())));
