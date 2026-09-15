@@ -5,6 +5,20 @@
 // affecting other sections' picks at all.
 export const HERO_CAP = 5;
 
+// A manual hero pick (see /admin's "Feature as hero") stops qualifying for
+// the hero carousel once it's this many days old — this site's own content
+// turns over multiple times an hour, so an unrotated pick would otherwise
+// advertise stale news indefinitely. Shared between the homepage's hero
+// selection (page.tsx) and the admin queue's "Featured hero" chip, so the
+// two never disagree about whether a given pick is still actually live.
+export const HERO_FEATURE_MAX_AGE_DAYS = 2;
+
+export function isHeroFeatureStale(featuredAt: Date | null): boolean {
+  if (!featuredAt) return true;
+  const cutoff = Date.now() - HERO_FEATURE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+  return featuredAt.getTime() < cutoff;
+}
+
 // Groups a raw category ("football", "football/world-cup", "cricket",
 // "american-football") down to the top-level section it belongs to — the
 // same grouping the homepage's own category filter already uses

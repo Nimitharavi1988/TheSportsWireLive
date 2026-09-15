@@ -28,6 +28,7 @@ import { QuotesStrip } from "@/components/QuotesStrip";
 import { HeroCarousel } from "@/components/HeroCarousel";
 import { ArticleThumb } from "@/components/ArticleThumb";
 import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImages";
+import { isHeroFeatureStale } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { LiveScoreboardCarousel } from "@/components/LiveScoreboardCarousel";
 import { InstallAppBanner } from "@/components/InstallAppBanner";
@@ -293,10 +294,8 @@ export default async function HomePage(
   // stale pick simply falls back into the normal candidate pool below like
   // any other article, rather than becoming ineligible for the hero
   // entirely.
-  const HERO_FEATURE_MAX_AGE_DAYS = 2;
-  const heroFeatureCutoff = Date.now() - HERO_FEATURE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
   const manuallyFeatured = articles
-    .filter((a) => a.featured && (a.featuredAt?.getTime() ?? 0) >= heroFeatureCutoff)
+    .filter((a) => a.featured && !isHeroFeatureStale(a.featuredAt))
     .sort((a, b) => (b.featuredAt?.getTime() ?? 0) - (a.featuredAt?.getTime() ?? 0));
   const manuallyFeaturedIds = new Set(manuallyFeatured.map((a) => a.id));
   const remainingAfterFeatured = articles.filter((a) => !manuallyFeaturedIds.has(a.id));
