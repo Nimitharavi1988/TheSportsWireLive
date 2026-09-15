@@ -43,6 +43,8 @@ function stripHtml(html: string): string {
 
 function normalizeTokens(name: string): string[] {
   return name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // strip accents (é -> e, ñ -> n, etc.) before the ASCII-only filter below, rather than silently dropping the whole letter — confirmed live: "Hernández" was becoming "Hernndez", which then never matched the real Wikipedia title.
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)
@@ -69,11 +71,14 @@ async function wikiFetch(url: string): Promise<any | null> {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
-      if (!res.ok) return null;
-      return await res.json();
+      // Retries a bad status too, not just a thrown network error — a
+      // transient 5xx/429 from Wikimedia shouldn't be treated the same as
+      // a genuine "not found" on the last attempt.
+      if (res.ok) return await res.json();
     } catch {
-      if (attempt < 2) await new Promise((r) => setTimeout(r, 400));
+      // fall through to retry
     }
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
   }
   return null;
 }

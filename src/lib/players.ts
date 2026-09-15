@@ -195,3 +195,27 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
 
 // Flat list of every search term, for the homepage's auto-highlight check.
 export const SUPERSTAR_SEARCH_TERMS = TRACKED_PLAYERS.flatMap((p) => p.searchTerms);
+
+// playerNewsFeeds.ts sets RawMatchItem.knownPersonName to whichever
+// player's own dedicated Google News search happened to catch a story —
+// not necessarily the player the headline is actually about. Confirmed
+// live: "Sanju Samson joins Rohit Sharma, KL Rahul in India's elite club"
+// got Rohit Sharma's photo, because it also matched Sharma's own feed
+// search, even though Samson is the real subject. A headline naming
+// several tracked players almost always leads with the one it's actually
+// about ("X joins Y, Z in..."), so preferring whichever tracked player's
+// search term appears earliest in the title is a much better signal than
+// trusting knownPersonName blindly whenever more than one name is present.
+export function resolvePrimaryPlayerName(title: string, fallbackName: string): string {
+  const lower = title.toLowerCase();
+  let best: { name: string; index: number } | null = null;
+  for (const player of TRACKED_PLAYERS) {
+    for (const term of player.searchTerms) {
+      const index = lower.indexOf(term.toLowerCase());
+      if (index !== -1 && (!best || index < best.index)) {
+        best = { name: player.name, index };
+      }
+    }
+  }
+  return best?.name ?? fallbackName;
+}

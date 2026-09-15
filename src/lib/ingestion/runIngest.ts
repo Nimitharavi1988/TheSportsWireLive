@@ -17,6 +17,7 @@ import { extractArticleContent } from "./articleTextExtractor";
 import { fetchPersonPhoto, sportSearchHint } from "./wikimediaImages";
 import { competitionFromSummary } from "../teamNames";
 import { isMatchDataSource } from "../matchDataSources";
+import { resolvePrimaryPlayerName } from "../players";
 
 // Prefers a source-provided stable id (see RawMatchItem.dedupeKey) over the
 // title+date hash, since a title embedding a mutable date (e.g. NFL preview
@@ -315,7 +316,8 @@ export async function runIngest() {
       // Gemini's personNames extraction at all, so a budget-exhausted item
       // can still get a real photo even with no body yet.
       if (!existing.heroImageUrl && !item.heroImageUrl && item.knownPersonName) {
-        const personPhoto = await fetchPersonPhoto(item.knownPersonName, sportSearchHint(item.category), existing.slug);
+        const primaryPlayerName = resolvePrimaryPlayerName(item.title, item.knownPersonName);
+        const personPhoto = await fetchPersonPhoto(primaryPlayerName, sportSearchHint(item.category), existing.slug);
         if (personPhoto) {
           await db.article.update({
             where: { id: existing.id },
@@ -360,7 +362,8 @@ export async function runIngest() {
     } else if (item.homeCrestUrl) {
       stockImage = null;
     } else if (item.knownPersonName) {
-      stockImage = (await fetchPersonPhoto(item.knownPersonName, sportSearchHint(item.category), slug)) ?? stockImagePicker.pick(item.category);
+      const primaryPlayerName = resolvePrimaryPlayerName(item.title, item.knownPersonName);
+      stockImage = (await fetchPersonPhoto(primaryPlayerName, sportSearchHint(item.category), slug)) ?? stockImagePicker.pick(item.category);
     } else {
       stockImage = stockImagePicker.pick(item.category);
     }
