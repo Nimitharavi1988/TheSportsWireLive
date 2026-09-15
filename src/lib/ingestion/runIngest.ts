@@ -383,7 +383,21 @@ export async function runIngest() {
       const recap = await generateMatchRecap(item.title, body, competitionName);
       if (recap) body = recap;
       await sleep(COMMENTARY_DELAY_MS);
-    } else if (!body && quality.passed && canAffordCommentary(item.category)) {
+    }
+    // Tracks whether a real grounding+Gemini attempt happened this run and
+    // still came back with no usable text — as opposed to simply not being
+    // tried yet because the per-run commentary budget was exhausted (that
+    // case is left as "pending_review" so a later run's duplicate-refresh
+    // retry, see below, gets a real shot at it). Confirmed live: 340
+    // pending_review articles had accumulated with no body at all, some
+    // over a week old — items whose one real generation attempt already
+    // failed (extraction blocked, thin snippet, Gemini returned nothing)
+    // but whose exact story never resurfaced in the feed to trigger a
+    // retry, so they just sat in the review queue forever with nothing for
+    // a human to even read. Catching this at ingestion time instead of
+    // waiting for a separate cleanup pass.
+    let commentaryAttemptFailed = false;
+    if (!body && quality.passed && canAffordCommentary(item.category)) {
       // knownPersonName (player-news) items used to be excluded here
       // outright — see resolveGrounding's comment for why they're now
       // routed through page-text extraction instead of being skipped.
@@ -392,6 +406,7 @@ export async function runIngest() {
         recordCommentaryCall(item.category);
         const { commentary, personNames } = await generateCommentary(item.title, grounding.text, item.sourceName);
         if (commentary) body = commentary;
+        else commentaryAttemptFailed = true;
         await sleep(COMMENTARY_DELAY_MS);
 
         // Real per-story image from the article page itself takes priority
@@ -412,6 +427,11 @@ export async function runIngest() {
             }
           }
         }
+      } else {
+        // resolveGrounding itself found nothing to work from (extraction
+        // blocked, RSS snippet too thin) — a real attempt that failed, same
+        // as commentary generation coming back empty above.
+        commentaryAttemptFailed = true;
       }
     }
 
@@ -457,7 +477,18 @@ export async function runIngest() {
         profanityDetail: quality.profanityDetail,
         readabilityScore: quality.readabilityScore,
         trendingScore,
-        status: quality.passed ? "pending_review" : "flagged",
+        // A real generation attempt already failed this run for a
+        // non-match-data item that still has no body — rejecting it
+        // immediately instead of letting it sit in pending_review
+        // indefinitely with nothing for a human to read (see
+        // commentaryAttemptFailed above). Doesn't apply to match-data
+        // items — a thin/templated recap still has real factual content,
+        // unlike a genuinely empty body.
+        status: !quality.passed
+          ? "flagged"
+          : commentaryAttemptFailed && !body
+            ? "rejected"
+            : "pending_review",
         // Marks this as a player-news item so autoApprove.ts knows a null
         // body here is the finished state (summary + real photo + source
         // link), not "not yet enriched" — see the field's schema comment.
