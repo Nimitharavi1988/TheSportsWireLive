@@ -78,7 +78,7 @@ export async function renderInstagramPoster(params: {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "34px 56px 48px 56px", position: "relative" }}>
-          <div style={{ display: "flex", color: "rgba(255,255,255,0.8)", fontSize: 30, fontWeight: 600 }}>👉 Full breakdown — link in bio</div>
+          <div style={{ display: "flex", color: "rgba(255,255,255,0.8)", fontSize: 30, fontWeight: 600 }}>👉 Full breakdown on Sports Wire Live</div>
         </div>
       </div>
     ),
