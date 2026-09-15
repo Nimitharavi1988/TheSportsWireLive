@@ -99,7 +99,19 @@ export async function resolvePageAccessToken(pageId: string, token: string): Pro
 // its own configured yet, so single-vertical setups keep working unchanged.
 // A missing token/page id is treated as "not configured" rather than an
 // error, since Facebook posting is optional (see README).
+// Temporary kill switch — live Facebook posting started failing with a new
+// "API access blocked." error (2026-09-15, ~12:09 UTC), right around when
+// App Review changes were being made. Pausing all Facebook posting (this
+// function and the poster-based one in socialPoster.ts) until the cause is
+// understood, rather than continuing to hit a possibly-restricted app.
+// Remove this guard once confirmed safe to resume.
+export const FACEBOOK_POSTING_PAUSED = true;
+
 export async function postArticleToFacebook(articleId: string) {
+  if (FACEBOOK_POSTING_PAUSED) {
+    console.log("Facebook posting is temporarily paused — skipping", articleId);
+    return;
+  }
   // Idempotency guard: confirmed live that repeated calls for the same
   // article (a manual admin re-click before the page re-rendered the
   // "already posted" state, or any future automated retry) were creating

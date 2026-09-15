@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import type { Prisma } from "../../../generated/prisma/client";
 import { generatePosterContent, type PosterContent } from "@/lib/ingestion/commentary";
 import { renderInstagramPoster } from "./instagramPoster";
-import { resolvePageAccessToken } from "./facebook";
+import { resolvePageAccessToken, FACEBOOK_POSTING_PAUSED } from "./facebook";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
 
@@ -192,7 +192,11 @@ export async function postSocialPoster(
     db.socialPost.findFirst({ where: { articleId, platform: "facebook", status: "posted" } }),
   ]);
   const needInstagram = platforms.instagram && !existingInstagram;
-  const needFacebook = platforms.facebook && !existingFacebook;
+  // See facebook.ts's FACEBOOK_POSTING_PAUSED for why — real posting
+  // started failing with "API access blocked" and is paused app-wide
+  // until the cause is understood, so don't even generate a poster for a
+  // Facebook-only request while paused.
+  const needFacebook = platforms.facebook && !existingFacebook && !FACEBOOK_POSTING_PAUSED;
   if (!needInstagram && !needFacebook) return none;
 
   if (!article.heroImageUrl || !article.body) return none;
