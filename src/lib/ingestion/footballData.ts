@@ -8,6 +8,7 @@
  */
 
 import { fetchStandings, ordinal, type TeamStanding } from "./standings";
+import { attachFootballVenues } from "./apiFootballVenue";
 
 const BASE_URL = "https://api.football-data.org/v4";
 
@@ -240,6 +241,11 @@ export async function fetchFootballData(): Promise<RawMatchItem[]> {
     items.push(...scheduled);
     await sleep(REQUEST_DELAY_MS);
   }
+
+  // Best-effort real venue data (see apiFootballVenue.ts) — football-data.org
+  // itself doesn't provide this on our tier. Self-throttled to roughly
+  // hourly, so most runs are a no-op here.
+  await attachFootballVenues(items);
 
   return items;
 }
