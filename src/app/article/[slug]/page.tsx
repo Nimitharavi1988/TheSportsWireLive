@@ -124,6 +124,19 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
   // NewsArticle's own headline/body above, not invented non-standard JSON-LD
   // here). eventStatus/competitor/startDate are what's actually
   // well-supported and accurate to include.
+  //
+  // description/image: always real data we already have (the article's own
+  // summary/hero image). organizer: the competition/series name when known
+  // (cricket's seriesLabel), else the sport category as a reasonable
+  // fallback — still a real, accurate value, never invented. location: only
+  // set when article.venue is populated (cricket only, from CricketData.org
+  // — football-data.org/ESPN NFL don't provide real venue data). Google
+  // Search Console flagged "location" as a CRITICAL missing field
+  // (2026-09-15) — without it the Event feature doesn't qualify for rich
+  // results at all, so football/NFL articles still won't qualify until a
+  // venue source exists for them; fabricating one isn't an option.
+  // endDate/offers deliberately omitted — we don't know real match duration
+  // in advance and don't sell tickets, so there's no real data to provide.
   const sportsEventJsonLd =
     article.homeTeam && article.awayTeam
       ? {
@@ -131,6 +144,8 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           "@type": "SportsEvent",
           name: `${article.homeTeam} vs ${article.awayTeam}`,
           sport: categoryChipStyle(article.category).label,
+          description: displaySummary(article, 300),
+          ...(article.heroImageUrl ? { image: article.heroImageUrl } : {}),
           ...(article.kickoffAt ? { startDate: article.kickoffAt } : {}),
           eventStatus:
             article.matchStatus === "finished"
@@ -140,6 +155,13 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
             { "@type": "SportsTeam", name: article.homeTeam },
             { "@type": "SportsTeam", name: article.awayTeam },
           ],
+          organizer: {
+            "@type": "Organization",
+            name: article.seriesLabel || categoryChipStyle(article.category).label,
+          },
+          ...(article.venue
+            ? { location: { "@type": "Place", name: article.venue } }
+            : {}),
           url: `${siteUrl}/article/${article.slug}`,
         }
       : null;

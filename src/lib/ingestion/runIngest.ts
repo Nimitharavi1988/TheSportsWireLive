@@ -258,6 +258,7 @@ export async function runIngest() {
             matchStatus: item.matchStatus,
             homeScoreText: item.homeScoreText,
             awayScoreText: item.awayScoreText,
+            venue: item.venue,
             ...(justFinished ? { summary: item.summary, body: item.body } : {}),
           },
         });
@@ -472,6 +473,7 @@ export async function runIngest() {
         kickoffAt: item.kickoffAt,
         homeScoreText: item.homeScoreText,
         awayScoreText: item.awayScoreText,
+        venue: item.venue,
       },
     });
     // Registers this hash as no longer "new" — guards against the same

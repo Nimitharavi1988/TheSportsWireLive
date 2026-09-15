@@ -244,6 +244,7 @@ export async function fetchCricketData(): Promise<RawMatchItem[]> {
       kickoffAt: match.dateTimeGMT ? new Date(match.dateTimeGMT) : new Date(),
       homeScoreText: teams ? extractTeamScoreLine(match.score, teams[0]) : undefined,
       awayScoreText: teams ? extractTeamScoreLine(match.score, teams[1]) : undefined,
+      venue: match.venue || undefined,
     });
   }
 
