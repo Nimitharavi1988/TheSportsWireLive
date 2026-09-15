@@ -181,7 +181,7 @@ export default async function MatchTicker() {
         sx={{
           display: "flex",
           width: "max-content",
-          animation: "sw-ticker-scroll 40s linear infinite",
+          animation: "sw-ticker-scroll 70s linear infinite",
           pl: "148px",
           "&:hover": { animationPlayState: "paused" },
         }}
