@@ -195,7 +195,7 @@ export async function runIngest() {
     (
       await db.article.findMany({
         where: { dedupeHash: { in: allHashes } },
-        select: { id: true, dedupeHash: true, body: true, heroImageUrl: true, matchStatus: true, status: true },
+        select: { id: true, dedupeHash: true, body: true, heroImageUrl: true, matchStatus: true, status: true, slug: true },
       })
     ).map((a) => [a.dedupeHash, a])
   );
@@ -290,7 +290,7 @@ export async function runIngest() {
                 heroImageUpdate = { heroImageUrl: grounding.imageUrl, heroImageCredit: `Photo via ${item.sourceName}` };
               } else {
                 for (const personName of personNames) {
-                  const personPhoto = await fetchPersonPhoto(personName, sportSearchHint(item.category));
+                  const personPhoto = await fetchPersonPhoto(personName, sportSearchHint(item.category), existing.slug);
                   if (personPhoto) {
                     heroImageUpdate = {
                       heroImageUrl: personPhoto.url,
@@ -314,7 +314,7 @@ export async function runIngest() {
       // Gemini's personNames extraction at all, so a budget-exhausted item
       // can still get a real photo even with no body yet.
       if (!existing.heroImageUrl && !item.heroImageUrl && item.knownPersonName) {
-        const personPhoto = await fetchPersonPhoto(item.knownPersonName, sportSearchHint(item.category));
+        const personPhoto = await fetchPersonPhoto(item.knownPersonName, sportSearchHint(item.category), existing.slug);
         if (personPhoto) {
           await db.article.update({
             where: { id: existing.id },
@@ -359,7 +359,7 @@ export async function runIngest() {
     } else if (item.homeCrestUrl) {
       stockImage = null;
     } else if (item.knownPersonName) {
-      stockImage = (await fetchPersonPhoto(item.knownPersonName, sportSearchHint(item.category))) ?? stockImagePicker.pick(item.category);
+      stockImage = (await fetchPersonPhoto(item.knownPersonName, sportSearchHint(item.category), slug)) ?? stockImagePicker.pick(item.category);
     } else {
       stockImage = stockImagePicker.pick(item.category);
     }
@@ -404,7 +404,7 @@ export async function runIngest() {
           stockImage = { url: grounding.imageUrl, credit: `Photo via ${item.sourceName}`, creditUrl: item.sourceUrl };
         } else if (!item.heroImageUrl && !item.knownPersonName) {
           for (const personName of personNames) {
-            const personPhoto = await fetchPersonPhoto(personName, sportSearchHint(item.category));
+            const personPhoto = await fetchPersonPhoto(personName, sportSearchHint(item.category), slug);
             if (personPhoto) {
               stockImage = personPhoto;
               break;
@@ -477,7 +477,7 @@ export async function runIngest() {
     // Registers this hash as no longer "new" — guards against the same
     // story appearing twice in one run (two sources reporting it) trying
     // to create it a second time.
-    existingArticles.set(dedupeHash, { id: created.id, dedupeHash, body: created.body, heroImageUrl: created.heroImageUrl, matchStatus: created.matchStatus, status: created.status });
+    existingArticles.set(dedupeHash, { id: created.id, dedupeHash, body: created.body, heroImageUrl: created.heroImageUrl, matchStatus: created.matchStatus, status: created.status, slug: created.slug });
 
     ingested++;
     if (!quality.passed) flagged++;
