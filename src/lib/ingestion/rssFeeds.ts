@@ -37,6 +37,20 @@ function toHttps(url: string): string {
   return url.startsWith("http://") ? `https://${url.slice(7)}` : url;
 }
 
+// BBC's own media:thumbnail is a small 240px-wide crop by default — the
+// same source image is available at full resolution from the identical
+// ichef.bbci.co.uk URL, just with a different width segment in the path
+// (confirmed live: swapping /standard/240/ for /standard/976/ on a real
+// article's image URL served an 11x larger file, genuinely higher
+// resolution, not just a bigger byte size for the same pixels). Only
+// rewrites BBC's own CDN URLs — leaves every other publisher's image
+// exactly as given, since only ichef's URL shape is confirmed predictable
+// this way.
+function upscaleBbcImage(url: string): string {
+  if (!url.includes("ichef.bbci.co.uk")) return url;
+  return url.replace(/\/standard\/\d+\//, "/standard/976/");
+}
+
 // media:content can appear once (ESPN Cricinfo) or multiple times as
 // different size variants of the same photo (Guardian) — when there are
 // several, the largest is the best fit for a hero-style display.
@@ -61,7 +75,7 @@ export function extractRssImage(entry: any): RssImage | null {
   }
 
   const thumbnailUrl: string | undefined = entry.mediaThumbnail?.$?.url;
-  if (thumbnailUrl) return { url: toHttps(thumbnailUrl) };
+  if (thumbnailUrl) return { url: toHttps(upscaleBbcImage(thumbnailUrl)) };
 
   if (typeof entry.coverImages === "string" && entry.coverImages.trim()) {
     return { url: toHttps(entry.coverImages.trim()) };
