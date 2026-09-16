@@ -1,12 +1,16 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
 import { ScrollRow } from "./ScrollRow";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
@@ -18,6 +22,10 @@ import SportsBasketballIcon from "@mui/icons-material/SportsBasketball";
 import SportsBaseballIcon from "@mui/icons-material/SportsBaseball";
 import SportsRugbyIcon from "@mui/icons-material/SportsRugby";
 import DirectionsRunIcon from "@mui/icons-material/DirectionsRun";
+import SportsHockeyIcon from "@mui/icons-material/SportsHockey";
+import SportsVolleyballIcon from "@mui/icons-material/SportsVolleyball";
+import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import type { SvgIconComponent } from "@mui/icons-material";
 
 // World Cup is deliberately not a permanent nav item — it only runs every
@@ -42,6 +50,18 @@ const NAV_LINKS: { href: string; label: string; category: string | null; icon: S
   { href: "/standings", label: "Standings", category: null, icon: EmojiEventsIcon },
 ];
 
+// Newer/lower-traffic sports go here instead of the top-level bar, which
+// was already getting crowded before these existed — same "More Sports"
+// pattern BBC Sport/ESPN use (a short top-level bar for the highest-traffic
+// sports, everything else one click away in a dropdown) rather than
+// growing NAV_LINKS indefinitely as coverage expands. A sport can graduate
+// to NAV_LINKS later if it earns real traffic; nothing here is permanent.
+const MORE_SPORTS_LINKS: { href: string; label: string; category: string; icon: SvgIconComponent }[] = [
+  { href: "/?category=hockey", label: "NHL", category: "hockey", icon: SportsHockeyIcon },
+  { href: "/?category=volleyball", label: "Volleyball", category: "volleyball", icon: SportsVolleyballIcon },
+  { href: "/?category=formula-1", label: "Formula 1", category: "formula-1", icon: SportsMotorsportsIcon },
+];
+
 // Brand green tint for the active-nav pill — deliberately not MUI's default
 // "success" palette, which is a visibly different green from the site's own
 // primary (#1d6b3f) and would look inconsistent sitting next to it.
@@ -56,6 +76,8 @@ function NavLinks() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeCategory = searchParams.get("category");
+  const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
+  const isMoreActive = pathname === "/" && MORE_SPORTS_LINKS.some((l) => l.category === activeCategory);
 
   return (
     // Wrapping into 3 rows on a phone-width screen ate ~140px of vertical
@@ -97,6 +119,53 @@ function NavLinks() {
           </Box>
         );
       })}
+      <Box
+        component="button"
+        type="button"
+        onClick={(e: React.MouseEvent<HTMLElement>) => setMoreAnchor(e.currentTarget)}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.6,
+          flexShrink: 0,
+          whiteSpace: "nowrap",
+          color: isMoreActive ? "primary.main" : "text.secondary",
+          bgcolor: isMoreActive ? ACTIVE_TINT : "transparent",
+          border: "none",
+          font: "inherit",
+          cursor: "pointer",
+          fontWeight: 600,
+          fontSize: 14,
+          px: 1.5,
+          py: 0.75,
+          borderRadius: 5,
+          transition: "background-color 0.15s, color 0.15s",
+          "&:hover": { color: "primary.main", bgcolor: "action.hover" },
+        }}
+      >
+        <MoreHorizIcon sx={{ fontSize: 17 }} />
+        More Sports
+      </Box>
+      <Menu anchorEl={moreAnchor} open={Boolean(moreAnchor)} onClose={() => setMoreAnchor(null)}>
+        {MORE_SPORTS_LINKS.map((link) => {
+          const Icon = link.icon;
+          const isActive = pathname === "/" && activeCategory === link.category;
+          return (
+            <MenuItem
+              key={link.label}
+              component={Link}
+              href={link.href}
+              onClick={() => setMoreAnchor(null)}
+              selected={isActive}
+            >
+              <ListItemIcon>
+                <Icon sx={{ fontSize: 19 }} />
+              </ListItemIcon>
+              <ListItemText>{link.label}</ListItemText>
+            </MenuItem>
+          );
+        })}
+      </Menu>
     </ScrollRow>
   );
 }
@@ -134,6 +203,24 @@ function NavLinksFallback() {
           </Box>
         );
       })}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.6,
+          flexShrink: 0,
+          whiteSpace: "nowrap",
+          color: "text.secondary",
+          fontWeight: 600,
+          fontSize: 14,
+          px: 1.5,
+          py: 0.75,
+          borderRadius: 5,
+        }}
+      >
+        <MoreHorizIcon sx={{ fontSize: 17 }} />
+        More Sports
+      </Box>
     </ScrollRow>
   );
 }

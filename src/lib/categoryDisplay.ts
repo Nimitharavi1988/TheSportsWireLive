@@ -11,6 +11,9 @@ const CATEGORY_CHIP: Record<string, { label: string; color: string }> = {
   baseball: { label: "MLB", color: "#c0392b" },
   basketball: { label: "NBA", color: "#e67e22" },
   rugby: { label: "Rugby", color: "#2e7d5b" },
+  hockey: { label: "NHL", color: "#1a5276" },
+  volleyball: { label: "Volleyball", color: "#8e44ad" },
+  "formula-1": { label: "Formula 1", color: "#b7950b" },
 };
 
 export function categoryChipStyle(category: string) {

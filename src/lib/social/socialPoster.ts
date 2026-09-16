@@ -25,6 +25,7 @@ import { displaySummary } from "@/lib/articleSummary";
 const CATEGORY_EMOJI: Record<string, string> = {
   cricket: "🏏", football: "⚽", "american-football": "🏈",
   basketball: "🏀", baseball: "⚾", rugby: "🏉", athletics: "🏃",
+  hockey: "🏒", volleyball: "🏐", "formula-1": "🏎️",
 };
 
 function git(...args: string[]) {

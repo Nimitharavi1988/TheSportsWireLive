@@ -15,6 +15,9 @@ const CATEGORY_EMOJI: Record<string, string> = {
   baseball: "⚾",
   rugby: "🏉",
   athletics: "🏃",
+  hockey: "🏒",
+  volleyball: "🏐",
+  "formula-1": "🏎️",
 };
 
 function hashtagsForInstagram(title: string, category: string): string {

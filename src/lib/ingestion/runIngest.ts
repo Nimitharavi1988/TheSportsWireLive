@@ -3,6 +3,9 @@ import { fetchFootballData, type RawMatchItem } from "./footballData";
 import { fetchNflData } from "./nflData";
 import { fetchMlbData } from "./mlbData";
 import { fetchNbaData } from "./nbaData";
+import { fetchDomesticFootballData } from "./domesticFootballData";
+import { fetchNhlData } from "./nhlData";
+import { fetchVolleyballData } from "./volleyballData";
 import { fetchRssNews } from "./rssFeeds";
 import { fetchPlayerNews } from "./playerNewsFeeds";
 import { fetchCricinfoPlayerNews } from "./cricinfoPlayerFeeds";
@@ -132,12 +135,18 @@ export async function runIngest() {
     create: { name: "sports" },
   });
 
-  const [scoreItems, nflItems, mlbItems, nbaItems, newsItems, playerNewsItems, cricinfoPlayerItems, cricketItems, trendingKeywords, stockImagePools] =
+  const [scoreItems, nflItems, mlbItems, nbaItems, domesticFootballItems, nhlItems, volleyballItems, newsItems, playerNewsItems, cricinfoPlayerItems, cricketItems, trendingKeywords, stockImagePools] =
     await Promise.all([
       fetchFootballData(),
       fetchNflData(),
       fetchMlbData(),
       fetchNbaData(),
+      // Domestic leagues (Bundesliga/Serie A/Ligue 1/MLS/Indian Super
+      // League) and NHL/volleyball — see domesticFootballData.ts/
+      // nhlData.ts/volleyballData.ts for source details.
+      fetchDomesticFootballData(),
+      fetchNhlData(),
+      fetchVolleyballData(),
       fetchRssNews(),
       // Actively searches Google News per tracked player (players.ts) —
       // unlike the fixed feeds above, which only ever surface whatever a
@@ -171,7 +180,7 @@ export async function runIngest() {
   const sortedNewsItems = [...newsItems, ...playerNewsItems, ...cricinfoPlayerItems].sort(
     (a, b) => computeTrendingScore(b.title, trendingKeywords) - computeTrendingScore(a.title, trendingKeywords)
   );
-  const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...mlbItems, ...nbaItems, ...sortedNewsItems, ...cricketItems];
+  const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...mlbItems, ...nbaItems, ...domesticFootballItems, ...nhlItems, ...volleyballItems, ...sortedNewsItems, ...cricketItems];
   const stockImagePicker = createStockImagePicker(stockImagePools);
 
   // Cloudflare Workers caps outbound subrequests per invocation, and every

@@ -94,6 +94,12 @@ export function extractRssImage(entry: any): RssImage | null {
 }
 
 const FEEDS: { url: string; category: string; sourceName: string }[] = [
+  // No structured race-data source exists on any free tier (confirmed live:
+  // api-sports.io's Formula-1 API free plan rejects the current season
+  // entirely — "try from 2022 to 2024"), so F1 is RSS-only editorial
+  // content, same as this file's other sources, rather than the
+  // RawMatchItem match-data pattern the other new sports use.
+  { url: "https://www.autosport.com/rss/f1/news/", category: "formula-1", sourceName: "Autosport" },
   { url: "http://feeds.bbci.co.uk/sport/football/rss.xml", category: "football", sourceName: "BBC Sport" },
   { url: "http://feeds.bbci.co.uk/sport/cricket/rss.xml", category: "cricket", sourceName: "BBC Sport" },
   // Feed 11095 is Sky's football-only feed — confirmed by inspecting its
