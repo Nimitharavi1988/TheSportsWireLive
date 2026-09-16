@@ -234,16 +234,6 @@ export default async function HomePage(
     .sort((a, b) => a.articleIndex - b.articleIndex)
     .slice(0, MAX_PLAYER_NEWS);
 
-  // Real Wikimedia photo per player, same source the player's own page uses
-  // — previously this rail showed a generic colored-initials avatar even for
-  // players whose own page already has a real photo, which read as
-  // inconsistent when you clicked through. Falls back to the initials
-  // avatar (rendered below) when no free-licensed photo is found.
-  const playerNewsPhotos = await Promise.all(
-    playerNewsMatches.map((entry) => fetchPersonPhoto(entry.player.name, sportSearchHint(entry.player.sport)))
-  );
-  const playerNews = playerNewsMatches.map((entry, i) => ({ ...entry, photo: playerNewsPhotos[i] }));
-
   // "Just In": pure recency, unlike everything else on this page (which is
   // trending-sorted, category-grouped, or player-matched) — a plain
   // freshness signal, the one sidebar module almost every news site has.
@@ -386,31 +376,48 @@ export default async function HomePage(
   const usedBriefIds = new Set([...highlightIds, ...briefArticles.map((a) => a.id)]);
   const moreArticles = allBriefArticles.filter((a) => !usedBriefIds.has(a.id)).slice(0, 15);
 
-  // Only fetch a generic stock photo per slide when there's no real image to
-  // show instead — a match article with real team crests shouldn't also get
-  // an unrelated random stadium photo layered on top of them. Runs for every
-  // hero slide (not just one), but each is a cheap, free-tier Pexels call
-  // and there are at most 5 slides.
-  const heroSlides = await Promise.all(
-    heroArticles.map(async (article) => {
-      const hasCrests = Boolean(article.homeCrestUrl && article.awayCrestUrl);
-      const banner = !hasCrests && !article.heroImageUrl ? await fetchOneStockImage(article.category) : null;
-      return { article, banner };
-    })
-  );
-
   // Standings only exist for domestic leagues on this API tier (not Champions
   // League/World Cup/Euros — no data — and cricket has no active standings
   // source at all), so only show this on "All" or the plain "Football" filter.
   const showStandings = !category || category === "football";
   const standingsApiKey = process.env.FOOTBALL_DATA_API_KEY;
-  const standings =
-    showStandings && standingsApiKey ? await fetchStandingsTable(standingsApiKey, "PL") : null;
 
-  // NFL's left rail was otherwise nearly empty (Standings is football-only,
-  // By Category/Competition are "All"-view-only) — real conference standings
-  // data, same ESPN source nflData.ts already draws on for match context.
-  const nflStandings = category === "american-football" ? await fetchNflStandingsTable() : null;
+  // These four were previously four separate sequential `await`s (player
+  // photos, then hero banners, then standings, then NFL standings) — a real
+  // waterfall where each stage's external API round-trip only started after
+  // the previous one fully finished, confirmed live as the dominant cause of
+  // slow homepage/category loads (2-4s to first byte). None of the four
+  // actually depend on each other's results (only on `articles`/
+  // `heroArticles`, both already computed above), so running them together
+  // cuts total wait time to roughly the SLOWEST single stage instead of the
+  // sum of all four.
+  const [playerNewsPhotos, heroSlides, standings, nflStandings] = await Promise.all([
+    // Real Wikimedia photo per player, same source the player's own page
+    // uses — previously this rail showed a generic colored-initials avatar
+    // even for players whose own page already has a real photo, which read
+    // as inconsistent when you clicked through. Falls back to the initials
+    // avatar (rendered below) when no free-licensed photo is found.
+    Promise.all(playerNewsMatches.map((entry) => fetchPersonPhoto(entry.player.name, sportSearchHint(entry.player.sport)))),
+    // Only fetch a generic stock photo per slide when there's no real image
+    // to show instead — a match article with real team crests shouldn't
+    // also get an unrelated random stadium photo layered on top of them.
+    // Runs for every hero slide (not just one), but each is a cheap,
+    // free-tier Pexels call and there are at most 5 slides.
+    Promise.all(
+      heroArticles.map(async (article) => {
+        const hasCrests = Boolean(article.homeCrestUrl && article.awayCrestUrl);
+        const banner = !hasCrests && !article.heroImageUrl ? await fetchOneStockImage(article.category) : null;
+        return { article, banner };
+      })
+    ),
+    showStandings && standingsApiKey ? fetchStandingsTable(standingsApiKey, "PL") : Promise.resolve(null),
+    // NFL's left rail was otherwise nearly empty (Standings is
+    // football-only, By Category/Competition are "All"-view-only) — real
+    // conference standings data, same ESPN source nflData.ts already draws
+    // on for match context.
+    category === "american-football" ? fetchNflStandingsTable() : Promise.resolve(null),
+  ]);
+  const playerNews = playerNewsMatches.map((entry, i) => ({ ...entry, photo: playerNewsPhotos[i] }));
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
