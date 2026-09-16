@@ -14,9 +14,11 @@ import SportsScoreIcon from "@mui/icons-material/SportsScore";
 
 export const revalidate = 300;
 
-// Rugby/Athletics deliberately excluded — news-only categories with no
-// structured match data (no kickoffAt/score fields to filter by here at
-// all), same reasoning as everywhere else those two are scoped out.
+// Rugby/Athletics/Formula 1 deliberately excluded — news-only categories
+// with no structured match data (no kickoffAt/score fields to filter by
+// here at all: F1 is RSS-only editorial content, same reasoning as the
+// other two). Hockey/Volleyball DO have real structured match data (see
+// nhlData.ts/volleyballData.ts), so they belong here same as the rest.
 const SPORT_FILTERS = [
   { label: "All", category: null },
   { label: "Football", category: "football" },
@@ -24,6 +26,8 @@ const SPORT_FILTERS = [
   { label: "NFL", category: "american-football" },
   { label: "NBA", category: "basketball" },
   { label: "MLB", category: "baseball" },
+  { label: "NHL", category: "hockey" },
+  { label: "Volleyball", category: "volleyball" },
 ];
 
 export const metadata = { title: "Scores & Fixtures", alternates: { canonical: "/scores" } };

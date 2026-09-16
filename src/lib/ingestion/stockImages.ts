@@ -21,6 +21,19 @@ const CATEGORY_QUERIES: Record<string, string> = {
   "american-football": "american football stadium",
   baseball: "baseball stadium",
   basketball: "basketball arena",
+  // hockey/volleyball/formula-1 articles almost always already carry a real
+  // image (team crests for hockey/volleyball, RSS-embedded photos for F1 —
+  // see nhlData.ts/volleyballData.ts/rssFeeds.ts), so this is a safety net
+  // for the rare miss rather than a primary source, same role it plays for
+  // the categories above.
+  hockey: "ice hockey arena",
+  volleyball: "volleyball court",
+  "formula-1": "formula 1 race track",
+  // Pre-existing gap, not introduced this pass — rugby/athletics never had
+  // a stock-photo fallback either, closing it now for full coverage across
+  // every nav category rather than just the newly-added ones.
+  rugby: "rugby stadium",
+  athletics: "athletics track",
 };
 
 async function searchPexels(apiKey: string, query: string, count: number): Promise<StockImage[]> {
