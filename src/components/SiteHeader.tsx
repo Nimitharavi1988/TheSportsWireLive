@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import AppBar from "@mui/material/AppBar";
@@ -16,6 +16,8 @@ import Drawer from "@mui/material/Drawer";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import Divider from "@mui/material/Divider";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 import { ScrollRow } from "./ScrollRow";
 import MenuIcon from "@mui/icons-material/Menu";
 import ViewListIcon from "@mui/icons-material/ViewList";
@@ -114,6 +116,18 @@ function NavLinks() {
     closeTimer.current = setTimeout(() => setMoreAnchor(null), 400);
   };
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // The drawer is only meant for below-sm widths (the desktop strip takes
+  // over at sm via its own display toggle) — but nothing previously closed
+  // it if the viewport grew past sm while it was open (e.g. resizing the
+  // browser, or rotating/un-docking on a tablet). Confirmed live: it just
+  // kept rendering as a permanently-open sidebar sitting next to the normal
+  // desktop nav bar once that happened, not something a resize should ever
+  // produce. Auto-closes as soon as the breakpoint crosses back to sm+.
+  const isDesktop = useMediaQuery(useTheme().breakpoints.up("sm"));
+  useEffect(() => {
+    if (isDesktop) setDrawerOpen(false);
+  }, [isDesktop]);
 
   const isLinkActive = (link: { href: string; category: string | null }) =>
     link.href === "/standings" || link.href === "/scores"

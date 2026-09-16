@@ -44,6 +44,15 @@ const MIN_MATCH_DATA_BODY_LENGTH = 80;
 // only lets a single run post more within that same overall budget, not
 // exceed it. Revert to 5 once traffic recovers.
 const MAX_FACEBOOK_POSTS_PER_RUN = 10;
+// Temporary traffic-recovery boost (explicit request, 2026-09-16): guarantee
+// at least 5 attempts per run instead of the usual paced-down floor of 1,
+// so volume picks up noticeably for a while. Still bounded by
+// MAX_FACEBOOK_POSTS_PER_DAY via remainingToday below — this can't exceed
+// the daily budget, it just front-loads more of it into each run instead of
+// spreading it evenly, so a day now gets ~10 hours of elevated posting
+// before the daily cap runs out rather than a flat trickle all day. Revert
+// to 1 once traffic recovers (see paceTarget below).
+const MIN_FACEBOOK_POSTS_PER_RUN = 5;
 // 199 — deliberately just under Instagram's own ~200/hour app-level rate
 // limit ballpark (200 * Number_of_Users, see the Instagram rate-limit
 // investigation; this app effectively has ~1 real "user"), so Facebook's
@@ -73,11 +82,23 @@ const MAX_INSTAGRAM_POSTS_PER_RUN = 3;
 // UTC some days, leaving the rest of the day silent even before the "floor
 // of 1" fix — that's the opposite of "one per interval, all day."
 const RUNS_PER_DAY = 96;
-// Cricket is the only reserved slot now — every other sport, football
-// included, competes purely on trendingScore for the remaining 4 of each
-// run's 5 slots.
+// Cricket's reserved slot, plus one each for the newer sports added
+// 2026-09-16 (hockey, volleyball, formula-1). These three needed a reserved
+// slot for a different reason than cricket originally did: their titles
+// ("Bayern Munich vs...", "Canada W 3-0 Nicaragua W", "Ferrari not yet
+// switching...") essentially never contain a tracked SUPERSTAR_SEARCH_TERMS
+// name or an EVENT_KEYWORDS trigger word (transfer/record/etc — see
+// highlightWorthy.ts), so without a reserved slot they'd never once clear
+// isHighlightWorthy and would never reach Facebook/Instagram at all, no
+// matter how much real content ingestion produced for them. Domestic
+// football leagues (Bundesliga/Serie A/etc, still category "football")
+// aren't reserved here — they compete in the normal football pool, same as
+// before; only genuinely new categories needed this.
 const RESERVED_CATEGORIES: { category: string; slots: number }[] = [
   { category: "cricket", slots: 1 },
+  { category: "hockey", slots: 1 },
+  { category: "volleyball", slots: 1 },
+  { category: "formula-1", slots: 1 },
 ];
 
 export function hasRealImage(article: { heroImageUrl: string | null; homeCrestUrl: string | null }): boolean {
@@ -162,25 +183,33 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     const minutesSinceMidnight = (now.getTime() - todayStart.getTime()) / 60000;
     const currentRunIndex = Math.min(RUNS_PER_DAY, Math.floor(minutesSinceMidnight / 15) + 1);
     const expectedByNow = Math.round((MAX_FACEBOOK_POSTS_PER_DAY * currentRunIndex) / RUNS_PER_DAY);
-    const paceTarget = Math.max(1, expectedByNow - postedToday);
+    const paceTarget = Math.max(MIN_FACEBOOK_POSTS_PER_RUN, expectedByNow - postedToday);
 
     const runCap = Math.max(1, Math.min(MAX_FACEBOOK_POSTS_PER_RUN, remainingToday, paceTarget));
 
-    const eligible = toApprove
-      .filter((a) => isHighlightWorthy(a.title))
-      .sort((a, b) => b.trendingScore - a.trendingScore);
+    const byTrending = [...toApprove].sort((a, b) => b.trendingScore - a.trendingScore);
+    const eligible = byTrending.filter((a) => isHighlightWorthy(a.title));
 
-    // Picks the top N from `eligible` respecting RESERVED_CATEGORIES, same
-    // ranking both platforms use. Called once per platform with that
-    // platform's own paced cap — Facebook and Instagram now have
-    // independent budgets, so Instagram's candidate pool is no longer
-    // silently bottlenecked by however small Facebook's pace target happens
-    // to be for a given run (they used to share one `toPost` list sized to
-    // Facebook's cap alone).
+    // Picks the top N respecting RESERVED_CATEGORIES, same ranking both
+    // platforms use. Called once per platform with that platform's own
+    // paced cap — Facebook and Instagram now have independent budgets, so
+    // Instagram's candidate pool is no longer silently bottlenecked by
+    // however small Facebook's pace target happens to be for a given run
+    // (they used to share one `toPost` list sized to Facebook's cap alone).
+    //
+    // Reserved-category picks are pulled from `byTrending` (every approved
+    // article), NOT `eligible` (the isHighlightWorthy-filtered subset) —
+    // confirmed live that hockey/volleyball/formula-1 content essentially
+    // never clears isHighlightWorthy on its own (see RESERVED_CATEGORIES
+    // comment above), so sourcing reserved slots from `eligible` would make
+    // the "reservation" meaningless for them: a guaranteed slot that never
+    // actually gets filled. Cricket's reserved slot picks up the same
+    // change, which only widens what can fill it — matches the "reserved"
+    // name's own intent (a guarantee, not a conditional one).
     function selectTopN(n: number): typeof eligible {
       const selected: typeof eligible = [];
       for (const { category, slots } of RESERVED_CATEGORIES) {
-        const matches = eligible.filter((a) => a.category === category && !selected.includes(a));
+        const matches = byTrending.filter((a) => a.category === category && !selected.includes(a));
         for (const article of matches.slice(0, slots)) {
           if (selected.length >= n) break;
           selected.push(article);
@@ -198,13 +227,20 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     // Same pacing model as Facebook's runCap above, but budgeted against
     // Instagram's own daily cap and counting only actual successful
     // publishes (status "posted") — a failed/rate-limited attempt doesn't
-    // consume Meta's real 25/day limit, so it shouldn't consume ours either.
+    // consume Meta's real 100/day limit, so it shouldn't consume ours either.
     const instagramPostedToday = await db.socialPost.count({
       where: { platform: "instagram", status: "posted", postedAt: { gte: todayStart } },
     });
     const instagramRemainingToday = Math.max(0, MAX_INSTAGRAM_POSTS_PER_DAY - instagramPostedToday);
     const instagramExpectedByNow = Math.round((MAX_INSTAGRAM_POSTS_PER_DAY * currentRunIndex) / RUNS_PER_DAY);
-    const instagramPaceTarget = Math.max(1, instagramExpectedByNow - instagramPostedToday);
+    // Same temporary traffic-recovery boost as Facebook (2026-09-16), but a
+    // lower floor (2, not 5) — confirmed live that Instagram's real 100/day
+    // cap means a 5/run floor would burn the whole daily budget in ~5 hours
+    // then go fully silent the rest of the day. 2/run stretches the budget
+    // to roughly half the day before tapering instead. Still hard-bounded by
+    // instagramRemainingToday below, same safety property as Facebook.
+    // Revert to 1 once traffic recovers.
+    const instagramPaceTarget = Math.max(2, instagramExpectedByNow - instagramPostedToday);
     const instagramRunCap = Math.max(
       0,
       Math.min(MAX_INSTAGRAM_POSTS_PER_RUN, instagramRemainingToday, instagramPaceTarget)
