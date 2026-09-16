@@ -50,6 +50,20 @@ const MAX_FACEBOOK_POSTS_PER_RUN = 10;
 // volume stays aligned with what Instagram can realistically sustain too,
 // since autoApprove.ts posts the same selection to both.
 const MAX_FACEBOOK_POSTS_PER_DAY = 199;
+// Instagram's Content Publishing API hard-caps at 25 successful publishes
+// per rolling 24-hour period per IG Business Account — a real Meta platform
+// limit (cumulative across every app on the account), not just a throttle
+// we chose. 24 leaves one post of headroom instead of risking a 25th
+// attempt tripping it. The old flat "2 attempts per run, stop at first
+// success" cap left whole days silent (0 posts on 2026-09-15) whenever
+// those particular runs had no eligible candidate or hit a transient
+// failure — pacing this the same way as Facebook (below) fixes that.
+const MAX_INSTAGRAM_POSTS_PER_DAY = 24;
+// Ceiling on ATTEMPTS within a single run (not just successes) — each
+// attempt is a full Gemini content-generation call plus a real git
+// commit/push/deploy-wait cycle, far more expensive than Facebook's plain
+// post, so this bounds cost even while a run is catching up to pace.
+const MAX_INSTAGRAM_POSTS_PER_RUN = 3;
 // Every ~15-min cron run in a day — used to PACE the daily budget evenly
 // across all 24 hours instead of letting it front-load into whichever
 // hours happen to have the most eligible content. Confirmed live: a flat
@@ -154,18 +168,46 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
       .filter((a) => isHighlightWorthy(a.title))
       .sort((a, b) => b.trendingScore - a.trendingScore);
 
-    const toPost: typeof eligible = [];
-    for (const { category, slots } of RESERVED_CATEGORIES) {
-      const matches = eligible.filter((a) => a.category === category && !toPost.includes(a));
-      for (const article of matches.slice(0, slots)) {
-        if (toPost.length >= runCap) break;
-        toPost.push(article);
+    // Picks the top N from `eligible` respecting RESERVED_CATEGORIES, same
+    // ranking both platforms use. Called once per platform with that
+    // platform's own paced cap — Facebook and Instagram now have
+    // independent budgets, so Instagram's candidate pool is no longer
+    // silently bottlenecked by however small Facebook's pace target happens
+    // to be for a given run (they used to share one `toPost` list sized to
+    // Facebook's cap alone).
+    function selectTopN(n: number): typeof eligible {
+      const selected: typeof eligible = [];
+      for (const { category, slots } of RESERVED_CATEGORIES) {
+        const matches = eligible.filter((a) => a.category === category && !selected.includes(a));
+        for (const article of matches.slice(0, slots)) {
+          if (selected.length >= n) break;
+          selected.push(article);
+        }
       }
+      for (const article of eligible) {
+        if (selected.length >= n) break;
+        if (!selected.includes(article)) selected.push(article);
+      }
+      return selected;
     }
-    for (const article of eligible) {
-      if (toPost.length >= runCap) break;
-      if (!toPost.includes(article)) toPost.push(article);
-    }
+
+    const toPost = selectTopN(runCap);
+
+    // Same pacing model as Facebook's runCap above, but budgeted against
+    // Instagram's own daily cap and counting only actual successful
+    // publishes (status "posted") — a failed/rate-limited attempt doesn't
+    // consume Meta's real 25/day limit, so it shouldn't consume ours either.
+    const instagramPostedToday = await db.socialPost.count({
+      where: { platform: "instagram", status: "posted", postedAt: { gte: todayStart } },
+    });
+    const instagramRemainingToday = Math.max(0, MAX_INSTAGRAM_POSTS_PER_DAY - instagramPostedToday);
+    const instagramExpectedByNow = Math.round((MAX_INSTAGRAM_POSTS_PER_DAY * currentRunIndex) / RUNS_PER_DAY);
+    const instagramPaceTarget = Math.max(1, instagramExpectedByNow - instagramPostedToday);
+    const instagramRunCap = Math.max(
+      0,
+      Math.min(MAX_INSTAGRAM_POSTS_PER_RUN, instagramRemainingToday, instagramPaceTarget)
+    );
+    const instagramCandidates = selectTopN(instagramRunCap);
 
     // Facebook is back to its original plain format (the old auto-link-card
     // post, not the generated poster) per explicit request - the comment-
@@ -182,15 +224,15 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
 
     // Instagram still uses the generated poster (socialPoster.ts) - a
     // Gemini call plus a real git commit/push/deploy-poll per attempt, far
-    // more expensive than Facebook's plain post above, so this stays
-    // capped at 2 attempts, stopping as soon as one succeeds. Confirmed
-    // live: attempting it for every candidate was 5x the API call volume
-    // it actually needed, and that extra volume is exactly what pushed the
-    // app over Meta's rate limit for 6+ hours straight.
+    // more expensive than Facebook's plain post above. Paced against its
+    // own daily budget (instagramRunCap, above) rather than the old flat
+    // "2 attempts" cap, and stops as soon as one succeeds within the run —
+    // no need to spend more of this run's already-paced budget once that
+    // run's slot is filled.
     let instagramAttempts = 0;
     let instagramDone = false;
-    for (const article of toPost) {
-      if (instagramDone || instagramAttempts >= 2) break;
+    for (const article of instagramCandidates) {
+      if (instagramDone || instagramAttempts >= instagramRunCap) break;
       instagramAttempts++;
       try {
         const posted = await postInstagramPoster(article.id);
