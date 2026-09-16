@@ -14,7 +14,14 @@ import { postSocialPoster } from "../social/socialPoster";
 // (some content now ships without a human looking at it first), so it
 // should only fire for articles that are unambiguously "as good as this
 // pipeline gets," not merely "technically has some text."
-const MIN_BODY_LENGTH = 150;
+// Raised from 150 — confirmed live that a couple of thin sentences was
+// clearing the old bar even for genuinely low-value articles (compounded
+// by Gemini's now-fixed tendency to pad thin source material with
+// content-free filler instead of writing less — see commentary.ts). 300
+// gives real room for actual substance without being so strict that a
+// genuinely short-but-real story (a brief injury update, a single
+// confirmed transfer) gets unfairly rejected.
+const MIN_BODY_LENGTH = 300;
 // Match-data preview/result templates ("Team A face Team B in MLB. First
 // pitch is...") are inherently terse, factual, and already fully vetted (no
 // extraction/scrape risk the way an arbitrary RSS body has) — the same
