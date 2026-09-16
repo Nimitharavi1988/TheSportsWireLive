@@ -11,7 +11,13 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
+import IconButton from "@mui/material/IconButton";
+import Drawer from "@mui/material/Drawer";
+import List from "@mui/material/List";
+import ListItemButton from "@mui/material/ListItemButton";
+import Divider from "@mui/material/Divider";
 import { ScrollRow } from "./ScrollRow";
+import MenuIcon from "@mui/icons-material/Menu";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
 import SportsCricketIcon from "@mui/icons-material/SportsCricket";
@@ -33,14 +39,12 @@ import type { SvgIconComponent } from "@mui/icons-material";
 // It's still fully reachable (the route/category/metadata all still work)
 // and surfaces itself automatically in the homepage's "By Category" tiles
 // whenever there's real content, without needing dead nav real estate.
-// Kept deliberately short (4 sport filters + 2 utility links) so "More
-// Sports" appears within the first screen-width of the horizontal scroll
-// strip on mobile — confirmed live against ESPN's own mobile nav
-// (site.espn.com, 2026-09-16) that theirs is the same shape: ~6 items then
+// Kept deliberately short (4 sport filters + 2 utility links) — matches
+// ESPN's own desktop nav shape (site.espn.com, 2026-09-16): ~6 items then
 // an overflow trigger, not the 11-item row this used to be. Basketball/
 // Baseball/Rugby/Athletics moved into MORE_SPORTS_LINKS below (still fully
-// reachable, just one tap away) rather than sitting ahead of "More Sports"
-// and pushing NHL/Volleyball/F1 off the edge of a phone screen.
+// reachable, just one interaction away on both desktop and mobile — see
+// NavLinks for the sm-and-up dropdown vs below-sm drawer split).
 const NAV_LINKS: { href: string; label: string; category: string | null; icon: SvgIconComponent }[] = [
   { href: "/", label: "All", category: null, icon: ViewListIcon },
   { href: "/?category=football", label: "Football", category: "football", icon: SportsSoccerIcon },
@@ -96,35 +100,76 @@ function NavLinks() {
   };
   const scheduleClose = () => {
     cancelClose();
-    closeTimer.current = setTimeout(() => setMoreAnchor(null), 200);
+    closeTimer.current = setTimeout(() => setMoreAnchor(null), 400);
   };
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const isLinkActive = (link: { href: string; category: string | null }) =>
+    link.href === "/standings" || link.href === "/scores"
+      ? pathname.startsWith(link.href)
+      : pathname === "/" && activeCategory === link.category;
 
   return (
-    // Wrapping into 3 rows on a phone-width screen ate ~140px of vertical
-    // space before any real content — same shared scroll-strip pattern the
-    // homepage's Player News/More Headlines rails use, wrapping normally
-    // again from sm up since it comfortably fits within 1-2 rows there.
-    <ScrollRow gap={0.5} wrapFrom="sm">
-      {NAV_LINKS.map((link) => {
-        const isActive =
-          link.href === "/standings" || link.href === "/scores"
-            ? pathname.startsWith(link.href)
-            : pathname === "/" && activeCategory === link.category;
-        const Icon = link.icon;
-        return (
+    <>
+      {/* Desktop/tablet (sm and up): horizontal strip + hover/click "More
+          Sports" dropdown. Wrapping into multiple rows on a phone-width
+          screen ate ~140px of vertical space before any real content —
+          replaced below sm by the hamburger + drawer instead, a cleaner
+          pattern than a horizontal scroll strip once there are this many
+          sports to list (13 total). */}
+      <Box sx={{ display: { xs: "none", sm: "block" } }}>
+        <ScrollRow gap={0.5} wrapFrom="sm">
+          {NAV_LINKS.map((link) => {
+            const isActive = isLinkActive(link);
+            const Icon = link.icon;
+            return (
+              <Box
+                key={link.label}
+                component={Link}
+                href={link.href}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.6,
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                  color: isActive ? "primary.main" : "text.secondary",
+                  bgcolor: isActive ? ACTIVE_TINT : "transparent",
+                  textDecoration: "none",
+                  fontWeight: 600,
+                  fontSize: 14,
+                  px: 1.5,
+                  py: 0.75,
+                  borderRadius: 5,
+                  transition: "background-color 0.15s, color 0.15s",
+                  "&:hover": { color: "primary.main", bgcolor: "action.hover" },
+                }}
+              >
+                <Icon sx={{ fontSize: 17 }} />
+                {link.label}
+              </Box>
+            );
+          })}
           <Box
-            key={link.label}
-            component={Link}
-            href={link.href}
+            component="button"
+            type="button"
+            onClick={(e: React.MouseEvent<HTMLElement>) => setMoreAnchor(e.currentTarget)}
+            onMouseEnter={(e: React.MouseEvent<HTMLElement>) => {
+              cancelClose();
+              setMoreAnchor(e.currentTarget);
+            }}
+            onMouseLeave={scheduleClose}
             sx={{
               display: "flex",
               alignItems: "center",
               gap: 0.6,
               flexShrink: 0,
               whiteSpace: "nowrap",
-              color: isActive ? "primary.main" : "text.secondary",
-              bgcolor: isActive ? ACTIVE_TINT : "transparent",
-              textDecoration: "none",
+              color: isMoreActive ? "primary.main" : "text.secondary",
+              bgcolor: isMoreActive ? ACTIVE_TINT : "transparent",
+              border: "none",
+              font: "inherit",
+              cursor: "pointer",
               fontWeight: 600,
               fontSize: 14,
               px: 1.5,
@@ -134,73 +179,114 @@ function NavLinks() {
               "&:hover": { color: "primary.main", bgcolor: "action.hover" },
             }}
           >
-            <Icon sx={{ fontSize: 17 }} />
-            {link.label}
+            <MoreHorizIcon sx={{ fontSize: 17 }} />
+            More Sports
           </Box>
-        );
-      })}
-      <Box
-        component="button"
-        type="button"
-        onClick={(e: React.MouseEvent<HTMLElement>) => setMoreAnchor(e.currentTarget)}
-        onMouseEnter={(e: React.MouseEvent<HTMLElement>) => {
-          cancelClose();
-          setMoreAnchor(e.currentTarget);
-        }}
-        onMouseLeave={scheduleClose}
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 0.6,
-          flexShrink: 0,
-          whiteSpace: "nowrap",
-          color: isMoreActive ? "primary.main" : "text.secondary",
-          bgcolor: isMoreActive ? ACTIVE_TINT : "transparent",
-          border: "none",
-          font: "inherit",
-          cursor: "pointer",
-          fontWeight: 600,
-          fontSize: 14,
-          px: 1.5,
-          py: 0.75,
-          borderRadius: 5,
-          transition: "background-color 0.15s, color 0.15s",
-          "&:hover": { color: "primary.main", bgcolor: "action.hover" },
-        }}
-      >
-        <MoreHorizIcon sx={{ fontSize: 17 }} />
-        More Sports
+          <Menu
+            anchorEl={moreAnchor}
+            open={Boolean(moreAnchor)}
+            onClose={() => setMoreAnchor(null)}
+            disableAutoFocusItem
+            // Zero-gap positioning (menu top edge flush against the button's
+            // bottom edge, same left alignment) — MUI's own default anchor/
+            // transform origins overlap the menu ON the button instead,
+            // which left a real empty-space gap the cursor had to cross to
+            // reach the menu below. Confirmed live: that gap was wide
+            // enough that the close timer (below) fired before the cursor
+            // arrived, closing the menu before a click could land.
+            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+            transformOrigin={{ vertical: "top", horizontal: "left" }}
+            slotProps={{
+              list: { onMouseEnter: cancelClose, onMouseLeave: scheduleClose },
+              paper: { onMouseEnter: cancelClose, onMouseLeave: scheduleClose },
+            }}
+          >
+            {MORE_SPORTS_LINKS.map((link) => {
+              const Icon = link.icon;
+              const isActive = pathname === "/" && activeCategory === link.category;
+              return (
+                <MenuItem
+                  key={link.label}
+                  component={Link}
+                  href={link.href}
+                  onClick={() => setMoreAnchor(null)}
+                  selected={isActive}
+                >
+                  <ListItemIcon>
+                    <Icon sx={{ fontSize: 19 }} />
+                  </ListItemIcon>
+                  <ListItemText>{link.label}</ListItemText>
+                </MenuItem>
+              );
+            })}
+          </Menu>
+        </ScrollRow>
       </Box>
-      <Menu
-        anchorEl={moreAnchor}
-        open={Boolean(moreAnchor)}
-        onClose={() => setMoreAnchor(null)}
-        disableAutoFocusItem
-        slotProps={{
-          list: { onMouseEnter: cancelClose, onMouseLeave: scheduleClose },
-          paper: { onMouseEnter: cancelClose, onMouseLeave: scheduleClose },
-        }}
+
+      {/* Mobile (below sm): the standard hamburger pattern instead of a
+          horizontal scroll strip — a drawer listing every sport at once
+          reads better on a phone than scrolling sideways through 13 items. */}
+      <IconButton
+        onClick={() => setDrawerOpen(true)}
+        aria-label="Open menu"
+        sx={{ display: { xs: "flex", sm: "none" }, color: "text.secondary" }}
       >
-        {MORE_SPORTS_LINKS.map((link) => {
-          const Icon = link.icon;
-          const isActive = pathname === "/" && activeCategory === link.category;
-          return (
-            <MenuItem
-              key={link.label}
-              component={Link}
-              href={link.href}
-              onClick={() => setMoreAnchor(null)}
-              selected={isActive}
-            >
-              <ListItemIcon>
-                <Icon sx={{ fontSize: 19 }} />
-              </ListItemIcon>
-              <ListItemText>{link.label}</ListItemText>
-            </MenuItem>
-          );
-        })}
-      </Menu>
-    </ScrollRow>
+        <MenuIcon />
+      </IconButton>
+      <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+        <Box sx={{ width: 270 }} role="presentation">
+          <List>
+            {NAV_LINKS.map((link) => {
+              const Icon = link.icon;
+              const isActive = isLinkActive(link);
+              return (
+                <ListItemButton
+                  key={link.label}
+                  component={Link}
+                  href={link.href}
+                  selected={isActive}
+                  onClick={() => setDrawerOpen(false)}
+                  sx={{ color: isActive ? "primary.main" : "text.primary" }}
+                >
+                  <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>
+                    <Icon sx={{ fontSize: 20 }} />
+                  </ListItemIcon>
+                  <ListItemText primary={link.label} slotProps={{ primary: { sx: { fontWeight: 600 } } }} />
+                </ListItemButton>
+              );
+            })}
+          </List>
+          <Divider />
+          <List
+            subheader={
+              <Box sx={{ px: 2, py: 1, fontSize: 12, fontWeight: 700, letterSpacing: 0.5, color: "text.secondary" }}>
+                MORE SPORTS
+              </Box>
+            }
+          >
+            {MORE_SPORTS_LINKS.map((link) => {
+              const Icon = link.icon;
+              const isActive = isLinkActive(link);
+              return (
+                <ListItemButton
+                  key={link.label}
+                  component={Link}
+                  href={link.href}
+                  selected={isActive}
+                  onClick={() => setDrawerOpen(false)}
+                  sx={{ color: isActive ? "primary.main" : "text.primary" }}
+                >
+                  <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>
+                    <Icon sx={{ fontSize: 20 }} />
+                  </ListItemIcon>
+                  <ListItemText primary={link.label} slotProps={{ primary: { sx: { fontWeight: 600 } } }} />
+                </ListItemButton>
+              );
+            })}
+          </List>
+        </Box>
+      </Drawer>
+    </>
   );
 }
 
@@ -209,14 +295,37 @@ function NavLinks() {
 // nav's own width/shape identical to the real thing so nothing shifts.
 function NavLinksFallback() {
   return (
-    <ScrollRow gap={0.5} wrapFrom="sm">
-      {NAV_LINKS.map((link) => {
-        const Icon = link.icon;
-        return (
+    <>
+      <Box sx={{ display: { xs: "none", sm: "block" } }}>
+        <ScrollRow gap={0.5} wrapFrom="sm">
+          {NAV_LINKS.map((link) => {
+            const Icon = link.icon;
+            return (
+              <Box
+                key={link.label}
+                component={Link}
+                href={link.href}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.6,
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                  color: "text.secondary",
+                  textDecoration: "none",
+                  fontWeight: 600,
+                  fontSize: 14,
+                  px: 1.5,
+                  py: 0.75,
+                  borderRadius: 5,
+                }}
+              >
+                <Icon sx={{ fontSize: 17 }} />
+                {link.label}
+              </Box>
+            );
+          })}
           <Box
-            key={link.label}
-            component={Link}
-            href={link.href}
             sx={{
               display: "flex",
               alignItems: "center",
@@ -224,7 +333,6 @@ function NavLinksFallback() {
               flexShrink: 0,
               whiteSpace: "nowrap",
               color: "text.secondary",
-              textDecoration: "none",
               fontWeight: 600,
               fontSize: 14,
               px: 1.5,
@@ -232,30 +340,15 @@ function NavLinksFallback() {
               borderRadius: 5,
             }}
           >
-            <Icon sx={{ fontSize: 17 }} />
-            {link.label}
+            <MoreHorizIcon sx={{ fontSize: 17 }} />
+            More Sports
           </Box>
-        );
-      })}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 0.6,
-          flexShrink: 0,
-          whiteSpace: "nowrap",
-          color: "text.secondary",
-          fontWeight: 600,
-          fontSize: 14,
-          px: 1.5,
-          py: 0.75,
-          borderRadius: 5,
-        }}
-      >
-        <MoreHorizIcon sx={{ fontSize: 17 }} />
-        More Sports
+        </ScrollRow>
       </Box>
-    </ScrollRow>
+      <IconButton aria-label="Open menu" sx={{ display: { xs: "flex", sm: "none" }, color: "text.secondary" }}>
+        <MenuIcon />
+      </IconButton>
+    </>
   );
 }
 

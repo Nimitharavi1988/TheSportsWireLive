@@ -472,9 +472,15 @@ export async function runIngest() {
     // directly in cricketData.ts, from the two teams it already knows) —
     // this only applies to editorial/player-news cricket items, detecting
     // the series directly from the title (see cricketSeries.ts — no
-    // match-data confirmation required).
+    // match-data confirmation required). Gated on seriesLabel alone (not
+    // "both seriesKey and seriesLabel") — confirmed live that this was
+    // silently discarding domesticFootballData.ts's seriesLabel (Bundesliga/
+    // Serie A/etc.), which is deliberately seriesKey-less (see that file's
+    // comment: the /series/[seriesKey] grouping page is cricket-specific
+    // infrastructure it doesn't need, but organizer JSON-LD still wants the
+    // real competition name).
     const series =
-      item.seriesKey && item.seriesLabel
+      item.seriesLabel
         ? { key: item.seriesKey, label: item.seriesLabel }
         : item.category.startsWith("cricket")
           ? detectSeriesFromTitle(item.title)
