@@ -215,10 +215,41 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   return { checked: candidates.length, approved: toApprove.length };
 }
 
+// A pending_review article missing a real image isn't necessarily dead on
+// arrival the way a genuinely-failed commentary attempt is — a later
+// duplicate-refresh could still find one (see runIngest.ts), so this can't
+// be caught definitively at ingestion time the way the thin-body case was.
+// Confirmed live: 1,036 of 1,059 pending articles (98%) were stuck purely
+// on this, with the oldest over 5 days old and no sign of ever resolving
+// — real content, just permanently short a real photo for most of these
+// (many tracked athletes simply have no freely-licensed photo available).
+// Giving every item a real multi-day window to still get one, then
+// rejecting what hasn't, keeps the queue from growing unbounded while
+// still giving genuine retries a fair chance first.
+const STALE_NO_IMAGE_DAYS = 3;
+
+export async function rejectStaleNoImageArticles(): Promise<number> {
+  const cutoff = new Date(Date.now() - STALE_NO_IMAGE_DAYS * 24 * 60 * 60 * 1000);
+  const candidates = await db.article.findMany({
+    where: { status: "pending_review", createdAt: { lt: cutoff } },
+    select: { id: true, heroImageUrl: true, homeCrestUrl: true },
+  });
+  const staleIds = candidates.filter((a) => !hasRealImage(a)).map((a) => a.id);
+  if (staleIds.length === 0) return 0;
+
+  await db.article.updateMany({
+    where: { id: { in: staleIds } },
+    data: { status: "rejected" },
+  });
+  return staleIds.length;
+}
+
 if (require.main === module) {
   autoApproveValidArticles()
-    .then(({ checked, approved }) => {
+    .then(async ({ checked, approved }) => {
       console.log(`Auto-approve: ${approved} of ${checked} pending articles met the bar (real image + body >= ${MIN_BODY_LENGTH} chars, or >= ${MIN_MATCH_DATA_BODY_LENGTH} for match-data sources).`);
+      const rejected = await rejectStaleNoImageArticles();
+      console.log(`Rejected ${rejected} pending articles still with no real image after ${STALE_NO_IMAGE_DAYS}+ days.`);
       process.exit(0);
     })
     .catch((err) => {
