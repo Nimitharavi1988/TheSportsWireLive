@@ -32,13 +32,28 @@ function git(...args: string[]) {
   execFileSync("git", args, { stdio: "inherit" });
 }
 
+// Requires 3 CONSECUTIVE successful checks, not just one — confirmed live
+// (2026-09-16): a single 200 response isn't reliable proof the poster is
+// live everywhere yet. Several Instagram posts failed with "Only photo or
+// video can be accepted as media type" despite the generated PNG itself
+// being verified valid (reproduced locally, correct magic bytes) and our
+// server confirmed serving the right Content-Type — the likely explanation
+// is Cloudflare's edge network propagating the just-pushed file
+// inconsistently, so the specific edge node our own HEAD request happened
+// to hit already had it while the one Meta's servers fetch from (a
+// different network path) briefly didn't. Spacing repeated checks and
+// requiring several in a row in a real, if imperfect, way to wait out that
+// propagation window instead of racing it on the first success.
 async function waitUntilLive(url: string, maxAttempts = 20): Promise<void> {
+  const REQUIRED_CONSECUTIVE = 3;
+  let consecutiveSuccesses = 0;
   for (let i = 0; i < maxAttempts; i++) {
     try {
-      const res = await fetch(url, { method: "HEAD" });
-      if (res.ok) return;
+      const res = await fetch(url, { method: "HEAD", cache: "no-store" });
+      consecutiveSuccesses = res.ok ? consecutiveSuccesses + 1 : 0;
+      if (consecutiveSuccesses >= REQUIRED_CONSECUTIVE) return;
     } catch {
-      // keep polling
+      consecutiveSuccesses = 0;
     }
     await new Promise((r) => setTimeout(r, 15000));
   }
