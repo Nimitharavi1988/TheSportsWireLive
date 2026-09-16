@@ -5,6 +5,24 @@ import type { PosterContent } from "@/lib/ingestion/commentary";
 
 const WIKIMEDIA_USER_AGENT = "TheSportsWireLiveBot/1.0 (sports news aggregator)";
 
+// Prefers the URL's own file extension over the server's Content-Type
+// header — confirmed live that a real image response can carry a
+// malformed, multi-value header ("application/octet-stream, image/webp"),
+// silently breaking the image entirely when used in a data URI. Falls
+// back to a clean single-value header, then a safe default.
+function guessImageContentType(url: string, headerValue: string | null): string {
+  const cleanPath = url.split("?")[0].toLowerCase();
+  if (cleanPath.endsWith(".png")) return "image/png";
+  if (cleanPath.endsWith(".webp")) return "image/webp";
+  if (cleanPath.endsWith(".gif")) return "image/gif";
+  if (cleanPath.endsWith(".jpg") || cleanPath.endsWith(".jpeg")) return "image/jpeg";
+
+  const firstValue = headerValue?.split(",")[0]?.trim();
+  if (firstValue && /^image\/[a-z0-9.+-]+$/i.test(firstValue)) return firstValue;
+
+  return "image/jpeg";
+}
+
 // Article heroImageUrl is a 300px Wikimedia thumbnail (sized for a
 // 32-120px avatar circle elsewhere on the site — see wikimediaImages.ts),
 // visibly soft when stretched to fill a 1080px-wide poster background.
@@ -61,7 +79,12 @@ export async function renderInstagramPoster(params: {
     headers: { "User-Agent": "TheSportsWireLiveBot/1.0 (sports news aggregator)" },
   });
   const bgImageBuf = Buffer.from(await bgImageRes.arrayBuffer());
-  const contentType = bgImageRes.headers.get("content-type") ?? "image/jpeg";
+  // Confirmed live: a real photo's response returned a malformed,
+  // multi-value Content-Type header ("application/octet-stream,
+  // image/webp"), which broke Satori's image parser entirely (rendered
+  // with no size/blank). The URL's own file extension is a much more
+  // reliable signal than trusting an arbitrary server's header.
+  const contentType = guessImageContentType(backgroundUrl, bgImageRes.headers.get("content-type"));
   const bgImage = `data:${contentType};base64,${bgImageBuf.toString("base64")}`;
 
   const { eyebrow, hook, rows } = params.content;
