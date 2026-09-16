@@ -31,7 +31,7 @@ import DirectionsRunIcon from "@mui/icons-material/DirectionsRun";
 import SportsHockeyIcon from "@mui/icons-material/SportsHockey";
 import SportsVolleyballIcon from "@mui/icons-material/SportsVolleyball";
 import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type { SvgIconComponent } from "@mui/icons-material";
 
 // World Cup is deliberately not a permanent nav item — it only runs every
@@ -188,7 +188,16 @@ function NavLinks() {
               "&:hover": { color: "primary.main", bgcolor: "action.hover" },
             }}
           >
-            <MoreHorizIcon sx={{ fontSize: MENU_ICON_SIZE }} />
+            <ExpandMoreIcon
+              sx={{
+                fontSize: MENU_ICON_SIZE,
+                // Rotates to point up while the dropdown is open — a
+                // chevron's direction is expected to track open/closed
+                // state, unlike a generic "more options" glyph.
+                transform: moreAnchor ? "rotate(180deg)" : "none",
+                transition: "transform 0.15s",
+              }}
+            />
             More Sports
           </Box>
           <Menu
@@ -349,7 +358,7 @@ function NavLinksFallback() {
               borderRadius: 5,
             }}
           >
-            <MoreHorizIcon sx={{ fontSize: 17 }} />
+            <ExpandMoreIcon sx={{ fontSize: MENU_ICON_SIZE }} />
             More Sports
           </Box>
         </ScrollRow>
