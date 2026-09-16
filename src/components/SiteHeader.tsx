@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import AppBar from "@mui/material/AppBar";
@@ -33,30 +33,35 @@ import type { SvgIconComponent } from "@mui/icons-material";
 // It's still fully reachable (the route/category/metadata all still work)
 // and surfaces itself automatically in the homepage's "By Category" tiles
 // whenever there's real content, without needing dead nav real estate.
-// Basketball/Baseball/Rugby/Athletics DO get permanent nav items, unlike
-// World Cup — real ongoing sections (not a once-every-4-years event), per
-// explicit request after their category-only reachability wasn't
-// discoverable enough.
+// Kept deliberately short (4 sport filters + 2 utility links) so "More
+// Sports" appears within the first screen-width of the horizontal scroll
+// strip on mobile — confirmed live against ESPN's own mobile nav
+// (site.espn.com, 2026-09-16) that theirs is the same shape: ~6 items then
+// an overflow trigger, not the 11-item row this used to be. Basketball/
+// Baseball/Rugby/Athletics moved into MORE_SPORTS_LINKS below (still fully
+// reachable, just one tap away) rather than sitting ahead of "More Sports"
+// and pushing NHL/Volleyball/F1 off the edge of a phone screen.
 const NAV_LINKS: { href: string; label: string; category: string | null; icon: SvgIconComponent }[] = [
   { href: "/", label: "All", category: null, icon: ViewListIcon },
   { href: "/?category=football", label: "Football", category: "football", icon: SportsSoccerIcon },
   { href: "/?category=cricket", label: "Cricket", category: "cricket", icon: SportsCricketIcon },
   { href: "/?category=american-football", label: "NFL", category: "american-football", icon: SportsFootballIcon },
-  { href: "/?category=basketball", label: "NBA", category: "basketball", icon: SportsBasketballIcon },
-  { href: "/?category=baseball", label: "MLB", category: "baseball", icon: SportsBaseballIcon },
-  { href: "/?category=rugby", label: "Rugby", category: "rugby", icon: SportsRugbyIcon },
-  { href: "/?category=athletics", label: "Athletics", category: "athletics", icon: DirectionsRunIcon },
   { href: "/scores", label: "Scores", category: null, icon: SportsScoreIcon },
   { href: "/standings", label: "Standings", category: null, icon: EmojiEventsIcon },
 ];
 
-// Newer/lower-traffic sports go here instead of the top-level bar, which
-// was already getting crowded before these existed — same "More Sports"
+// Everything else — including sports that used to be top-level
+// (Basketball/Baseball/Rugby/Athletics) plus the newer, lower-traffic ones
+// (Hockey/Volleyball/Formula 1) — lives in one "More Sports" dropdown, same
 // pattern BBC Sport/ESPN use (a short top-level bar for the highest-traffic
-// sports, everything else one click away in a dropdown) rather than
-// growing NAV_LINKS indefinitely as coverage expands. A sport can graduate
-// to NAV_LINKS later if it earns real traffic; nothing here is permanent.
+// sports, everything else one click away) rather than growing NAV_LINKS
+// indefinitely as coverage expands. A sport can graduate back to NAV_LINKS
+// later if it earns real traffic; nothing here is permanent.
 const MORE_SPORTS_LINKS: { href: string; label: string; category: string; icon: SvgIconComponent }[] = [
+  { href: "/?category=basketball", label: "NBA", category: "basketball", icon: SportsBasketballIcon },
+  { href: "/?category=baseball", label: "MLB", category: "baseball", icon: SportsBaseballIcon },
+  { href: "/?category=rugby", label: "Rugby", category: "rugby", icon: SportsRugbyIcon },
+  { href: "/?category=athletics", label: "Athletics", category: "athletics", icon: DirectionsRunIcon },
   { href: "/?category=hockey", label: "NHL", category: "hockey", icon: SportsHockeyIcon },
   { href: "/?category=volleyball", label: "Volleyball", category: "volleyball", icon: SportsVolleyballIcon },
   { href: "/?category=formula-1", label: "Formula 1", category: "formula-1", icon: SportsMotorsportsIcon },
@@ -78,6 +83,21 @@ function NavLinks() {
   const activeCategory = searchParams.get("category");
   const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
   const isMoreActive = pathname === "/" && MORE_SPORTS_LINKS.some((l) => l.category === activeCategory);
+
+  // Hover-to-open on desktop (matches how a mouse-driven dropdown is
+  // expected to behave — ESPN's own "More Sports" opens on hover, not just
+  // click) while still supporting a tap on touch devices, which have no
+  // hover state at all. The short close delay (not an instant close on
+  // mouseleave) gives the cursor time to travel from the trigger button
+  // down into the menu itself without it snapping shut first.
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelClose = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+  };
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = setTimeout(() => setMoreAnchor(null), 200);
+  };
 
   return (
     // Wrapping into 3 rows on a phone-width screen ate ~140px of vertical
@@ -123,6 +143,11 @@ function NavLinks() {
         component="button"
         type="button"
         onClick={(e: React.MouseEvent<HTMLElement>) => setMoreAnchor(e.currentTarget)}
+        onMouseEnter={(e: React.MouseEvent<HTMLElement>) => {
+          cancelClose();
+          setMoreAnchor(e.currentTarget);
+        }}
+        onMouseLeave={scheduleClose}
         sx={{
           display: "flex",
           alignItems: "center",
@@ -146,7 +171,16 @@ function NavLinks() {
         <MoreHorizIcon sx={{ fontSize: 17 }} />
         More Sports
       </Box>
-      <Menu anchorEl={moreAnchor} open={Boolean(moreAnchor)} onClose={() => setMoreAnchor(null)}>
+      <Menu
+        anchorEl={moreAnchor}
+        open={Boolean(moreAnchor)}
+        onClose={() => setMoreAnchor(null)}
+        disableAutoFocusItem
+        slotProps={{
+          list: { onMouseEnter: cancelClose, onMouseLeave: scheduleClose },
+          paper: { onMouseEnter: cancelClose, onMouseLeave: scheduleClose },
+        }}
+      >
         {MORE_SPORTS_LINKS.map((link) => {
           const Icon = link.icon;
           const isActive = pathname === "/" && activeCategory === link.category;
