@@ -7,8 +7,6 @@ import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import IconButton from "@mui/material/IconButton";
@@ -98,23 +96,41 @@ function NavLinks() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeCategory = searchParams.get("category");
-  const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
   const isMoreActive = pathname === "/" && MORE_SPORTS_LINKS.some((l) => l.category === activeCategory);
 
-  // Hover-to-open on desktop (matches how a mouse-driven dropdown is
-  // expected to behave — ESPN's own "More Sports" opens on hover, not just
-  // click) while still supporting a tap on touch devices, which have no
-  // hover state at all. The short close delay (not an instant close on
-  // mouseleave) gives the cursor time to travel from the trigger button
-  // down into the menu itself without it snapping shut first.
+  // Confirmed live (real mouse, not simulated): MUI's Menu/Popover renders
+  // via a React Portal, so the trigger and the dropdown live in different
+  // DOM branches — coordinating open/close between them needs a timer-based
+  // mouseenter/mouseleave handshake, and that handshake had a real gap a
+  // moving cursor could fall through (closed mid-travel, before a click
+  // could land, even with zero-gap positioning and a 400ms grace period).
+  // Rebuilt as a plain absolutely-positioned Box instead, living in the
+  // SAME DOM branch as the trigger inside one shared wrapper below — with
+  // true containment, "did the cursor leave the combined region" is exactly
+  // what onMouseLeave on that wrapper answers, no portal, no race. The
+  // short close delay here is now just a UX nicety for a slightly curved
+  // mouse path near the edge, not something correctness depends on.
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelClose = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
   };
   const scheduleClose = () => {
     cancelClose();
-    closeTimer.current = setTimeout(() => setMoreAnchor(null), 400);
+    closeTimer.current = setTimeout(() => setMoreOpen(false), 200);
   };
+  const moreContainerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!moreOpen) return;
+    function handleOutsideClick(e: MouseEvent) {
+      if (moreContainerRef.current && !moreContainerRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [moreOpen]);
+
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // The drawer is only meant for below-sm widths (the desktop strip takes
@@ -174,84 +190,101 @@ function NavLinks() {
               </Box>
             );
           })}
+          {/* Trigger + dropdown share one wrapper (real DOM containment,
+              not a portal) — see the moreOpen state comment above for why
+              this replaced an MUI Menu. position:relative here, the
+              dropdown below is absolutely positioned against it. */}
           <Box
-            component="button"
-            type="button"
-            onClick={(e: React.MouseEvent<HTMLElement>) => setMoreAnchor(e.currentTarget)}
-            onMouseEnter={(e: React.MouseEvent<HTMLElement>) => {
+            ref={moreContainerRef}
+            sx={{ position: "relative", flexShrink: 0 }}
+            onMouseEnter={() => {
               cancelClose();
-              setMoreAnchor(e.currentTarget);
+              setMoreOpen(true);
             }}
             onMouseLeave={scheduleClose}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.6,
-              flexShrink: 0,
-              whiteSpace: "nowrap",
-              color: isMoreActive ? "primary.main" : "text.secondary",
-              bgcolor: isMoreActive ? ACTIVE_TINT : "transparent",
-              border: "none",
-              font: "inherit",
-              cursor: "pointer",
-              ...MENU_TEXT_SX,
-              px: 1.5,
-              py: 0.75,
-              borderRadius: 5,
-              transition: "background-color 0.15s, color 0.15s",
-              "&:hover": { color: "primary.main", bgcolor: "action.hover" },
-            }}
           >
-            <ExpandMoreIcon
+            <Box
+              component="button"
+              type="button"
+              onClick={() => setMoreOpen((open) => !open)}
               sx={{
-                fontSize: MENU_ICON_SIZE,
-                // Rotates to point up while the dropdown is open — a
-                // chevron's direction is expected to track open/closed
-                // state, unlike a generic "more options" glyph.
-                transform: moreAnchor ? "rotate(180deg)" : "none",
-                transition: "transform 0.15s",
+                display: "flex",
+                alignItems: "center",
+                gap: 0.6,
+                flexShrink: 0,
+                whiteSpace: "nowrap",
+                color: isMoreActive ? "primary.main" : "text.secondary",
+                bgcolor: isMoreActive ? ACTIVE_TINT : "transparent",
+                border: "none",
+                font: "inherit",
+                cursor: "pointer",
+                ...MENU_TEXT_SX,
+                px: 1.5,
+                py: 0.75,
+                borderRadius: 5,
+                transition: "background-color 0.15s, color 0.15s",
+                "&:hover": { color: "primary.main", bgcolor: "action.hover" },
               }}
-            />
-            More Sports
+            >
+              <ExpandMoreIcon
+                sx={{
+                  fontSize: MENU_ICON_SIZE,
+                  // Rotates to point up while the dropdown is open — a
+                  // chevron's direction is expected to track open/closed
+                  // state, unlike a generic "more options" glyph.
+                  transform: moreOpen ? "rotate(180deg)" : "none",
+                  transition: "transform 0.15s",
+                }}
+              />
+              More Sports
+            </Box>
+            {moreOpen && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  zIndex: 1300,
+                  mt: 0.5,
+                  minWidth: 200,
+                  py: 0.5,
+                  bgcolor: "background.paper",
+                  borderRadius: 1.5,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  boxShadow: "0 6px 20px rgba(0,0,0,0.12)",
+                }}
+              >
+                {MORE_SPORTS_LINKS.map((link) => {
+                  const Icon = link.icon;
+                  const isActive = pathname === "/" && activeCategory === link.category;
+                  return (
+                    <Box
+                      key={link.label}
+                      component={Link}
+                      href={link.href}
+                      onClick={() => setMoreOpen(false)}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.2,
+                        px: 2,
+                        py: 1,
+                        textDecoration: "none",
+                        color: isActive ? "primary.main" : "text.primary",
+                        bgcolor: isActive ? ACTIVE_TINT : "transparent",
+                        ...MENU_TEXT_SX,
+                        "&:hover": { bgcolor: "action.hover" },
+                      }}
+                    >
+                      <Icon sx={{ fontSize: MENU_ICON_SIZE }} />
+                      {link.label}
+                    </Box>
+                  );
+                })}
+              </Box>
+            )}
           </Box>
-          <Menu
-            anchorEl={moreAnchor}
-            open={Boolean(moreAnchor)}
-            onClose={() => setMoreAnchor(null)}
-            disableAutoFocusItem
-            // Zero-gap positioning (menu top edge flush against the button's
-            // bottom edge, same left alignment) — MUI's own default anchor/
-            // transform origins overlap the menu ON the button instead,
-            // which left a real empty-space gap the cursor had to cross to
-            // reach the menu below. Confirmed live: that gap was wide
-            // enough that the close timer (below) fired before the cursor
-            // arrived, closing the menu before a click could land.
-            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-            transformOrigin={{ vertical: "top", horizontal: "left" }}
-            slotProps={{
-              list: { onMouseEnter: cancelClose, onMouseLeave: scheduleClose },
-              paper: { onMouseEnter: cancelClose, onMouseLeave: scheduleClose },
-            }}
-          >
-            {MORE_SPORTS_LINKS.map((link) => {
-              const Icon = link.icon;
-              const isActive = pathname === "/" && activeCategory === link.category;
-              return (
-                <MenuItem
-                  key={link.label}
-                  component={Link}
-                  href={link.href}
-                  onClick={() => setMoreAnchor(null)}
-                  selected={isActive}
-                >
-                  <ListItemIcon>
-                    <Icon sx={{ fontSize: MENU_ICON_SIZE }} />
-                  </ListItemIcon>
-                  <ListItemText slotProps={{ primary: { sx: MENU_TEXT_SX } }}>{link.label}</ListItemText>
-                </MenuItem>
-              );
-            })}
-          </Menu>
         </ScrollRow>
       </Box>
 
