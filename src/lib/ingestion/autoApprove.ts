@@ -50,15 +50,17 @@ const MAX_FACEBOOK_POSTS_PER_RUN = 10;
 // volume stays aligned with what Instagram can realistically sustain too,
 // since autoApprove.ts posts the same selection to both.
 const MAX_FACEBOOK_POSTS_PER_DAY = 199;
-// Instagram's Content Publishing API hard-caps at 25 successful publishes
-// per rolling 24-hour period per IG Business Account — a real Meta platform
-// limit (cumulative across every app on the account), not just a throttle
-// we chose. 24 leaves one post of headroom instead of risking a 25th
-// attempt tripping it. The old flat "2 attempts per run, stop at first
-// success" cap left whole days silent (0 posts on 2026-09-15) whenever
-// those particular runs had no eligible candidate or hit a transient
-// failure — pacing this the same way as Facebook (below) fixes that.
-const MAX_INSTAGRAM_POSTS_PER_DAY = 24;
+// Confirmed live against this account's own quota (GET
+// /{ig-user-id}/content_publishing_limit on 2026-09-15): quota_total is 100
+// posts per rolling 24-hour window, not the commonly-cited-but-outdated 25,
+// and not the unrelated ~200/hour figure (that's the general Graph API call
+// rate limit, not a content-publishing cap). 95 leaves a small buffer
+// instead of risking a request that trips the real 100 cap. The old flat "2
+// attempts per run, stop at first success" cap left whole days silent (0
+// posts on 2026-09-15) whenever those particular runs had no eligible
+// candidate or hit a transient failure — pacing this the same way as
+// Facebook (below) fixes that.
+const MAX_INSTAGRAM_POSTS_PER_DAY = 95;
 // Ceiling on ATTEMPTS within a single run (not just successes) — each
 // attempt is a full Gemini content-generation call plus a real git
 // commit/push/deploy-wait cycle, far more expensive than Facebook's plain
