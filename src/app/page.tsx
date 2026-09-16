@@ -105,6 +105,18 @@ const CATEGORY_META: Record<string, { title: string; description: string }> = {
     title: "Rugby News",
     description: "Latest rugby union news from around the world.",
   },
+  hockey: {
+    title: "NHL News, Scores & Results",
+    description: "Latest NHL results, previews, and news.",
+  },
+  volleyball: {
+    title: "Volleyball News & Scores",
+    description: "Latest volleyball match results, previews, and news from leagues around the world.",
+  },
+  "formula-1": {
+    title: "Formula 1 News",
+    description: "Latest Formula 1 news, race previews, and results.",
+  },
 };
 
 export async function generateMetadata(

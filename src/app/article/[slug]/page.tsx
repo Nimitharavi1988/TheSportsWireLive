@@ -127,14 +127,16 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
   //
   // description/image: always real data we already have (the article's own
   // summary/hero image). organizer: the competition/series name when known
-  // (cricket's seriesLabel), else the sport category as a reasonable
-  // fallback — still a real, accurate value, never invented. location: only
-  // set when article.venue is populated (cricket only, from CricketData.org
-  // — football-data.org/ESPN NFL don't provide real venue data). Google
-  // Search Console flagged "location" as a CRITICAL missing field
-  // (2026-09-15) — without it the Event feature doesn't qualify for rich
-  // results at all, so football/NFL articles still won't qualify until a
-  // venue source exists for them; fabricating one isn't an option.
+  // (seriesLabel — cricket, and now also the ESPN-sourced domestic football
+  // leagues/NHL), else the sport category as a reasonable fallback — still
+  // a real, accurate value, never invented. location: only set when
+  // article.venue is populated — real for cricket (CricketData.org), NFL/
+  // NHL/domestic football leagues (ESPN's scoreboard API), but still unset
+  // for football-data.org's own Premier League coverage and for volleyball
+  // (neither source provides it) — see CLAUDE.md's structured-data policy
+  // for the current per-sport breakdown. Google Search Console flagged
+  // "location" as a CRITICAL missing field (2026-09-15); fabricating one
+  // isn't an option, so it just stays unset wherever no real source exists.
   // endDate/offers deliberately omitted — we don't know real match duration
   // in advance and don't sell tickets, so there's no real data to provide.
   const sportsEventJsonLd =
