@@ -197,10 +197,14 @@ async function fetchPersonPhotoVariants(title: string): Promise<StockImage[]> {
   for (const p of pages) {
     const info = p?.imageinfo?.[0];
     const meta = info?.extmetadata;
-    // Skip anything too small to be a real photo (an icon/thumbnail that
-    // slipped past the filename filter) — a genuine headshot or action
-    // photo on Commons is never this small.
-    if (!info || !meta || (info.width && info.width < 200)) continue;
+    // Skip anything too small to be a genuinely good hero-quality photo
+    // (raised from 200 — confirmed live that a 200px-floor candidate from
+    // this less-curated pool can still be an awkward crop, e.g. a wide
+    // action shot with a second, unrelated person's face cut off at the
+    // frame edge; a higher floor filters out more of the smaller,
+    // more-likely-cropped-from-something-wider candidates, though it can't
+    // catch every bad crop on resolution alone).
+    if (!info || !meta || (info.width && info.width < 400)) continue;
     const fileName: string = String(p.title ?? "").replace(/^File:/, "");
     const licensed = buildCredit(meta, fileName, "Photo");
     if (!licensed) continue;
@@ -209,10 +213,59 @@ async function fetchPersonPhotoVariants(title: string): Promise<StockImage[]> {
   return variants;
 }
 
+async function fetchCanonicalPersonPhoto(title: string): Promise<StockImage | null> {
+  // Wikipedia's own "page image" — a properly-sized thumbnail, not the
+  // full original. Confirmed directly this was the site's single biggest
+  // performance problem: original source files for these photos run 1-22MB
+  // each, downloaded in full just to render a 32-120px avatar circle.
+  // MediaWiki's own thumbnailing service (same CDN, properly compressed)
+  // serves an appropriately-sized version instead — 300px covers every
+  // current use on the site (up to 120px) with headroom for retina
+  // displays.
+  const imageUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(
+    title
+  )}&prop=pageimages&piprop=thumbnail&pithumbsize=300&format=json`;
+  const imageData = await wikiFetch(imageUrl);
+  const page: any = imageData?.query?.pages ? Object.values(imageData.query.pages)[0] : null;
+  const thumbnailUrl: string | undefined = page?.thumbnail?.source;
+  if (!thumbnailUrl) return null;
+
+  // Thumbnail URLs are shaped .../thumb/x/xx/FileName.ext/300px-FileName.ext
+  // — the trailing segment is "{width}px-{realFileName}", not the actual
+  // Commons file title, which the license lookup below needs.
+  const thumbFileName = decodeURIComponent(thumbnailUrl.split("?")[0].split("/").pop() ?? "");
+  const fileName = thumbFileName.replace(/^\d+px-/, "");
+  if (!fileName) return null;
+
+  // Verify the specific file's license on Commons — don't trust the page
+  // image blindly.
+  const infoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(
+    "File:" + fileName
+  )}&prop=imageinfo&iiprop=extmetadata&format=json`;
+  const infoData = await wikiFetch(infoUrl);
+  const infoPage: any = infoData?.query?.pages ? Object.values(infoData.query.pages)[0] : null;
+  const meta = infoPage?.imageinfo?.[0]?.extmetadata;
+  if (!meta) return null;
+
+  const licensed = buildCredit(meta, fileName, "Photo");
+  if (!licensed) return null;
+
+  return { url: thumbnailUrl, ...licensed };
+}
+
 // `seed` (e.g. the article's own slug/title) picks a different real photo
-// per article for the same person, drawn from fetchPersonPhotoVariants —
-// without a seed (player profile pages, OG images), the single canonical
-// lead photo below is returned unchanged, same as before this existed.
+// per article for the same person — without a seed (player profile pages,
+// OG images), the single canonical lead photo is returned unchanged, same
+// as before variants existed.
+//
+// The candidate pool for a seeded pick is the canonical lead photo PLUS
+// fetchPersonPhotoVariants' broader "any image on the page" pool, not the
+// broader pool alone — confirmed live that excluding the canonical photo
+// entirely from rotation meant every seeded pick came from a less-curated
+// source, including at least one genuinely bad crop (another person's face
+// in frame). Wikipedia's own curated lead photo is generally the most
+// reliably well-composed option available, so it deserves a real chance in
+// the rotation, not just the "no seed" fallback case.
 export async function fetchPersonPhoto(personName: string, sportHint?: string, seed?: string): Promise<StockImage | null> {
   try {
     // 1. Resolve the name to the best-matching Wikipedia article.
@@ -220,47 +273,17 @@ export async function fetchPersonPhoto(personName: string, sportHint?: string, s
     if (!title) return null;
 
     if (seed) {
-      const variants = await fetchPersonPhotoVariants(title);
-      if (variants.length > 0) return variants[simpleHash(seed) % variants.length];
+      const [canonical, variants] = await Promise.all([
+        fetchCanonicalPersonPhoto(title),
+        fetchPersonPhotoVariants(title),
+      ]);
+      const pool = canonical ? [canonical, ...variants] : variants;
+      if (pool.length > 0) return pool[simpleHash(seed) % pool.length];
     }
 
-    // 2. Get that article's main image — a properly-sized thumbnail, not
-    // the full original. Confirmed directly this was the site's single
-    // biggest performance problem: original source files for these photos
-    // run 1-22MB each, downloaded in full just to render a 32-120px
-    // avatar circle. MediaWiki's own thumbnailing service (same CDN,
-    // properly compressed) serves an appropriately-sized version instead
-    // — 300px covers every current use on the site (up to 120px) with
-    // headroom for retina displays.
-    const imageUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(
-      title
-    )}&prop=pageimages&piprop=thumbnail&pithumbsize=300&format=json`;
-    const imageData = await wikiFetch(imageUrl);
-    const page: any = imageData?.query?.pages ? Object.values(imageData.query.pages)[0] : null;
-    const thumbnailUrl: string | undefined = page?.thumbnail?.source;
-    if (!thumbnailUrl) return null;
-
-    // Thumbnail URLs are shaped .../thumb/x/xx/FileName.ext/300px-FileName.ext
-    // — the trailing segment is "{width}px-{realFileName}", not the actual
-    // Commons file title, which the license lookup below needs.
-    const thumbFileName = decodeURIComponent(thumbnailUrl.split("?")[0].split("/").pop() ?? "");
-    const fileName = thumbFileName.replace(/^\d+px-/, "");
-    if (!fileName) return null;
-
-    // 3. Verify the specific file's license on Commons — don't trust the
-    // page image blindly.
-    const infoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(
-      "File:" + fileName
-    )}&prop=imageinfo&iiprop=extmetadata&format=json`;
-    const infoData = await wikiFetch(infoUrl);
-    const infoPage: any = infoData?.query?.pages ? Object.values(infoData.query.pages)[0] : null;
-    const meta = infoPage?.imageinfo?.[0]?.extmetadata;
-    if (!meta) return null;
-
-    const licensed = buildCredit(meta, fileName, "Photo");
-    if (!licensed) return null;
-
-    return { url: thumbnailUrl, ...licensed };
+    // 2. No seed, or the seeded pool came back empty — fall back to
+    // Wikipedia's own curated lead photo.
+    return await fetchCanonicalPersonPhoto(title);
   } catch (err) {
     console.error(`Wikimedia photo lookup failed for "${personName}":`, err);
     return null;
