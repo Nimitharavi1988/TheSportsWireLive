@@ -2,7 +2,8 @@ import { db } from "../db";
 import { submitToIndexNow, articleUrl } from "../indexNow";
 import { isMatchDataSource } from "../matchDataSources";
 import { isHighlightWorthy } from "../highlightWorthy";
-import { postSocialPoster } from "../social/socialPoster";
+import { postArticleToFacebook } from "../social/facebook";
+import { postInstagramPoster } from "../social/postInstagramPoster";
 
 // Runs as a follow-up step right after runIngest.ts in the same GitHub
 // Actions job — everything reaching "pending_review" has already passed
@@ -166,54 +167,41 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
       if (!toPost.includes(article)) toPost.push(article);
     }
 
-    // Both platforms now post the same generated poster (socialPoster.ts) —
-    // a Gemini call plus a real git commit/push/deploy-poll per attempt,
-    // notably more expensive than either platform's old plain post (a
-    // single API call each). Capped at 2 attempts per platform, stopping
-    // each as soon as it succeeds — not one attempt per candidate (up to
-    // 5). Confirmed live: attempting Instagram for every article was 5x the
-    // API call volume it actually needed, and that extra volume is exactly
-    // what pushed the app over Meta's rate limit for 6+ hours straight; the
-    // same reasoning now applies to Facebook too since it shares the same
-    // Graph API and gained the same per-attempt generation cost. When an
-    // article is still wanted on both platforms, postSocialPoster generates
-    // the poster once and posts to both — not once per platform.
-    // Facebook's own cap is temporarily raised well above Instagram's —
-    // Facebook is posting reliably (real link restored in the caption,
-    // see socialPoster.ts) while Instagram is blocked by Meta's app-level
-    // rate limit regardless of our own cap, so there's no cost benefit to
-    // raising Instagram's attempts right now. Revert FACEBOOK_ATTEMPT_CAP
-    // back to 2 once traffic recovers and there's no more need for the
-    // temporary volume boost.
-    const FACEBOOK_ATTEMPT_CAP = 10;
-    const INSTAGRAM_ATTEMPT_CAP = 2;
+    // Facebook is back to its original plain format (the old auto-link-card
+    // post, not the generated poster) per explicit request - the comment-
+    // link permission it would have unlocked isn't needed after all, and a
+    // single plain API call is cheap enough to attempt for every candidate
+    // here, same as before the poster work started.
+    for (const article of toPost) {
+      try {
+        await postArticleToFacebook(article.id);
+      } catch (err) {
+        console.error("Facebook post failed for article", article.id, err);
+      }
+    }
+
+    // Instagram still uses the generated poster (socialPoster.ts) - a
+    // Gemini call plus a real git commit/push/deploy-poll per attempt, far
+    // more expensive than Facebook's plain post above, so this stays
+    // capped at 2 attempts, stopping as soon as one succeeds. Confirmed
+    // live: attempting it for every candidate was 5x the API call volume
+    // it actually needed, and that extra volume is exactly what pushed the
+    // app over Meta's rate limit for 6+ hours straight.
     let instagramAttempts = 0;
     let instagramDone = false;
-    let facebookAttempts = 0;
-    let facebookDone = false;
     for (const article of toPost) {
-      if (instagramDone && facebookDone) break;
-      const wantInstagram = !instagramDone && instagramAttempts < INSTAGRAM_ATTEMPT_CAP;
-      const wantFacebook = !facebookDone && facebookAttempts < FACEBOOK_ATTEMPT_CAP;
-      if (!wantInstagram && !wantFacebook) continue;
-      if (wantInstagram) instagramAttempts++;
-      if (wantFacebook) facebookAttempts++;
-
+      if (instagramDone || instagramAttempts >= 2) break;
+      instagramAttempts++;
       try {
-        const { instagramPosted, facebookPosted } = await postSocialPoster(article.id, {
-          instagram: wantInstagram,
-          facebook: wantFacebook,
-        });
-        if (instagramPosted) instagramDone = true;
-        if (facebookPosted) facebookDone = true;
+        const posted = await postInstagramPoster(article.id);
+        if (posted) instagramDone = true;
       } catch (err) {
-        console.error("Social poster post failed for article", article.id, err);
+        console.error("Instagram post failed for article", article.id, err);
         // A persistent app-level rate-limit error fails identically for
-        // every article — stop immediately rather than spending remaining
-        // attempts on the same guaranteed failure.
+        // every article — stop immediately rather than spending the
+        // remaining attempt on the same guaranteed failure.
         if (err instanceof Error && err.message.includes("Application request limit reached")) {
           instagramDone = true;
-          facebookDone = true;
         }
       }
     }
