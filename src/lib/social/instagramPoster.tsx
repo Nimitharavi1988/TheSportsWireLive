@@ -69,7 +69,7 @@ export async function renderInstagramPoster(params: {
   const image = new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", fontFamily: "Poppins", background: "#0a0e0a" }}>
-        <img src={bgImage} width={1080} height={1350} style={{ position: "absolute", top: 0, left: 0, objectFit: "cover", filter: "grayscale(35%) brightness(0.55)" }} />
+        <img src={bgImage} width={1080} height={1350} style={{ position: "absolute", top: 0, left: 0, objectFit: "cover", filter: "grayscale(20%) brightness(0.75)" }} />
         <div
           style={{
             position: "absolute",
