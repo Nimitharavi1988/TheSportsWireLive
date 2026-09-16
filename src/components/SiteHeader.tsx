@@ -76,6 +76,17 @@ const MORE_SPORTS_LINKS: { href: string; label: string; category: string; icon: 
 // primary (#1d6b3f) and would look inconsistent sitting next to it.
 const ACTIVE_TINT = "rgba(29, 107, 63, 0.1)";
 
+// One typography treatment for every menu item's label — the top-level
+// pills already used 14px/600, but the desktop dropdown's MenuItem had no
+// override at all (MUI's ListItemText default is 16px/400), and the mobile
+// drawer had 600 weight but still the default 16px size. Three different
+// looks for what reads as one menu system; this is the single source of
+// truth all three now share.
+const MENU_TEXT_SX = { fontSize: 14, fontWeight: 600 };
+// Same reasoning for icon size — 17px on the top bar vs 19px in the
+// dropdown vs 20px in the drawer was a small but real mismatch.
+const MENU_ICON_SIZE = 18;
+
 // Split out because it needs usePathname/useSearchParams — those require a
 // Suspense boundary around anything rendered from the root layout (every
 // page, including statically-prerendered ones like /admin/login), or the
@@ -136,8 +147,7 @@ function NavLinks() {
                   color: isActive ? "primary.main" : "text.secondary",
                   bgcolor: isActive ? ACTIVE_TINT : "transparent",
                   textDecoration: "none",
-                  fontWeight: 600,
-                  fontSize: 14,
+                  ...MENU_TEXT_SX,
                   px: 1.5,
                   py: 0.75,
                   borderRadius: 5,
@@ -145,7 +155,7 @@ function NavLinks() {
                   "&:hover": { color: "primary.main", bgcolor: "action.hover" },
                 }}
               >
-                <Icon sx={{ fontSize: 17 }} />
+                <Icon sx={{ fontSize: MENU_ICON_SIZE }} />
                 {link.label}
               </Box>
             );
@@ -170,8 +180,7 @@ function NavLinks() {
               border: "none",
               font: "inherit",
               cursor: "pointer",
-              fontWeight: 600,
-              fontSize: 14,
+              ...MENU_TEXT_SX,
               px: 1.5,
               py: 0.75,
               borderRadius: 5,
@@ -179,7 +188,7 @@ function NavLinks() {
               "&:hover": { color: "primary.main", bgcolor: "action.hover" },
             }}
           >
-            <MoreHorizIcon sx={{ fontSize: 17 }} />
+            <MoreHorizIcon sx={{ fontSize: MENU_ICON_SIZE }} />
             More Sports
           </Box>
           <Menu
@@ -213,9 +222,9 @@ function NavLinks() {
                   selected={isActive}
                 >
                   <ListItemIcon>
-                    <Icon sx={{ fontSize: 19 }} />
+                    <Icon sx={{ fontSize: MENU_ICON_SIZE }} />
                   </ListItemIcon>
-                  <ListItemText>{link.label}</ListItemText>
+                  <ListItemText slotProps={{ primary: { sx: MENU_TEXT_SX } }}>{link.label}</ListItemText>
                 </MenuItem>
               );
             })}
@@ -249,9 +258,9 @@ function NavLinks() {
                   sx={{ color: isActive ? "primary.main" : "text.primary" }}
                 >
                   <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>
-                    <Icon sx={{ fontSize: 20 }} />
+                    <Icon sx={{ fontSize: MENU_ICON_SIZE }} />
                   </ListItemIcon>
-                  <ListItemText primary={link.label} slotProps={{ primary: { sx: { fontWeight: 600 } } }} />
+                  <ListItemText primary={link.label} slotProps={{ primary: { sx: MENU_TEXT_SX } }} />
                 </ListItemButton>
               );
             })}
@@ -277,9 +286,9 @@ function NavLinks() {
                   sx={{ color: isActive ? "primary.main" : "text.primary" }}
                 >
                   <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>
-                    <Icon sx={{ fontSize: 20 }} />
+                    <Icon sx={{ fontSize: MENU_ICON_SIZE }} />
                   </ListItemIcon>
-                  <ListItemText primary={link.label} slotProps={{ primary: { sx: { fontWeight: 600 } } }} />
+                  <ListItemText primary={link.label} slotProps={{ primary: { sx: MENU_TEXT_SX } }} />
                 </ListItemButton>
               );
             })}
