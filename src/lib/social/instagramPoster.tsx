@@ -3,6 +3,39 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { PosterContent } from "@/lib/ingestion/commentary";
 
+const WIKIMEDIA_USER_AGENT = "TheSportsWireLiveBot/1.0 (sports news aggregator)";
+
+// Article heroImageUrl is a 300px Wikimedia thumbnail (sized for a
+// 32-120px avatar circle elsewhere on the site — see wikimediaImages.ts),
+// visibly soft when stretched to fill a 1080px-wide poster background.
+// Confirmed live: a pre-baked thumb.wikimedia.org URL only serves the
+// exact width it was originally generated at — substituting a different
+// width in the URL path returns a 400. Re-requesting the SAME file at a
+// larger width live via Commons' own imageinfo API (as opposed to editing
+// the already-generated URL) does work and returns a real, sharp
+// thumbnail. Only applies to genuine Wikimedia thumbnail URLs; every other
+// image source (Pexels, RSS-embedded photos, team crests) is used as-is.
+async function resolveHighResUrl(url: string): Promise<string> {
+  const match = url.match(/\/thumb\/[0-9a-f]\/[0-9a-f]{2}\/([^/]+)\/\d+px-/);
+  if (!match) return url;
+  const fileName = decodeURIComponent(match[1]);
+  try {
+    const res = await fetch(
+      `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(
+        "File:" + fileName
+      )}&prop=imageinfo&iiprop=url&iiurlwidth=1080&format=json`,
+      { headers: { "User-Agent": WIKIMEDIA_USER_AGENT } }
+    );
+    if (!res.ok) return url;
+    const data = await res.json();
+    const page: any = data?.query?.pages ? Object.values(data.query.pages)[0] : null;
+    const thumburl: string | undefined = page?.imageinfo?.[0]?.thumburl;
+    return thumburl ?? url;
+  } catch {
+    return url;
+  }
+}
+
 // Renders the grungy/high-contrast Instagram poster (bold hook + quick-read
 // fact table over a darkened real photo) to a PNG buffer. Only ever run
 // from a plain Node context (the GitHub Actions poster-post job) — next/og's
@@ -19,10 +52,12 @@ export async function renderInstagramPoster(params: {
     readFile(join(fontsDir, "Poppins-SemiBold.ttf")),
   ]);
 
+  const backgroundUrl = await resolveHighResUrl(params.heroImageUrl);
+
   // Inlined as a data URI — satori's own image loader can't reliably
   // resolve a remote URL directly (confirmed live: "Unsupported image
   // type" against a Wikimedia thumbnail URL it fetched itself).
-  const bgImageRes = await fetch(params.heroImageUrl, {
+  const bgImageRes = await fetch(backgroundUrl, {
     headers: { "User-Agent": "TheSportsWireLiveBot/1.0 (sports news aggregator)" },
   });
   const bgImageBuf = Buffer.from(await bgImageRes.arrayBuffer());
