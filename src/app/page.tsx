@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { db } from "@/lib/db";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import Link from "next/link";
@@ -22,7 +23,7 @@ import { relativeTime } from "@/lib/relativeTime";
 import { isHighlightWorthy } from "@/lib/highlightWorthy";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { StandingsCarousel } from "@/components/StandingsCarousel";
-import { TRACKED_PLAYERS } from "@/lib/players";
+import { TRACKED_PLAYERS, type TrackedPlayer } from "@/lib/players";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { HeroCarousel } from "@/components/HeroCarousel";
@@ -138,6 +139,172 @@ export async function generateMetadata(
     openGraph: { title: meta.title, description: meta.description },
     twitter: { title: meta.title, description: meta.description },
   };
+}
+
+// Streamed independently of the rest of the page (see the Suspense
+// boundary around this in HomePage) — the real fix for "load part by
+// part": this section's data (real Wikimedia photos, multi-step lookups
+// per player) was confirmed the slowest of the page's external calls, so
+// isolating it means the rest of the page no longer waits on it.
+async function PlayerNewsSection({
+  playerNewsMatches,
+}: {
+  playerNewsMatches: { player: TrackedPlayer; article: { slug: string; title: string }; articleIndex: number }[];
+}) {
+  const playerNewsPhotos = await Promise.all(
+    playerNewsMatches.map((entry) => fetchPersonPhoto(entry.player.name, sportSearchHint(entry.player.sport)))
+  );
+  const playerNews = playerNewsMatches.map((entry, i) => ({ ...entry, photo: playerNewsPhotos[i] }));
+
+  if (playerNews.length === 0) return null;
+
+  return (
+    <Box component="section" sx={{ mb: 4 }}>
+      <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
+        <StarIcon sx={{ fontSize: 20, color: "primary.main" }} />
+        <Typography variant="h5" sx={SECTION_HEADING_SX}>Player News</Typography>
+      </Stack>
+      <ScrollRow>
+        {playerNews.map(({ player, article, photo }) => (
+          <Paper
+            key={player.slug}
+            variant="outlined"
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 1,
+              p: 1.5,
+              width: 176,
+              flexShrink: 0,
+            }}
+          >
+            {/* Avatar/name link to the player's own dedicated page,
+                headline links to the specific article — two
+                different destinations, so can't be one wrapping
+                <Link> (invalid nested <a> tags). This is also the
+                only real navigable entry point into /player/[slug]
+                anywhere on the site — it's in the sitemap for SEO,
+                but had no clickable path to it in the UI at all
+                before this. */}
+            <Link
+              href={`/player/${player.slug}`}
+              style={{ textDecoration: "none", color: "inherit" }}
+            >
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  alignItems: "center",
+                  "&:hover": { color: "primary.main" },
+                }}
+              >
+                {photo ? (
+                  <Box
+                    component={Image}
+                    src={photo.url}
+                    alt={player.name}
+                    width={32}
+                    height={32}
+                    sx={{ borderRadius: "50%", objectFit: "cover", objectPosition: "top", flexShrink: 0 }}
+                  />
+                ) : (
+                  <Box
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "50%",
+                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      bgcolor: playerAvatarColor(player.name),
+                      color: "#fff",
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {playerInitials(player.name)}
+                  </Box>
+                )}
+                <Typography variant="caption" noWrap sx={{ fontWeight: 700 }}>
+                  {player.name}
+                </Typography>
+              </Stack>
+            </Link>
+            <Link
+              href={`/article/${article.slug}`}
+              style={{ textDecoration: "none", color: "inherit" }}
+            >
+              <Typography
+                variant="body2"
+                sx={{
+                  fontSize: 12.5,
+                  lineHeight: 1.35,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  "&:hover": { color: "primary.main" },
+                }}
+              >
+                {article.title}
+              </Typography>
+            </Link>
+          </Paper>
+        ))}
+      </ScrollRow>
+    </Box>
+  );
+}
+
+// Lightweight placeholder matching PlayerNewsSection's approximate shape —
+// shown while the Wikipedia photo lookups above are still in flight, so
+// the layout doesn't jump once the real section streams in.
+function PlayerNewsSkeleton() {
+  return (
+    <Box component="section" sx={{ mb: 4 }}>
+      <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
+        <StarIcon sx={{ fontSize: 20, color: "primary.main" }} />
+        <Typography variant="h5" sx={SECTION_HEADING_SX}>Player News</Typography>
+      </Stack>
+      <ScrollRow>
+        {[...Array(4)].map((_, i) => (
+          <Paper key={i} variant="outlined" sx={{ p: 1.5, width: 176, flexShrink: 0 }}>
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
+              <Box sx={{ width: 32, height: 32, borderRadius: "50%", bgcolor: "action.hover" }} />
+              <Box sx={{ width: 80, height: 12, borderRadius: 0.5, bgcolor: "action.hover" }} />
+            </Stack>
+            <Box sx={{ width: "100%", height: 36, borderRadius: 0.5, bgcolor: "action.hover" }} />
+          </Paper>
+        ))}
+      </ScrollRow>
+    </Box>
+  );
+}
+
+// Streamed independently (see Suspense boundary in HomePage) — a real
+// football-data.org round-trip, one of the slowest of the page's external
+// calls alongside Player News, confirmed live.
+async function FootballStandingsWidget({ apiKey }: { apiKey: string }) {
+  const standings = await fetchStandingsTable(apiKey, "PL");
+  if (!standings || standings.rows.length === 0) return null;
+  return (
+    <Box sx={{ mb: 3 }}>
+      <StandingsCarousel leagues={STANDINGS_LEAGUES} initialCode="PL" initialTable={standings} />
+    </Box>
+  );
+}
+
+// Streamed independently (see Suspense boundary in HomePage) — same
+// reasoning as FootballStandingsWidget, ESPN instead of football-data.org.
+async function NflStandingsWidget() {
+  const nflStandings = await fetchNflStandingsTable();
+  if (!nflStandings || nflStandings.length === 0) return null;
+  return (
+    <Box sx={{ mb: 3 }}>
+      <NflStandingsCarousel conferences={nflStandings} />
+    </Box>
+  );
 }
 
 export default async function HomePage(
@@ -382,42 +549,27 @@ export default async function HomePage(
   const showStandings = !category || category === "football";
   const standingsApiKey = process.env.FOOTBALL_DATA_API_KEY;
 
-  // These four were previously four separate sequential `await`s (player
-  // photos, then hero banners, then standings, then NFL standings) — a real
-  // waterfall where each stage's external API round-trip only started after
-  // the previous one fully finished, confirmed live as the dominant cause of
-  // slow homepage/category loads (2-4s to first byte). None of the four
-  // actually depend on each other's results (only on `articles`/
-  // `heroArticles`, both already computed above), so running them together
-  // cuts total wait time to roughly the SLOWEST single stage instead of the
-  // sum of all four.
-  const [playerNewsPhotos, heroSlides, standings, nflStandings] = await Promise.all([
-    // Real Wikimedia photo per player, same source the player's own page
-    // uses — previously this rail showed a generic colored-initials avatar
-    // even for players whose own page already has a real photo, which read
-    // as inconsistent when you clicked through. Falls back to the initials
-    // avatar (rendered below) when no free-licensed photo is found.
-    Promise.all(playerNewsMatches.map((entry) => fetchPersonPhoto(entry.player.name, sportSearchHint(entry.player.sport)))),
-    // Only fetch a generic stock photo per slide when there's no real image
-    // to show instead — a match article with real team crests shouldn't
-    // also get an unrelated random stadium photo layered on top of them.
-    // Runs for every hero slide (not just one), but each is a cheap,
-    // free-tier Pexels call and there are at most 5 slides.
-    Promise.all(
-      heroArticles.map(async (article) => {
-        const hasCrests = Boolean(article.homeCrestUrl && article.awayCrestUrl);
-        const banner = !hasCrests && !article.heroImageUrl ? await fetchOneStockImage(article.category) : null;
-        return { article, banner };
-      })
-    ),
-    showStandings && standingsApiKey ? fetchStandingsTable(standingsApiKey, "PL") : Promise.resolve(null),
-    // NFL's left rail was otherwise nearly empty (Standings is
-    // football-only, By Category/Competition are "All"-view-only) — real
-    // conference standings data, same ESPN source nflData.ts already draws
-    // on for match context.
-    category === "american-football" ? fetchNflStandingsTable() : Promise.resolve(null),
-  ]);
-  const playerNews = playerNewsMatches.map((entry, i) => ({ ...entry, photo: playerNewsPhotos[i] }));
+  // Yesterday's fix batched player photos/hero banners/standings/NFL
+  // standings into one Promise.all, which cut total wait to the slowest
+  // single stage instead of the sum of all four — a real improvement, but
+  // the WHOLE page still waited for that slowest stage (the Wikipedia
+  // player-photo lookups, confirmed the dominant one) before sending
+  // ANYTHING to the browser. This is the real "load part by part" fix:
+  // Player News and both standings widgets are now separate async
+  // components, each wrapped in its own <Suspense> below — the fast,
+  // DB-only content (hero, main feed) streams immediately, and each slow
+  // section fills in on its own as soon as ITS data resolves, instead of
+  // every section waiting on whichever one is slowest. heroSlides stays
+  // here (blocking) since the hero is the first thing a visitor sees —
+  // popping in after the rest of the page would be a worse experience than
+  // the extra wait, unlike the below-the-fold sections deferred below.
+  const heroSlides = await Promise.all(
+    heroArticles.map(async (article) => {
+      const hasCrests = Boolean(article.homeCrestUrl && article.awayCrestUrl);
+      const banner = !hasCrests && !article.heroImageUrl ? await fetchOneStockImage(article.category) : null;
+      return { article, banner };
+    })
+  );
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -457,7 +609,15 @@ export default async function HomePage(
           alignItems: "start",
         }}
       >
-        {((standings && standings.rows.length > 0) || (nflStandings && nflStandings.length > 0) || categoryTiles.length > 0 || justIn.length > 0 || PLAYER_QUOTES.length > 0) && (
+        {/* Standings widgets are now streamed independently (see below), so
+            this container no longer knows synchronously whether they'll
+            have content — always shows when any of the fast/sync sections
+            do, which in practice is virtually always true (PLAYER_QUOTES is
+            a non-empty static list). The rare page with none of these but
+            real standings data would just show a container with only the
+            streamed widget in it once it resolves — a fine tradeoff for not
+            blocking the whole sidebar on the same slow calls being deferred. */}
+        {(categoryTiles.length > 0 || justIn.length > 0 || PLAYER_QUOTES.length > 0 || showStandings || category === "american-football") && (
           <Box
             component="aside"
             sx={{
@@ -492,16 +652,16 @@ export default async function HomePage(
               // fine fallback.
             }}
           >
-            {standings && standings.rows.length > 0 && (
-              <Box sx={{ mb: 3 }}>
-                <StandingsCarousel leagues={STANDINGS_LEAGUES} initialCode="PL" initialTable={standings} />
-              </Box>
+            {showStandings && standingsApiKey && (
+              <Suspense fallback={null}>
+                <FootballStandingsWidget apiKey={standingsApiKey} />
+              </Suspense>
             )}
 
-            {nflStandings && nflStandings.length > 0 && (
-              <Box sx={{ mb: 3 }}>
-                <NflStandingsCarousel conferences={nflStandings} />
-              </Box>
+            {category === "american-football" && (
+              <Suspense fallback={null}>
+                <NflStandingsWidget />
+              </Suspense>
             )}
 
             {categoryTiles.length > 0 && (
@@ -717,102 +877,10 @@ export default async function HomePage(
             </Link>
           )}
 
-          {playerNews.length > 0 && (
-            <Box component="section" sx={{ mb: 4 }}>
-              <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
-                <StarIcon sx={{ fontSize: 20, color: "primary.main" }} />
-                <Typography variant="h5" sx={SECTION_HEADING_SX}>Player News</Typography>
-              </Stack>
-              <ScrollRow>
-                {playerNews.map(({ player, article, photo }) => (
-                  <Paper
-                    key={player.slug}
-                    variant="outlined"
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 1,
-                      p: 1.5,
-                      width: 176,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {/* Avatar/name link to the player's own dedicated page,
-                        headline links to the specific article — two
-                        different destinations, so can't be one wrapping
-                        <Link> (invalid nested <a> tags). This is also the
-                        only real navigable entry point into /player/[slug]
-                        anywhere on the site — it's in the sitemap for SEO,
-                        but had no clickable path to it in the UI at all
-                        before this. */}
-                    <Link
-                      href={`/player/${player.slug}`}
-                      style={{ textDecoration: "none", color: "inherit" }}
-                    >
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        sx={{
-                          alignItems: "center",
-                          "&:hover": { color: "primary.main" },
-                        }}
-                      >
-                        {photo ? (
-                          <Box
-                            component={Image}
-                            src={photo.url}
-                            alt={player.name}
-                            width={32}
-                            height={32}
-                            sx={{ borderRadius: "50%", objectFit: "cover", objectPosition: "top", flexShrink: 0 }}
-                          />
-                        ) : (
-                          <Box
-                            sx={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: "50%",
-                              flexShrink: 0,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              bgcolor: playerAvatarColor(player.name),
-                              color: "#fff",
-                              fontSize: 12,
-                              fontWeight: 700,
-                            }}
-                          >
-                            {playerInitials(player.name)}
-                          </Box>
-                        )}
-                        <Typography variant="caption" noWrap sx={{ fontWeight: 700 }}>
-                          {player.name}
-                        </Typography>
-                      </Stack>
-                    </Link>
-                    <Link
-                      href={`/article/${article.slug}`}
-                      style={{ textDecoration: "none", color: "inherit" }}
-                    >
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontSize: 12.5,
-                          lineHeight: 1.35,
-                          display: "-webkit-box",
-                          WebkitLineClamp: 3,
-                          WebkitBoxOrient: "vertical",
-                          overflow: "hidden",
-                          "&:hover": { color: "primary.main" },
-                        }}
-                      >
-                        {article.title}
-                      </Typography>
-                    </Link>
-                  </Paper>
-                ))}
-              </ScrollRow>
-            </Box>
+          {playerNewsMatches.length > 0 && (
+            <Suspense fallback={<PlayerNewsSkeleton />}>
+              <PlayerNewsSection playerNewsMatches={playerNewsMatches} />
+            </Suspense>
           )}
 
           {highlightArticles.length > 0 && (
