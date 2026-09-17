@@ -71,7 +71,11 @@ export default async function AdminQueuePage(
 
   const list = await db.article.findMany({
     where,
-    orderBy: status === "published" ? [{ featured: "desc" }, { publishedAt: "desc" }] : { createdAt: "desc" },
+    // Featured articles used to pin to the top here regardless of date,
+    // which fought against scanning newest-first — the dedicated
+    // /admin/homepage page is where hero picks actually get managed, so
+    // this queue doesn't also need to surface them first.
+    orderBy: status === "published" ? { publishedAt: "desc" } : { createdAt: "desc" },
     skip: (page - 1) * PAGE_SIZE,
     take: PAGE_SIZE,
     include: {

@@ -39,6 +39,7 @@ export interface QueueArticle {
   readabilityScore: number | null;
   reviewedAt: Date | null;
   createdAt: Date;
+  publishedAt: Date | null;
   poll: { id: string; question: string; options: { id: string; text: string }[] } | null;
   socialPosts: { platform: "facebook" | "x" | "instagram"; status: "queued" | "posted" | "failed"; errorMessage: string | null; externalPostId: string | null }[];
 }
@@ -270,8 +271,8 @@ export function ArticleQueueClient({
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
                     <Typography variant="caption" sx={{ color: "text.secondary" }}>
                       {article.category} · {article.sourceName}
-                      {status === "published" && article.reviewedAt && (
-                        <> · Approved {article.reviewedAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</>
+                      {status === "published" && article.publishedAt && (
+                        <> · Published {article.publishedAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</>
                       )}
                       {status === "pending_review" && (
                         <> · Submitted {article.createdAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</>
