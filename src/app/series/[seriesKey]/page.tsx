@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { ArticleThumb } from "@/components/ArticleThumb";
-import { SourceLabel } from "@/components/SourceLabel";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
 import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
@@ -123,16 +122,11 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
                       <Typography variant="body2" sx={{ color: "text.secondary" }}>
                         {displaySummary(article)}
                       </Typography>
-                      {/* Source credit last, not first — attribution to the
-                          original report, not the headline itself. */}
-                      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: 1 }}>
-                        <SourceLabel>{article.sourceName}</SourceLabel>
-                        {article.publishedAt && (
-                          <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                            · {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                          </Typography>
-                        )}
-                      </Stack>
+                      {article.publishedAt && (
+                        <Typography variant="caption" sx={{ color: "text.secondary", mt: 1, display: "block" }}>
+                          {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </Typography>
+                      )}
                     </Box>
                   </Stack>
                 </CardContent>

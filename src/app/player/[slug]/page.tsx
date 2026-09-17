@@ -9,7 +9,6 @@ import { StandingsCarousel } from "@/components/StandingsCarousel";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { ArticleThumb } from "@/components/ArticleThumb";
-import { SourceLabel } from "@/components/SourceLabel";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import { displaySummary } from "@/lib/articleSummary";
@@ -174,16 +173,11 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
                           <Typography variant="body2" sx={{ color: "text.secondary" }}>
                             {displaySummary(article)}
                           </Typography>
-                          {/* Source credit last, not first — attribution to the
-                              original report, not the headline itself. */}
-                          <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: 1 }}>
-                            <SourceLabel>{article.sourceName}</SourceLabel>
-                            {article.publishedAt && (
-                              <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                                · {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                              </Typography>
-                            )}
-                          </Stack>
+                          {article.publishedAt && (
+                            <Typography variant="caption" sx={{ color: "text.secondary", mt: 1, display: "block" }}>
+                              {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                            </Typography>
+                          )}
                         </Box>
                       </Stack>
                     </CardContent>

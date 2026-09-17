@@ -28,7 +28,6 @@ import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { HeroCarousel } from "@/components/HeroCarousel";
 import { ArticleThumb } from "@/components/ArticleThumb";
-import { SourceLabel } from "@/components/SourceLabel";
 import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImages";
 import { isHeroFeatureStale } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
@@ -940,18 +939,11 @@ export default async function HomePage(
                             <Typography variant="h6" component="h2" gutterBottom>
                               {article.title}
                             </Typography>
-                            {/* Source credit below the headline, not above it — this
-                                is attribution to the original report, not a
-                                curation signal like "Editor's pick" above, so it
-                                doesn't need to be the first thing read. */}
-                            <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
-                              <SourceLabel>{article.sourceName}</SourceLabel>
-                              {article.publishedAt && (
-                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                                  · {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                                </Typography>
-                              )}
-                            </Stack>
+                            {article.publishedAt && (
+                              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                              </Typography>
+                            )}
                           </Box>
                         </Stack>
                       </CardContent>
@@ -1170,9 +1162,6 @@ export default async function HomePage(
                           }}
                         >
                           {article.title}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 10 }}>
-                          {article.sourceName}
                         </Typography>
                       </Box>
                     </Stack>
