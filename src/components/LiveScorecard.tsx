@@ -25,6 +25,10 @@ export interface LiveMatchRow {
   // would otherwise fall back to a "yet to bat" that's simply untrue for a
   // match already in progress. Renders as a plain team-names line instead.
   isNewsDerived?: boolean;
+  // Other recent headlines about either team, for live/finished matches —
+  // see liveCricket.ts's relatedNewsFor. Empty for upcoming matches (no
+  // real coverage of the match itself exists yet).
+  relatedArticles?: { id: string; slug: string; title: string }[];
 }
 
 // One shared status badge — pulsing red dot for a genuinely live match, a
@@ -100,44 +104,66 @@ function TeamRow({ crest, name, scoreText, compact }: { crest: string | null; na
 // /scores and the homepage sidebar so both stay visually identical.
 export function LiveScorecard({ match, compact = false }: { match: LiveMatchRow; compact?: boolean }) {
   return (
-    <Link href={`/article/${match.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
-      <Paper
-        variant="outlined"
-        sx={{
-          p: compact ? 1.5 : 2,
-          borderColor: match.matchState === "live" ? "primary.main" : "divider",
-          borderWidth: match.matchState === "live" ? 1.5 : 1,
-          transition: "background-color 0.15s",
-          "&:hover": { bgcolor: "action.hover" },
-        }}
-      >
-        <Box sx={{ mb: compact ? 1 : 1.25 }}>
-          <StatusBadge state={match.matchState} kickoffAt={match.kickoffAt} />
-        </Box>
-        {match.isNewsDerived ? (
-          <Typography sx={{ fontSize: compact ? 13.5 : 15, fontWeight: 700, mb: compact ? 1 : 1.25 }}>
-            {match.homeTeam} vs {match.awayTeam}
+    <Paper
+      variant="outlined"
+      sx={{
+        p: compact ? 1.5 : 2,
+        borderColor: match.matchState === "live" ? "primary.main" : "divider",
+        borderWidth: match.matchState === "live" ? 1.5 : 1,
+      }}
+    >
+      {/* A separate <Link> from "More on this match" below, not one wrapping
+          <Link> around the whole card — those go to different articles, and
+          nesting <a> tags is invalid HTML (same reasoning as the homepage's
+          Player News section). */}
+      <Link href={`/article/${match.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
+        <Box sx={{ transition: "background-color 0.15s", "&:hover": { bgcolor: "action.hover" } }}>
+          <Box sx={{ mb: compact ? 1 : 1.25 }}>
+            <StatusBadge state={match.matchState} kickoffAt={match.kickoffAt} />
+          </Box>
+          {match.isNewsDerived ? (
+            <Typography sx={{ fontSize: compact ? 13.5 : 15, fontWeight: 700, mb: compact ? 1 : 1.25 }}>
+              {match.homeTeam} vs {match.awayTeam}
+            </Typography>
+          ) : (
+            <Stack spacing={compact ? 0.5 : 0.75} sx={{ mb: compact ? 1 : 1.25 }}>
+              <TeamRow crest={match.homeCrestUrl} name={match.homeTeam} scoreText={match.homeScoreText} compact={compact} />
+              <TeamRow crest={match.awayCrestUrl} name={match.awayTeam} scoreText={match.awayScoreText} compact={compact} />
+            </Stack>
+          )}
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+              fontSize: compact ? 12 : 13,
+              display: "-webkit-box",
+              WebkitLineClamp: compact ? 2 : 3,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {match.summary}
           </Typography>
-        ) : (
-          <Stack spacing={compact ? 0.5 : 0.75} sx={{ mb: compact ? 1 : 1.25 }}>
-            <TeamRow crest={match.homeCrestUrl} name={match.homeTeam} scoreText={match.homeScoreText} compact={compact} />
-            <TeamRow crest={match.awayCrestUrl} name={match.awayTeam} scoreText={match.awayScoreText} compact={compact} />
+        </Box>
+      </Link>
+      {match.relatedArticles && match.relatedArticles.length > 0 && (
+        <Box sx={{ mt: compact ? 1 : 1.25, pt: compact ? 1 : 1.25, borderTop: "1px solid", borderColor: "divider" }}>
+          <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: "text.secondary", mb: 0.5, textTransform: "uppercase", letterSpacing: 0.3 }}>
+            More on this match
+          </Typography>
+          <Stack spacing={0.5}>
+            {match.relatedArticles.map((a) => (
+              <Link key={a.id} href={`/article/${a.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
+                <Typography
+                  sx={{ fontSize: compact ? 12 : 12.5, "&:hover": { color: "primary.main" }, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+                >
+                  {a.title}
+                </Typography>
+              </Link>
+            ))}
           </Stack>
-        )}
-        <Typography
-          variant="body2"
-          sx={{
-            color: "text.secondary",
-            fontSize: compact ? 12 : 13,
-            display: "-webkit-box",
-            WebkitLineClamp: compact ? 2 : 3,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
-        >
-          {match.summary}
-        </Typography>
-      </Paper>
-    </Link>
+        </Box>
+      )}
+    </Paper>
   );
 }

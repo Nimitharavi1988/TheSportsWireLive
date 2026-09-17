@@ -137,23 +137,33 @@ function classifyNewsStatus(title: string): CricketMatchStatus | null {
 
 const NEWS_MATCH_LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
-async function fetchNewsBasedCricketMatches(
+type NewsPoolRow = { id: string; slug: string; title: string };
+
+// Every other headline about a match's two teams from the same recent pool
+// used for match detection above — the "more news around this match" list.
+// Substring match on team name (not the strict "starts with Team vs Team"
+// pattern extractInternationalPair needs) deliberately catches real
+// coverage that pattern misses, e.g. "Abhishek's zen mode destroys
+// Afghanistan" or "Abhishek Sharma hits fastest T20I century by an Indian"
+// — neither starts with "India vs Afghanistan", but both are clearly about
+// that match and should surface as related reading once the match itself
+// is found some other way (structured score data, or a differently-worded
+// headline that does match the strict pattern). Newest first — during a
+// live/just-finished match, what just happened is more relevant than an
+// older pre-match story.
+function relatedNewsFor(home: string, away: string, excludeId: string, pool: NewsPoolRow[], take = 3): NewsPoolRow[] {
+  return pool
+    .filter((r) => r.id !== excludeId && (r.title.includes(home) || r.title.includes(away)))
+    .slice(0, take);
+}
+
+function findNewsBasedCricketMatches(
+  pool: NewsPoolRow[],
   take: number,
   excludePairs: Set<string>
-): Promise<Array<{ id: string; slug: string; summary: string; homeTeam: string; awayTeam: string; homeCrestUrl: null; awayCrestUrl: null; homeScoreText: null; awayScoreText: null; kickoffAt: null; matchState: CricketMatchStatus; isNewsDerived: true }>> {
-  const rows = await db.article.findMany({
-    where: {
-      status: "published",
-      category: { startsWith: "cricket" },
-      createdAt: { gt: new Date(Date.now() - NEWS_MATCH_LOOKBACK_MS) },
-    },
-    orderBy: { createdAt: "desc" },
-    select: { id: true, slug: true, title: true },
-    take: 200,
-  });
-
+): Array<{ id: string; slug: string; summary: string; homeTeam: string; awayTeam: string; homeCrestUrl: null; awayCrestUrl: null; homeScoreText: null; awayScoreText: null; kickoffAt: null; matchState: CricketMatchStatus; isNewsDerived: true; relatedArticles: NewsPoolRow[] }> {
   const byPair = new Map<string, { id: string; slug: string; home: string; away: string; state: CricketMatchStatus; title: string }>();
-  for (const r of rows) {
+  for (const r of pool) {
     const pair = extractInternationalPair(r.title);
     if (!pair) continue;
     const key = [pair.home, pair.away].sort().join("|");
@@ -178,6 +188,7 @@ async function fetchNewsBasedCricketMatches(
       kickoffAt: null,
       matchState: r.state,
       isNewsDerived: true,
+      relatedArticles: relatedNewsFor(r.home, r.away, r.id, pool),
     }));
 }
 
@@ -190,7 +201,7 @@ async function fetchNewsBasedCricketMatches(
 // finished, then upcoming — most time-sensitive/interesting first.
 export async function fetchLiveCricketMatches(take: number) {
   const now = new Date();
-  const [scheduled, finishedRaw] = await Promise.all([
+  const [scheduled, finishedRaw, pool] = await Promise.all([
     db.article.findMany({
       where: {
         status: "published",
@@ -213,6 +224,20 @@ export async function fetchLiveCricketMatches(take: number) {
       take,
       select: SELECT,
     }),
+    // One shared pool of recent cricket headlines, reused both to detect
+    // news-only matches (findNewsBasedCricketMatches) and to attach a
+    // "more on this match" list to EVERY match below, structured or not —
+    // a single query instead of one per match card.
+    db.article.findMany({
+      where: {
+        status: "published",
+        category: { startsWith: "cricket" },
+        createdAt: { gt: new Date(Date.now() - NEWS_MATCH_LOOKBACK_MS) },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, slug: true, title: true },
+      take: 200,
+    }),
   ]);
 
   const live = internationalFirst(scheduled.filter((m) => m.kickoffAt !== null && m.kickoffAt <= now));
@@ -227,17 +252,26 @@ export async function fetchLiveCricketMatches(take: number) {
       .filter((m) => m.homeTeam && m.awayTeam)
       .map((m) => [m.homeTeam, m.awayTeam].sort().join("|"))
   );
-  const newsBased = await fetchNewsBasedCricketMatches(take, coveredPairs);
+  const newsBased = findNewsBasedCricketMatches(pool, take, coveredPairs);
   const newsLive = newsBased.filter((m) => m.matchState === "live");
   const newsFinished = newsBased.filter((m) => m.matchState === "finished");
   const newsUpcoming = newsBased.filter((m) => m.matchState === "upcoming");
 
+  // Related news attached for live/finished matches only — an upcoming
+  // fixture usually has no real coverage of ITS play yet (nothing has
+  // happened), so a related-news list there would mostly be noise from
+  // either team's unrelated recent stories rather than genuine buildup.
+  const withRelated = <T extends { homeTeam: string | null; awayTeam: string | null; id: string }>(m: T) => ({
+    ...m,
+    relatedArticles: m.homeTeam && m.awayTeam ? relatedNewsFor(m.homeTeam, m.awayTeam, m.id, pool) : [],
+  });
+
   return [
     ...newsLive,
-    ...live.map((m) => ({ ...m, matchState: "live" as const })),
+    ...live.map((m) => ({ ...withRelated(m), matchState: "live" as const })),
     ...newsFinished,
-    ...finished.slice(0, take).map((m) => ({ ...m, matchState: "finished" as const })),
+    ...finished.slice(0, take).map((m) => ({ ...withRelated(m), matchState: "finished" as const })),
     ...newsUpcoming,
-    ...upcoming.map((m) => ({ ...m, matchState: "upcoming" as const })),
+    ...upcoming.map((m) => ({ ...m, matchState: "upcoming" as const, relatedArticles: [] })),
   ];
 }

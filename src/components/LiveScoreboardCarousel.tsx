@@ -91,6 +91,9 @@ export function LiveScoreboardCarousel({ matches }: { matches: LiveMatchRow[] })
         </IconButton>
       </Stack>
 
+      {/* Main match link and "More on this match" links go to different
+          articles, so they're separate <Link>s rather than one nested
+          inside the other (invalid HTML). */}
       <Link href={`/article/${current.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
         <Box sx={{ p: 1.5, "&:hover": { bgcolor: "action.hover" } }}>
           <Box sx={{ mb: 1 }}>
@@ -114,6 +117,24 @@ export function LiveScoreboardCarousel({ matches }: { matches: LiveMatchRow[] })
           </Typography>
         </Box>
       </Link>
+      {current.relatedArticles && current.relatedArticles.length > 0 && (
+        <Box sx={{ px: 1.5, pb: 1.5, pt: 1, borderTop: "1px solid", borderColor: "divider" }}>
+          <Typography sx={{ fontSize: 10, fontWeight: 700, color: "text.secondary", mb: 0.5, textTransform: "uppercase", letterSpacing: 0.3 }}>
+            More on this match
+          </Typography>
+          <Stack spacing={0.4}>
+            {current.relatedArticles.map((a) => (
+              <Link key={a.id} href={`/article/${a.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
+                <Typography
+                  sx={{ fontSize: 11.5, "&:hover": { color: "primary.main" }, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+                >
+                  {a.title}
+                </Typography>
+              </Link>
+            ))}
+          </Stack>
+        </Box>
+      )}
     </Paper>
   );
 }
