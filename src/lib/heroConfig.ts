@@ -19,6 +19,25 @@ export function isHeroFeatureStale(featuredAt: Date | null): boolean {
   return featuredAt.getTime() < cutoff;
 }
 
+// Same staleness problem as hero picks, one section down: a manual
+// "Highlight (transfers/big news)" pick (see /admin) that's never
+// explicitly un-highlighted would otherwise sit in one of the 4 Transfers
+// & Big News slots forever, permanently crowding out genuinely new
+// highlight-worthy stories (isHighlightWorthy's own automatic picks) even
+// after the manual pick is old news. Slightly more lenient than the hero
+// carousel's 2 days — a real transfer/big-news story usually stays
+// relevant a bit longer than a homepage-carousel slide — but still finite,
+// so the section self-corrects without needing an admin to remember to
+// come back and clear it. Shared between the homepage's highlight
+// selection (page.tsx) and the admin queue's "📌 Highlighted" chip.
+export const HIGHLIGHT_MAX_AGE_DAYS = 3;
+
+export function isHighlightStale(highlightedAt: Date | null): boolean {
+  if (!highlightedAt) return true;
+  const cutoff = Date.now() - HIGHLIGHT_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+  return highlightedAt.getTime() < cutoff;
+}
+
 // Groups a raw category ("football", "football/world-cup", "cricket",
 // "american-football") down to the top-level section it belongs to — the
 // same grouping the homepage's own category filter already uses

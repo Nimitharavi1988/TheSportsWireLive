@@ -29,7 +29,7 @@ import { QuotesStrip } from "@/components/QuotesStrip";
 import { HeroCarousel } from "@/components/HeroCarousel";
 import { ArticleThumb } from "@/components/ArticleThumb";
 import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImages";
-import { isHeroFeatureStale } from "@/lib/heroConfig";
+import { isHeroFeatureStale, isHighlightStale } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { LiveScoreboardCarousel } from "@/components/LiveScoreboardCarousel";
 import { InstallAppBanner } from "@/components/InstallAppBanner";
@@ -472,9 +472,13 @@ export default async function HomePage(
   // Manually-highlighted articles (set from /admin) are pinned into
   // "Transfers & Big News" alongside — not instead of — the automatic
   // keyword match, most-recently-picked first, capped at 4 total so the
-  // section can't grow unbounded.
+  // section can't grow unbounded. A pick older than HIGHLIGHT_MAX_AGE_DAYS
+  // stops qualifying here — same self-correcting staleness fix as the hero
+  // carousel's manuallyFeatured above, so a forgotten pick doesn't
+  // permanently occupy a slot that genuinely new highlight-worthy stories
+  // (automaticHighlights below) should be filling instead.
   const manuallyHighlighted = remainingAfterFeatured
-    .filter((a) => a.highlighted)
+    .filter((a) => a.highlighted && !isHighlightStale(a.highlightedAt))
     .sort((a, b) => (b.highlightedAt?.getTime() ?? 0) - (a.highlightedAt?.getTime() ?? 0))
     .slice(0, 4);
   const manuallyHighlightedIds = new Set(manuallyHighlighted.map((a) => a.id));

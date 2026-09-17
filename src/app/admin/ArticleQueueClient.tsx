@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { isMatchDataSource } from "@/lib/matchDataSources";
-import { isHeroFeatureStale } from "@/lib/heroConfig";
+import { isHeroFeatureStale, isHighlightStale } from "@/lib/heroConfig";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
@@ -36,6 +36,7 @@ export interface QueueArticle {
   featured: boolean;
   featuredAt: Date | null;
   highlighted: boolean;
+  highlightedAt: Date | null;
   readabilityScore: number | null;
   reviewedAt: Date | null;
   createdAt: Date;
@@ -287,7 +288,14 @@ export function ArticleQueueClient({
                         sx={{ color: "primary" }}
                       />
                     )}
-                    {article.highlighted && <Chip label="📌 Highlighted" size="small" sx={{ color: "warning" }} />}
+                    {article.highlighted && (
+                      <Chip
+                        label={isHighlightStale(article.highlightedAt) ? "📌 Highlighted (expired)" : "📌 Highlighted"}
+                        size="small"
+                        variant={isHighlightStale(article.highlightedAt) ? "outlined" : "filled"}
+                        sx={{ color: "warning" }}
+                      />
+                    )}
                     {article.readabilityScore != null && article.readabilityScore < 40 && (
                       <Chip label="low readability score" size="small" variant="outlined" sx={{ color: "warning" }} />
                     )}
