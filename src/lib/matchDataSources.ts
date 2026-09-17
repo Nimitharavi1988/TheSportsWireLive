@@ -15,6 +15,7 @@ const MATCH_DATA_SOURCES = new Set([
   "ESPN Football",
   "ESPN NHL",
   "API-Volleyball",
+  "ESPN Volleyball",
 ]);
 
 export function isMatchDataSource(sourceName: string): boolean {
