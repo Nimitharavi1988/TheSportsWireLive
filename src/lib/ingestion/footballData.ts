@@ -206,6 +206,17 @@ async function fetchCompetitionMatches(
       awayScore: status === "FINISHED" ? match.score?.fullTime?.away : undefined,
       matchStatus: status === "FINISHED" ? "finished" : "scheduled",
       kickoffAt: new Date(match.utcDate),
+      // Stable per-match id, not title-based — without this, the SAME
+      // match hashed differently as "Preview: X vs Y" (scheduled) and
+      // "X 2-1 Y" (finished), so finishing a match created a brand-new
+      // duplicate article instead of updating the preview in place. The
+      // preview then sat stuck forever at "scheduled" with no score,
+      // while a separate, correct result article existed alongside it —
+      // exactly the kind of duplicate-content problem the www/non-www
+      // canonical work earlier in this project was fighting, just
+      // self-inflicted this time. See runIngest.ts's duplicate-refresh
+      // block, which now needs this key to find the existing row at all.
+      dedupeKey: `football-data-${match.id}`,
     });
   }
 

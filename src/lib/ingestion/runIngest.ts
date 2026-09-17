@@ -254,40 +254,48 @@ export async function runIngest() {
     if (existing) {
       duplicates++;
 
-      // CricketData.org match titles ("England vs Pakistan, 1st Test") don't
-      // embed the score the way football/NFL titles do (e.g. "Team A 1-2
-      // Team B"), so the SAME live match hashes identically on every 15-min
-      // poll and is always treated as a duplicate below — meaning its score/
-      // status were previously only ever written once, at article creation,
-      // then silently frozen forever even while the match was genuinely
-      // still live. Confirmed live: an England vs Pakistan Test sat stuck at
-      // "119/9 (31.4)" for 8+ hours after its real score had moved on.
-      // Refresh the live-score fields on every poll.
+      // A match-data source's dedupeKey is stable per real-world event
+      // (e.g. espn-nfl-${event.id}), deliberately the SAME whether the
+      // match is scheduled, in progress, or finished — so once an article
+      // exists for it, every later poll matches it as a duplicate here,
+      // not a new article. Until 2026-09-17 only CricketData.org had any
+      // handling for that: every other match-data source just fell through
+      // this branch doing nothing, meaning its score/status/result were
+      // written ONCE at creation and never touched again. Confirmed live:
+      // NFL/MLB/ESPN-Volleyball games from days earlier were still sitting
+      // at matchStatus "scheduled" with a null score — a live or finished
+      // game was structurally unable to ever show its real result through
+      // this row, since the only source that ever refreshed an existing
+      // duplicate was CricketData.org. (football-data.org's own title
+      // changes shape at the finished transition, so it accidentally
+      // dodged this by hashing to a brand-new article instead — its own,
+      // separate problem, real duplicate-content clutter, fixed by giving
+      // it a stable dedupeKey too — see footballData.ts.)
       //
-      // summary/body used to only refresh at the scheduled->finished
-      // transition, on the assumption CricketData.org's match.status text
-      // only mattered right at the result. Confirmed live (2026-09-17) that
-      // assumption was wrong: a Durham vs Worcestershire match displayed
-      // homeScoreText "161/6 (44)" (fresh, updated every poll) right next to
-      // a summary reading "Day 1: 1st Session... Durham Inning 1: 3/0 (1
-      // ov)" (frozen from the article's creation, hours stale) — the two
-      // halves of the same live-scoreboard card visibly contradicting each
-      // other. cricketData.ts's summary/body are always plain templates
-      // built directly from match.status/match.score (see its own comment),
-      // never Gemini-enriched for this source, so there's nothing to
-      // protect by holding them back — refreshing every poll, same as the
-      // score fields, keeps the whole card internally consistent instead of
-      // just the numbers.
-      if (item.sourceName === "CricketData.org") {
+      // Score/status/venue refresh every poll, same reasoning as cricket's
+      // live-score fix above it. title/summary/body only refresh right at
+      // the scheduled->finished transition here, not every poll — unlike
+      // CricketData.org's title (which never encodes the score and so
+      // never needed refreshing), every other source's title/summary/body
+      // format IS the score/result ("Preview: X vs Y" vs "X 2-1 Y"), and
+      // these sources never emit a genuine in-progress "live" state at all
+      // (see e.g. nflData.ts's `state !== "post" && state !== "pre"`
+      // skip) — so there's no intermediate text to keep in sync with, only
+      // one real transition to catch.
+      if (isMatchDataSource(item.sourceName)) {
+        const justFinished = existing.matchStatus !== "finished" && item.matchStatus === "finished";
+        const isCricketData = item.sourceName === "CricketData.org";
         await db.article.update({
           where: { id: existing.id },
           data: {
             matchStatus: item.matchStatus,
+            homeScore: item.homeScore,
+            awayScore: item.awayScore,
             homeScoreText: item.homeScoreText,
             awayScoreText: item.awayScoreText,
             venue: item.venue,
-            summary: item.summary,
-            body: item.body,
+            ...(isCricketData || justFinished ? { summary: item.summary, body: item.body } : {}),
+            ...(justFinished && !isCricketData ? { title: item.title } : {}),
           },
         });
         existing.matchStatus = item.matchStatus ?? null;
