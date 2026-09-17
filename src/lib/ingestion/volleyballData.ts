@@ -15,11 +15,49 @@
  * API's /games response, so RawMatchItem.venue is left unset here rather
  * than guessed at.
  */
+import { createHash } from "node:crypto";
 import { db } from "../db";
 import type { RawMatchItem } from "./footballData";
 
 const SOURCE_NAME = "API-Volleyball";
 const MIN_POLL_INTERVAL_MS = 60 * 60 * 1000; // 1 hour — same conservatism as apiFootballVenue.ts
+
+// API-Sports.io serves a generic placeholder image (not a 404, not null —
+// a real 200 response) for teams without a real crest on file, confirmed
+// live (2026-09-16): two completely different teams (Atom-Kursk W,
+// Zabaikalka Chita W — different numeric team IDs, so different URLs)
+// returned byte-identical images, MD5 a3208b617675b595f3d1a11c7d6642fb.
+// hasRealImage() (autoApprove.ts) treats any homeCrestUrl as real, so this
+// placeholder was silently passing as a genuine image on every smaller/
+// regional team that lacks real crest art — reads as "no images" since
+// every such team shows the identical generic blank badge. Checked here at
+// ingestion time so a placeholder crest is treated as no crest at all,
+// falling through to the Pexels stock-photo fallback (stockImages.ts)
+// instead, same as any other article with no real image.
+const PLACEHOLDER_CREST_HASH = "a3208b617675b595f3d1a11c7d6642fb";
+
+async function isPlaceholderCrest(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return false;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    return createHash("md5").update(buffer).digest("hex") === PLACEHOLDER_CREST_HASH;
+  } catch {
+    // A failed check isn't evidence either way — treat the crest as real
+    // rather than discarding a possibly-genuine image over a network blip.
+    return false;
+  }
+}
+
+// Resolves real-vs-placeholder for every crest URL in one batch, deduping
+// identical URLs (the same team can appear in multiple games within a
+// single run) so each distinct URL is only fetched once regardless of how
+// many games reference it.
+async function resolvePlaceholderCrests(urls: (string | undefined)[]): Promise<Set<string>> {
+  const unique = [...new Set(urls.filter((u): u is string => Boolean(u)))];
+  const results = await Promise.all(unique.map(async (url) => [url, await isPlaceholderCrest(url)] as const));
+  return new Set(results.filter(([, isPlaceholder]) => isPlaceholder).map(([url]) => url));
+}
 
 interface VolleyballTeam {
   id: number;
@@ -133,6 +171,12 @@ export async function fetchVolleyballData(): Promise<RawMatchItem[]> {
       dedupeKey: `api-volleyball-${game.id}`,
       seriesLabel: game.league.name,
     });
+  }
+
+  const placeholderCrests = await resolvePlaceholderCrests(items.flatMap((i) => [i.homeCrestUrl, i.awayCrestUrl]));
+  for (const item of items) {
+    if (item.homeCrestUrl && placeholderCrests.has(item.homeCrestUrl)) item.homeCrestUrl = undefined;
+    if (item.awayCrestUrl && placeholderCrests.has(item.awayCrestUrl)) item.awayCrestUrl = undefined;
   }
 
   return items;
