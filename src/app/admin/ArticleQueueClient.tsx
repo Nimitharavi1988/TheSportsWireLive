@@ -97,6 +97,7 @@ function SocialPostButton({
   return (
     <>
       <Button
+        size="small"
         variant="outlined"
         color="info"
         onClick={handleClick}
@@ -153,7 +154,7 @@ function InstagramPosterButton({
 
   return (
     <>
-      <Button variant="outlined" color="secondary" onClick={handleClick} disabled={isPending}>
+      <Button size="small" variant="outlined" color="secondary" onClick={handleClick} disabled={isPending}>
         {isPending ? "Queuing…" : "Post Instagram poster"}
       </Button>
       <Snackbar open={message !== null} autoHideDuration={8000} onClose={() => setMessage(null)} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
@@ -316,10 +317,10 @@ export function ArticleQueueClient({
               {status === "pending_review" && (
                 <>
                   <form action={approveArticle.bind(null, article.id)}>
-                    <Button type="submit" variant="contained" color="success">Approve</Button>
+                    <Button type="submit" size="small" variant="contained" color="success">Approve</Button>
                   </form>
                   <form action={rejectArticle.bind(null, article.id, undefined)}>
-                    <Button type="submit" variant="outlined" color="inherit">Reject</Button>
+                    <Button type="submit" size="small" variant="outlined" color="inherit">Reject</Button>
                   </form>
                 </>
               )}
@@ -330,16 +331,16 @@ export function ArticleQueueClient({
                   come back after approving. */}
               {article.featured ? (
                 <form action={unfeatureArticle.bind(null, article.id)}>
-                  <Button type="submit" variant="outlined" color="inherit">Remove as hero</Button>
+                  <Button type="submit" size="small" variant="outlined" color="inherit">Remove as hero</Button>
                 </form>
               ) : (
                 <form action={featureArticle.bind(null, article.id)}>
-                  <Button type="submit" variant="contained">Feature as hero</Button>
+                  <Button type="submit" size="small" variant="contained">Feature as hero</Button>
                 </form>
               )}
               {article.highlighted ? (
                 <form action={unhighlightArticle.bind(null, article.id)}>
-                  <Button type="submit" variant="outlined" color="warning">Remove highlight</Button>
+                  <Button type="submit" size="small" variant="outlined" color="warning">Remove highlight</Button>
                 </form>
               ) : (
                 // Raw match-data results (a scoreline, not a story) can't be
@@ -347,7 +348,7 @@ export function ArticleQueueClient({
                 // just avoids a dead-end click that would fail.
                 !isMatchDataSource(article.sourceName) && (
                   <form action={highlightArticle.bind(null, article.id)}>
-                    <Button type="submit" variant="outlined" color="warning">Highlight (transfers/big news)</Button>
+                    <Button type="submit" size="small" variant="outlined" color="warning">Highlight (transfers/big news)</Button>
                   </form>
                 )
               )}
