@@ -18,6 +18,7 @@ import { fetchStockImagePools, createStockImagePicker } from "./stockImages";
 import { generateCommentary, generateMatchRecap } from "./commentary";
 import { extractArticleContent } from "./articleTextExtractor";
 import { fetchPersonPhoto, sportSearchHint } from "./wikimediaImages";
+import { isExcludedSource } from "../excludedSources";
 import { competitionFromSummary } from "../teamNames";
 import { isMatchDataSource } from "../matchDataSources";
 import { resolvePrimaryPlayerName } from "../players";
@@ -180,7 +181,12 @@ export async function runIngest() {
   const sortedNewsItems = [...newsItems, ...playerNewsItems, ...cricinfoPlayerItems].sort(
     (a, b) => computeTrendingScore(b.title, trendingKeywords) - computeTrendingScore(a.title, trendingKeywords)
   );
-  const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...mlbItems, ...nbaItems, ...domesticFootballItems, ...nhlItems, ...volleyballItems, ...sortedNewsItems, ...cricketItems];
+  const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...mlbItems, ...nbaItems, ...domesticFootballItems, ...nhlItems, ...volleyballItems, ...sortedNewsItems, ...cricketItems]
+    // Checked against every source regardless of which fetcher it came
+    // through (most reach here via the per-player Google News search,
+    // playerNewsFeeds.ts, not a fixed feed) — see excludedSources.ts for
+    // why a source lands here instead of being caught by a content check.
+    .filter((item) => !isExcludedSource(item.sourceName));
   const stockImagePicker = createStockImagePicker(stockImagePools);
 
   // Cloudflare Workers caps outbound subrequests per invocation, and every
