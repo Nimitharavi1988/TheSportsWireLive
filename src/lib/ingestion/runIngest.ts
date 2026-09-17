@@ -262,18 +262,23 @@ export async function runIngest() {
       // then silently frozen forever even while the match was genuinely
       // still live. Confirmed live: an England vs Pakistan Test sat stuck at
       // "119/9 (31.4)" for 8+ hours after its real score had moved on.
-      // Refresh the live-score fields on every poll. summary/body are only
-      // refreshed on the specific scheduled->finished transition, not every
-      // poll — CricketData.org's own match.status text becomes the real
-      // result line ("England won by X wickets") exactly at that moment
-      // (see inferCricketMatchStatus), so item.summary/item.body are already
-      // the accurate result text right then. Confirmed live: the England vs
-      // Pakistan 3rd Test flipped matchStatus to "finished" with real final
-      // scores, but its displayed summary/body stayed frozen on "Day 1: 2nd
-      // Session... Pakistan Inning 1: 119/9" — a stale mid-match snapshot —
-      // because only matchStatus/scores were being refreshed here before.
+      // Refresh the live-score fields on every poll.
+      //
+      // summary/body used to only refresh at the scheduled->finished
+      // transition, on the assumption CricketData.org's match.status text
+      // only mattered right at the result. Confirmed live (2026-09-17) that
+      // assumption was wrong: a Durham vs Worcestershire match displayed
+      // homeScoreText "161/6 (44)" (fresh, updated every poll) right next to
+      // a summary reading "Day 1: 1st Session... Durham Inning 1: 3/0 (1
+      // ov)" (frozen from the article's creation, hours stale) — the two
+      // halves of the same live-scoreboard card visibly contradicting each
+      // other. cricketData.ts's summary/body are always plain templates
+      // built directly from match.status/match.score (see its own comment),
+      // never Gemini-enriched for this source, so there's nothing to
+      // protect by holding them back — refreshing every poll, same as the
+      // score fields, keeps the whole card internally consistent instead of
+      // just the numbers.
       if (item.sourceName === "CricketData.org") {
-        const justFinished = existing.matchStatus !== "finished" && item.matchStatus === "finished";
         await db.article.update({
           where: { id: existing.id },
           data: {
@@ -281,7 +286,8 @@ export async function runIngest() {
             homeScoreText: item.homeScoreText,
             awayScoreText: item.awayScoreText,
             venue: item.venue,
-            ...(justFinished ? { summary: item.summary, body: item.body } : {}),
+            summary: item.summary,
+            body: item.body,
           },
         });
         existing.matchStatus = item.matchStatus ?? null;
