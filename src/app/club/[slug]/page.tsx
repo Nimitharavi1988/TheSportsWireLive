@@ -9,6 +9,7 @@ import { StandingsCarousel } from "@/components/StandingsCarousel";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { ArticleThumb } from "@/components/ArticleThumb";
+import { SourceLabel } from "@/components/SourceLabel";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
 import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
@@ -19,7 +20,6 @@ import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
-import Chip from "@mui/material/Chip";
 
 export const revalidate = 300;
 
@@ -117,10 +117,10 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
                         <ArticleThumb article={article} size={64} fallbackColor={categoryChipStyle(article.category).color} />
                         <Box sx={{ minWidth: 0, flex: 1 }}>
                           <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
-                            <Chip label={article.sourceName} size="small" variant="outlined" sx={{ color: "primary" }} />
+                            <SourceLabel>{article.sourceName}</SourceLabel>
                             {article.publishedAt && (
                               <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                                {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                · {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                               </Typography>
                             )}
                           </Stack>

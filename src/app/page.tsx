@@ -28,6 +28,7 @@ import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { HeroCarousel } from "@/components/HeroCarousel";
 import { ArticleThumb } from "@/components/ArticleThumb";
+import { SourceLabel } from "@/components/SourceLabel";
 import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImages";
 import { isHeroFeatureStale } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
@@ -915,19 +916,13 @@ export default async function HomePage(
                           <ArticleThumb article={article} size={84} fallbackColor="#f59e0b" />
                           <Box sx={{ minWidth: 0, flex: 1 }}>
                             <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
-                              {/* "warning" alone isn't a valid CSS color — sx needs the full
-                                  theme path ("warning.main"), unlike the color prop which
-                                  accepts the bare palette key. Silently fell back to default
-                                  text color instead of the intended amber tint. */}
-                              <Chip label={article.sourceName} size="small" variant="outlined" sx={{
-                                color: "warning.main", borderColor: "warning.main"
-                              }} />
+                              <SourceLabel>{article.sourceName}</SourceLabel>
                               {article.highlighted && <Chip label="📌 Editor's pick" size="small" sx={{
                                 color: "warning.contrastText", bgcolor: "warning.main"
                               }} />}
                               {article.publishedAt && (
                                 <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                                  {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                  · {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                                 </Typography>
                               )}
                             </Stack>
@@ -1153,12 +1148,9 @@ export default async function HomePage(
                         >
                           {article.title}
                         </Typography>
-                        <Chip
-                          label={article.sourceName}
-                          size="small"
-                          variant="outlined"
-                          sx={{ height: 16, fontSize: 9, "& .MuiChip-label": { px: 0.75 } }}
-                        />
+                        <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, fontSize: 10 }}>
+                          {article.sourceName}
+                        </Typography>
                       </Box>
                     </Stack>
                   </Link>

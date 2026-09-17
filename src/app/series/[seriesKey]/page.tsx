@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { ArticleThumb } from "@/components/ArticleThumb";
+import { SourceLabel } from "@/components/SourceLabel";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
 import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
@@ -98,11 +99,11 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
                     <ArticleThumb article={article} size={64} fallbackColor={categoryChipStyle(article.category).color} />
                     <Box sx={{ minWidth: 0, flex: 1 }}>
                       <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
-                        <Chip label={article.sourceName} size="small" variant="outlined" sx={{ color: "primary" }} />
+                        <SourceLabel>{article.sourceName}</SourceLabel>
                         {article.matchStatus === "finished" && <Chip label="Result" size="small" sx={{ color: "primary" }} />}
                         {article.publishedAt && (
                           <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                            {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                            · {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                           </Typography>
                         )}
                       </Stack>
