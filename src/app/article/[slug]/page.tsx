@@ -419,8 +419,6 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         {article.publishedAt && (
           <Typography variant="body2" sx={{ color: "text.secondary" }}>
             {article.publishedAt.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-            {" · "}
-            {article.sourceName}
           </Typography>
         )}
         {/* No way to share an article previously existed except copying
