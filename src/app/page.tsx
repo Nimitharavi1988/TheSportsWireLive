@@ -915,20 +915,26 @@ export default async function HomePage(
                         <Stack direction="row" spacing={2}>
                           <ArticleThumb article={article} size={84} fallbackColor="#f59e0b" />
                           <Box sx={{ minWidth: 0, flex: 1 }}>
-                            <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
+                            {article.highlighted && (
+                              <Chip label="📌 Editor's pick" size="small" sx={{
+                                mb: 1, color: "warning.contrastText", bgcolor: "warning.main"
+                              }} />
+                            )}
+                            <Typography variant="h6" component="h2" gutterBottom>
+                              {article.title}
+                            </Typography>
+                            {/* Source credit below the headline, not above it — this
+                                is attribution to the original report, not a
+                                curation signal like "Editor's pick" above, so it
+                                doesn't need to be the first thing read. */}
+                            <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
                               <SourceLabel>{article.sourceName}</SourceLabel>
-                              {article.highlighted && <Chip label="📌 Editor's pick" size="small" sx={{
-                                color: "warning.contrastText", bgcolor: "warning.main"
-                              }} />}
                               {article.publishedAt && (
                                 <Typography variant="caption" sx={{ color: "text.secondary" }}>
                                   · {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                                 </Typography>
                               )}
                             </Stack>
-                            <Typography variant="h6" component="h2" gutterBottom>
-                              {article.title}
-                            </Typography>
                           </Box>
                         </Stack>
                       </CardContent>

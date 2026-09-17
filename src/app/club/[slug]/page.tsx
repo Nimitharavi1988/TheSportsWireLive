@@ -116,7 +116,15 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
                       <Stack direction="row" spacing={2}>
                         <ArticleThumb article={article} size={64} fallbackColor={categoryChipStyle(article.category).color} />
                         <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
+                          <Typography variant="h6" component="h2" gutterBottom>
+                            {article.title}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                            {displaySummary(article)}
+                          </Typography>
+                          {/* Source credit last, not first — attribution to the
+                              original report, not the headline itself. */}
+                          <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: 1 }}>
                             <SourceLabel>{article.sourceName}</SourceLabel>
                             {article.publishedAt && (
                               <Typography variant="caption" sx={{ color: "text.secondary" }}>
@@ -124,12 +132,6 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
                               </Typography>
                             )}
                           </Stack>
-                          <Typography variant="h6" component="h2" gutterBottom>
-                            {article.title}
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                            {displaySummary(article)}
-                          </Typography>
                         </Box>
                       </Stack>
                     </CardContent>

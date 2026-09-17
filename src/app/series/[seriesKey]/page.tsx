@@ -98,21 +98,25 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
                   <Stack direction="row" spacing={2}>
                     <ArticleThumb article={article} size={64} fallbackColor={categoryChipStyle(article.category).color} />
                     <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
-                        <SourceLabel>{article.sourceName}</SourceLabel>
-                        {article.matchStatus === "finished" && <Chip label="Result" size="small" sx={{ color: "primary" }} />}
-                        {article.publishedAt && (
-                          <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                            · {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                          </Typography>
-                        )}
-                      </Stack>
+                      {article.matchStatus === "finished" && (
+                        <Chip label="Result" size="small" sx={{ mb: 1, color: "primary" }} />
+                      )}
                       <Typography variant="h6" component="h2" gutterBottom>
                         {article.title}
                       </Typography>
                       <Typography variant="body2" sx={{ color: "text.secondary" }}>
                         {displaySummary(article)}
                       </Typography>
+                      {/* Source credit last, not first — attribution to the
+                          original report, not the headline itself. */}
+                      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: 1 }}>
+                        <SourceLabel>{article.sourceName}</SourceLabel>
+                        {article.publishedAt && (
+                          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                            · {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </Typography>
+                        )}
+                      </Stack>
                     </Box>
                   </Stack>
                 </CardContent>
