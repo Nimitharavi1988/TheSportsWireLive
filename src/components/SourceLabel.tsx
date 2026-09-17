@@ -14,7 +14,11 @@ import Typography from "@mui/material/Typography";
 // as-is.
 export function SourceLabel({ children }: { children: string }) {
   return (
-    <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+    // text.disabled, not text.secondary — matches the article page's own
+    // "Original source" line (the most subdued tier the theme has), per
+    // explicit request to bring this as close to the background as
+    // legibility allows. No bold weight either, for the same reason.
+    <Typography variant="caption" sx={{ color: "text.disabled" }}>
       {children}
     </Typography>
   );

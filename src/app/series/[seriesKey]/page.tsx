@@ -98,9 +98,25 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
                   <Stack direction="row" spacing={2}>
                     <ArticleThumb article={article} size={64} fallbackColor={categoryChipStyle(article.category).color} />
                     <Box sx={{ minWidth: 0, flex: 1 }}>
-                      {article.matchStatus === "finished" && (
-                        <Chip label="Result" size="small" sx={{ mb: 1, color: "primary" }} />
-                      )}
+                      {/* Sport/category badge at the top, alongside "Result"
+                          — our own taxonomy, not third-party attribution, so
+                          it's fine to keep prominent, same as every other
+                          section on the site. */}
+                      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
+                        <Chip
+                          label={categoryChipStyle(article.category).label}
+                          size="small"
+                          variant="outlined"
+                          sx={{
+                            color: categoryChipStyle(article.category).color,
+                            borderColor: categoryChipStyle(article.category).color,
+                            fontWeight: 600,
+                          }}
+                        />
+                        {article.matchStatus === "finished" && (
+                          <Chip label="Result" size="small" sx={{ color: "primary" }} />
+                        )}
+                      </Stack>
                       <Typography variant="h6" component="h2" gutterBottom>
                         {article.title}
                       </Typography>

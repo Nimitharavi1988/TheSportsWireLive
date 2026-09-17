@@ -21,6 +21,7 @@ import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
 
 // The player's photo rarely changes day to day — an hour of staleness is a
 // fine trade for not hitting the Wikimedia API on every single page view.
@@ -152,6 +153,21 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
                       <Stack direction="row" spacing={2}>
                         <ArticleThumb article={article} size={64} fallbackColor={categoryChipStyle(article.category).color} />
                         <Box sx={{ minWidth: 0, flex: 1 }}>
+                          {/* Sport/category badge at the top — our own
+                              taxonomy, not third-party attribution, so it's
+                              fine to keep prominent for scanning, same as
+                              every other section on the site. */}
+                          <Chip
+                            label={categoryChipStyle(article.category).label}
+                            size="small"
+                            variant="outlined"
+                            sx={{
+                              mb: 1,
+                              color: categoryChipStyle(article.category).color,
+                              borderColor: categoryChipStyle(article.category).color,
+                              fontWeight: 600,
+                            }}
+                          />
                           <Typography variant="h6" component="h2" gutterBottom>
                             {article.title}
                           </Typography>

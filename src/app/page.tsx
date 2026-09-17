@@ -915,11 +915,28 @@ export default async function HomePage(
                         <Stack direction="row" spacing={2}>
                           <ArticleThumb article={article} size={84} fallbackColor="#f59e0b" />
                           <Box sx={{ minWidth: 0, flex: 1 }}>
-                            {article.highlighted && (
-                              <Chip label="📌 Editor's pick" size="small" sx={{
-                                mb: 1, color: "warning.contrastText", bgcolor: "warning.main"
-                              }} />
-                            )}
+                            {/* Sport/category badge at the top, same spot and
+                                style "Match Results & Previews" etc. already use
+                                — this is our own taxonomy, not third-party
+                                attribution, so it's fine (good, even) for
+                                scanning to keep it prominent up here. */}
+                            <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
+                              <Chip
+                                label={categoryChipStyle(article.category).label}
+                                size="small"
+                                variant="outlined"
+                                sx={{
+                                  color: categoryChipStyle(article.category).color,
+                                  borderColor: categoryChipStyle(article.category).color,
+                                  fontWeight: 600,
+                                }}
+                              />
+                              {article.highlighted && (
+                                <Chip label="📌 Editor's pick" size="small" sx={{
+                                  color: "warning.contrastText", bgcolor: "warning.main"
+                                }} />
+                              )}
+                            </Stack>
                             <Typography variant="h6" component="h2" gutterBottom>
                               {article.title}
                             </Typography>
@@ -1154,7 +1171,7 @@ export default async function HomePage(
                         >
                           {article.title}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, fontSize: 10 }}>
+                        <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 10 }}>
                           {article.sourceName}
                         </Typography>
                       </Box>
