@@ -294,7 +294,19 @@ export async function runIngest() {
       // for these is just the headline repeated verbatim — now handled by
       // resolveGrounding falling back to a real page-text (and image)
       // extraction (articleTextExtractor.ts) instead of skipping them.
-      if (existing.body === null && existing.status !== "flagged" && !isMatchDataSource(item.sourceName) && canAffordCommentary(item.category)) {
+      //
+      // "rejected" excluded alongside "flagged" (2026-09-17) — confirmed
+      // live this was retrying commentary for the SAME already-rejected
+      // article on every ~15-min ingestion run indefinitely whenever its
+      // headline kept resurfacing in RSS/Google News results (very common
+      // for player-search items): 665 rejected articles sat in this retry
+      // pool, real Gemini spend with zero possible benefit even on success,
+      // since nothing here ever un-rejects an article — the write below
+      // only ever touches body/image/venue, never status. A rejected
+      // article's fate is already decided; retrying its commentary forever
+      // was pure waste, a meaningful share of the cost increase after
+      // Gemini billing was restored.
+      if (existing.body === null && existing.status !== "flagged" && existing.status !== "rejected" && !isMatchDataSource(item.sourceName) && canAffordCommentary(item.category)) {
         const grounding = await resolveGrounding(item);
         if (grounding) {
           recordCommentaryCall(item.category);
