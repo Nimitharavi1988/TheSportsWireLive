@@ -32,7 +32,6 @@ import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImag
 import { isHeroFeatureStale, isHighlightStale } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { LiveScoreboardCarousel } from "@/components/LiveScoreboardCarousel";
-import { LiveFootballWidget } from "@/components/LiveFootballWidget";
 import { InstallAppBanner } from "@/components/InstallAppBanner";
 import { fetchLiveMatches } from "@/lib/liveMatches";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
@@ -1113,22 +1112,6 @@ export default async function HomePage(
             {liveMatches.length > 0 && (
               <Box sx={{ mb: 3 }}>
                 <LiveScoreboardCarousel matches={liveMatches} />
-              </Box>
-            )}
-
-            {/* Real-time supplement to our own ~15-min ingestion cycle.
-                Football-only (SportBusy's free tier is one league at a
-                time; Premier League chosen as the highest-reach one
-                already on the site), shown on "All" or the Football
-                filter, same rule the Live Now widget itself follows for
-                scoping to the current category. The equivalent cricket
-                widget (CricketData.org's own embed) was tried and pulled
-                — didn't meet this site's quality bar, per explicit
-                feedback (2026-09-18). Don't re-add it without addressing
-                whatever made it look substandard first. */}
-            {(category === undefined || category === "football") && (
-              <Box sx={{ mb: 3 }}>
-                <LiveFootballWidget />
               </Box>
             )}
 
