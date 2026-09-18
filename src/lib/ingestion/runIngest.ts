@@ -327,6 +327,27 @@ export async function runIngest() {
           const { commentary, personNames, venue: extractedVenue } = await generateCommentary(item.title, grounding.text, item.sourceName);
           await sleep(COMMENTARY_DELAY_MS);
 
+          // A real generation attempt just failed on retry — same rule the
+          // creation-time path already applies (commentaryAttemptFailed
+          // below), which this retry path never had. Confirmed live
+          // (2026-09-18): 53 published articles had this exact shape — a
+          // player-news item (playerNewsFeeds.ts's sourceUrl is always a
+          // Google News redirect, never extractable) whose Google-supplied
+          // RSS snippet was too thin for Gemini to write anything real
+          // from. Each one sat in pending_review with a null body after
+          // its first attempt (deferred, not rejected, because the
+          // commentary budget was exhausted that run) — but every retry
+          // after that also failed for the same structural reason and
+          // never marked it rejected either, since this branch only ever
+          // wrote body/image/venue. Left to accumulate, eventually
+          // reachable by a bulk-approve or a reviewer skimming past it.
+          // Only touches still-pending items — an already-published
+          // article isn't silently pulled by a later failed retry.
+          if (!commentary && existing.status === "pending_review") {
+            await db.article.update({ where: { id: existing.id }, data: { status: "rejected" } });
+            existing.status = "rejected";
+          }
+
           if (commentary) {
             let heroImageUpdate: { heroImageUrl?: string; heroImageCredit?: string; heroImageCreditUrl?: string } = {};
             if (!existing.heroImageUrl && !item.heroImageUrl) {
@@ -359,6 +380,13 @@ export async function runIngest() {
             existing.heroImageUrl = heroImageUpdate.heroImageUrl ?? existing.heroImageUrl;
             backfilled++;
           }
+        } else if (existing.status === "pending_review") {
+          // resolveGrounding itself found nothing to work from at all
+          // (extraction blocked, RSS snippet too thin/missing) — same
+          // "real attempt failed" rejection as the commentary-came-back-
+          // empty case above.
+          await db.article.update({ where: { id: existing.id }, data: { status: "rejected" } });
+          existing.status = "rejected";
         }
       }
       // Independent of whether commentary ran/succeeded above — a
