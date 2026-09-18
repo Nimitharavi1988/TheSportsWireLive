@@ -33,6 +33,7 @@ import { isHeroFeatureStale, isHighlightStale } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { LiveScoreboardCarousel } from "@/components/LiveScoreboardCarousel";
 import { LiveFootballWidget } from "@/components/LiveFootballWidget";
+import { LiveCricketWidget } from "@/components/LiveCricketWidget";
 import { InstallAppBanner } from "@/components/InstallAppBanner";
 import { fetchLiveMatches } from "@/lib/liveMatches";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
@@ -1126,6 +1127,17 @@ export default async function HomePage(
             {(category === undefined || category === "football") && (
               <Box sx={{ mb: 3 }}>
                 <LiveFootballWidget />
+              </Box>
+            )}
+
+            {/* CricketData.org's own free embeddable widget — built at
+                some point in this project's history but never actually
+                wired into a page (confirmed live 2026-09-18: zero
+                references anywhere). Same real-time-supplement role as the
+                football widget above. */}
+            {(category === undefined || category === "cricket") && (
+              <Box sx={{ mb: 3 }}>
+                <LiveCricketWidget />
               </Box>
             )}
 
