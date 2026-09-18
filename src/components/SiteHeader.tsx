@@ -39,31 +39,46 @@ import type { SvgIconComponent } from "@mui/icons-material";
 // It's still fully reachable (the route/category/metadata all still work)
 // and surfaces itself automatically in the homepage's "By Category" tiles
 // whenever there's real content, without needing dead nav real estate.
-// Kept deliberately short (4 sport filters + 2 utility links) — matches
+// Kept deliberately short (3 sport filters + 1 utility link) — matches
 // ESPN's own desktop nav shape (site.espn.com, 2026-09-16): ~6 items then
 // an overflow trigger, not the 11-item row this used to be. Basketball/
 // Baseball/Rugby/Athletics moved into MORE_SPORTS_LINKS below (still fully
 // reachable, just one interaction away on both desktop and mobile — see
 // NavLinks for the sm-and-up dropdown vs below-sm drawer split).
+//
+// Standings demoted out of here (2026-09-18) — its actual content is
+// effectively football-only right now (NFL has a widget but it's hidden
+// off the "All" view; NBA/MLB/NHL have no standings page at all yet), so
+// top-level billing overpromised what the page actually covers. Lives in
+// MORE_SPORTS_LINKS below until that coverage gap closes; graduate it back
+// here once it's genuinely cross-sport.
 const NAV_LINKS: { href: string; label: string; category: string | null; icon: SvgIconComponent }[] = [
   { href: "/", label: "All", category: null, icon: ViewListIcon },
   { href: "/?category=football", label: "Football", category: "football", icon: SportsSoccerIcon },
   { href: "/?category=cricket", label: "Cricket", category: "cricket", icon: SportsCricketIcon },
   { href: "/?category=american-football", label: "NFL", category: "american-football", icon: SportsFootballIcon },
   { href: "/scores", label: "Scores", category: null, icon: SportsScoreIcon },
-  { href: "/standings", label: "Standings", category: null, icon: EmojiEventsIcon },
 ];
 
 // Everything else — including sports that used to be top-level
 // (Basketball/Baseball/Rugby/Athletics) plus the newer, lower-traffic ones
-// (Hockey/Volleyball/Formula 1) — lives in one "More Sports" dropdown, same
-// pattern BBC Sport/ESPN use (a short top-level bar for the highest-traffic
-// sports, everything else one click away) rather than growing NAV_LINKS
-// indefinitely as coverage expands. A sport can graduate back to NAV_LINKS
-// later if it earns real traffic; nothing here is permanent.
-const MORE_SPORTS_LINKS: { href: string; label: string; category: string; icon: SvgIconComponent }[] = [
+// (Hockey/Volleyball/Formula 1), plus Standings (see NAV_LINKS comment) —
+// lives in one "More Sports" dropdown, same pattern BBC Sport/ESPN use (a
+// short top-level bar for the highest-traffic sports, everything else one
+// click away) rather than growing NAV_LINKS indefinitely as coverage
+// expands. A sport can graduate back to NAV_LINKS later if it earns real
+// traffic; nothing here is permanent. Athletics stays here too despite
+// having the best image quality of any category on the site (46/46
+// published articles with a real, specific photo — no generic stock
+// fallback at all, confirmed live 2026-09-18) — the nav's own promotion
+// criterion is traffic, not polish, and Athletics' volume (46 articles/14d)
+// sits well below NBA/MLB/Volleyball, which are themselves still here too.
+// category: string | null (not just string) to fit Standings, a utility
+// link with no single category of its own.
+const MORE_SPORTS_LINKS: { href: string; label: string; category: string | null; icon: SvgIconComponent }[] = [
   { href: "/?category=basketball", label: "NBA", category: "basketball", icon: SportsBasketballIcon },
   { href: "/?category=baseball", label: "MLB", category: "baseball", icon: SportsBaseballIcon },
+  { href: "/standings", label: "Standings", category: null, icon: EmojiEventsIcon },
   { href: "/?category=rugby", label: "Rugby", category: "rugby", icon: SportsRugbyIcon },
   { href: "/?category=athletics", label: "Athletics", category: "athletics", icon: DirectionsRunIcon },
   { href: "/?category=hockey", label: "NHL", category: "hockey", icon: SportsHockeyIcon },
@@ -97,7 +112,13 @@ function NavLinks() {
   const searchParams = useSearchParams();
   const activeCategory = searchParams.get("category");
   const [moreOpen, setMoreOpen] = useState(false);
-  const isMoreActive = pathname === "/" && MORE_SPORTS_LINKS.some((l) => l.category === activeCategory);
+  // category !== null excludes Standings — a null category would otherwise
+  // false-match activeCategory's own null default on the bare homepage
+  // (no ?category= param at all), marking "More Sports" active with
+  // nothing actually selected from it.
+  const isMoreActive =
+    (pathname === "/" && MORE_SPORTS_LINKS.some((l) => l.category !== null && l.category === activeCategory)) ||
+    pathname === "/standings";
 
   // Confirmed live (real mouse, not simulated): MUI's Menu/Popover renders
   // via a React Portal, so the trigger and the dropdown live in different
@@ -257,7 +278,7 @@ function NavLinks() {
               >
                 {MORE_SPORTS_LINKS.map((link) => {
                   const Icon = link.icon;
-                  const isActive = pathname === "/" && activeCategory === link.category;
+                  const isActive = isLinkActive(link);
                   return (
                     <Box
                       key={link.label}
