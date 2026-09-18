@@ -14,7 +14,11 @@ import ScoreboardIcon from "@mui/icons-material/Scoreboard";
 import { StatusBadge, type LiveMatchRow } from "./LiveScorecard";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 
-function TeamRow({ crest, name, scoreText }: { crest: string | null; name: string | null; scoreText: string | null }) {
+function TeamRow({ crest, name, scoreText, category }: { crest: string | null; name: string | null; scoreText: string | null; category: string }) {
+  // Same fix as LiveScorecard.tsx's own TeamRow — "yet to bat" is a real
+  // cricket concept, not a generic "match hasn't produced a score yet"
+  // placeholder, and this widget now covers every sport.
+  const noScoreLabel = category === "cricket" ? "yet to bat" : "—";
   return (
     <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
       {crest && <Image src={crest} alt="" width={26} height={26} style={{ flexShrink: 0 }} />}
@@ -24,7 +28,7 @@ function TeamRow({ crest, name, scoreText }: { crest: string | null; name: strin
       <Typography
         sx={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums", flexShrink: 0, color: scoreText ? "text.primary" : "text.secondary" }}
       >
-        {scoreText ?? "yet to bat"}
+        {scoreText ?? noScoreLabel}
       </Typography>
     </Stack>
   );
@@ -114,8 +118,8 @@ export function LiveScoreboardCarousel({ matches }: { matches: LiveMatchRow[] })
             </Typography>
           ) : (
             <Stack spacing={0.5} sx={{ mb: 1 }}>
-              <TeamRow crest={current.homeCrestUrl} name={current.homeTeam} scoreText={current.homeScoreText} />
-              <TeamRow crest={current.awayCrestUrl} name={current.awayTeam} scoreText={current.awayScoreText} />
+              <TeamRow crest={current.homeCrestUrl} name={current.homeTeam} scoreText={current.homeScoreText} category={current.category} />
+              <TeamRow crest={current.awayCrestUrl} name={current.awayTeam} scoreText={current.awayScoreText} category={current.category} />
             </Stack>
           )}
           <Typography

@@ -74,7 +74,14 @@ export function StatusBadge({ state, kickoffAt }: { state: LiveMatchStatus; kick
   );
 }
 
-function TeamRow({ crest, name, scoreText, compact }: { crest: string | null; name: string | null; scoreText: string | null; compact: boolean }) {
+function TeamRow({ crest, name, scoreText, category, compact }: { crest: string | null; name: string | null; scoreText: string | null; category: string; compact: boolean }) {
+  // "Yet to bat" is a real, accurate cricket concept (the second team
+  // genuinely hasn't batted yet) — showing it for every other sport this
+  // widget now covers was simply wrong (an NFL/NBA/MLB team doesn't "bat").
+  // No equivalent per-team waiting state exists for those sports (both
+  // teams start simultaneously), so a neutral dash is the honest fallback
+  // rather than inventing sport-specific terminology for each one.
+  const noScoreLabel = category === "cricket" ? "yet to bat" : "—";
   return (
     <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
       {crest && <Image src={crest} alt="" width={compact ? 22 : 28} height={compact ? 22 : 28} style={{ flexShrink: 0 }} />}
@@ -90,7 +97,7 @@ function TeamRow({ crest, name, scoreText, compact }: { crest: string | null; na
           color: scoreText ? "text.primary" : "text.secondary",
         }}
       >
-        {scoreText ?? "yet to bat"}
+        {scoreText ?? noScoreLabel}
       </Typography>
     </Stack>
   );
@@ -139,8 +146,8 @@ export function LiveScorecard({ match, compact = false }: { match: LiveMatchRow;
             </Typography>
           ) : (
             <Stack spacing={compact ? 0.5 : 0.75} sx={{ mb: compact ? 1 : 1.25 }}>
-              <TeamRow crest={match.homeCrestUrl} name={match.homeTeam} scoreText={match.homeScoreText} compact={compact} />
-              <TeamRow crest={match.awayCrestUrl} name={match.awayTeam} scoreText={match.awayScoreText} compact={compact} />
+              <TeamRow crest={match.homeCrestUrl} name={match.homeTeam} scoreText={match.homeScoreText} category={match.category} compact={compact} />
+              <TeamRow crest={match.awayCrestUrl} name={match.awayTeam} scoreText={match.awayScoreText} category={match.category} compact={compact} />
             </Stack>
           )}
           <Typography
