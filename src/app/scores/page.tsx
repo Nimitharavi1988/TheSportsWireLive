@@ -178,7 +178,7 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
           </Typography>
           <Stack spacing={1.5} sx={{ mb: 4 }}>
             {cricketInProgress.map((match) => (
-              <LiveScorecard key={match.id} match={match} />
+              <LiveScorecard key={match.id} match={{ ...match, category: "cricket" }} />
             ))}
           </Stack>
         </>

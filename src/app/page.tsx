@@ -33,7 +33,7 @@ import { isHeroFeatureStale, isHighlightStale } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { LiveScoreboardCarousel } from "@/components/LiveScoreboardCarousel";
 import { InstallAppBanner } from "@/components/InstallAppBanner";
-import { fetchLiveCricketMatches } from "@/lib/liveCricket";
+import { fetchLiveMatches } from "@/lib/liveMatches";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import StarIcon from "@mui/icons-material/Star";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
@@ -330,7 +330,7 @@ export default async function HomePage(
   // decision was silently getting overridden by a score cutoff instead of
   // actually taking priority. Capped at 5 (the same cap `featureArticle`
   // itself enforces), so this can never balloon the query.
-  const [articlesRanked, manuallyFeaturedRaw, liveCricketMatches, activeSeriesRow] = await Promise.all([
+  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeSeriesRow] = await Promise.all([
     db.article.findMany({
       where: articleWhere,
       orderBy: [{ trendingScore: "desc" }, { publishedAt: "desc" }],
@@ -341,18 +341,14 @@ export default async function HomePage(
       orderBy: { featuredAt: "desc" },
       take: 5,
     }),
-    // Capped at 6 — the right-sidebar carousel cycles through these one at
-    // a time via prev/next arrows, so a slightly higher cap than a stacked
-    // list doesn't cost extra vertical space. Only fetched on "All" or
-    // "Cricket" — showing cricket scores while browsing a Football-only or
-    // NFL-only view read as wrong/out of place (same rule /scores already
-    // follows for its own in-progress section).
-    // Not just a "top few" — a real Test match runs 5 days, so it sorts
-    // toward the back of a kickoffAt-desc order behind every shorter-format
-    // domestic match that started more recently. A low cap silently cut
-    // international Tests out of the carousel entirely; this is cheap
-    // enough to just fetch everything currently live instead.
-    category === undefined || category === "cricket" ? fetchLiveCricketMatches(30) : Promise.resolve([]),
+    // Cross-sport "Live Now" widget (liveMatches.ts) — standardized
+    // 2026-09-18 across every match-data sport, not just cricket (which
+    // used to be the only one with live/finished/upcoming badges and
+    // related-news links at all). Scoped to the current category filter —
+    // showing NFL scores while browsing a Cricket-only view would read as
+    // wrong/out of place, same rule /scores follows for its own in-progress
+    // section — and to "All" when no filter is set.
+    fetchLiveMatches(30, category),
     // The single most recently active cricket series (cricketSeries.ts),
     // for a discovery banner under the hero — no permanent nav item for
     // this (same reasoning as the World Cup nav exclusion above: a series
@@ -1085,7 +1081,7 @@ export default async function HomePage(
           )}
         </Box>
 
-        {(liveCricketMatches.length > 0 || briefArticles.length > 0 || PLAYER_QUOTES.length > 0) && (
+        {(liveMatches.length > 0 || briefArticles.length > 0 || PLAYER_QUOTES.length > 0) && (
           // Both modules share ONE sticky wrapper, same pattern as the left
           // rail's multiple stacked modules — two independent
           // position:"sticky" siblings at the same top offset was the actual
@@ -1113,9 +1109,9 @@ export default async function HomePage(
               top: { md: 84 },
             }}
           >
-            {liveCricketMatches.length > 0 && (
+            {liveMatches.length > 0 && (
               <Box sx={{ mb: 3 }}>
-                <LiveScoreboardCarousel matches={liveCricketMatches} />
+                <LiveScoreboardCarousel matches={liveMatches} />
               </Box>
             )}
 
@@ -1181,7 +1177,7 @@ export default async function HomePage(
                 ESPN's own feed down to a single item) can genuinely have
                 neither a live cricket match nor any brief articles, and
                 previously that meant nothing rendered here at all. */}
-            {liveCricketMatches.length === 0 && briefArticles.length === 0 && PLAYER_QUOTES.length > 0 && (
+            {liveMatches.length === 0 && briefArticles.length === 0 && PLAYER_QUOTES.length > 0 && (
               <QuotesStrip quotes={PLAYER_QUOTES} />
             )}
           </Box>

@@ -10,8 +10,9 @@ import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import SportsCricketIcon from "@mui/icons-material/SportsCricket";
+import ScoreboardIcon from "@mui/icons-material/Scoreboard";
 import { StatusBadge, type LiveMatchRow } from "./LiveScorecard";
+import { categoryChipStyle } from "@/lib/categoryDisplay";
 
 function TeamRow({ crest, name, scoreText }: { crest: string | null; name: string | null; scoreText: string | null }) {
   return (
@@ -70,10 +71,10 @@ export function LiveScoreboardCarousel({ matches }: { matches: LiveMatchRow[] })
           <ChevronLeftIcon fontSize="small" />
         </IconButton>
         <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", minWidth: 0 }}>
-          <SportsCricketIcon sx={{ opacity: 0.85, fontSize: 18 }} />
+          <ScoreboardIcon sx={{ opacity: 0.85, fontSize: 18 }} />
           <Box sx={{ minWidth: 0 }}>
             <Typography noWrap sx={{ fontWeight: 700, lineHeight: 1.2, fontSize: 14 }}>
-              {current.matchState === "live" ? "Live Cricket" : "Cricket"}
+              {current.matchState === "live" ? "Live Now" : "Scores"}
             </Typography>
             <Typography sx={{ opacity: 0.75, fontSize: 10.5 }}>
               {index + 1} of {matches.length}
@@ -96,9 +97,17 @@ export function LiveScoreboardCarousel({ matches }: { matches: LiveMatchRow[] })
           inside the other (invalid HTML). */}
       <Link href={`/article/${current.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
         <Box sx={{ p: 1.5, "&:hover": { bgcolor: "action.hover" } }}>
-          <Box sx={{ mb: 1 }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
             <StatusBadge state={current.matchState} kickoffAt={current.kickoffAt} />
-          </Box>
+            {/* Which sport, now that this carousel cycles through all of
+                them together, not just cricket. */}
+            <Typography
+              variant="caption"
+              sx={{ color: categoryChipStyle(current.category).color, fontWeight: 700, letterSpacing: "0.03em" }}
+            >
+              {categoryChipStyle(current.category).label}
+            </Typography>
+          </Stack>
           {current.isNewsDerived ? (
             <Typography sx={{ fontSize: 14, fontWeight: 700, mb: 1 }}>
               {current.homeTeam} vs {current.awayTeam}

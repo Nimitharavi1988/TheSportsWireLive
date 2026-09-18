@@ -5,12 +5,14 @@ import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Paper from "@mui/material/Paper";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import type { CricketMatchStatus } from "@/lib/liveCricket";
+import type { LiveMatchStatus } from "@/lib/liveMatches";
+import { categoryChipStyle } from "@/lib/categoryDisplay";
 
 export interface LiveMatchRow {
   id: string;
   slug: string;
   summary: string;
+  category: string;
   homeTeam: string | null;
   awayTeam: string | null;
   homeCrestUrl: string | null;
@@ -18,7 +20,7 @@ export interface LiveMatchRow {
   homeScoreText: string | null;
   awayScoreText: string | null;
   kickoffAt: Date | null;
-  matchState: CricketMatchStatus;
+  matchState: LiveMatchStatus;
   // True for a match with no structured score data at all (see
   // liveCricket.ts's news-headline fallback) — real team names and a real
   // headline, but no per-team score to show, so the per-team rows below
@@ -35,7 +37,7 @@ export interface LiveMatchRow {
 // neutral kickoff date for one that hasn't started, and a solid checkmark
 // for a settled result. Matches the visual language sports apps (ESPN,
 // Google) use so each state reads at a glance without needing to parse text.
-export function StatusBadge({ state, kickoffAt }: { state: CricketMatchStatus; kickoffAt: Date | null }) {
+export function StatusBadge({ state, kickoffAt }: { state: LiveMatchStatus; kickoffAt: Date | null }) {
   if (state === "live") {
     return (
       <Stack direction="row" spacing={0.75} sx={{ alignItems: "center" }}>
@@ -118,9 +120,19 @@ export function LiveScorecard({ match, compact = false }: { match: LiveMatchRow;
           Player News section). */}
       <Link href={`/article/${match.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
         <Box sx={{ transition: "background-color 0.15s", "&:hover": { bgcolor: "action.hover" } }}>
-          <Box sx={{ mb: compact ? 1 : 1.25 }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: compact ? 1 : 1.25 }}>
             <StatusBadge state={match.matchState} kickoffAt={match.kickoffAt} />
-          </Box>
+            {/* Sport label — this card can now be any match-data sport, not
+                just cricket, so which one it is needs to be legible at a
+                glance, especially when several sports are mixed together on
+                the "All" view. */}
+            <Typography
+              variant="caption"
+              sx={{ color: categoryChipStyle(match.category).color, fontWeight: 700, letterSpacing: "0.03em" }}
+            >
+              {categoryChipStyle(match.category).label}
+            </Typography>
+          </Stack>
           {match.isNewsDerived ? (
             <Typography sx={{ fontSize: compact ? 13.5 : 15, fontWeight: 700, mb: compact ? 1 : 1.25 }}>
               {match.homeTeam} vs {match.awayTeam}
