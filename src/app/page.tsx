@@ -33,7 +33,6 @@ import { isHeroFeatureStale, isHighlightStale } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { LiveScoreboardCarousel } from "@/components/LiveScoreboardCarousel";
 import { LiveFootballWidget } from "@/components/LiveFootballWidget";
-import { LiveCricketWidget } from "@/components/LiveCricketWidget";
 import { InstallAppBanner } from "@/components/InstallAppBanner";
 import { fetchLiveMatches } from "@/lib/liveMatches";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
@@ -1117,27 +1116,19 @@ export default async function HomePage(
               </Box>
             )}
 
-            {/* Real-time supplement to our own ~15-min ingestion cycle —
-                same role LiveCricketWidget.tsx plays for cricket. Football-
-                only (SportBusy's free tier is one league at a time; Premier
-                League chosen as the highest-reach one already on the site),
-                shown on "All" or the Football filter, same rule the Live
-                Now widget itself follows for scoping to the current
-                category. */}
+            {/* Real-time supplement to our own ~15-min ingestion cycle.
+                Football-only (SportBusy's free tier is one league at a
+                time; Premier League chosen as the highest-reach one
+                already on the site), shown on "All" or the Football
+                filter, same rule the Live Now widget itself follows for
+                scoping to the current category. The equivalent cricket
+                widget (CricketData.org's own embed) was tried and pulled
+                — didn't meet this site's quality bar, per explicit
+                feedback (2026-09-18). Don't re-add it without addressing
+                whatever made it look substandard first. */}
             {(category === undefined || category === "football") && (
               <Box sx={{ mb: 3 }}>
                 <LiveFootballWidget />
-              </Box>
-            )}
-
-            {/* CricketData.org's own free embeddable widget — built at
-                some point in this project's history but never actually
-                wired into a page (confirmed live 2026-09-18: zero
-                references anywhere). Same real-time-supplement role as the
-                football widget above. */}
-            {(category === undefined || category === "cricket") && (
-              <Box sx={{ mb: 3 }}>
-                <LiveCricketWidget />
               </Box>
             )}
 
