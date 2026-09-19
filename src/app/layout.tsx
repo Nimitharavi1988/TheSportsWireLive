@@ -4,6 +4,7 @@ import SiteHeader from "@/components/SiteHeader";
 import MatchTicker from "@/components/MatchTicker";
 import SiteFooter from "@/components/SiteFooter";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
+import GoogleAdSense from "@/components/GoogleAdSense";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
@@ -82,6 +83,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${poppins.variable} ${inter.variable}`}>
       <body>
         <GoogleAnalytics />
+        <GoogleAdSense />
         <ServiceWorkerRegister />
         <ThemeRegistry>
           <SiteHeader />

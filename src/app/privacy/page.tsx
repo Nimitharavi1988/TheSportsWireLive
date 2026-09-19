@@ -72,10 +72,11 @@ export default function PrivacyPolicyPage() {
 
       <Section title="Advertising and analytics">
         <p>
-          <strong>The Site does not currently serve advertising.</strong> This section also
-          describes what will apply once advertising is turned on, so it's accurate in advance
-          rather than something we'd need to add later. We'll update the "Last updated" date above
-          the day it actually goes live.
+          <strong>We are in the process of setting up advertising through Google AdSense.</strong>{" "}
+          Google is currently reviewing the Site for approval, and no ads are being shown to
+          visitors yet — this section describes what applies once that review completes and ads
+          actually go live, so it's accurate in advance. We'll update the "Last updated" date
+          above the day ads actually start showing.
         </p>
         <p>
           <strong>Analytics is active.</strong> We use Google Analytics to understand aggregate
@@ -89,11 +90,10 @@ export default function PrivacyPolicyPage() {
           .
         </p>
         <p>
-          <strong>If advertising is enabled</strong>, we intend to use Google AdSense. Google and
-          its advertising partners would use cookies, device identifiers, and your IP address to
-          serve ads and, where you've consented, to personalize which ads you see and measure
-          their performance. You can see which companies these are and control your ad settings
-          directly at{" "}
+          <strong>Once ads go live</strong>, Google and its advertising partners will use cookies,
+          device identifiers, and your IP address to serve ads and, where you've consented, to
+          personalize which ads you see and measure their performance. You can see which companies
+          these are and control your ad settings directly at{" "}
           <a href="https://myadcenter.google.com/" target="_blank" rel="noreferrer">
             myadcenter.google.com
           </a>{" "}
