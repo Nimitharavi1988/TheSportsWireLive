@@ -84,22 +84,63 @@ const MAX_INSTAGRAM_POSTS_PER_RUN = 3;
 // UTC some days, leaving the rest of the day silent even before the "floor
 // of 1" fix — that's the opposite of "one per interval, all day."
 const RUNS_PER_DAY = 96;
-// Cricket's reserved slot, plus one each for the newer sports added
-// 2026-09-16 (hockey, volleyball, formula-1). These three needed a reserved
-// slot for a different reason than cricket originally did: their titles
-// ("Bayern Munich vs...", "Canada W 3-0 Nicaragua W", "Ferrari not yet
-// switching...") essentially never contain a tracked SUPERSTAR_SEARCH_TERMS
-// name or an EVENT_KEYWORDS trigger word (transfer/record/etc — see
-// highlightWorthy.ts), so without a reserved slot they'd never once clear
-// isHighlightWorthy and would never reach Facebook/Instagram at all, no
-// matter how much real content ingestion produced for them. Domestic
-// football leagues (Bundesliga/Serie A/etc, still category "football")
-// aren't reserved here — they compete in the normal football pool, same as
-// before; only genuinely new categories needed this.
+const RUNS_PER_HOUR = RUNS_PER_DAY / 24;
+// Relative audience-activity weight per UTC hour, combining the three
+// regions this Page's traffic actually comes from (US, Europe, India — the
+// last one matters a lot given how much cricket content this site carries)
+// so posting concentrates in whichever hours put the most of those
+// audiences in their own local afternoon/evening (roughly 12:00-22:00
+// local), instead of spreading evenly across all 24 UTC hours regardless of
+// who's actually awake. This is a general social-media-engagement heuristic
+// (published "best time to post" guidance for these regions), not yet
+// measured against this Page's own Facebook Insights — the account doesn't
+// have enough volume yet for that to be statistically meaningful. Replace
+// with real "when our fans are online" data from Page Insights once it does.
+// Index 0 = 00:00-00:59 UTC, ... index 23 = 23:00-23:59 UTC.
+const HOURLY_ENGAGEMENT_WEIGHT: number[] = [
+  0.6, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.4, // 00-07 UTC (US evening tapering into US/UK overnight)
+  0.45, 0.45, 0.5, 0.6, 0.75, 0.8, 0.85, 0.9, // 08-15 UTC (UK/EU morning into afternoon, India afternoon/evening)
+  1.0, 1.0, 0.95, 1.0, 1.0, 0.95, 0.85, 0.75, // 16-23 UTC (UK/EU evening + US afternoon/evening overlap — daily peak)
+];
+const TOTAL_HOURLY_WEIGHT = HOURLY_ENGAGEMENT_WEIGHT.reduce((sum, w) => sum + w, 0);
+// Sum of weights for every run from the start of the day up through (not
+// including) runIndex — same shape as the old flat "currentRunIndex /
+// RUNS_PER_DAY" fraction, just weighted by how active the audience actually
+// is in each of those hours instead of treating every hour as equal.
+function weightedRunsElapsed(runIndex: number): number {
+  let sum = 0;
+  for (let i = 0; i < runIndex; i++) {
+    sum += HOURLY_ENGAGEMENT_WEIGHT[Math.floor(i / RUNS_PER_HOUR) % 24];
+  }
+  return sum;
+}
+// Cricket's reserved slot, plus one each for hockey and formula-1 (added
+// 2026-09-16). These needed a reserved slot for a different reason than
+// cricket originally did: their titles ("Canada W 3-0 Nicaragua W", "Ferrari
+// not yet switching...") essentially never contain a tracked
+// SUPERSTAR_SEARCH_TERMS name or an EVENT_KEYWORDS trigger word
+// (transfer/record/etc — see highlightWorthy.ts), so without a reserved slot
+// they'd never once clear isHighlightWorthy and would never reach
+// Facebook/Instagram at all, no matter how much real content ingestion
+// produced for them. Domestic football leagues (Bundesliga/Serie A/etc,
+// still category "football") aren't reserved here — they compete in the
+// normal football pool, same as before; only genuinely new categories
+// needed this.
+//
+// Volleyball deliberately NOT reserved (removed 2026-09-19, explicit
+// request): its only remaining source is ESPN's US college feed
+// (espnVolleyballData.ts, NCAA men's/women's volleyball) after the
+// international API-Sports volleyball account was suspended, so a
+// guaranteed slot here meant every volleyball post to the Page was
+// specifically an NCAA score preview — low relevance for a global sports
+// audience. Volleyball articles still publish to the site normally; they
+// just no longer get a guaranteed Facebook/Instagram slot. The freed slot
+// now falls through to `eligible` below like any non-reserved category, so
+// it's naturally filled by whichever real, trending cricket/football/
+// american-football/etc story ranks best instead.
 const RESERVED_CATEGORIES: { category: string; slots: number }[] = [
   { category: "cricket", slots: 1 },
   { category: "hockey", slots: 1 },
-  { category: "volleyball", slots: 1 },
   { category: "formula-1", slots: 1 },
 ];
 
@@ -254,12 +295,22 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   const now = new Date();
   const minutesSinceMidnight = (now.getTime() - todayStart.getTime()) / 60000;
   const currentRunIndex = Math.min(RUNS_PER_DAY, Math.floor(minutesSinceMidnight / 15) + 1);
-  const expectedByNow = Math.round((MAX_FACEBOOK_POSTS_PER_DAY * currentRunIndex) / RUNS_PER_DAY);
-  const paceTarget = Math.max(MIN_FACEBOOK_POSTS_PER_RUN, expectedByNow - postedToday);
+  const currentHourWeight = HOURLY_ENGAGEMENT_WEIGHT[now.getUTCHours()];
+  const expectedByNow = Math.round(
+    (MAX_FACEBOOK_POSTS_PER_DAY * weightedRunsElapsed(currentRunIndex)) / TOTAL_HOURLY_WEIGHT
+  );
+  // The per-run floor scales with the current hour's weight too — peak
+  // hours keep the full MIN_FACEBOOK_POSTS_PER_RUN floor, low-activity
+  // hours (e.g. ~03:00-07:00 UTC) taper down to as little as 1-2, instead of
+  // guaranteeing the same 5-per-run floor around the clock regardless of
+  // whether anyone's actually likely to see it.
+  const runFloor = Math.max(1, Math.round(MIN_FACEBOOK_POSTS_PER_RUN * currentHourWeight));
+  const paceTarget = Math.max(runFloor, expectedByNow - postedToday);
 
   const runCap = Math.max(1, Math.min(MAX_FACEBOOK_POSTS_PER_RUN, remainingToday, paceTarget));
 
-  const fbPool = [...freshCandidates, ...backlogExcludingFresh.filter((a) => !fbPostedIds.has(a.id))];
+  const fbPool = [...freshCandidates, ...backlogExcludingFresh.filter((a) => !fbPostedIds.has(a.id))]
+    .filter((a) => a.category !== "volleyball");
   const fbByTrending = [...fbPool].sort((a, b) => b.trendingScore - a.trendingScore);
   const fbEligible = fbByTrending.filter((a) => isHighlightWorthy(a.title));
   const toPost = selectTopN(runCap, fbByTrending, fbEligible);
@@ -271,20 +322,25 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   const [{ value: instagramPostedToday }] = await db.select({ value: count() }).from(socialPost)
     .where(and(eq(socialPost.platform, "instagram"), eq(socialPost.status, "posted"), gte(socialPost.postedAt, todayStart)));
   const instagramRemainingToday = Math.max(0, MAX_INSTAGRAM_POSTS_PER_DAY - instagramPostedToday);
-  const instagramExpectedByNow = Math.round((MAX_INSTAGRAM_POSTS_PER_DAY * currentRunIndex) / RUNS_PER_DAY);
+  const instagramExpectedByNow = Math.round(
+    (MAX_INSTAGRAM_POSTS_PER_DAY * weightedRunsElapsed(currentRunIndex)) / TOTAL_HOURLY_WEIGHT
+  );
   // Same temporary traffic-recovery boost as Facebook (2026-09-16), but a
-  // lower floor (2, not 5) — confirmed live that Instagram's real 100/day
-  // cap means a 5/run floor would burn the whole daily budget in ~5 hours
-  // then go fully silent the rest of the day. 2/run stretches the budget
-  // to roughly half the day before tapering instead. Still hard-bounded by
-  // instagramRemainingToday below, same safety property as Facebook.
-  // Revert to 1 once traffic recovers.
-  const instagramPaceTarget = Math.max(2, instagramExpectedByNow - instagramPostedToday);
+  // lower base floor (2, not 5) — confirmed live that Instagram's real
+  // 100/day cap means a 5/run floor would burn the whole daily budget in ~5
+  // hours then go fully silent the rest of the day. Same peak-hour weighting
+  // as Facebook's runFloor above: full floor of 2 at peak hours, tapering to
+  // 1 in low-activity hours. Still hard-bounded by instagramRemainingToday
+  // below, same safety property as Facebook. Revert to 1 once traffic
+  // recovers.
+  const instagramRunFloor = Math.max(1, Math.round(2 * currentHourWeight));
+  const instagramPaceTarget = Math.max(instagramRunFloor, instagramExpectedByNow - instagramPostedToday);
   const instagramRunCap = Math.max(
     0,
     Math.min(MAX_INSTAGRAM_POSTS_PER_RUN, instagramRemainingToday, instagramPaceTarget)
   );
-  const igPool = [...freshCandidates, ...backlogExcludingFresh.filter((a) => !igPostedIds.has(a.id))];
+  const igPool = [...freshCandidates, ...backlogExcludingFresh.filter((a) => !igPostedIds.has(a.id))]
+    .filter((a) => a.category !== "volleyball");
   const igByTrending = [...igPool].sort((a, b) => b.trendingScore - a.trendingScore);
   const igEligible = igByTrending.filter((a) => isHighlightWorthy(a.title));
   const instagramCandidates = selectTopN(instagramRunCap, igByTrending, igEligible);
