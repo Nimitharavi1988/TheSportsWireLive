@@ -15,7 +15,9 @@
  *
  * Run periodically: npx tsx --env-file=.env scripts/coverageFreshnessReport.ts
  */
-import { db } from "../src/lib/db";
+import { db } from "../src/db";
+import { article } from "../src/db/schema";
+import { and, gt, or, ilike, count } from "drizzle-orm";
 import { TRACKED_PLAYERS } from "../src/lib/players";
 
 const LOOKBACK_HOURS = 24;
@@ -43,13 +45,9 @@ async function main() {
   const quiet: { name: string; slug: string }[] = [];
 
   for (const player of currentPlayers) {
-    const count = await db.article.count({
-      where: {
-        createdAt: { gt: since },
-        OR: player.searchTerms.map((term) => ({ title: { contains: term, mode: "insensitive" as const } })),
-      },
-    });
-    if (count === 0) quiet.push({ name: player.name, slug: player.slug });
+    const [{ value: articleCount }] = await db.select({ value: count() }).from(article)
+      .where(and(gt(article.createdAt, since), or(...player.searchTerms.map((term) => ilike(article.title, `%${term}%`)))));
+    if (articleCount === 0) quiet.push({ name: player.name, slug: player.slug });
   }
 
   console.log(`Checked ${currentPlayers.length} current (non-legend) tracked players over the last ${LOOKBACK_HOURS}h.\n`);

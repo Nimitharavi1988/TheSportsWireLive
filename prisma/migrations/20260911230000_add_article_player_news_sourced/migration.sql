@@ -1,1 +1,0 @@
-ALTER TABLE "Article" ADD COLUMN "playerNewsSourced" BOOLEAN NOT NULL DEFAULT false;

@@ -3,7 +3,10 @@
  *   npx tsx scripts/createAdmin.ts you@example.com yourpassword
  */
 import bcrypt from "bcryptjs";
-import { db } from "../src/lib/db";
+import { db } from "../src/db";
+import { adminUser } from "../src/db/schema";
+import { eq } from "drizzle-orm";
+import { createId } from "@paralleldrive/cuid2";
 
 async function main() {
   const [, , email, password] = process.argv;
@@ -14,11 +17,10 @@ async function main() {
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  const user = await db.adminUser.upsert({
-    where: { email },
-    update: { passwordHash },
-    create: { email, passwordHash },
-  });
+  const [existing] = await db.select().from(adminUser).where(eq(adminUser.email, email)).limit(1);
+  const [user] = existing
+    ? await db.update(adminUser).set({ passwordHash }).where(eq(adminUser.id, existing.id)).returning()
+    : await db.insert(adminUser).values({ id: createId(), email, passwordHash }).returning();
 
   console.log(`Admin user ready: ${user.email}`);
   process.exit(0);

@@ -17,7 +17,9 @@
  *
  * Run periodically: npx tsx --env-file=.env scripts/nameGapReport.ts
  */
-import { db } from "../src/lib/db";
+import { db } from "../src/db";
+import { article } from "../src/db/schema";
+import { and, gt, inArray, desc } from "drizzle-orm";
 import { TRACKED_PLAYERS } from "../src/lib/players";
 
 const MODEL = "gemini-flash-latest";
@@ -37,15 +39,10 @@ interface Candidate {
 
 async function fetchRecentTitles(): Promise<string[]> {
   const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
-  const rows = await db.article.findMany({
-    where: {
-      createdAt: { gt: since },
-      category: { in: ["football", "cricket", "american-football"] },
-    },
-    orderBy: { trendingScore: "desc" },
-    take: MAX_TITLES,
-    select: { title: true },
-  });
+  const rows = await db.select({ title: article.title }).from(article)
+    .where(and(gt(article.createdAt, since), inArray(article.category, ["football", "cricket", "american-football"])))
+    .orderBy(desc(article.trendingScore))
+    .limit(MAX_TITLES);
   return rows.map((r) => r.title);
 }
 

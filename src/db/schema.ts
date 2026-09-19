@@ -97,6 +97,19 @@ export const source = pgTable("Source", {
   createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
 });
 
+// Web Push subscriptions — anonymous, one row per browser that's granted
+// notification permission (see ServiceWorkerRegister.tsx/public/sw.js). No
+// article/user relation: an admin-triggered push (admin/actions.ts) sends
+// to every row here, same "no accounts, anonymous by cookie/endpoint"
+// pattern Poll/ArticleReaction already use.
+export const pushSubscription = pgTable("PushSubscription", {
+  id: text("id").primaryKey(),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+});
+
 export const adminUser = pgTable("AdminUser", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
