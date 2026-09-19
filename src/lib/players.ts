@@ -57,6 +57,13 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   // (other tracked/common surnames collide) to match safely on their own.
   { slug: "michael-carrick", name: "Michael Carrick", searchTerms: ["Michael Carrick"], sport: "football" },
   { slug: "bruno-fernandes", name: "Bruno Fernandes", searchTerms: ["Bruno Fernandes"], sport: "football" },
+  // Requested batch (2026-09-19) -- see baseball section above for the
+  // same reasoning. Full names throughout; "Palmer"/"Wirtz" alone are
+  // common enough surnames to need it.
+  { slug: "virgil-van-dijk", name: "Virgil van Dijk", searchTerms: ["Virgil van Dijk", "van Dijk"], sport: "football" },
+  { slug: "cole-palmer", name: "Cole Palmer", searchTerms: ["Cole Palmer"], sport: "football" },
+  { slug: "florian-wirtz", name: "Florian Wirtz", searchTerms: ["Florian Wirtz"], sport: "football" },
+  { slug: "ousmane-dembele", name: "Ousmane Dembélé", searchTerms: ["Dembélé", "Dembele"], sport: "football" },
   // Football — recently retired / legends still regularly in the news
   { slug: "ronaldinho", name: "Ronaldinho", searchTerms: ["Ronaldinho"], sport: "football" },
   { slug: "zinedine-zidane", name: "Zinédine Zidane", searchTerms: ["Zidane"], sport: "football" },
@@ -188,6 +195,13 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   // Found via nameGapReport.ts (2026-09-19): 5 and 3 mentions in 2 weeks.
   { slug: "kyler-murray", name: "Kyler Murray", searchTerms: ["Kyler Murray"], sport: "american-football" },
   { slug: "zay-flowers", name: "Zay Flowers", searchTerms: ["Zay Flowers"], sport: "american-football" },
+  // Requested batch (2026-09-19) -- see baseball section above for the
+  // same reasoning. "Chase" alone is far too common a word/surname to
+  // match safely — full name needed.
+  { slug: "jamarr-chase", name: "Ja'Marr Chase", searchTerms: ["Ja'Marr Chase", "JaMarr Chase"], sport: "american-football" },
+  { slug: "saquon-barkley", name: "Saquon Barkley", searchTerms: ["Saquon Barkley"], sport: "american-football" },
+  { slug: "myles-garrett", name: "Myles Garrett", searchTerms: ["Myles Garrett"], sport: "american-football" },
+  { slug: "cj-stroud", name: "C.J. Stroud", searchTerms: ["CJ Stroud", "C.J. Stroud"], sport: "american-football" },
   // Legends.
   { slug: "tom-brady", name: "Tom Brady", searchTerms: ["Tom Brady"], sport: "american-football" },
   { slug: "peyton-manning", name: "Peyton Manning", searchTerms: ["Peyton Manning"], sport: "american-football" },
@@ -206,6 +220,14 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   { slug: "freddie-freeman", name: "Freddie Freeman", searchTerms: ["Freddie Freeman"], sport: "baseball" },
   { slug: "fernando-tatis-jr", name: "Fernando Tatis Jr.", searchTerms: ["Tatis"], sport: "baseball" },
   { slug: "gerrit-cole", name: "Gerrit Cole", searchTerms: ["Gerrit Cole"], sport: "baseball" },
+  // Requested batch (2026-09-19): major current stars missing despite
+  // being globally prominent, not surfaced by nameGapReport.ts's own
+  // 2-week trending window. Full names throughout -- "Rodriguez" is an
+  // extremely common surname on its own.
+  { slug: "vladimir-guerrero-jr", name: "Vladimir Guerrero Jr.", searchTerms: ["Vladimir Guerrero Jr", "Guerrero Jr"], sport: "baseball" },
+  { slug: "corbin-burnes", name: "Corbin Burnes", searchTerms: ["Corbin Burnes"], sport: "baseball" },
+  { slug: "julio-rodriguez", name: "Julio Rodríguez", searchTerms: ["Julio Rodriguez", "Julio Rodríguez"], sport: "baseball" },
+  { slug: "bobby-witt-jr", name: "Bobby Witt Jr.", searchTerms: ["Bobby Witt"], sport: "baseball" },
 
   // NBA — current stars, same reasoning as MLB above (tracked from day one
   // alongside nbaData.ts).
@@ -219,6 +241,13 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   { slug: "jayson-tatum", name: "Jayson Tatum", searchTerms: ["Jayson Tatum"], sport: "basketball" },
   { slug: "victor-wembanyama", name: "Victor Wembanyama", searchTerms: ["Wembanyama"], sport: "basketball" },
   { slug: "anthony-edwards", name: "Anthony Edwards", searchTerms: ["Anthony Edwards"], sport: "basketball" },
+  // Requested batch (2026-09-19) -- see baseball section above for the
+  // same reasoning. "Booker"/"Lillard" alone are common enough surnames
+  // to need the full name.
+  { slug: "kawhi-leonard", name: "Kawhi Leonard", searchTerms: ["Kawhi Leonard"], sport: "basketball" },
+  { slug: "damian-lillard", name: "Damian Lillard", searchTerms: ["Damian Lillard"], sport: "basketball" },
+  { slug: "devin-booker", name: "Devin Booker", searchTerms: ["Devin Booker"], sport: "basketball" },
+  { slug: "shai-gilgeous-alexander", name: "Shai Gilgeous-Alexander", searchTerms: ["Gilgeous-Alexander"], sport: "basketball" },
 ];
 
 // Flat list of every search term, for the homepage's auto-highlight check.
