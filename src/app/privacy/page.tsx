@@ -35,7 +35,7 @@ export default function PrivacyPolicyPage() {
           color: "text.secondary",
           mb: 4
         }}>
-        Last updated: September 6, 2026
+        Last updated: September 19, 2026
       </Typography>
 
       <Section title="Who we are">
@@ -56,9 +56,11 @@ export default function PrivacyPolicyPage() {
           is not used to build a profile of you.
         </p>
         <p>
-          <strong>Cookies.</strong> The Site currently uses a single functional cookie for our
-          own staff to sign in to the article-review dashboard. This cookie is not set for
-          ordinary visitors and is not used for tracking or advertising.
+          <strong>Cookies.</strong> The Site uses a single functional cookie for our own staff to
+          sign in to the article-review dashboard — this one is not set for ordinary visitors and
+          is not used for tracking or advertising. Ordinary visitors instead get Google Analytics'
+          own cookies (see "Advertising and analytics" below), used only for aggregate traffic
+          measurement, not advertising.
         </p>
         <p>
           <strong>No account required.</strong> You do not need to create an account or provide
@@ -70,17 +72,17 @@ export default function PrivacyPolicyPage() {
 
       <Section title="Advertising and analytics">
         <p>
-          <strong>The Site does not currently serve advertising, and analytics is not yet active.</strong>{" "}
-          This section describes what will apply once either is turned on, so it's accurate in
-          advance rather than something we'd need to add later. We'll update the "Last updated"
-          date above the day either actually goes live.
+          <strong>The Site does not currently serve advertising.</strong> This section also
+          describes what will apply once advertising is turned on, so it's accurate in advance
+          rather than something we'd need to add later. We'll update the "Last updated" date above
+          the day it actually goes live.
         </p>
         <p>
-          <strong>If analytics is enabled</strong>, we intend to use Google Analytics to
-          understand aggregate traffic patterns (which pages are popular, how visitors found the
-          Site) — it does not identify you individually. Google Analytics uses cookies and
-          collects your IP address (truncated/anonymized) to do this. You can opt out of Google
-          Analytics tracking across all websites using the{" "}
+          <strong>Analytics is active.</strong> We use Google Analytics to understand aggregate
+          traffic patterns (which pages are popular, how visitors found the Site) — it does not
+          identify you individually. Google Analytics uses cookies and collects your IP address
+          (truncated/anonymized) to do this. You can opt out of Google Analytics tracking across
+          all websites using the{" "}
           <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noreferrer">
             Google Analytics Opt-out Browser Add-on
           </a>
