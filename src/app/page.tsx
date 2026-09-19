@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { db } from "@/db";
 import { article as articleTable } from "@/db/schema";
-import { and, eq, like, isNotNull, desc } from "drizzle-orm";
+import { and, eq, like, isNotNull, isNull, ne, or, desc } from "drizzle-orm";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import Link from "next/link";
 import Image from "next/image";
@@ -369,10 +369,21 @@ export default async function HomePage(
     // trending signal yet simply isn't a candidate there, so "Just In"
     // could show an article hours old as the "latest" while genuinely
     // fresher ones existed just outside the top-80-by-trending cutoff.
+    // Excludes scheduled previews IN the query, not after — confirmed live
+    // that a scheduled match's `publishedAt` is set to its future kickoff
+    // date (e.g. "Oct 3"), not the ingestion time, so sorting by publishedAt
+    // DESC put dozens of future-dated preview articles ahead of every real,
+    // present-day article: the top 60 rows by date were ALL scheduled
+    // previews, leaving nothing for a post-fetch filter to find. Real image
+    // presence is still filtered in JS below (over-fetched to 15 for that).
     db.select().from(articleTable)
-      .where(and(...baseConditions, isNotNull(articleTable.publishedAt)))
+      .where(and(
+        ...baseConditions,
+        isNotNull(articleTable.publishedAt),
+        or(isNull(articleTable.matchStatus), ne(articleTable.matchStatus, "scheduled"))
+      ))
       .orderBy(desc(articleTable.publishedAt))
-      .limit(3),
+      .limit(15),
   ]);
   const rankedIds = new Set(articlesRanked.map((a) => a.id));
   const articles = [...manuallyFeaturedRaw.filter((a) => !rankedIds.has(a.id)), ...articlesRanked];
@@ -414,7 +425,14 @@ export default async function HomePage(
   // freshness signal, the one sidebar module almost every news site has.
   // Its own query (justInRaw, fetched above) — see that query's comment for
   // why reusing the trending-limited `articles` list here was a real bug.
-  const justIn = justInRaw;
+  //
+  // Scheduled previews are already excluded at the query level above (see
+  // its comment). Still filters for a real image here — same reasoning as
+  // the hero carousel: this module is meant to showcase real news, not a
+  // bare line with no photo or crest at all.
+  const justIn = justInRaw
+    .filter((a) => Boolean(a.heroImageUrl) || Boolean(a.homeCrestUrl && a.awayCrestUrl))
+    .slice(0, 3);
 
   // "By Category" sidebar tiles: one representative story per sport, so
   // Cricket/World Cup still get real homepage visibility on the "All" view
