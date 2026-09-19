@@ -18,16 +18,28 @@ const DISMISSED_KEY = "sw-install-banner-dismissed";
 // rather than just theoretically installable. iOS Safari never fires this
 // event at all (no programmatic install exists there), so it gets
 // instructions instead of a broken button.
-export function InstallAppBanner() {
+//
+// onVisibilityChange lets a parent (HomeBanners.tsx) sequence this ahead of
+// NotificationOptInBanner instead of stacking both at once — reports true
+// as soon as this banner has something to show, and false once it's
+// definitively decided it doesn't (a short grace period covers the case
+// where beforeinstallprompt just hasn't fired yet).
+export function InstallAppBanner({ onVisibilityChange }: { onVisibilityChange?: (visible: boolean) => void } = {}) {
   const [installEvent, setInstallEvent] = useState<any>(null);
   const [isIos, setIsIos] = useState(false);
   const [dismissed, setDismissed] = useState(true); // default hidden until checks below confirm it's worth showing
 
   useEffect(() => {
-    if (localStorage.getItem(DISMISSED_KEY)) return;
+    if (localStorage.getItem(DISMISSED_KEY)) {
+      onVisibilityChange?.(false);
+      return;
+    }
 
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
-    if (isStandalone) return; // already installed
+    if (isStandalone) {
+      onVisibilityChange?.(false);
+      return; // already installed
+    }
 
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIos(ios);
@@ -36,20 +48,34 @@ export function InstallAppBanner() {
       e.preventDefault();
       setInstallEvent(e);
       setDismissed(false);
+      onVisibilityChange?.(true);
     }
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
 
     // iOS never fires beforeinstallprompt, so show the instructional
     // version there directly instead of waiting for an event that'll
     // never come.
-    if (ios) setDismissed(false);
+    if (ios) {
+      setDismissed(false);
+      onVisibilityChange?.(true);
+    } else {
+      // Give beforeinstallprompt a real chance to fire before deciding
+      // this banner has nothing to show — it's not guaranteed synchronous
+      // with page load.
+      const timer = setTimeout(() => onVisibilityChange?.(false), 2000);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+      };
+    }
 
     return () => window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-  }, []);
+  }, [onVisibilityChange]);
 
   function dismiss() {
     localStorage.setItem(DISMISSED_KEY, "1");
     setDismissed(true);
+    onVisibilityChange?.(false);
   }
 
   async function install() {
