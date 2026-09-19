@@ -34,7 +34,7 @@ import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImag
 import { isHeroFeatureStale, isHighlightStale } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { LiveScoreboardCarousel } from "@/components/LiveScoreboardCarousel";
-import { DisplayAd } from "@/components/DisplayAd";
+import { CollapsibleAdBox } from "@/components/CollapsibleAdBox";
 import { MoreHeadlinesAdTile } from "@/components/MoreHeadlinesAdTile";
 import { HomeBanners } from "@/components/HomeBanners";
 import { fetchLiveMatches } from "@/lib/liveMatches";
@@ -1160,9 +1160,14 @@ export default async function HomePage(
                 format expands to a large ~375x375 square at full mobile
                 width, nothing like the compact, embedded look it has
                 confined to this column's 340px width on desktop. The
-                "More Headlines" scroll-tile ad below still covers mobile. */}
-            <Box sx={{ mb: 3, display: { xs: "none", md: "block" } }}>
-              <DisplayAd slot="9489682012" />
+                "More Headlines" scroll-tile ad below still covers mobile.
+                CollapsibleAdBox also collapses this on desktop when
+                there's nothing to fill (e.g. pre-approval) -- confirmed
+                live that an empty ad's own margin was otherwise leaving a
+                visible gap between Live Now and Also in the News with no
+                ad content to show for it. */}
+            <Box sx={{ display: { xs: "none", md: "block" } }}>
+              <CollapsibleAdBox slot="9489682012" sx={{ mb: 3 }} />
             </Box>
 
             {briefArticles.length > 0 && (
