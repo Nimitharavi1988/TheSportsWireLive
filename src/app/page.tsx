@@ -34,6 +34,7 @@ import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImag
 import { isHeroFeatureStale, isHighlightStale } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { LiveScoreboardCarousel } from "@/components/LiveScoreboardCarousel";
+import { DisplayAd } from "@/components/DisplayAd";
 import { InstallAppBanner } from "@/components/InstallAppBanner";
 import { NotificationOptInBanner } from "@/components/NotificationOptInBanner";
 import { fetchLiveMatches } from "@/lib/liveMatches";
@@ -1152,6 +1153,13 @@ export default async function HomePage(
                 <LiveScoreboardCarousel matches={liveMatches} />
               </Box>
             )}
+
+            {/* The one deliberately chosen ad placement — see
+                DisplayAd.tsx's comment. Sits among this column's other
+                supplementary modules, not competing with headlines. */}
+            <Box sx={{ mb: 3 }}>
+              <DisplayAd slot="9489682012" />
+            </Box>
 
             {briefArticles.length > 0 && (
               <Paper
