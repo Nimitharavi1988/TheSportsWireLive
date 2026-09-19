@@ -1244,7 +1244,13 @@ export default async function HomePage(
                 instead of a separate banner block — see DisplayAd.tsx's
                 comment on why this is manual, not Auto ads. Labeled
                 "Advertisement" for transparency, same as any other ad. */}
-            <Card variant="outlined" sx={{ minWidth: 260, maxWidth: 260, flexShrink: 0 }}>
+            {/* minHeight matches this row's typical card height -- until
+                Google approves the site, this ad slot has nothing to fill
+                and can collapse to near-zero height, which otherwise made
+                this tile look like a broken short box next to the full-
+                height article cards around it. Holds its shape now and
+                once real ads start filling it. */}
+            <Card variant="outlined" sx={{ minWidth: 260, maxWidth: 260, minHeight: 300, flexShrink: 0 }}>
               <CardContent>
                 <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 1 }}>
                   Advertisement
