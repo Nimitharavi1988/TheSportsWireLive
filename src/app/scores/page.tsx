@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { db } from "@/db";
@@ -12,6 +13,7 @@ import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
+import Skeleton from "@mui/material/Skeleton";
 import SportsScoreIcon from "@mui/icons-material/SportsScore";
 
 export const revalidate = 300;
@@ -113,6 +115,46 @@ function MatchCard({ match, state }: { match: MatchRow; state: CricketMatchStatu
   );
 }
 
+// Streamed independently (see the Suspense boundary in ScoresPage below) —
+// fetchLiveCricketMatches is a real external API round-trip and, confirmed
+// live, the slowest of this page's data calls. Splitting it out means
+// Upcoming Fixtures/Recent Results (plain DB queries) render immediately
+// instead of the whole page waiting on cricket's own live-match lookup —
+// same pattern already used on the homepage for its slower widgets.
+async function CricketInProgressSection({ category }: { category: string | null }) {
+  const showCricketInProgress = category === null || category === "cricket";
+  if (!showCricketInProgress) return null;
+
+  // See the original page comment this replaces — a low take() cut
+  // multi-day Test matches out entirely (they sort toward the back of a
+  // kickoffAt-desc order behind shorter-format matches that started more
+  // recently), so this fetches everything currently live instead.
+  const cricketInProgress = await fetchLiveCricketMatches(30);
+  if (cricketInProgress.length === 0) return null;
+
+  return (
+    <>
+      <Typography variant="h6" sx={{ mb: 1.5 }}>
+        Cricket
+      </Typography>
+      <Stack spacing={1.5} sx={{ mb: 4 }}>
+        {cricketInProgress.map((match) => (
+          <LiveScorecard key={match.id} match={{ ...match, category: "cricket" }} />
+        ))}
+      </Stack>
+    </>
+  );
+}
+
+function CricketInProgressSkeleton() {
+  return (
+    <Stack spacing={1.5} sx={{ mb: 4 }}>
+      <Skeleton width={100} height={28} />
+      <Skeleton variant="rounded" height={90} />
+    </Stack>
+  );
+}
+
 export default async function ScoresPage(props: { searchParams: Promise<{ category?: string }> }) {
   const searchParams = await props.searchParams;
   const category = searchParams.category ?? null;
@@ -130,9 +172,7 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
     homeCrestUrl: article.homeCrestUrl, awayCrestUrl: article.awayCrestUrl, kickoffAt: article.kickoffAt,
   };
 
-  const showCricketInProgress = category === null || category === "cricket";
-
-  const [upcoming, recent, cricketInProgress] = await Promise.all([
+  const [upcoming, recent] = await Promise.all([
     db.select(select).from(article)
       .where(and(...whereConditions, eq(article.matchStatus, "scheduled"), gte(article.kickoffAt, new Date())))
       .orderBy(asc(article.kickoffAt))
@@ -141,11 +181,6 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
       .where(and(...whereConditions, eq(article.matchStatus, "finished")))
       .orderBy(desc(article.kickoffAt))
       .limit(25),
-    // See page.tsx's comment on the same cap — a low take() silently cut
-    // multi-day Test matches out entirely (they sort toward the back of a
-    // kickoffAt-desc order behind shorter-format matches that started more
-    // recently), so this fetches everything currently live instead.
-    showCricketInProgress ? fetchLiveCricketMatches(30) : Promise.resolve([]),
   ]);
 
   return (
@@ -171,18 +206,9 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
         ))}
       </Box>
 
-      {cricketInProgress.length > 0 && (
-        <>
-          <Typography variant="h6" sx={{ mb: 1.5 }}>
-            Cricket
-          </Typography>
-          <Stack spacing={1.5} sx={{ mb: 4 }}>
-            {cricketInProgress.map((match) => (
-              <LiveScorecard key={match.id} match={{ ...match, category: "cricket" }} />
-            ))}
-          </Stack>
-        </>
-      )}
+      <Suspense fallback={<CricketInProgressSkeleton />}>
+        <CricketInProgressSection category={category} />
+      </Suspense>
 
       <Typography variant="h6" sx={{ mb: 1.5 }}>
         Upcoming Fixtures
