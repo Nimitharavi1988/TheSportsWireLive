@@ -32,6 +32,7 @@ import SportsHockeyIcon from "@mui/icons-material/SportsHockey";
 import SportsVolleyballIcon from "@mui/icons-material/SportsVolleyball";
 import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import SearchIcon from "@mui/icons-material/Search";
 import type { SvgIconComponent } from "@mui/icons-material";
 
 // World Cup is deliberately not a permanent nav item — it only runs every
@@ -473,6 +474,12 @@ export default function SiteHeader() {
         <Suspense fallback={<NavLinksFallback />}>
           <NavLinks />
         </Suspense>
+        {/* Always visible regardless of screen size — unlike the nav links'
+            desktop-strip/mobile-drawer split, a plain route link needs none
+            of that responsive complexity, so it sits outside NavLinks. */}
+        <IconButton component={Link} href="/search" aria-label="Search" sx={{ color: "text.secondary" }}>
+          <SearchIcon />
+        </IconButton>
       </Toolbar>
     </AppBar>
   );
