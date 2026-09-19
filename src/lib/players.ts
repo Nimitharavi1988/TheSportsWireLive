@@ -121,6 +121,23 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   // Found via nameGapReport.ts (2026-09-19): 4 mentions in 2 weeks. Full
   // name used — "Cox" alone is far too generic a surname on its own.
   { slug: "jordan-cox", name: "Jordan Cox", searchTerms: ["Jordan Cox"], sport: "cricket", cricinfoPlayerId: 1112537 },
+  // Requested batch (2026-09-19): major current internationals missing
+  // despite being globally prominent names, not surfaced by
+  // nameGapReport.ts's own 2-week trending window. All Cricinfo IDs
+  // verified directly against real ESPN Cricinfo profiles. Full names used
+  // throughout — several of these surnames are common enough or collide
+  // with another real player (e.g. "Afridi" alone would match Shahid
+  // Afridi too; "Rizwan" alone matches at least two other real
+  // internationals) to need the full name for a safe match.
+  { slug: "mohammad-rizwan", name: "Mohammad Rizwan", searchTerms: ["Mohammad Rizwan"], sport: "cricket", cricinfoPlayerId: 323389 },
+  { slug: "shaheen-afridi", name: "Shaheen Afridi", searchTerms: ["Shaheen Afridi"], sport: "cricket", cricinfoPlayerId: 1072470 },
+  { slug: "mitchell-starc", name: "Mitchell Starc", searchTerms: ["Mitchell Starc"], sport: "cricket", cricinfoPlayerId: 311592 },
+  { slug: "yashasvi-jaiswal", name: "Yashasvi Jaiswal", searchTerms: ["Yashasvi Jaiswal"], sport: "cricket", cricinfoPlayerId: 1151278 },
+  { slug: "quinton-de-kock", name: "Quinton de Kock", searchTerms: ["Quinton de Kock"], sport: "cricket", cricinfoPlayerId: 379143 },
+  { slug: "glenn-maxwell", name: "Glenn Maxwell", searchTerms: ["Glenn Maxwell"], sport: "cricket", cricinfoPlayerId: 325026 },
+  { slug: "shakib-al-hasan", name: "Shakib Al Hasan", searchTerms: ["Shakib Al Hasan"], sport: "cricket", cricinfoPlayerId: 56143 },
+  { slug: "marnus-labuschagne", name: "Marnus Labuschagne", searchTerms: ["Marnus Labuschagne"], sport: "cricket", cricinfoPlayerId: 787987 },
+  { slug: "wanindu-hasaranga", name: "Wanindu Hasaranga", searchTerms: ["Wanindu Hasaranga"], sport: "cricket", cricinfoPlayerId: 784379 },
   // Cricket — legends (previously missing entirely — football had 6
   // legends tracked, cricket had none)
   { slug: "sachin-tendulkar", name: "Sachin Tendulkar", searchTerms: ["Tendulkar"], sport: "cricket", cricinfoPlayerId: 35320 },
