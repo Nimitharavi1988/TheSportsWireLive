@@ -20,6 +20,7 @@ import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standing
 import { StandingsCarousel } from "@/components/StandingsCarousel";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
+import { DisplayAd } from "@/components/DisplayAd";
 import { TRACKED_PLAYERS } from "@/lib/players";
 import { TRACKED_CLUBS } from "@/lib/clubs";
 import { createEntityLinker } from "@/lib/entityLinks";
@@ -552,6 +553,17 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
             </Stack>
           </Paper>
         )}
+        {/* Same visual treatment as Related Stories/Trending Now above —
+            deliberately embedded to match the sidebar's existing look
+            rather than standing out, per explicit request. Reuses the
+            homepage sidebar's own ad unit (same kind of placement, just a
+            different page) instead of creating a separate one. */}
+        <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
+          <Typography variant="overline" sx={{ color: "text.secondary", display: "block", mb: 1 }}>
+            Advertisement
+          </Typography>
+          <DisplayAd slot="9489682012" />
+        </Paper>
         {standings && standings.rows.length > 0 && (
           <Box sx={{ mb: 3 }}>
             <StandingsCarousel leagues={STANDINGS_LEAGUES} initialCode="PL" initialTable={standings} />
