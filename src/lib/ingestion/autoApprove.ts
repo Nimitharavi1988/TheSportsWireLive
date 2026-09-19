@@ -102,7 +102,14 @@ const HOURLY_ENGAGEMENT_WEIGHT: number[] = [
   0.45, 0.45, 0.5, 0.6, 0.75, 0.8, 0.85, 0.9, // 08-15 UTC (UK/EU morning into afternoon, India afternoon/evening)
   1.0, 1.0, 0.95, 1.0, 1.0, 0.95, 0.85, 0.75, // 16-23 UTC (UK/EU evening + US afternoon/evening overlap — daily peak)
 ];
-const TOTAL_HOURLY_WEIGHT = HOURLY_ENGAGEMENT_WEIGHT.reduce((sum, w) => sum + w, 0);
+// Bug fixed 2026-09-19: this must be the total across all RUNS_PER_DAY runs
+// (each hour contributes RUNS_PER_HOUR times, not once), matching what
+// weightedRunsElapsed(RUNS_PER_DAY) actually sums to below — using the raw
+// 24-value sum here made expectedByNow race ~4x ahead of the real day
+// fraction, correcting itself only because remainingToday/MAX_FACEBOOK_POSTS_PER_RUN
+// still capped the actual runCap; harmless so far since the daily cap was
+// never truly hit, but wrong and worth fixing before it does bite.
+const TOTAL_HOURLY_WEIGHT = HOURLY_ENGAGEMENT_WEIGHT.reduce((sum, w) => sum + w, 0) * RUNS_PER_HOUR;
 // Sum of weights for every run from the start of the day up through (not
 // including) runIndex — same shape as the old flat "currentRunIndex /
 // RUNS_PER_DAY" fraction, just weighted by how active the audience actually
