@@ -1,20 +1,3 @@
 /* Base reset/theming is handled by MUI's CssBaseline (see ThemeRegistry.tsx).
    This file is kept only because layout.tsx imports it; add page-specific
    overrides here only if MUI's sx props genuinely can't express them. */
-
-/* Smooth fade on every route change (see PageTransition.tsx) -- 180ms is
-   fast enough to not feel sluggish but long enough to read as an
-   intentional transition rather than a flicker. prefers-reduced-motion
-   disables it entirely for users who've asked for that. */
-@keyframes page-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.page-transition {
-  animation: page-fade-in 180ms ease-out;
-}
-@media (prefers-reduced-motion: reduce) {
-  .page-transition {
-    animation: none;
-  }
-}
