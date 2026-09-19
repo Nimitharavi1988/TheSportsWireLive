@@ -500,7 +500,15 @@ export default async function HomePage(
   // without this fallback the hero would be empty there). Capped at 5
   // slides total — enough to feel like a real rotation without turning the
   // front page into an endless slideshow.
-  const heroCandidates = [...manuallyFeatured, ...allMatchArticlesFull, ...allBriefArticlesFull];
+  //
+  // Not-yet-played "Preview: X vs Y" match articles are excluded from the
+  // candidate pool here — a scheduled match structurally never has a real
+  // photo yet (just team crests, or nothing), so it reads as a bare/broken
+  // slide next to genuinely photo-led stories. They still show normally in
+  // "Match Results & Previews" below (matchStatus is untouched there) —
+  // this only narrows what's eligible to lead the hero.
+  const heroEligibleMatchArticles = allMatchArticlesFull.filter((a) => a.matchStatus !== "scheduled");
+  const heroCandidates = [...manuallyFeatured, ...heroEligibleMatchArticles, ...allBriefArticlesFull];
   const seenHeroIds = new Set<string>();
   const heroArticles = heroCandidates
     .filter((a) => {
