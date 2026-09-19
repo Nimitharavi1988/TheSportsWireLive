@@ -1,4 +1,6 @@
-import { db } from "./db";
+import { db } from "@/db";
+import { articleReaction, article } from "@/db/schema";
+import { gte, eq } from "drizzle-orm";
 import { TRACKED_PLAYERS } from "./players";
 import { TRACKED_CLUBS } from "./clubs";
 
@@ -24,10 +26,11 @@ export { DOMINANT_EMOJI };
 export async function getSentimentLeaderboard(limit = 5): Promise<SentimentEntry[]> {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const reactions = await db.articleReaction.findMany({
-    where: { createdAt: { gte: since } },
-    select: { type: true, article: { select: { title: true } } },
-  });
+  const reactions = await db
+    .select({ type: articleReaction.type, title: article.title })
+    .from(articleReaction)
+    .innerJoin(article, eq(articleReaction.articleId, article.id))
+    .where(gte(articleReaction.createdAt, since));
   if (reactions.length === 0) return [];
 
   const totals = new Map<string, { name: string; href: string; hype: number; panic: number; neutral: number }>();
@@ -39,7 +42,7 @@ export async function getSentimentLeaderboard(limit = 5): Promise<SentimentEntry
   }
 
   for (const reaction of reactions) {
-    const title = reaction.article.title.toLowerCase();
+    const title = reaction.title.toLowerCase();
     for (const player of TRACKED_PLAYERS) {
       if (player.searchTerms.some((t) => title.includes(t.toLowerCase()))) {
         bump(`player:${player.slug}`, player.name, `/player/${player.slug}`, reaction.type);

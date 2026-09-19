@@ -1,4 +1,6 @@
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article } from "@/db/schema";
+import { and, eq, isNotNull, desc } from "drizzle-orm";
 
 export const revalidate = 900; // matches the ingest cron cadence — no point refreshing more often than new content can actually land
 
@@ -23,9 +25,14 @@ function escapeXml(value: string): string {
 export async function GET() {
   const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
 
-  const articles = await db.article.findMany({
-    where: {
-      status: "published",
+  const articles = await db
+    .select({
+      slug: article.slug, title: article.title, body: article.body, category: article.category,
+      sourceName: article.sourceName, createdAt: article.createdAt, heroImageUrl: article.heroImageUrl,
+    })
+    .from(article)
+    .where(and(
+      eq(article.status, "published"),
       // A null body here means whatever generated it (RSS commentary, match
       // recap, or the player-news extraction fallback — see
       // articleTextExtractor.ts) didn't clear the bar, so all that's left is
@@ -33,17 +40,15 @@ export async function GET() {
       // guideline for a good card. Such articles stay published and fully
       // visible on the site itself; this just keeps them out of external
       // syndication, where thin content only hurts.
-      body: { not: null },
-    },
-    select: { slug: true, title: true, body: true, category: true, sourceName: true, createdAt: true, heroImageUrl: true },
+      isNotNull(article.body)
+    ))
     // createdAt (when it actually landed on the site), not publishedAt —
     // match-preview articles set publishedAt to the future kickoff time, so
     // ordering by that would put next week's fixture preview above today's
     // real news. Same reason the homepage's own "Just In" module only draws
     // from the trending-ranked list rather than a raw publishedAt sort.
-    orderBy: { createdAt: "desc" },
-    take: MAX_ITEMS,
-  });
+    .orderBy(desc(article.createdAt))
+    .limit(MAX_ITEMS);
 
   const items = articles
     .map((article) => {
