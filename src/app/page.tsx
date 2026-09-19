@@ -332,7 +332,7 @@ export default async function HomePage(
   // decision was silently getting overridden by a score cutoff instead of
   // actually taking priority. Capped at 5 (the same cap `featureArticle`
   // itself enforces), so this can never balloon the query.
-  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeSeriesRow] = await Promise.all([
+  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeSeriesRow, justInRaw] = await Promise.all([
     db.select().from(articleTable)
       .where(and(...baseConditions))
       .orderBy(desc(articleTable.trendingScore), desc(articleTable.publishedAt))
@@ -362,6 +362,17 @@ export default async function HomePage(
           .limit(1)
           .then((rows) => rows[0] ?? null)
       : Promise.resolve(null),
+    // Independent pure-recency query for "Just In" below — deriving this
+    // from `articlesRanked` (trending-sorted, LIMIT 80) instead used to
+    // silently cap "newest" at whatever happened to also be inside that
+    // trending-limited pool: confirmed live, a brand-new article with no
+    // trending signal yet simply isn't a candidate there, so "Just In"
+    // could show an article hours old as the "latest" while genuinely
+    // fresher ones existed just outside the top-80-by-trending cutoff.
+    db.select().from(articleTable)
+      .where(and(...baseConditions, isNotNull(articleTable.publishedAt)))
+      .orderBy(desc(articleTable.publishedAt))
+      .limit(3),
   ]);
   const rankedIds = new Set(articlesRanked.map((a) => a.id));
   const articles = [...manuallyFeaturedRaw.filter((a) => !rankedIds.has(a.id)), ...articlesRanked];
@@ -401,11 +412,9 @@ export default async function HomePage(
   // "Just In": pure recency, unlike everything else on this page (which is
   // trending-sorted, category-grouped, or player-matched) — a plain
   // freshness signal, the one sidebar module almost every news site has.
-  // Same fetched `articles` list re-sorted by `publishedAt`, no extra query.
-  const justIn = [...articles]
-    .filter((a) => a.publishedAt)
-    .sort((a, b) => b.publishedAt!.getTime() - a.publishedAt!.getTime())
-    .slice(0, 3);
+  // Its own query (justInRaw, fetched above) — see that query's comment for
+  // why reusing the trending-limited `articles` list here was a real bug.
+  const justIn = justInRaw;
 
   // "By Category" sidebar tiles: one representative story per sport, so
   // Cricket/World Cup still get real homepage visibility on the "All" view
