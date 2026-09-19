@@ -1201,8 +1201,12 @@ export default async function HomePage(
           </Typography>
           <ScrollRow gap={2}>
             {moreArticles.map((article) => (
-              <Card
+              <Link
                 key={article.id}
+                href={`/article/${article.slug}`}
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+              <Card
                 variant="outlined"
                 sx={{ minWidth: 260, maxWidth: 260, flexShrink: 0 }}
               >
@@ -1268,29 +1272,17 @@ export default async function HomePage(
                           }}
                           noWrap
                         >
-                          {article.heroImageCreditUrl ? (
-                            <a
-                              href={article.heroImageCreditUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{ color: "inherit" }}
-                            >
-                              {article.heroImageCredit}
-                            </a>
-                          ) : (
-                            article.heroImageCredit
-                          )}
+                          {article.heroImageCredit}
                         </Typography>
                       )}
                     </Box>
                   ) : null}
                   <Typography variant="subtitle2" component="h3" gutterBottom>
-                    <Link href={`/article/${article.slug}`} style={{ color: "inherit", textDecoration: "none" }}>
-                      {article.title}
-                    </Link>
+                    {article.title}
                   </Typography>
                 </CardContent>
               </Card>
+              </Link>
             ))}
           </ScrollRow>
         </Box>
