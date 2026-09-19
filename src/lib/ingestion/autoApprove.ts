@@ -55,12 +55,19 @@ const MAX_FACEBOOK_POSTS_PER_RUN = 10;
 // before the daily cap runs out rather than a flat trickle all day. Revert
 // to 1 once traffic recovers (see paceTarget below).
 const MIN_FACEBOOK_POSTS_PER_RUN = 5;
-// 199 — deliberately just under Instagram's own ~200/hour app-level rate
-// limit ballpark (200 * Number_of_Users, see the Instagram rate-limit
-// investigation; this app effectively has ~1 real "user"), so Facebook's
-// volume stays aligned with what Instagram can realistically sustain too,
-// since autoApprove.ts posts the same selection to both.
-const MAX_FACEBOOK_POSTS_PER_DAY = 199;
+// Raised 199 -> 260 (2026-09-19, explicit request): 199 was never a real
+// Facebook-specific limit — it was borrowed defensively from Instagram's
+// ~200/hour app-level ballpark back when this cap gated both platforms'
+// shared selection; Facebook and Instagram now pick and pace independently
+// (see fbPool/igPool below), and the Graph API has no published daily quota
+// for Page posts the way Instagram's content_publishing_limit does. Actual
+// usage was topping out around 149-150/day, well under the old cap, so this
+// gives real headroom for a busier news day rather than raising a limit
+// that was already binding. The real risk at higher frequency isn't an API
+// block, it's Meta's own reach/spam throttling quietly reducing how far
+// each post travels — a soft, unmeasurable-in-advance risk, which is why
+// this is a modest bump rather than a much larger one.
+const MAX_FACEBOOK_POSTS_PER_DAY = 260;
 // Confirmed live against this account's own quota (GET
 // /{ig-user-id}/content_publishing_limit on 2026-09-15): quota_total is 100
 // posts per rolling 24-hour window, not the commonly-cited-but-outdated 25,
