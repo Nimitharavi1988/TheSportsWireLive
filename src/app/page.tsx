@@ -541,8 +541,21 @@ export default async function HomePage(
   const allMatchArticles = allMatchArticlesFull.filter((a) => !heroIds.has(a.id));
   const allBriefArticles = allBriefArticlesFull.filter((a) => !heroIds.has(a.id));
 
+  // Two guards added here that automatic picks previously had neither of:
+  // a recency bound (matching HIGHLIGHT_MAX_AGE_DAYS, the same 3-day
+  // threshold manual picks already expire after — allBriefArticles is
+  // trending-sorted, not date-sorted, so an old-but-still-trending
+  // article could otherwise sit here indefinitely) and a real-image
+  // requirement (same reasoning as the hero carousel/"Just In" filters —
+  // this is a visual, photo-led section, not a bare text link list).
+  const HIGHLIGHT_FRESHNESS_CUTOFF = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
   const automaticHighlights = allBriefArticles
     .filter((a) => isHighlightWorthy(a.title))
+    .filter((a) => a.publishedAt && a.publishedAt >= HIGHLIGHT_FRESHNESS_CUTOFF)
+    // Excludes the generic category stock-photo fallback (always Pexels —
+    // see stockImages.ts), same "real, story-specific image" bar
+    // autoApprove.ts's hasRealImage already applies before auto-publishing.
+    .filter((a) => Boolean(a.heroImageUrl && !a.heroImageUrl.includes("pexels.com")) || Boolean(a.homeCrestUrl && a.awayCrestUrl))
     .slice(0, Math.max(0, 4 - manuallyHighlighted.length));
   const highlightArticles = [...manuallyHighlighted, ...automaticHighlights];
   const highlightIds = new Set(highlightArticles.map((a) => a.id));
