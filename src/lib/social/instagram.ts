@@ -1,4 +1,7 @@
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
+import { createId } from "@paralleldrive/cuid2";
 import { displaySummary } from "@/lib/articleSummary";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { TRACKED_PLAYERS } from "@/lib/players";
@@ -46,15 +49,18 @@ export async function postArticleToInstagram(articleId: string): Promise<boolean
   // Idempotency guard — same reasoning as postArticleToFacebook's (see
   // facebook.ts): a repeated call for an already-posted article must be a
   // safe no-op, not a second real post.
-  const alreadyPosted = await db.socialPost.findFirst({
-    where: { articleId, platform: "instagram", status: "posted" },
-  });
+  const [alreadyPosted] = await db.select({ id: socialPostTable.id }).from(socialPostTable)
+    .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.platform, "instagram"), eq(socialPostTable.status, "posted")))
+    .limit(1);
   if (alreadyPosted) return false;
 
-  const article = await db.article.findUniqueOrThrow({
-    where: { id: articleId },
-    include: { vertical: true },
-  });
+  const [row] = await db.select({ article: articleTable, vertical: verticalTable })
+    .from(articleTable)
+    .innerJoin(verticalTable, eq(articleTable.verticalId, verticalTable.id))
+    .where(eq(articleTable.id, articleId))
+    .limit(1);
+  if (!row) throw new Error(`Article not found: ${articleId}`);
+  const article = { ...row.article, vertical: row.vertical };
 
   const igUserId = article.vertical.instagramBusinessAccountId ?? process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
   const pageId = article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
@@ -76,9 +82,9 @@ export async function postArticleToInstagram(articleId: string): Promise<boolean
   // pointing readers to the site as the source for more coverage.
   const caption = `${emoji} ${article.title}\n\n${displaySummary(article, 300)}\n\n📲 More sports news at sportswirelive.com\n\n${hashtagsForInstagram(article.title, article.category)}`;
 
-  const socialPost = await db.socialPost.create({
-    data: { articleId, platform: "instagram", status: "queued" },
-  });
+  const [socialPost] = await db.insert(socialPostTable)
+    .values({ id: createId(), articleId, platform: "instagram", status: "queued" })
+    .returning();
 
   try {
     const createRes = await fetch(`https://graph.facebook.com/v20.0/${igUserId}/media`, {
@@ -116,19 +122,14 @@ export async function postArticleToInstagram(articleId: string): Promise<boolean
       throw new Error(publishData?.error?.message ?? `Instagram publish failed (${publishRes.status})`);
     }
 
-    await db.socialPost.update({
-      where: { id: socialPost.id },
-      data: { status: "posted", externalPostId: publishData.id, postedAt: new Date() },
-    });
+    await db.update(socialPostTable)
+      .set({ status: "posted", externalPostId: publishData.id, postedAt: new Date() })
+      .where(eq(socialPostTable.id, socialPost.id));
     return true;
   } catch (err) {
-    await db.socialPost.update({
-      where: { id: socialPost.id },
-      data: {
-        status: "failed",
-        errorMessage: err instanceof Error ? err.message : String(err),
-      },
-    });
+    await db.update(socialPostTable)
+      .set({ status: "failed", errorMessage: err instanceof Error ? err.message : String(err) })
+      .where(eq(socialPostTable.id, socialPost.id));
     throw err;
   }
 }

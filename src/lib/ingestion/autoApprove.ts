@@ -1,4 +1,6 @@
-import { db } from "../db";
+import { db } from "@/db";
+import { article, socialPost } from "@/db/schema";
+import { eq, and, inArray, gte, lt, count } from "drizzle-orm";
 import { submitToIndexNow, articleUrl } from "../indexNow";
 import { isMatchDataSource } from "../matchDataSources";
 import { isHighlightWorthy } from "../highlightWorthy";
@@ -132,23 +134,22 @@ export function isAutoApprovable(article: {
 }
 
 export async function autoApproveValidArticles(): Promise<{ checked: number; approved: number }> {
-  const candidates = await db.article.findMany({
-    where: { status: "pending_review" },
-    select: { id: true, slug: true, title: true, body: true, heroImageUrl: true, homeCrestUrl: true, playerNewsSourced: true, sourceName: true, trendingScore: true, category: true },
-  });
+  const candidates = await db.select({
+    id: article.id, slug: article.slug, title: article.title, body: article.body,
+    heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
+    playerNewsSourced: article.playerNewsSourced, sourceName: article.sourceName,
+    trendingScore: article.trendingScore, category: article.category,
+  }).from(article).where(eq(article.status, "pending_review"));
 
   const toApprove = candidates.filter(isAutoApprovable);
 
   if (toApprove.length > 0) {
-    await db.article.updateMany({
-      where: { id: { in: toApprove.map((a) => a.id) } },
-      data: {
-        status: "published",
-        // publishedAt deliberately NOT set — it already holds the article's
-        // real-world publish date from ingestion. See approveArticle in
-        // admin/actions.ts for the full reasoning (same bug this once was).
-      },
-    });
+    await db.update(article)
+      // publishedAt deliberately NOT set — it already holds the article's
+      // real-world publish date from ingestion. See approveArticle in
+      // admin/actions.ts for the full reasoning (same bug this once was).
+      .set({ status: "published", updatedAt: new Date() })
+      .where(inArray(article.id, toApprove.map((a) => a.id)));
 
     // Best-effort, same isolation principle as the Facebook post below —
     // a failed ping here should never affect publishing.
@@ -165,9 +166,8 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     // must never affect another.
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);
-    const postedToday = await db.socialPost.count({
-      where: { platform: "facebook", createdAt: { gte: todayStart } },
-    });
+    const [{ value: postedToday }] = await db.select({ value: count() }).from(socialPost)
+      .where(and(eq(socialPost.platform, "facebook"), gte(socialPost.createdAt, todayStart)));
     const remainingToday = Math.max(0, MAX_FACEBOOK_POSTS_PER_DAY - postedToday);
 
     // Paced allocation: how many posts SHOULD have gone out by this point in
@@ -228,9 +228,8 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     // Instagram's own daily cap and counting only actual successful
     // publishes (status "posted") — a failed/rate-limited attempt doesn't
     // consume Meta's real 100/day limit, so it shouldn't consume ours either.
-    const instagramPostedToday = await db.socialPost.count({
-      where: { platform: "instagram", status: "posted", postedAt: { gte: todayStart } },
-    });
+    const [{ value: instagramPostedToday }] = await db.select({ value: count() }).from(socialPost)
+      .where(and(eq(socialPost.platform, "instagram"), eq(socialPost.status, "posted"), gte(socialPost.postedAt, todayStart)));
     const instagramRemainingToday = Math.max(0, MAX_INSTAGRAM_POSTS_PER_DAY - instagramPostedToday);
     const instagramExpectedByNow = Math.round((MAX_INSTAGRAM_POSTS_PER_DAY * currentRunIndex) / RUNS_PER_DAY);
     // Same temporary traffic-recovery boost as Facebook (2026-09-16), but a
@@ -305,17 +304,12 @@ const STALE_NO_IMAGE_DAYS = 3;
 
 export async function rejectStaleNoImageArticles(): Promise<number> {
   const cutoff = new Date(Date.now() - STALE_NO_IMAGE_DAYS * 24 * 60 * 60 * 1000);
-  const candidates = await db.article.findMany({
-    where: { status: "pending_review", createdAt: { lt: cutoff } },
-    select: { id: true, heroImageUrl: true, homeCrestUrl: true },
-  });
+  const candidates = await db.select({ id: article.id, heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl })
+    .from(article).where(and(eq(article.status, "pending_review"), lt(article.createdAt, cutoff)));
   const staleIds = candidates.filter((a) => !hasRealImage(a)).map((a) => a.id);
   if (staleIds.length === 0) return 0;
 
-  await db.article.updateMany({
-    where: { id: { in: staleIds } },
-    data: { status: "rejected" },
-  });
+  await db.update(article).set({ status: "rejected", updatedAt: new Date() }).where(inArray(article.id, staleIds));
   return staleIds.length;
 }
 

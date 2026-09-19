@@ -1,4 +1,7 @@
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
+import { createId } from "@paralleldrive/cuid2";
 import { displaySummary } from "@/lib/articleSummary";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { TRACKED_PLAYERS } from "@/lib/players";
@@ -109,15 +112,18 @@ export async function postArticleToFacebook(articleId: string) {
   // multiple real Page posts for one story — 4 duplicate posts of the same
   // article within 16 seconds, observed directly in SocialPost rows.
   // Checking for an existing "posted" row makes every caller safe to retry.
-  const alreadyPosted = await db.socialPost.findFirst({
-    where: { articleId, platform: "facebook", status: "posted" },
-  });
+  const [alreadyPosted] = await db.select({ id: socialPostTable.id }).from(socialPostTable)
+    .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.platform, "facebook"), eq(socialPostTable.status, "posted")))
+    .limit(1);
   if (alreadyPosted) return;
 
-  const article = await db.article.findUniqueOrThrow({
-    where: { id: articleId },
-    include: { vertical: true },
-  });
+  const [row] = await db.select({ article: articleTable, vertical: verticalTable })
+    .from(articleTable)
+    .innerJoin(verticalTable, eq(articleTable.verticalId, verticalTable.id))
+    .where(eq(articleTable.id, articleId))
+    .limit(1);
+  if (!row) throw new Error(`Article not found: ${articleId}`);
+  const article = { ...row.article, vertical: row.vertical };
 
   const pageId = article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
   const accessToken =
@@ -138,9 +144,9 @@ export async function postArticleToFacebook(articleId: string) {
   // (see the earlier production fix — before that it pointed at localhost).
   const message = `${emojiFor(article.category)} ${article.title}\n\n${displaySummary(article, 400)}\n\n${hashtagsFor(article.title, article.category)}`;
 
-  const socialPost = await db.socialPost.create({
-    data: { articleId, platform: "facebook", status: "queued" },
-  });
+  const [socialPost] = await db.insert(socialPostTable)
+    .values({ id: createId(), articleId, platform: "facebook", status: "queued" })
+    .returning();
 
   try {
     const postToken = await resolvePageAccessToken(pageId, accessToken);
@@ -158,18 +164,13 @@ export async function postArticleToFacebook(articleId: string) {
       throw new Error(data?.error?.message ?? `Facebook API error (${res.status})`);
     }
 
-    await db.socialPost.update({
-      where: { id: socialPost.id },
-      data: { status: "posted", externalPostId: data.id, postedAt: new Date() },
-    });
+    await db.update(socialPostTable)
+      .set({ status: "posted", externalPostId: data.id, postedAt: new Date() })
+      .where(eq(socialPostTable.id, socialPost.id));
   } catch (err) {
-    await db.socialPost.update({
-      where: { id: socialPost.id },
-      data: {
-        status: "failed",
-        errorMessage: err instanceof Error ? err.message : String(err),
-      },
-    });
+    await db.update(socialPostTable)
+      .set({ status: "failed", errorMessage: err instanceof Error ? err.message : String(err) })
+      .where(eq(socialPostTable.id, socialPost.id));
     throw err;
   }
 }

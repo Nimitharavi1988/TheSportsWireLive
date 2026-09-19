@@ -1,6 +1,9 @@
 "use server";
 
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article, poll, pollOption } from "@/db/schema";
+import { and, eq, inArray, ilike, asc } from "drizzle-orm";
+import { createId } from "@paralleldrive/cuid2";
 import { getSession } from "@/lib/auth";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import { postArticleToFacebook } from "@/lib/social/facebook";
@@ -13,9 +16,8 @@ export async function approveArticle(articleId: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
 
-  const article = await db.article.update({
-    where: { id: articleId },
-    data: {
+  const [updated] = await db.update(article)
+    .set({
       status: "published",
       // publishedAt is deliberately NOT set here — it already holds the
       // article's real-world publish date from ingestion (runIngest.ts).
@@ -23,8 +25,10 @@ export async function approveArticle(articleId: string) {
       // old news display with a fresh-looking date.
       reviewedBy: session.userId,
       reviewedAt: new Date(),
-    },
-  });
+      updatedAt: new Date(),
+    })
+    .where(eq(article.id, articleId))
+    .returning();
 
   // Queue social posting — errors here are logged but don't block
   // the article from being published on the site (per plan: isolated
@@ -41,7 +45,7 @@ export async function approveArticle(articleId: string) {
   }
 
   // Best-effort, same isolation principle as the Facebook post above.
-  await submitToIndexNow([articleUrl(article.slug)]);
+  await submitToIndexNow([articleUrl(updated.slug)]);
 
   revalidatePath("/admin");
 }
@@ -137,20 +141,16 @@ export async function approveArticles(articleIds: string[]) {
   if (articleIds.length === 0) return;
 
   const now = new Date();
-  await db.article.updateMany({
-    where: { id: { in: articleIds } },
-    data: {
+  const published = await db.update(article)
+    .set({
       status: "published",
       // Not touching publishedAt — see approveArticle.
       reviewedBy: session.userId,
       reviewedAt: now,
-    },
-  });
-
-  // updateMany doesn't return the updated rows, so slugs need a follow-up
-  // query — cheap relative to the bulk update itself, and best-effort same
-  // as every other IndexNow call site.
-  const published = await db.article.findMany({ where: { id: { in: articleIds } }, select: { slug: true } });
+      updatedAt: now,
+    })
+    .where(inArray(article.id, articleIds))
+    .returning({ slug: article.slug });
   await submitToIndexNow(published.map((a) => articleUrl(a.slug)));
 
   revalidatePath("/admin");
@@ -166,27 +166,29 @@ export async function approveAllMatching(filters: { q?: string; source?: string;
   if (!session) throw new Error("Not authenticated");
 
   const { q, source, category } = filters;
-  const where = {
-    status: "pending_review" as const,
-    ...(source ? { sourceName: source } : {}),
-    ...(category ? { category } : {}),
-    ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
-  };
-
-  // Slugs need to come from a query against the *pre*-update state — once
-  // updateMany runs, these rows no longer match `status: "pending_review"`.
-  const matching = await db.article.findMany({ where, select: { slug: true } });
+  const whereConditions = [
+    eq(article.status, "pending_review"),
+    ...(source ? [eq(article.sourceName, source)] : []),
+    ...(category ? [eq(article.category, category)] : []),
+    ...(q ? [ilike(article.title, `%${q}%`)] : []),
+  ];
 
   const now = new Date();
-  await db.article.updateMany({
-    where,
-    data: {
+  // .returning() gives back each affected row's post-update values in one
+  // atomic statement — the WHERE clause is still evaluated against each
+  // row's state before the update, so this replaces what used to need a
+  // separate pre-update query (a Prisma updateMany limitation, not a real
+  // requirement) with something that's also race-condition-free.
+  const matching = await db.update(article)
+    .set({
       status: "published",
       // Not touching publishedAt — see approveArticle.
       reviewedBy: session.userId,
       reviewedAt: now,
-    },
-  });
+      updatedAt: now,
+    })
+    .where(and(...whereConditions))
+    .returning({ slug: article.slug });
 
   await submitToIndexNow(matching.map((a) => articleUrl(a.slug)));
 
@@ -197,15 +199,15 @@ export async function rejectArticle(articleId: string, reason?: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
 
-  await db.article.update({
-    where: { id: articleId },
-    data: {
+  await db.update(article)
+    .set({
       status: "rejected",
       reviewedBy: session.userId,
       reviewedAt: new Date(),
       profanityDetail: reason ?? undefined,
-    },
-  });
+      updatedAt: new Date(),
+    })
+    .where(eq(article.id, articleId));
 
   revalidatePath("/admin");
 }
@@ -224,23 +226,21 @@ export async function featureArticle(articleId: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
 
-  const target = await db.article.findUnique({ where: { id: articleId }, select: { category: true } });
+  const targetRows = await db.select({ category: article.category }).from(article).where(eq(article.id, articleId)).limit(1);
+  const target = targetRows[0] ?? null;
   if (!target) throw new Error("Article not found");
   const section = sectionOf(target.category);
 
-  const currentlyFeatured = await db.article.findMany({
-    where: { featured: true },
-    orderBy: { featuredAt: "asc" },
-    select: { id: true, category: true },
-  });
+  const currentlyFeatured = await db.select({ id: article.id, category: article.category }).from(article)
+    .where(eq(article.featured, true)).orderBy(asc(article.featuredAt));
   const inSameSection = currentlyFeatured.filter((a) => sectionOf(a.category) === section);
   const alreadyPicked = inSameSection.some((a) => a.id === articleId);
   if (!alreadyPicked && inSameSection.length >= HERO_CAP) {
     const oldest = inSameSection[0];
-    await db.article.update({ where: { id: oldest.id }, data: { featured: false, featuredAt: null } });
+    await db.update(article).set({ featured: false, featuredAt: null, updatedAt: new Date() }).where(eq(article.id, oldest.id));
   }
 
-  await db.article.update({ where: { id: articleId }, data: { featured: true, featuredAt: new Date() } });
+  await db.update(article).set({ featured: true, featuredAt: new Date(), updatedAt: new Date() }).where(eq(article.id, articleId));
 
   revalidatePath("/admin");
   revalidatePath("/admin/homepage");
@@ -251,7 +251,7 @@ export async function unfeatureArticle(articleId: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
 
-  await db.article.update({ where: { id: articleId }, data: { featured: false, featuredAt: null } });
+  await db.update(article).set({ featured: false, featuredAt: null, updatedAt: new Date() }).where(eq(article.id, articleId));
 
   revalidatePath("/admin");
   revalidatePath("/admin/homepage");
@@ -269,12 +269,13 @@ export async function highlightArticle(articleId: string) {
   // A raw auto-generated scoreline ("Yankees 6-4 Mets") isn't "big news" —
   // "📌 Editor's pick" is meant for genuinely notable curated stories.
   // Enforced server-side (not just hidden in the UI) so this can't drift.
-  const article = await db.article.findUnique({ where: { id: articleId }, select: { sourceName: true } });
-  if (article && isMatchDataSource(article.sourceName)) {
+  const targetRows = await db.select({ sourceName: article.sourceName }).from(article).where(eq(article.id, articleId)).limit(1);
+  const target = targetRows[0] ?? null;
+  if (target && isMatchDataSource(target.sourceName)) {
     throw new Error("Match-data results can't be highlighted as Editor's pick — that's for editorial stories.");
   }
 
-  await db.article.update({ where: { id: articleId }, data: { highlighted: true, highlightedAt: new Date() } });
+  await db.update(article).set({ highlighted: true, highlightedAt: new Date(), updatedAt: new Date() }).where(eq(article.id, articleId));
 
   revalidatePath("/admin");
   revalidatePath("/admin/homepage");
@@ -285,7 +286,7 @@ export async function unhighlightArticle(articleId: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
 
-  await db.article.update({ where: { id: articleId }, data: { highlighted: false, highlightedAt: null } });
+  await db.update(article).set({ highlighted: false, highlightedAt: null, updatedAt: new Date() }).where(eq(article.id, articleId));
 
   revalidatePath("/admin");
   revalidatePath("/admin/homepage");
@@ -299,7 +300,7 @@ export async function unflagArticle(articleId: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
 
-  await db.article.update({ where: { id: articleId }, data: { status: "pending_review" } });
+  await db.update(article).set({ status: "pending_review", updatedAt: new Date() }).where(eq(article.id, articleId));
 
   revalidatePath("/admin");
 }
@@ -323,13 +324,15 @@ export async function createPoll(articleId: string, formData: FormData) {
     throw new Error("A poll needs a question and at least 2 options");
   }
 
-  await db.poll.create({
-    data: {
-      articleId,
-      question: cleanQuestion,
-      options: { create: cleanOptions.map((text) => ({ text })) },
-    },
-  });
+  // drizzle-orm/neon-http has no db.transaction() support (throws at
+  // runtime) — db.batch() is Neon's HTTP-driver equivalent, sending both
+  // statements as one atomic request so a failure partway through can't
+  // leave an orphaned poll with zero options.
+  const pollId = createId();
+  await db.batch([
+    db.insert(poll).values({ id: pollId, articleId, question: cleanQuestion }),
+    db.insert(pollOption).values(cleanOptions.map((text) => ({ id: createId(), pollId, text }))),
+  ]);
 
   revalidatePath("/admin");
   revalidatePath(`/article/[slug]`, "page");
@@ -342,7 +345,10 @@ export async function deletePoll(pollId: string) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
 
-  await db.poll.delete({ where: { id: pollId } });
+  // Real Postgres ON DELETE CASCADE (from the original Prisma migration)
+  // still applies here regardless of ORM — PollOption/PollVote rows for
+  // this poll are removed by the database itself, not application logic.
+  await db.delete(poll).where(eq(poll.id, pollId));
 
   revalidatePath("/admin");
   revalidatePath(`/article/[slug]`, "page");

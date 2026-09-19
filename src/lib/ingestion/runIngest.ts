@@ -1,4 +1,7 @@
-import { db } from "../db";
+import { db } from "@/db";
+import { article, vertical } from "@/db/schema";
+import { eq, inArray } from "drizzle-orm";
+import { createId } from "@paralleldrive/cuid2";
 import { fetchFootballData, type RawMatchItem } from "./footballData";
 import { fetchNflData } from "./nflData";
 import { fetchMlbData } from "./mlbData";
@@ -131,11 +134,10 @@ async function resolveGrounding(item: RawMatchItem): Promise<Grounding | null> {
 const INGEST_LIMIT = process.env.INGEST_LIMIT ? parseInt(process.env.INGEST_LIMIT, 10) : undefined;
 
 export async function runIngest() {
-  const vertical = await db.vertical.upsert({
-    where: { name: "sports" },
-    update: {},
-    create: { name: "sports" },
-  });
+  let [verticalRow] = await db.select().from(vertical).where(eq(vertical.name, "sports")).limit(1);
+  if (!verticalRow) {
+    [verticalRow] = await db.insert(vertical).values({ id: createId(), name: "sports" }).returning();
+  }
 
   const [scoreItems, nflItems, mlbItems, nbaItems, domesticFootballItems, nhlItems, volleyballItems, espnVolleyballItems, newsItems, playerNewsItems, cricinfoPlayerItems, cricketItems, trendingKeywords, stockImagePools] =
     await Promise.all([
@@ -215,10 +217,12 @@ export async function runIngest() {
   // outright.
   const existingArticles = new Map(
     (
-      await db.article.findMany({
-        where: { dedupeHash: { in: allHashes } },
-        select: { id: true, dedupeHash: true, body: true, heroImageUrl: true, matchStatus: true, status: true, slug: true },
-      })
+      allHashes.length === 0
+        ? []
+        : await db.select({
+            id: article.id, dedupeHash: article.dedupeHash, body: article.body, heroImageUrl: article.heroImageUrl,
+            matchStatus: article.matchStatus, status: article.status, slug: article.slug,
+          }).from(article).where(inArray(article.dedupeHash, allHashes))
     ).map((a) => [a.dedupeHash, a])
   );
 
@@ -285,9 +289,8 @@ export async function runIngest() {
       if (isMatchDataSource(item.sourceName)) {
         const justFinished = existing.matchStatus !== "finished" && item.matchStatus === "finished";
         const isCricketData = item.sourceName === "CricketData.org";
-        await db.article.update({
-          where: { id: existing.id },
-          data: {
+        await db.update(article)
+          .set({
             matchStatus: item.matchStatus,
             homeScore: item.homeScore,
             awayScore: item.awayScore,
@@ -296,8 +299,9 @@ export async function runIngest() {
             venue: item.venue,
             ...(isCricketData || justFinished ? { summary: item.summary, body: item.body } : {}),
             ...(justFinished && !isCricketData ? { title: item.title } : {}),
-          },
-        });
+            updatedAt: new Date(),
+          })
+          .where(eq(article.id, existing.id));
         existing.matchStatus = item.matchStatus ?? null;
       }
 
@@ -344,7 +348,7 @@ export async function runIngest() {
           // Only touches still-pending items — an already-published
           // article isn't silently pulled by a later failed retry.
           if (!commentary && existing.status === "pending_review") {
-            await db.article.update({ where: { id: existing.id }, data: { status: "rejected" } });
+            await db.update(article).set({ status: "rejected", updatedAt: new Date() }).where(eq(article.id, existing.id));
             existing.status = "rejected";
           }
 
@@ -372,10 +376,9 @@ export async function runIngest() {
                 }
               }
             }
-            await db.article.update({
-              where: { id: existing.id },
-              data: { body: commentary, ...heroImageUpdate, ...(extractedVenue ? { venue: extractedVenue } : {}) },
-            });
+            await db.update(article)
+              .set({ body: commentary, ...heroImageUpdate, ...(extractedVenue ? { venue: extractedVenue } : {}), updatedAt: new Date() })
+              .where(eq(article.id, existing.id));
             existing.body = commentary; // avoid reprocessing if the same story appears twice in this run
             existing.heroImageUrl = heroImageUpdate.heroImageUrl ?? existing.heroImageUrl;
             backfilled++;
@@ -385,7 +388,7 @@ export async function runIngest() {
           // (extraction blocked, RSS snippet too thin/missing) — same
           // "real attempt failed" rejection as the commentary-came-back-
           // empty case above.
-          await db.article.update({ where: { id: existing.id }, data: { status: "rejected" } });
+          await db.update(article).set({ status: "rejected", updatedAt: new Date() }).where(eq(article.id, existing.id));
           existing.status = "rejected";
         }
       }
@@ -397,10 +400,9 @@ export async function runIngest() {
         const primaryPlayerName = resolvePrimaryPlayerName(item.title, item.knownPersonName);
         const personPhoto = await fetchPersonPhoto(primaryPlayerName, sportSearchHint(item.category), existing.slug);
         if (personPhoto) {
-          await db.article.update({
-            where: { id: existing.id },
-            data: { heroImageUrl: personPhoto.url, heroImageCredit: personPhoto.credit, heroImageCreditUrl: personPhoto.creditUrl },
-          });
+          await db.update(article)
+            .set({ heroImageUrl: personPhoto.url, heroImageCredit: personPhoto.credit, heroImageCreditUrl: personPhoto.creditUrl, updatedAt: new Date() })
+            .where(eq(article.id, existing.id));
           existing.heroImageUrl = personPhoto.url;
         }
       }
@@ -552,9 +554,9 @@ export async function runIngest() {
           ? detectSeriesFromTitle(item.title)
           : null;
 
-    const created = await db.article.create({
-      data: {
-        verticalId: vertical.id,
+    const [created] = await db.insert(article).values({
+        id: createId(),
+        verticalId: verticalRow.id,
         title: item.title,
         slug,
         summary: item.summary,
@@ -610,8 +612,8 @@ export async function runIngest() {
         homeScoreText: item.homeScoreText,
         awayScoreText: item.awayScoreText,
         venue,
-      },
-    });
+        updatedAt: new Date(),
+      }).returning();
     // Registers this hash as no longer "new" — guards against the same
     // story appearing twice in one run (two sources reporting it) trying
     // to create it a second time.

@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article, socialPost } from "@/db/schema";
+import { and, eq, ilike, desc, inArray, count } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import {
   approveArticle,
@@ -48,42 +50,34 @@ export default async function AdminQueuePage(
   // negative `page` value from producing a nonsensical negative skip.
   const page = Math.max(1, parseInt(searchParams.page ?? "1", 10) || 1);
 
-  const sources = await db.article.findMany({
-    where: { status },
-    select: { sourceName: true },
-    distinct: ["sourceName"],
-  });
-  const categories = await db.article.findMany({
-    where: { status },
-    select: { category: true },
-    distinct: ["category"],
-  });
+  const sources = await db.selectDistinct({ sourceName: article.sourceName }).from(article).where(eq(article.status, status));
+  const categories = await db.selectDistinct({ category: article.category }).from(article).where(eq(article.status, status));
 
-  const where = {
-    status: status as "pending_review" | "published",
-    ...(source ? { sourceName: source } : {}),
-    ...(category ? { category } : {}),
-    ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
-  };
+  const whereConditions = [
+    eq(article.status, status),
+    ...(source ? [eq(article.sourceName, source)] : []),
+    ...(category ? [eq(article.category, category)] : []),
+    ...(q ? [ilike(article.title, `%${q}%`)] : []),
+  ];
 
-  const totalForStatus = await db.article.count({ where: { status } });
-  const matchingCount = await db.article.count({ where });
+  const [{ value: totalForStatus }] = await db.select({ value: count() }).from(article).where(eq(article.status, status));
+  const [{ value: matchingCount }] = await db.select({ value: count() }).from(article).where(and(...whereConditions));
 
-  const list = await db.article.findMany({
-    where,
+  const list = await db.query.article.findMany({
+    where: and(...whereConditions),
     // Featured articles used to pin to the top here regardless of date,
     // which fought against scanning newest-first — the dedicated
     // /admin/homepage page is where hero picks actually get managed, so
     // this queue doesn't also need to surface them first.
-    orderBy: status === "published" ? { publishedAt: "desc" } : { createdAt: "desc" },
-    skip: (page - 1) * PAGE_SIZE,
-    take: PAGE_SIZE,
-    include: {
-      poll: { include: { options: true } },
+    orderBy: status === "published" ? desc(article.publishedAt) : desc(article.createdAt),
+    offset: (page - 1) * PAGE_SIZE,
+    limit: PAGE_SIZE,
+    with: {
+      poll: { with: { options: true } },
       // Only meaningful for the published list (whether "Post to Facebook"/
       // "Post to Instagram" should show as done/retry/not-yet), but cheap
       // enough to always include rather than branch the query on status.
-      socialPosts: { where: { platform: { in: ["facebook", "instagram"] } }, orderBy: { createdAt: "desc" } },
+      socialPosts: { where: inArray(socialPost.platform, ["facebook", "instagram"]), orderBy: desc(socialPost.createdAt) },
     },
   });
   const totalPages = Math.max(1, Math.ceil(matchingCount / PAGE_SIZE));
@@ -101,11 +95,7 @@ export default async function AdminQueuePage(
 
   const flagged =
     status === "pending_review"
-      ? await db.article.findMany({
-          where: { status: "flagged" },
-          orderBy: { createdAt: "desc" },
-          take: 10,
-        })
+      ? await db.select().from(article).where(eq(article.status, "flagged")).orderBy(desc(article.createdAt)).limit(10)
       : [];
 
   const hasFilters = Boolean(q || source || category);

@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article as articleTable } from "@/db/schema";
+import { and, eq, ilike, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { featureArticle, unfeatureArticle, highlightArticle, unhighlightArticle } from "../actions";
 import { HERO_CAP, sectionOf } from "@/lib/heroConfig";
@@ -25,20 +27,17 @@ export default async function HomepageManagerPage(
   const { q } = await props.searchParams;
 
   const [heroArticles, highlightArticles, searchResults] = await Promise.all([
-    db.article.findMany({
-      where: { status: "published", featured: true },
-      orderBy: { featuredAt: "desc" },
-    }),
-    db.article.findMany({
-      where: { status: "published", highlighted: true },
-      orderBy: { highlightedAt: "desc" },
-    }),
+    db.select().from(articleTable)
+      .where(and(eq(articleTable.status, "published"), eq(articleTable.featured, true)))
+      .orderBy(desc(articleTable.featuredAt)),
+    db.select().from(articleTable)
+      .where(and(eq(articleTable.status, "published"), eq(articleTable.highlighted, true)))
+      .orderBy(desc(articleTable.highlightedAt)),
     q
-      ? db.article.findMany({
-          where: { status: "published", title: { contains: q, mode: "insensitive" } },
-          orderBy: { publishedAt: "desc" },
-          take: 20,
-        })
+      ? db.select().from(articleTable)
+          .where(and(eq(articleTable.status, "published"), ilike(articleTable.title, `%${q}%`)))
+          .orderBy(desc(articleTable.publishedAt))
+          .limit(20)
       : Promise.resolve([]),
   ]);
 

@@ -1,8 +1,10 @@
 import { execFileSync } from "node:child_process";
 import { writeFile, unlink, mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { db } from "@/lib/db";
-import type { Prisma } from "../../../generated/prisma/client";
+import { db } from "@/db";
+import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
+import { createId } from "@paralleldrive/cuid2";
 import { generatePosterContent, type PosterContent } from "@/lib/ingestion/commentary";
 import { renderInstagramPoster } from "./instagramPoster";
 import { resolvePageAccessToken } from "./facebook";
@@ -60,7 +62,7 @@ async function waitUntilLive(url: string, maxAttempts = 20): Promise<void> {
   throw new Error(`Poster never went live at ${url} after ${maxAttempts} attempts`);
 }
 
-type ArticleWithVertical = Prisma.ArticleGetPayload<{ include: { vertical: true } }>;
+type ArticleWithVertical = typeof articleTable.$inferSelect & { vertical: typeof verticalTable.$inferSelect };
 
 async function postToInstagram(article: ArticleWithVertical, publicUrl: string, content: PosterContent): Promise<boolean> {
   const igUserId = article.vertical.instagramBusinessAccountId ?? process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
@@ -79,7 +81,9 @@ async function postToInstagram(article: ArticleWithVertical, publicUrl: string, 
   const caption = `${emoji} ${content.hook}\n\n${displaySummary(article, 300)}\n\nWhere do you land? 👇\n\n👉 Full breakdown — link in bio\n🔔 Follow @sportswirelivenews for daily sports news${creditLine}\n\n#${categoryTag} #sportsWireLiveNews #SportsNews`;
   const altText = article.heroImageCredit ? `${article.title}. ${article.heroImageCredit}.` : article.title;
 
-  const socialPost = await db.socialPost.create({ data: { articleId: article.id, platform: "instagram", status: "queued" } });
+  const [socialPost] = await db.insert(socialPostTable)
+    .values({ id: createId(), articleId: article.id, platform: "instagram", status: "queued" })
+    .returning();
 
   try {
     console.log("[instagram] Creating media container...");
@@ -106,17 +110,15 @@ async function postToInstagram(article: ArticleWithVertical, publicUrl: string, 
       throw new Error(publishData?.error?.message ?? `Instagram publish failed (${publishRes.status})`);
     }
 
-    await db.socialPost.update({
-      where: { id: socialPost.id },
-      data: { status: "posted", externalPostId: publishData.id, postedAt: new Date() },
-    });
+    await db.update(socialPostTable)
+      .set({ status: "posted", externalPostId: publishData.id, postedAt: new Date() })
+      .where(eq(socialPostTable.id, socialPost.id));
     console.log("[instagram] Posted! media id:", publishData.id);
     return true;
   } catch (err) {
-    await db.socialPost.update({
-      where: { id: socialPost.id },
-      data: { status: "failed", errorMessage: err instanceof Error ? err.message : String(err) },
-    });
+    await db.update(socialPostTable)
+      .set({ status: "failed", errorMessage: err instanceof Error ? err.message : String(err) })
+      .where(eq(socialPostTable.id, socialPost.id));
     console.error("[instagram] Post failed:", err);
     return false;
   }
@@ -147,7 +149,9 @@ async function postToFacebook(article: ArticleWithVertical, publicUrl: string, c
   // benefit.
   const caption = `${emoji} ${content.hook}\n\n${displaySummary(article, 300)}\n\nFull breakdown: ${articleUrl}${creditLine}\n\n#${categoryTag} #SportsWireLive`;
 
-  const socialPost = await db.socialPost.create({ data: { articleId: article.id, platform: "facebook", status: "queued" } });
+  const [socialPost] = await db.insert(socialPostTable)
+    .values({ id: createId(), articleId: article.id, platform: "facebook", status: "queued" })
+    .returning();
 
   try {
     console.log("[facebook] Posting photo with link in caption...");
@@ -161,10 +165,9 @@ async function postToFacebook(article: ArticleWithVertical, publicUrl: string, c
       throw new Error(photoData?.error?.message ?? `Facebook photo post failed (${photoRes.status})`);
     }
 
-    await db.socialPost.update({
-      where: { id: socialPost.id },
-      data: { status: "posted", externalPostId: photoData.post_id, postedAt: new Date() },
-    });
+    await db.update(socialPostTable)
+      .set({ status: "posted", externalPostId: photoData.post_id, postedAt: new Date() })
+      .where(eq(socialPostTable.id, socialPost.id));
     console.log("[facebook] Posted! post id:", photoData.post_id);
 
     // Best-effort extra comment with the same link, in case
@@ -184,10 +187,9 @@ async function postToFacebook(article: ArticleWithVertical, publicUrl: string, c
 
     return true;
   } catch (err) {
-    await db.socialPost.update({
-      where: { id: socialPost.id },
-      data: { status: "failed", errorMessage: err instanceof Error ? err.message : String(err) },
-    });
+    await db.update(socialPostTable)
+      .set({ status: "failed", errorMessage: err instanceof Error ? err.message : String(err) })
+      .where(eq(socialPostTable.id, socialPost.id));
     console.error("[facebook] Post failed:", err);
     return false;
   }
@@ -201,11 +203,21 @@ export async function postSocialPoster(
   platforms: { instagram: boolean; facebook: boolean }
 ): Promise<{ instagramPosted: boolean; facebookPosted: boolean }> {
   const none = { instagramPosted: false, facebookPosted: false };
-  const article = await db.article.findUniqueOrThrow({ where: { id: articleId }, include: { vertical: true } });
+  const [row] = await db.select({ article: articleTable, vertical: verticalTable })
+    .from(articleTable)
+    .innerJoin(verticalTable, eq(articleTable.verticalId, verticalTable.id))
+    .where(eq(articleTable.id, articleId))
+    .limit(1);
+  if (!row) throw new Error(`Article not found: ${articleId}`);
+  const article: ArticleWithVertical = { ...row.article, vertical: row.vertical };
 
-  const [existingInstagram, existingFacebook] = await Promise.all([
-    db.socialPost.findFirst({ where: { articleId, platform: "instagram", status: "posted" } }),
-    db.socialPost.findFirst({ where: { articleId, platform: "facebook", status: "posted" } }),
+  const [[existingInstagram], [existingFacebook]] = await Promise.all([
+    db.select({ id: socialPostTable.id }).from(socialPostTable)
+      .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.platform, "instagram"), eq(socialPostTable.status, "posted")))
+      .limit(1),
+    db.select({ id: socialPostTable.id }).from(socialPostTable)
+      .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.platform, "facebook"), eq(socialPostTable.status, "posted")))
+      .limit(1),
   ]);
   const needInstagram = platforms.instagram && !existingInstagram;
   // Facebook is back to its plain-format post (autoApprove.ts calls
