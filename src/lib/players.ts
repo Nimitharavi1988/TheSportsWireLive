@@ -52,6 +52,11 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   // than risking a flood of false positives or a term that would barely
   // ever match. Same reasoning as skipping "Rodri" (collides with the
   // common name "Rodrigo") for this batch.
+  // Found via nameGapReport.ts (2026-09-19): 3 mentions in 2 weeks each.
+  // Full names used — "Carrick"/"Fernandes" alone are both too generic
+  // (other tracked/common surnames collide) to match safely on their own.
+  { slug: "michael-carrick", name: "Michael Carrick", searchTerms: ["Michael Carrick"], sport: "football" },
+  { slug: "bruno-fernandes", name: "Bruno Fernandes", searchTerms: ["Bruno Fernandes"], sport: "football" },
   // Football — recently retired / legends still regularly in the news
   { slug: "ronaldinho", name: "Ronaldinho", searchTerms: ["Ronaldinho"], sport: "football" },
   { slug: "zinedine-zidane", name: "Zinédine Zidane", searchTerms: ["Zidane"], sport: "football" },
@@ -113,6 +118,9 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   // appearing in real headlines ("Shreyas Iyer on tough start to
   // captaincy") with zero tracking — arguably a bigger miss than Rahane.
   { slug: "shreyas-iyer", name: "Shreyas Iyer", searchTerms: ["Shreyas Iyer"], sport: "cricket", cricinfoPlayerId: 642519 },
+  // Found via nameGapReport.ts (2026-09-19): 4 mentions in 2 weeks. Full
+  // name used — "Cox" alone is far too generic a surname on its own.
+  { slug: "jordan-cox", name: "Jordan Cox", searchTerms: ["Jordan Cox"], sport: "cricket", cricinfoPlayerId: 1112537 },
   // Cricket — legends (previously missing entirely — football had 6
   // legends tracked, cricket had none)
   { slug: "sachin-tendulkar", name: "Sachin Tendulkar", searchTerms: ["Tendulkar"], sport: "cricket", cricinfoPlayerId: 35320 },
@@ -160,6 +168,9 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   { slug: "tyreek-hill", name: "Tyreek Hill", searchTerms: ["Tyreek Hill"], sport: "american-football" },
   { slug: "ceedee-lamb", name: "CeeDee Lamb", searchTerms: ["CeeDee Lamb"], sport: "american-football" },
   { slug: "aaron-rodgers", name: "Aaron Rodgers", searchTerms: ["Aaron Rodgers"], sport: "american-football" },
+  // Found via nameGapReport.ts (2026-09-19): 5 and 3 mentions in 2 weeks.
+  { slug: "kyler-murray", name: "Kyler Murray", searchTerms: ["Kyler Murray"], sport: "american-football" },
+  { slug: "zay-flowers", name: "Zay Flowers", searchTerms: ["Zay Flowers"], sport: "american-football" },
   // Legends.
   { slug: "tom-brady", name: "Tom Brady", searchTerms: ["Tom Brady"], sport: "american-football" },
   { slug: "peyton-manning", name: "Peyton Manning", searchTerms: ["Peyton Manning"], sport: "american-football" },
