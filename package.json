@@ -20,7 +20,7 @@
     "@mui/icons-material": "^9.4.0",
     "@mui/material": "^9.4.0",
     "@mui/material-nextjs": "^9.4.0",
-    "@neondatabase/serverless": "0.9.5",
+    "@neondatabase/serverless": "^1.1.0",
     "@opennextjs/cloudflare": "^1.20.6",
     "@paralleldrive/cuid2": "^3.3.0",
     "@prisma/adapter-neon": "6.19.3",
