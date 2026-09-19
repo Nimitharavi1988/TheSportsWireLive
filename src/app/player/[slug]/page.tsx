@@ -24,9 +24,15 @@ import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
 
-// The player's photo rarely changes day to day — an hour of staleness is a
-// fine trade for not hitting the Wikimedia API on every single page view.
-export const revalidate = 3600;
+// Was 3600 (an hour) -- reasonable for the player's own photo (rarely
+// changes day to day), but this page also embeds the live standings
+// widget for football players, and ISR's revalidate applies to the whole
+// page: confirmed live that a stale standings table (showing a
+// since-corrected points total) was visible here because of this. Lowered
+// to 300 so the standings stay reasonably current -- accuracy on genuinely
+// live sports data matters more than saving a Wikimedia lookup, which is
+// cheap/unrated-limited anyway (unlike football-data.org's own free tier).
+export const revalidate = 300;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

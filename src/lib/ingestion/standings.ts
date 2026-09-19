@@ -102,12 +102,18 @@ export async function fetchStandingsTable(
     // caching, this was hitting the free tier's 10 requests/minute limit
     // almost immediately under normal browsing — the widget would then
     // silently render nothing (see the `!res.ok` branch below). Next.js's
-    // Data Cache reuses this response across all renders for 5 minutes,
-    // cutting real API calls from "once per page view" to "once per
-    // competition per 5 minutes" site-wide.
+    // Data Cache reuses this response across all renders, cutting real API
+    // calls from "once per page view" to "once per competition per window"
+    // site-wide. Shortened from 300s to 60s — confirmed live that a stale
+    // standings table (showing a since-corrected points total) was visible
+    // on player pages, which cache their own page HTML for a full hour
+    // (see player/[slug]/page.tsx's own revalidate) on top of this fetch
+    // cache; 60s keeps this fetch itself from ever being the long pole,
+    // trading a bit more API-quota usage for correctness on genuinely
+    // live sports data.
     const res = await fetch(`${BASE_URL}/competitions/${competitionCode}/standings`, {
       headers: { "X-Auth-Token": apiKey },
-      next: { revalidate: 300 },
+      next: { revalidate: 60 },
     });
 
     if (!res.ok) return null;
