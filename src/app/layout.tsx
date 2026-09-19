@@ -5,6 +5,7 @@ import MatchTicker from "@/components/MatchTicker";
 import SiteFooter from "@/components/SiteFooter";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { PageTransition } from "@/components/PageTransition";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -86,7 +87,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeRegistry>
           <SiteHeader />
           <MatchTicker />
-          {children}
+          <PageTransition>{children}</PageTransition>
           <SiteFooter />
         </ThemeRegistry>
       </body>
