@@ -1,4 +1,6 @@
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article } from "@/db/schema";
+import { and, eq, isNotNull, desc } from "drizzle-orm";
 import Link from "next/link";
 import Image from "next/image";
 import Box from "@mui/material/Box";
@@ -50,24 +52,26 @@ function parseTick(article: TickerArticle) {
 }
 
 async function getTickerArticles(): Promise<TickerArticle[]> {
-  return db.article.findMany({
-    where: {
-      status: "published",
-      matchStatus: { not: null },
-      homeCrestUrl: { not: null },
-      awayCrestUrl: { not: null },
-    },
+  return db
+    .select({
+      id: article.id, slug: article.slug, category: article.category,
+      homeTeam: article.homeTeam, awayTeam: article.awayTeam,
+      homeScore: article.homeScore, awayScore: article.awayScore,
+      matchStatus: article.matchStatus, kickoffAt: article.kickoffAt,
+      homeCrestUrl: article.homeCrestUrl, awayCrestUrl: article.awayCrestUrl,
+    })
+    .from(article)
+    .where(and(
+      eq(article.status, "published"),
+      isNotNull(article.matchStatus),
+      isNotNull(article.homeCrestUrl),
+      isNotNull(article.awayCrestUrl)
+    ))
     // createdAt, not kickoffAt — a scheduled match's kickoffAt can be weeks
     // out, which would float distant future fixtures above genuinely recent
     // activity (same bug, same fix, as the RSS feed's ordering earlier).
-    orderBy: [{ createdAt: "desc" }],
-    take: 12,
-    select: {
-      id: true, slug: true, category: true, homeTeam: true, awayTeam: true,
-      homeScore: true, awayScore: true, matchStatus: true, kickoffAt: true,
-      homeCrestUrl: true, awayCrestUrl: true,
-    },
-  });
+    .orderBy(desc(article.createdAt))
+    .limit(12);
 }
 
 export default async function MatchTicker() {

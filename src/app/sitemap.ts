@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article as articleTable } from "@/db/schema";
+import { and, eq, isNotNull, desc } from "drizzle-orm";
 import { STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 import { TRACKED_PLAYERS } from "@/lib/players";
 import { TRACKED_CLUBS } from "@/lib/clubs";
@@ -15,17 +17,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // at the current pace; well under the 50000-URL hard limit for a single
   // sitemap.xml (Next.js's generateSitemaps() is the pattern to reach for
   // once actually approaching that, not needed yet).
-  const articles = await db.article.findMany({
-    where: { status: "published" },
-    select: { slug: true, publishedAt: true, updatedAt: true },
-    orderBy: { publishedAt: "desc" },
-    take: 20000,
-  });
+  const articles = await db
+    .select({ slug: articleTable.slug, publishedAt: articleTable.publishedAt, updatedAt: articleTable.updatedAt })
+    .from(articleTable)
+    .where(eq(articleTable.status, "published"))
+    .orderBy(desc(articleTable.publishedAt))
+    .limit(20000);
 
-  const seriesRows = await db.article.groupBy({
-    by: ["seriesKey"],
-    where: { seriesKey: { not: null }, status: "published" },
-  });
+  const seriesRows = await db
+    .selectDistinct({ seriesKey: articleTable.seriesKey })
+    .from(articleTable)
+    .where(and(isNotNull(articleTable.seriesKey), eq(articleTable.status, "published")));
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: siteUrl, changeFrequency: "hourly", priority: 1 },

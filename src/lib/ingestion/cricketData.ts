@@ -6,7 +6,10 @@
  * Docs: https://cricketdata.org/
  * Free tier: 100 requests/day.
  */
-import { db } from "../db";
+import { db } from "@/db";
+import { vertical, source } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
+import { createId } from "@paralleldrive/cuid2";
 import type { RawMatchItem } from "./footballData";
 import { fetchCommonsFile } from "./wikimediaImages";
 import { matchCountry, isInternationalFormat, type CricketCountry } from "./cricketCountries";
@@ -138,15 +141,15 @@ export async function fetchCricketData(): Promise<RawMatchItem[]> {
     return [];
   }
 
-  const vertical = await db.vertical.findUnique({ where: { name: "sports" } });
-  const source = vertical
-    ? await db.source.findFirst({ where: { verticalId: vertical.id, name: SOURCE_NAME } })
-    : null;
+  const [verticalRow] = await db.select().from(vertical).where(eq(vertical.name, "sports")).limit(1);
+  const [sourceRow] = verticalRow
+    ? await db.select().from(source).where(and(eq(source.verticalId, verticalRow.id), eq(source.name, SOURCE_NAME))).limit(1)
+    : [null];
 
-  if (source?.lastPolledAt && Date.now() - source.lastPolledAt.getTime() < MIN_POLL_INTERVAL_MS) {
-    const nextOkAt = new Date(source.lastPolledAt.getTime() + MIN_POLL_INTERVAL_MS);
+  if (sourceRow?.lastPolledAt && Date.now() - sourceRow.lastPolledAt.getTime() < MIN_POLL_INTERVAL_MS) {
+    const nextOkAt = new Date(sourceRow.lastPolledAt.getTime() + MIN_POLL_INTERVAL_MS);
     console.log(
-      `CricketData.org polled recently (last: ${source.lastPolledAt.toISOString()}) — skipping until ${nextOkAt.toISOString()} to conserve the 100 req/day free-tier limit`
+      `CricketData.org polled recently (last: ${sourceRow.lastPolledAt.toISOString()}) — skipping until ${nextOkAt.toISOString()} to conserve the 100 req/day free-tier limit`
     );
     return [];
   }
@@ -165,12 +168,12 @@ export async function fetchCricketData(): Promise<RawMatchItem[]> {
 
   // Record the poll attempt regardless of outcome — a failed request still
   // consumes a slot against the daily quota.
-  if (vertical) {
-    if (source) {
-      await db.source.update({ where: { id: source.id }, data: { lastPolledAt: new Date() } });
+  if (verticalRow) {
+    if (sourceRow) {
+      await db.update(source).set({ lastPolledAt: new Date() }).where(eq(source.id, sourceRow.id));
     } else {
-      await db.source.create({
-        data: { verticalId: vertical.id, name: SOURCE_NAME, type: "api", config: {}, lastPolledAt: new Date() },
+      await db.insert(source).values({
+        id: createId(), verticalId: verticalRow.id, name: SOURCE_NAME, type: "api", config: {}, lastPolledAt: new Date(),
       });
     }
   }

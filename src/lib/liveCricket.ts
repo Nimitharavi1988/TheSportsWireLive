@@ -1,4 +1,6 @@
-import { db } from "./db";
+import { db } from "@/db";
+import { article } from "@/db/schema";
+import { and, eq, like, gt, desc } from "drizzle-orm";
 import { isInternationalFormat } from "./ingestion/cricketCountries";
 
 // Cricket's ingestion (cricketData.ts) pulls "currentMatches" — matches
@@ -57,10 +59,12 @@ function internationalFirst<T extends { title: string }>(matches: T[]): T[] {
 const RESULT_LOOKBACK_MS = 3 * 24 * 60 * 60 * 1000;
 
 const SELECT = {
-  id: true, slug: true, title: true, summary: true,
-  homeTeam: true, awayTeam: true, homeCrestUrl: true, awayCrestUrl: true,
-  homeScoreText: true, awayScoreText: true, kickoffAt: true,
-} as const;
+  id: article.id, slug: article.slug, title: article.title, summary: article.summary,
+  homeTeam: article.homeTeam, awayTeam: article.awayTeam,
+  homeCrestUrl: article.homeCrestUrl, awayCrestUrl: article.awayCrestUrl,
+  homeScoreText: article.homeScoreText, awayScoreText: article.awayScoreText,
+  kickoffAt: article.kickoffAt,
+};
 
 export type CricketMatchStatus = "live" | "upcoming" | "finished";
 
@@ -202,42 +206,27 @@ function findNewsBasedCricketMatches(
 export async function fetchLiveCricketMatches(take: number) {
   const now = new Date();
   const [scheduled, finishedRaw, pool] = await Promise.all([
-    db.article.findMany({
-      where: {
-        status: "published",
-        category: { startsWith: "cricket" },
-        matchStatus: "scheduled",
-        updatedAt: { gt: new Date(now.getTime() - LIVE_STALENESS_CUTOFF_MS) },
-      },
-      orderBy: { kickoffAt: "desc" },
-      take,
-      select: SELECT,
-    }),
-    db.article.findMany({
-      where: {
-        status: "published",
-        category: { startsWith: "cricket" },
-        matchStatus: "finished",
-        updatedAt: { gt: new Date(now.getTime() - RESULT_LOOKBACK_MS) },
-      },
-      orderBy: { kickoffAt: "desc" },
-      take,
-      select: SELECT,
-    }),
+    db.select(SELECT).from(article).where(and(
+      eq(article.status, "published"),
+      like(article.category, "cricket%"),
+      eq(article.matchStatus, "scheduled"),
+      gt(article.updatedAt, new Date(now.getTime() - LIVE_STALENESS_CUTOFF_MS))
+    )).orderBy(desc(article.kickoffAt)).limit(take),
+    db.select(SELECT).from(article).where(and(
+      eq(article.status, "published"),
+      like(article.category, "cricket%"),
+      eq(article.matchStatus, "finished"),
+      gt(article.updatedAt, new Date(now.getTime() - RESULT_LOOKBACK_MS))
+    )).orderBy(desc(article.kickoffAt)).limit(take),
     // One shared pool of recent cricket headlines, reused both to detect
     // news-only matches (findNewsBasedCricketMatches) and to attach a
     // "more on this match" list to EVERY match below, structured or not —
     // a single query instead of one per match card.
-    db.article.findMany({
-      where: {
-        status: "published",
-        category: { startsWith: "cricket" },
-        createdAt: { gt: new Date(Date.now() - NEWS_MATCH_LOOKBACK_MS) },
-      },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, slug: true, title: true },
-      take: 200,
-    }),
+    db.select({ id: article.id, slug: article.slug, title: article.title }).from(article).where(and(
+      eq(article.status, "published"),
+      like(article.category, "cricket%"),
+      gt(article.createdAt, new Date(Date.now() - NEWS_MATCH_LOOKBACK_MS))
+    )).orderBy(desc(article.createdAt)).limit(200),
   ]);
 
   const live = internationalFirst(scheduled.filter((m) => m.kickoffAt !== null && m.kickoffAt <= now));

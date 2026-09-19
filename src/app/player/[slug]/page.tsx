@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article } from "@/db/schema";
+import { and, eq, or, ilike, desc } from "drizzle-orm";
 import { TRACKED_PLAYERS } from "@/lib/players";
 import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImages";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
@@ -44,14 +46,13 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
 
   const [photo, articles] = await Promise.all([
     fetchPersonPhoto(player.name, sportSearchHint(player.sport)),
-    db.article.findMany({
-      where: {
-        status: "published",
-        OR: player.searchTerms.map((term) => ({ title: { contains: term, mode: "insensitive" as const } })),
-      },
-      orderBy: { publishedAt: "desc" },
-      take: 30,
-    }),
+    db.select().from(article)
+      .where(and(
+        eq(article.status, "published"),
+        or(...player.searchTerms.map((term) => ilike(article.title, `%${term}%`)))
+      ))
+      .orderBy(desc(article.publishedAt))
+      .limit(30),
   ]);
 
   // Same sidebar content as article pages (Standings, Quotes) — a player

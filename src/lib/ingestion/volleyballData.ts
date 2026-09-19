@@ -16,7 +16,10 @@
  * than guessed at.
  */
 import { createHash } from "node:crypto";
-import { db } from "../db";
+import { db } from "@/db";
+import { vertical, source } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
+import { createId } from "@paralleldrive/cuid2";
 import type { RawMatchItem } from "./footballData";
 
 const SOURCE_NAME = "API-Volleyball";
@@ -78,12 +81,12 @@ export async function fetchVolleyballData(): Promise<RawMatchItem[]> {
   const apiKey = process.env.API_FOOTBALL_KEY;
   if (!apiKey) return [];
 
-  const vertical = await db.vertical.findUnique({ where: { name: "sports" } });
-  const source = vertical
-    ? await db.source.findFirst({ where: { verticalId: vertical.id, name: SOURCE_NAME } })
-    : null;
+  const [verticalRow] = await db.select().from(vertical).where(eq(vertical.name, "sports")).limit(1);
+  const [sourceRow] = verticalRow
+    ? await db.select().from(source).where(and(eq(source.verticalId, verticalRow.id), eq(source.name, SOURCE_NAME))).limit(1)
+    : [null];
 
-  if (source?.lastPolledAt && Date.now() - source.lastPolledAt.getTime() < MIN_POLL_INTERVAL_MS) {
+  if (sourceRow?.lastPolledAt && Date.now() - sourceRow.lastPolledAt.getTime() < MIN_POLL_INTERVAL_MS) {
     return [];
   }
 
@@ -95,12 +98,12 @@ export async function fetchVolleyballData(): Promise<RawMatchItem[]> {
     return null;
   });
 
-  if (vertical) {
-    if (source) {
-      await db.source.update({ where: { id: source.id }, data: { lastPolledAt: new Date() } });
+  if (verticalRow) {
+    if (sourceRow) {
+      await db.update(source).set({ lastPolledAt: new Date() }).where(eq(source.id, sourceRow.id));
     } else {
-      await db.source.create({
-        data: { verticalId: vertical.id, name: SOURCE_NAME, type: "api", config: {}, lastPolledAt: new Date() },
+      await db.insert(source).values({
+        id: createId(), verticalId: verticalRow.id, name: SOURCE_NAME, type: "api", config: {}, lastPolledAt: new Date(),
       });
     }
   }

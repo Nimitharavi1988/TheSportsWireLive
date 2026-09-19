@@ -1,5 +1,7 @@
 import { Suspense } from "react";
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article as articleTable } from "@/db/schema";
+import { and, eq, like, isNotNull, desc } from "drizzle-orm";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import Link from "next/link";
 import Image from "next/image";
@@ -315,10 +317,10 @@ export default async function HomePage(
   const searchParams = await props.searchParams;
   const category = searchParams.category;
 
-  const articleWhere = {
-    status: "published" as const,
-    ...(category ? { category: { startsWith: category } } : {}),
-  };
+  const baseConditions = [
+    eq(articleTable.status, "published"),
+    ...(category ? [like(articleTable.category, `${category}%`)] : []),
+  ];
 
   // Fetched as two separate queries and merged, rather than relying on the
   // trending-sorted query alone to happen to include them: an admin's
@@ -331,16 +333,14 @@ export default async function HomePage(
   // actually taking priority. Capped at 5 (the same cap `featureArticle`
   // itself enforces), so this can never balloon the query.
   const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeSeriesRow] = await Promise.all([
-    db.article.findMany({
-      where: articleWhere,
-      orderBy: [{ trendingScore: "desc" }, { publishedAt: "desc" }],
-      take: 80,
-    }),
-    db.article.findMany({
-      where: { ...articleWhere, featured: true },
-      orderBy: { featuredAt: "desc" },
-      take: 5,
-    }),
+    db.select().from(articleTable)
+      .where(and(...baseConditions))
+      .orderBy(desc(articleTable.trendingScore), desc(articleTable.publishedAt))
+      .limit(80),
+    db.select().from(articleTable)
+      .where(and(...baseConditions, eq(articleTable.featured, true)))
+      .orderBy(desc(articleTable.featuredAt))
+      .limit(5),
     // Cross-sport "Live Now" widget (liveMatches.ts) — standardized
     // 2026-09-18 across every match-data sport, not just cricket (which
     // used to be the only one with live/finished/upcoming badges and
@@ -355,11 +355,12 @@ export default async function HomePage(
     // runs for a couple of weeks then goes quiet, so a fixed link would sit
     // empty most of the time; /series stays reachable via the footer).
     category === undefined || category === "cricket"
-      ? db.article.findFirst({
-          where: { seriesKey: { not: null }, status: "published" },
-          orderBy: { publishedAt: "desc" },
-          select: { seriesKey: true, seriesLabel: true },
-        })
+      ? db.select({ seriesKey: articleTable.seriesKey, seriesLabel: articleTable.seriesLabel })
+          .from(articleTable)
+          .where(and(isNotNull(articleTable.seriesKey), eq(articleTable.status, "published")))
+          .orderBy(desc(articleTable.publishedAt))
+          .limit(1)
+          .then((rows) => rows[0] ?? null)
       : Promise.resolve(null),
   ]);
   const rankedIds = new Set(articlesRanked.map((a) => a.id));

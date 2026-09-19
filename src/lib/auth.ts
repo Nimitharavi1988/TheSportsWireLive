@@ -6,7 +6,9 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
-import { db } from "./db";
+import { db } from "@/db";
+import { adminUser } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 const secret = new TextEncoder().encode(
   process.env.SESSION_SECRET || "change-this-in-.env"
@@ -14,7 +16,8 @@ const secret = new TextEncoder().encode(
 const COOKIE_NAME = "admin_session";
 
 export async function verifyCredentials(email: string, password: string) {
-  const user = await db.adminUser.findUnique({ where: { email } });
+  const rows = await db.select().from(adminUser).where(eq(adminUser.email, email)).limit(1);
+  const user = rows[0] ?? null;
   if (!user) return null;
 
   const valid = await bcrypt.compare(password, user.passwordHash);

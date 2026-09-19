@@ -1,7 +1,9 @@
 import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article } from "@/db/schema";
+import { and, eq, or, ilike, desc } from "drizzle-orm";
 import { TRACKED_CLUBS } from "@/lib/clubs";
 import { findClubCrest } from "@/lib/teamNames";
 
@@ -18,15 +20,14 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const name = club?.name ?? "Sports Wire Live";
 
   const articles = club
-    ? await db.article.findMany({
-        where: {
-          status: "published",
-          OR: club.searchTerms.map((term) => ({ title: { contains: term, mode: "insensitive" as const } })),
-        },
-        orderBy: { publishedAt: "desc" },
-        take: 10,
-        select: { summary: true, homeCrestUrl: true, awayCrestUrl: true },
-      })
+    ? await db.select({ summary: article.summary, homeCrestUrl: article.homeCrestUrl, awayCrestUrl: article.awayCrestUrl })
+        .from(article)
+        .where(and(
+          eq(article.status, "published"),
+          or(...club.searchTerms.map((term) => ilike(article.title, `%${term}%`)))
+        ))
+        .orderBy(desc(article.publishedAt))
+        .limit(10)
     : [];
   const crestUrl = club ? findClubCrest(club, articles) : null;
 

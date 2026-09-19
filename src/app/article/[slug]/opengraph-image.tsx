@@ -1,7 +1,9 @@
 import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article as articleTable } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -19,7 +21,8 @@ function gradientFor(category: string): [string, string] {
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const article = await db.article.findUnique({ where: { slug } });
+  const articleRows = await db.select().from(articleTable).where(eq(articleTable.slug, slug)).limit(1);
+  const article = articleRows[0] ?? null;
   const title = article?.title ?? "Sports Wire Live";
   const category = article?.category ?? "";
   const [from, to] = gradientFor(category);

@@ -1,4 +1,6 @@
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article as articleTable } from "@/db/schema";
+import { and, eq, ne, or, ilike, notInArray, desc } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -33,7 +35,8 @@ export const revalidate = 60;
 
 export async function generateMetadata(props: { params: Promise<{ slug: string }> }) {
   const params = await props.params;
-  const article = await db.article.findUnique({ where: { slug: params.slug } });
+  const articleRows = await db.select().from(articleTable).where(eq(articleTable.slug, params.slug)).limit(1);
+  const article = articleRows[0] ?? null;
   if (!article) return {};
   // 160 chars — the length search engines actually display before truncating.
   const description = displaySummary(article, 160);
@@ -64,7 +67,8 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
 
 export default async function ArticlePage(props: { params: Promise<{ slug: string }> }) {
   const params = await props.params;
-  const article = await db.article.findUnique({ where: { slug: params.slug } });
+  const articleRows = await db.select().from(articleTable).where(eq(articleTable.slug, params.slug)).limit(1);
+  const article = articleRows[0] ?? null;
   if (!article || article.status !== "published") notFound();
 
   // author/dateModified/mainEntityOfPage were all missing — Google's Rich
@@ -205,29 +209,27 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
   const relatedSearchTerms = [...taggedPlayers, ...taggedClubs].flatMap((t) => t.searchTerms);
   const taggedRelated =
     relatedSearchTerms.length > 0
-      ? await db.article.findMany({
-          where: {
-            status: "published",
-            id: { not: article.id },
-            OR: relatedSearchTerms.map((term) => ({ title: { contains: term, mode: "insensitive" as const } })),
-          },
-          orderBy: { publishedAt: "desc" },
-          take: 3,
-        })
+      ? await db.select().from(articleTable)
+          .where(and(
+            eq(articleTable.status, "published"),
+            ne(articleTable.id, article.id),
+            or(...relatedSearchTerms.map((term) => ilike(articleTable.title, `%${term}%`)))
+          ))
+          .orderBy(desc(articleTable.publishedAt))
+          .limit(3)
       : [];
   const related =
     taggedRelated.length < 3
       ? [
           ...taggedRelated,
-          ...(await db.article.findMany({
-            where: {
-              status: "published",
-              category: article.category,
-              id: { notIn: [article.id, ...taggedRelated.map((r) => r.id)] },
-            },
-            orderBy: { publishedAt: "desc" },
-            take: 3 - taggedRelated.length,
-          })),
+          ...(await db.select().from(articleTable)
+            .where(and(
+              eq(articleTable.status, "published"),
+              eq(articleTable.category, article.category),
+              notInArray(articleTable.id, [article.id, ...taggedRelated.map((r) => r.id)])
+            ))
+            .orderBy(desc(articleTable.publishedAt))
+            .limit(3 - taggedRelated.length)),
         ]
       : taggedRelated;
 
@@ -237,16 +239,17 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
   // going back to the homepage. Same trendingScore/publishedAt ordering
   // the homepage itself uses, just sitewide rather than same-topic.
   const excludeIds = [article.id, ...related.map((r) => r.id)];
-  const trendingNow = await db.article.findMany({
-    where: { status: "published", id: { notIn: excludeIds } },
-    orderBy: [{ trendingScore: "desc" }, { publishedAt: "desc" }],
-    take: 5,
-  });
-  const justIn = await db.article.findMany({
-    where: { status: "published", id: { notIn: [...excludeIds, ...trendingNow.map((t) => t.id)] } },
-    orderBy: { publishedAt: "desc" },
-    take: 5,
-  });
+  const trendingNow = await db.select().from(articleTable)
+    .where(and(eq(articleTable.status, "published"), notInArray(articleTable.id, excludeIds)))
+    .orderBy(desc(articleTable.trendingScore), desc(articleTable.publishedAt))
+    .limit(5);
+  const justIn = await db.select().from(articleTable)
+    .where(and(
+      eq(articleTable.status, "published"),
+      notInArray(articleTable.id, [...excludeIds, ...trendingNow.map((t) => t.id)])
+    ))
+    .orderBy(desc(articleTable.publishedAt))
+    .limit(5);
 
   // Same sidebar content as the homepage rail (Standings, Quotes) — article
   // pages are where most real traffic actually lands (search, social

@@ -8,7 +8,9 @@
  * are real and specific to it); this adds an equivalent for everything
  * else and merges the two into one feed.
  */
-import { db } from "./db";
+import { db } from "@/db";
+import { article } from "@/db/schema";
+import { and, eq, like, not, gt, inArray, desc, asc, type SQL } from "drizzle-orm";
 import { isInternationalFormat } from "./ingestion/cricketCountries";
 import { fetchLiveCricketMatches } from "./liveCricket";
 import type { CricketMatchStatus } from "./liveCricket";
@@ -50,10 +52,11 @@ const GENERIC_RESULT_LOOKBACK_MS = 24 * 60 * 60 * 1000;
 const RELATED_NEWS_LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
 const SELECT = {
-  id: true, slug: true, title: true, category: true,
-  homeTeam: true, awayTeam: true, homeCrestUrl: true, awayCrestUrl: true,
-  homeScore: true, awayScore: true, kickoffAt: true,
-} as const;
+  id: article.id, slug: article.slug, title: article.title, category: article.category,
+  homeTeam: article.homeTeam, awayTeam: article.awayTeam,
+  homeCrestUrl: article.homeCrestUrl, awayCrestUrl: article.awayCrestUrl,
+  homeScore: article.homeScore, awayScore: article.awayScore, kickoffAt: article.kickoffAt,
+};
 
 type Row = {
   id: string; slug: string; title: string; category: string;
@@ -93,37 +96,27 @@ function toUnified(r: Row, matchState: LiveMatchStatus, pool: NewsPoolRow[]): Un
 
 async function fetchGenericMatches(take: number, categoryFilter?: string): Promise<UnifiedMatch[]> {
   const now = new Date();
-  const catWhere = categoryFilter ? { category: categoryFilter } : {};
+  const catFilter: SQL[] = categoryFilter ? [eq(article.category, categoryFilter)] : [];
 
   const [scheduled, finished, pool] = await Promise.all([
-    db.article.findMany({
-      where: { status: "published", ...catWhere, matchStatus: "scheduled", sourceName: { in: GENERIC_SOURCES } },
-      orderBy: { kickoffAt: "asc" },
-      take: take * 3,
-      select: SELECT,
-    }),
-    db.article.findMany({
-      where: {
-        status: "published", ...catWhere, matchStatus: "finished", sourceName: { in: GENERIC_SOURCES },
-        updatedAt: { gt: new Date(now.getTime() - GENERIC_RESULT_LOOKBACK_MS) },
-      },
-      orderBy: { updatedAt: "desc" },
-      take,
-      select: SELECT,
-    }),
+    db.select(SELECT).from(article).where(and(
+      eq(article.status, "published"), ...catFilter,
+      eq(article.matchStatus, "scheduled"), inArray(article.sourceName, GENERIC_SOURCES)
+    )).orderBy(asc(article.kickoffAt)).limit(take * 3),
+    db.select(SELECT).from(article).where(and(
+      eq(article.status, "published"), ...catFilter,
+      eq(article.matchStatus, "finished"), inArray(article.sourceName, GENERIC_SOURCES),
+      gt(article.updatedAt, new Date(now.getTime() - GENERIC_RESULT_LOOKBACK_MS))
+    )).orderBy(desc(article.updatedAt)).limit(take),
     // One shared "more on this match" pool across every non-cricket sport,
     // scoped per-match to its own category when matching (see
     // relatedNewsFor) so a football headline never attaches to an NFL card.
-    db.article.findMany({
-      where: {
-        status: "published",
-        category: { not: { startsWith: "cricket" } },
-        createdAt: { gt: new Date(Date.now() - RELATED_NEWS_LOOKBACK_MS) },
-      },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, slug: true, title: true, category: true },
-      take: 300,
-    }),
+    db.select({ id: article.id, slug: article.slug, title: article.title, category: article.category })
+      .from(article).where(and(
+        eq(article.status, "published"),
+        not(like(article.category, "cricket%")),
+        gt(article.createdAt, new Date(Date.now() - RELATED_NEWS_LOOKBACK_MS))
+      )).orderBy(desc(article.createdAt)).limit(300),
   ]);
 
   const live = scheduled.filter(

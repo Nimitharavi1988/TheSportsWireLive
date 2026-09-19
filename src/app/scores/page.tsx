@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article } from "@/db/schema";
+import { and, eq, like, gte, asc, desc } from "drizzle-orm";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { fetchLiveCricketMatches, type CricketMatchStatus } from "@/lib/liveCricket";
 import { LiveScorecard, StatusBadge } from "@/components/LiveScorecard";
@@ -115,32 +117,30 @@ export default async function ScoresPage(props: { searchParams: Promise<{ catego
   const searchParams = await props.searchParams;
   const category = searchParams.category ?? null;
 
-  const where = {
-    status: "published" as const,
-    ...(category ? { category: { startsWith: category } } : {}),
-  };
+  const whereConditions = [
+    eq(article.status, "published"),
+    ...(category ? [like(article.category, `${category}%`)] : []),
+  ];
 
   const select = {
-    id: true, slug: true, title: true, category: true, sourceName: true, summary: true,
-    homeTeam: true, awayTeam: true, homeScore: true, awayScore: true,
-    homeCrestUrl: true, awayCrestUrl: true, kickoffAt: true,
+    id: article.id, slug: article.slug, title: article.title, category: article.category,
+    sourceName: article.sourceName, summary: article.summary,
+    homeTeam: article.homeTeam, awayTeam: article.awayTeam,
+    homeScore: article.homeScore, awayScore: article.awayScore,
+    homeCrestUrl: article.homeCrestUrl, awayCrestUrl: article.awayCrestUrl, kickoffAt: article.kickoffAt,
   };
 
   const showCricketInProgress = category === null || category === "cricket";
 
   const [upcoming, recent, cricketInProgress] = await Promise.all([
-    db.article.findMany({
-      where: { ...where, matchStatus: "scheduled", kickoffAt: { gte: new Date() } },
-      orderBy: { kickoffAt: "asc" },
-      take: 25,
-      select,
-    }),
-    db.article.findMany({
-      where: { ...where, matchStatus: "finished" },
-      orderBy: { kickoffAt: "desc" },
-      take: 25,
-      select,
-    }),
+    db.select(select).from(article)
+      .where(and(...whereConditions, eq(article.matchStatus, "scheduled"), gte(article.kickoffAt, new Date())))
+      .orderBy(asc(article.kickoffAt))
+      .limit(25),
+    db.select(select).from(article)
+      .where(and(...whereConditions, eq(article.matchStatus, "finished")))
+      .orderBy(desc(article.kickoffAt))
+      .limit(25),
     // See page.tsx's comment on the same cap — a low take() silently cut
     // multi-day Test matches out entirely (they sort toward the back of a
     // kickoffAt-desc order behind shorter-format matches that started more
