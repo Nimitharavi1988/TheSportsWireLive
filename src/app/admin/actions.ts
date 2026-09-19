@@ -8,6 +8,7 @@ import { getSession } from "@/lib/auth";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import { postArticleToFacebook } from "@/lib/social/facebook";
 import { postArticleToInstagram } from "@/lib/social/instagram";
+import { sendPushToAllSubscribers } from "@/lib/push";
 import { HERO_CAP, sectionOf } from "@/lib/heroConfig";
 import { submitToIndexNow, articleUrl } from "@/lib/indexNow";
 import { revalidatePath } from "next/cache";
@@ -84,6 +85,24 @@ export async function postToInstagramManually(articleId: string): Promise<{ succ
     await postArticleToInstagram(articleId);
     revalidatePath("/admin");
     return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+// Deliberately admin-triggered only, never automatic — see push.ts's own
+// comment for why. An admin decides per-article whether a story is big
+// enough to interrupt every subscriber's phone for.
+export async function sendPushNotificationManually(articleId: string): Promise<{ success: boolean; error?: string; sent?: number; failed?: number }> {
+  const session = await getSession();
+  if (!session) return { success: false, error: "Not authenticated" };
+
+  const [target] = await db.select({ title: article.title, slug: article.slug }).from(article).where(eq(article.id, articleId)).limit(1);
+  if (!target) return { success: false, error: "Article not found" };
+
+  try {
+    const { sent, failed } = await sendPushToAllSubscribers(target);
+    return { success: true, sent, failed };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };
   }

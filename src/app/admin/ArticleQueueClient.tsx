@@ -24,6 +24,44 @@ import Alert from "@mui/material/Alert";
 import CloseIcon from "@mui/icons-material/Close";
 import { displaySummary } from "@/lib/articleSummary";
 
+// Admin-triggered only, no persisted "already sent" state (unlike
+// SocialPostButton) — a push notification isn't tracked per-article the
+// way a SocialPost row is, it's a fire-and-report action, so this can be
+// clicked again for a follow-up alert if that's ever genuinely wanted.
+function PushNotificationButton({
+  action,
+}: {
+  action: () => Promise<{ success: boolean; error?: string; sent?: number; failed?: number }>;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [message, setMessage] = useState<{ text: string; severity: "success" | "error" } | null>(null);
+
+  function handleClick() {
+    setMessage(null);
+    startTransition(async () => {
+      const result = await action();
+      setMessage(
+        result.success
+          ? { text: `Sent to ${result.sent} subscriber${result.sent === 1 ? "" : "s"}${result.failed ? ` (${result.failed} failed)` : ""}.`, severity: "success" }
+          : { text: `Could not send notification: ${result.error}`, severity: "error" }
+      );
+    });
+  }
+
+  return (
+    <>
+      <Button size="small" variant="outlined" color="warning" onClick={handleClick} disabled={isPending}>
+        {isPending ? "Sending…" : "Send push notification"}
+      </Button>
+      <Snackbar open={message !== null} autoHideDuration={8000} onClose={() => setMessage(null)} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <Alert severity={message?.severity ?? "success"} onClose={() => setMessage(null)} sx={{ maxWidth: 480 }}>
+          {message?.text}
+        </Alert>
+      </Snackbar>
+    </>
+  );
+}
+
 export interface QueueArticle {
   id: string;
   title: string;
@@ -182,6 +220,7 @@ export function ArticleQueueClient({
   postToFacebookManually,
   postToInstagramManually,
   postInstagramPosterManually,
+  sendPushNotificationManually,
 }: {
   articles: QueueArticle[];
   status: "pending_review" | "published";
@@ -197,6 +236,7 @@ export function ArticleQueueClient({
   postToFacebookManually: (articleId: string) => Promise<{ success: boolean; error?: string }>;
   postToInstagramManually: (articleId: string) => Promise<{ success: boolean; error?: string }>;
   postInstagramPosterManually: (articleId: string) => Promise<{ success: boolean; error?: string }>;
+  sendPushNotificationManually: (articleId: string) => Promise<{ success: boolean; error?: string; sent?: number; failed?: number }>;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -374,6 +414,9 @@ export function ArticleQueueClient({
               {status === "published" && (
                 <InstagramPosterButton socialPosts={article.socialPosts} action={postInstagramPosterManually.bind(null, article.id)} />
               )}
+              {status === "published" && (
+                <PushNotificationButton action={sendPushNotificationManually.bind(null, article.id)} />
+              )}
             </CardActions>
           </Card>
         ))}
@@ -489,6 +532,9 @@ export function ArticleQueueClient({
               )}
               {status === "published" && (
                 <InstagramPosterButton socialPosts={detailArticle.socialPosts} action={postInstagramPosterManually.bind(null, detailArticle.id)} />
+              )}
+              {status === "published" && (
+                <PushNotificationButton action={sendPushNotificationManually.bind(null, detailArticle.id)} />
               )}
             </DialogActions>
           </>

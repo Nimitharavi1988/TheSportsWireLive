@@ -35,6 +35,7 @@ import { isHeroFeatureStale, isHighlightStale } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { LiveScoreboardCarousel } from "@/components/LiveScoreboardCarousel";
 import { InstallAppBanner } from "@/components/InstallAppBanner";
+import { NotificationOptInBanner } from "@/components/NotificationOptInBanner";
 import { fetchLiveMatches } from "@/lib/liveMatches";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import StarIcon from "@mui/icons-material/Star";
@@ -610,6 +611,7 @@ export default async function HomePage(
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <InstallAppBanner />
+      <NotificationOptInBanner />
       {articles.length === 0 && (
         <Box sx={{ textAlign: "center", py: 8 }}>
           <Typography variant="h6" gutterBottom>
