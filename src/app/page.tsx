@@ -1156,8 +1156,13 @@ export default async function HomePage(
 
             {/* The one deliberately chosen ad placement — see
                 DisplayAd.tsx's comment. Sits among this column's other
-                supplementary modules, not competing with headlines. */}
-            <Box sx={{ mb: 3 }}>
+                supplementary modules, not competing with headlines.
+                Hidden below md — confirmed live that AdSense's responsive
+                format expands to a large ~375x375 square at full mobile
+                width, nothing like the compact, embedded look it has
+                confined to this column's 340px width on desktop. The
+                "More Headlines" scroll-tile ad below still covers mobile. */}
+            <Box sx={{ mb: 3, display: { xs: "none", md: "block" } }}>
               <DisplayAd slot="9489682012" />
             </Box>
 

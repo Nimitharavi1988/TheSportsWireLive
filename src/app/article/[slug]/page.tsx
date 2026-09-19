@@ -20,7 +20,7 @@ import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standing
 import { StandingsCarousel } from "@/components/StandingsCarousel";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
-import { DisplayAd } from "@/components/DisplayAd";
+import { InFeedAd } from "@/components/InFeedAd";
 import { TRACKED_PLAYERS } from "@/lib/players";
 import { TRACKED_CLUBS } from "@/lib/clubs";
 import { createEntityLinker } from "@/lib/entityLinks";
@@ -468,6 +468,22 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         ));
       })()}
 
+      {/* In-feed native ad, styled in AdSense to match the site's own
+          look (white background, light border, sans-serif) so it reads
+          as part of the content flow. Two ad units sharing one visual
+          style (same layout-key) — AdSense generated a separate unit per
+          screen size when the style was created, so each renders only at
+          its own breakpoint rather than trying to force one unit to be
+          responsive across both. Sits after the body, before engagement —
+          same placement logic as FanEngagementHub below: after the reader
+          has actually read the story. */}
+      <Box sx={{ display: { xs: "block", md: "none" }, mb: 3 }}>
+        <InFeedAd slot="6766570899" layoutKey="-i7+9-t-18+5h" />
+      </Box>
+      <Box sx={{ display: { xs: "none", md: "block" }, mb: 3 }}>
+        <InFeedAd slot="6355507350" layoutKey="-i7+9-t-18+5h" />
+      </Box>
+
       {/* Engagement sits before the outbound source link, not after — a
           reader who clicks through to the source immediately after reading
           would otherwise never see it. */}
@@ -553,17 +569,6 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
             </Stack>
           </Paper>
         )}
-        {/* Same visual treatment as Related Stories/Trending Now above —
-            deliberately embedded to match the sidebar's existing look
-            rather than standing out, per explicit request. Reuses the
-            homepage sidebar's own ad unit (same kind of placement, just a
-            different page) instead of creating a separate one. */}
-        <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
-          <Typography variant="overline" sx={{ color: "text.secondary", display: "block", mb: 1 }}>
-            Advertisement
-          </Typography>
-          <DisplayAd slot="9489682012" />
-        </Paper>
         {standings && standings.rows.length > 0 && (
           <Box sx={{ mb: 3 }}>
             <StandingsCarousel leagues={STANDINGS_LEAGUES} initialCode="PL" initialTable={standings} />
