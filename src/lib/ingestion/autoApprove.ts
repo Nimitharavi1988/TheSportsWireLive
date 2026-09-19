@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { article, socialPost } from "@/db/schema";
-import { eq, and, inArray, gte, lt, count } from "drizzle-orm";
+import { eq, and, inArray, gte, lt, count, desc } from "drizzle-orm";
 import { submitToIndexNow, articleUrl } from "../indexNow";
 import { isMatchDataSource } from "../matchDataSources";
 import { isHighlightWorthy } from "../highlightWorthy";
@@ -103,6 +103,13 @@ const RESERVED_CATEGORIES: { category: string; slots: number }[] = [
   { category: "formula-1", slots: 1 },
 ];
 
+// How far back the social-posting candidate pool looks for published,
+// not-yet-posted articles — see the pool-building comment below for why
+// this exists at all. 3 days matches runIngest.ts's own staleness window
+// for the same reasoning: old enough to give a real backlog to draw from,
+// not so old that a week-old story starts appearing as "new" on the Page.
+const SOCIAL_BACKLOG_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+
 export function hasRealImage(article: { heroImageUrl: string | null; homeCrestUrl: string | null }): boolean {
   // A team crest pair is real by construction (never a stock photo).
   if (article.homeCrestUrl) return true;
@@ -154,134 +161,169 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     // Best-effort, same isolation principle as the Facebook post below —
     // a failed ping here should never affect publishing.
     await submitToIndexNow(toApprove.map((a) => articleUrl(a.slug)));
+  }
 
-    // Unlike the admin UI's bulk approveArticles/approveAllMatching (which
-    // skip Facebook entirely — a human selecting dozens of items at once
-    // isn't asking for dozens of Page posts), this IS the dominant approval
-    // path now, so skipping it here meant most published content never
-    // reached Facebook at all. isHighlightWorthy narrows to topically
-    // notable stories, then trendingScore picks the real best of that set,
-    // capped at MAX_FACEBOOK_POSTS_PER_RUN — the actual volume ceiling.
-    // Sequential + best-effort per article: one failed/rate-limited post
-    // must never affect another.
-    const todayStart = new Date();
-    todayStart.setUTCHours(0, 0, 0, 0);
-    const [{ value: postedToday }] = await db.select({ value: count() }).from(socialPost)
-      .where(and(eq(socialPost.platform, "facebook"), gte(socialPost.createdAt, todayStart)));
-    const remainingToday = Math.max(0, MAX_FACEBOOK_POSTS_PER_DAY - postedToday);
+  // Social-posting candidate pool: NOT scoped to just-approved toApprove
+  // articles above. Confirmed live: several runs auto-approve only 1-3 new
+  // articles, so even with runCap allowing 5-10 posts, there was structurally
+  // never more than 1-3 candidates to pick from — "1 post per run" was the
+  // real ceiling, not a bug in the pacing math. This pool instead covers
+  // every published article from the last SOCIAL_BACKLOG_WINDOW_MS that
+  // doesn't already have a posted/queued row for that platform, so the
+  // pacing logic below actually has enough real candidates to hit its
+  // per-run target most runs. Runs even when toApprove is empty.
+  type SocialCandidate = { id: string; slug: string; title: string; trendingScore: number; category: string };
+  const backlogCutoff = new Date(Date.now() - SOCIAL_BACKLOG_WINDOW_MS);
+  const [backlogPool, fbPostedRows, igPostedRows] = await Promise.all([
+    db.select({
+      id: article.id, slug: article.slug, title: article.title,
+      trendingScore: article.trendingScore, category: article.category,
+    }).from(article)
+      .where(and(eq(article.status, "published"), gte(article.publishedAt, backlogCutoff)))
+      .orderBy(desc(article.trendingScore))
+      .limit(300),
+    db.select({ articleId: socialPost.articleId }).from(socialPost)
+      .where(and(eq(socialPost.platform, "facebook"), inArray(socialPost.status, ["posted", "queued"]), gte(socialPost.createdAt, backlogCutoff))),
+    db.select({ articleId: socialPost.articleId }).from(socialPost)
+      .where(and(eq(socialPost.platform, "instagram"), inArray(socialPost.status, ["posted", "queued"]), gte(socialPost.createdAt, backlogCutoff))),
+  ]);
+  const fbPostedIds = new Set(fbPostedRows.map((r) => r.articleId));
+  const igPostedIds = new Set(igPostedRows.map((r) => r.articleId));
 
-    // Paced allocation: how many posts SHOULD have gone out by this point in
-    // the day, proportional to how many of today's 96 runs have elapsed —
-    // e.g. 2 hours (8 runs) into the day, ~8/96ths of 199 (~17) is the
-    // target, not the full 199 all at once. Without this, a burst of
-    // eligible content early in the day front-loads the whole daily budget
-    // and leaves the rest of the day silent — confirmed live with the old
-    // flat-cap approach (300 posts landed by 16:54 UTC some days). Floored
-    // at 1 so a run always attempts at least one post even when already on
-    // or ahead of pace, matching the earlier "never go fully silent" fix.
-    const now = new Date();
-    const minutesSinceMidnight = (now.getTime() - todayStart.getTime()) / 60000;
-    const currentRunIndex = Math.min(RUNS_PER_DAY, Math.floor(minutesSinceMidnight / 15) + 1);
-    const expectedByNow = Math.round((MAX_FACEBOOK_POSTS_PER_DAY * currentRunIndex) / RUNS_PER_DAY);
-    const paceTarget = Math.max(MIN_FACEBOOK_POSTS_PER_RUN, expectedByNow - postedToday);
+  const freshCandidates: SocialCandidate[] = toApprove.map((a) => ({
+    id: a.id, slug: a.slug, title: a.title, trendingScore: a.trendingScore, category: a.category,
+  }));
+  const freshIds = new Set(freshCandidates.map((a) => a.id));
+  const backlogExcludingFresh = backlogPool.filter((a) => !freshIds.has(a.id));
 
-    const runCap = Math.max(1, Math.min(MAX_FACEBOOK_POSTS_PER_RUN, remainingToday, paceTarget));
-
-    const byTrending = [...toApprove].sort((a, b) => b.trendingScore - a.trendingScore);
-    const eligible = byTrending.filter((a) => isHighlightWorthy(a.title));
-
-    // Picks the top N respecting RESERVED_CATEGORIES, same ranking both
-    // platforms use. Called once per platform with that platform's own
-    // paced cap — Facebook and Instagram now have independent budgets, so
-    // Instagram's candidate pool is no longer silently bottlenecked by
-    // however small Facebook's pace target happens to be for a given run
-    // (they used to share one `toPost` list sized to Facebook's cap alone).
-    //
-    // Reserved-category picks are pulled from `byTrending` (every approved
-    // article), NOT `eligible` (the isHighlightWorthy-filtered subset) —
-    // confirmed live that hockey/volleyball/formula-1 content essentially
-    // never clears isHighlightWorthy on its own (see RESERVED_CATEGORIES
-    // comment above), so sourcing reserved slots from `eligible` would make
-    // the "reservation" meaningless for them: a guaranteed slot that never
-    // actually gets filled. Cricket's reserved slot picks up the same
-    // change, which only widens what can fill it — matches the "reserved"
-    // name's own intent (a guarantee, not a conditional one).
-    function selectTopN(n: number): typeof eligible {
-      const selected: typeof eligible = [];
-      for (const { category, slots } of RESERVED_CATEGORIES) {
-        const matches = byTrending.filter((a) => a.category === category && !selected.includes(a));
-        for (const article of matches.slice(0, slots)) {
-          if (selected.length >= n) break;
-          selected.push(article);
-        }
-      }
-      for (const article of eligible) {
+  // Picks the top N respecting RESERVED_CATEGORIES, same ranking both
+  // platforms use. Takes its candidate pool as a parameter (not closed
+  // over) so Facebook and Instagram — which now have independent
+  // already-posted exclusions, not just independent pace targets — each
+  // get their own pool instead of silently sharing one.
+  //
+  // Reserved-category picks are pulled from `byTrending` (every candidate),
+  // NOT `eligible` (the isHighlightWorthy-filtered subset) — confirmed live
+  // that hockey/volleyball/formula-1 content essentially never clears
+  // isHighlightWorthy on its own (see RESERVED_CATEGORIES comment above),
+  // so sourcing reserved slots from `eligible` would make the "reservation"
+  // meaningless for them: a guaranteed slot that never actually gets
+  // filled. Cricket's reserved slot picks up the same change, which only
+  // widens what can fill it — matches the "reserved" name's own intent (a
+  // guarantee, not a conditional one).
+  function selectTopN(n: number, byTrending: SocialCandidate[], eligible: SocialCandidate[]): SocialCandidate[] {
+    const selected: SocialCandidate[] = [];
+    for (const { category, slots } of RESERVED_CATEGORIES) {
+      const matches = byTrending.filter((a) => a.category === category && !selected.includes(a));
+      for (const article of matches.slice(0, slots)) {
         if (selected.length >= n) break;
-        if (!selected.includes(article)) selected.push(article);
-      }
-      return selected;
-    }
-
-    const toPost = selectTopN(runCap);
-
-    // Same pacing model as Facebook's runCap above, but budgeted against
-    // Instagram's own daily cap and counting only actual successful
-    // publishes (status "posted") — a failed/rate-limited attempt doesn't
-    // consume Meta's real 100/day limit, so it shouldn't consume ours either.
-    const [{ value: instagramPostedToday }] = await db.select({ value: count() }).from(socialPost)
-      .where(and(eq(socialPost.platform, "instagram"), eq(socialPost.status, "posted"), gte(socialPost.postedAt, todayStart)));
-    const instagramRemainingToday = Math.max(0, MAX_INSTAGRAM_POSTS_PER_DAY - instagramPostedToday);
-    const instagramExpectedByNow = Math.round((MAX_INSTAGRAM_POSTS_PER_DAY * currentRunIndex) / RUNS_PER_DAY);
-    // Same temporary traffic-recovery boost as Facebook (2026-09-16), but a
-    // lower floor (2, not 5) — confirmed live that Instagram's real 100/day
-    // cap means a 5/run floor would burn the whole daily budget in ~5 hours
-    // then go fully silent the rest of the day. 2/run stretches the budget
-    // to roughly half the day before tapering instead. Still hard-bounded by
-    // instagramRemainingToday below, same safety property as Facebook.
-    // Revert to 1 once traffic recovers.
-    const instagramPaceTarget = Math.max(2, instagramExpectedByNow - instagramPostedToday);
-    const instagramRunCap = Math.max(
-      0,
-      Math.min(MAX_INSTAGRAM_POSTS_PER_RUN, instagramRemainingToday, instagramPaceTarget)
-    );
-    const instagramCandidates = selectTopN(instagramRunCap);
-
-    // Facebook is back to its original plain format (the old auto-link-card
-    // post, not the generated poster) per explicit request - the comment-
-    // link permission it would have unlocked isn't needed after all, and a
-    // single plain API call is cheap enough to attempt for every candidate
-    // here, same as before the poster work started.
-    for (const article of toPost) {
-      try {
-        await postArticleToFacebook(article.id);
-      } catch (err) {
-        console.error("Facebook post failed for article", article.id, err);
+        selected.push(article);
       }
     }
+    for (const article of eligible) {
+      if (selected.length >= n) break;
+      if (!selected.includes(article)) selected.push(article);
+    }
+    return selected;
+  }
 
-    // Instagram still uses the generated poster (socialPoster.ts) - a
-    // Gemini call plus a real git commit/push/deploy-poll per attempt, far
-    // more expensive than Facebook's plain post above. Paced against its
-    // own daily budget (instagramRunCap, above) rather than the old flat
-    // "2 attempts" cap, and stops as soon as one succeeds within the run —
-    // no need to spend more of this run's already-paced budget once that
-    // run's slot is filled.
-    let instagramAttempts = 0;
-    let instagramDone = false;
-    for (const article of instagramCandidates) {
-      if (instagramDone || instagramAttempts >= instagramRunCap) break;
-      instagramAttempts++;
-      try {
-        const posted = await postInstagramPoster(article.id);
-        if (posted) instagramDone = true;
-      } catch (err) {
-        console.error("Instagram post failed for article", article.id, err);
-        // A persistent app-level rate-limit error fails identically for
-        // every article — stop immediately rather than spending the
-        // remaining attempt on the same guaranteed failure.
-        if (err instanceof Error && err.message.includes("Application request limit reached")) {
-          instagramDone = true;
-        }
+  // Unlike the admin UI's bulk approveArticles/approveAllMatching (which
+  // skip Facebook entirely — a human selecting dozens of items at once
+  // isn't asking for dozens of Page posts), this IS the dominant approval
+  // path now, so skipping it here meant most published content never
+  // reached Facebook at all. isHighlightWorthy narrows to topically
+  // notable stories, then trendingScore picks the real best of that set,
+  // capped at MAX_FACEBOOK_POSTS_PER_RUN — the actual volume ceiling.
+  // Sequential + best-effort per article: one failed/rate-limited post
+  // must never affect another.
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const [{ value: postedToday }] = await db.select({ value: count() }).from(socialPost)
+    .where(and(eq(socialPost.platform, "facebook"), gte(socialPost.createdAt, todayStart)));
+  const remainingToday = Math.max(0, MAX_FACEBOOK_POSTS_PER_DAY - postedToday);
+
+  // Paced allocation: how many posts SHOULD have gone out by this point in
+  // the day, proportional to how many of today's 96 runs have elapsed —
+  // e.g. 2 hours (8 runs) into the day, ~8/96ths of 199 (~17) is the
+  // target, not the full 199 all at once. Without this, a burst of
+  // eligible content early in the day front-loads the whole daily budget
+  // and leaves the rest of the day silent — confirmed live with the old
+  // flat-cap approach (300 posts landed by 16:54 UTC some days). Floored
+  // at 1 so a run always attempts at least one post even when already on
+  // or ahead of pace, matching the earlier "never go fully silent" fix.
+  const now = new Date();
+  const minutesSinceMidnight = (now.getTime() - todayStart.getTime()) / 60000;
+  const currentRunIndex = Math.min(RUNS_PER_DAY, Math.floor(minutesSinceMidnight / 15) + 1);
+  const expectedByNow = Math.round((MAX_FACEBOOK_POSTS_PER_DAY * currentRunIndex) / RUNS_PER_DAY);
+  const paceTarget = Math.max(MIN_FACEBOOK_POSTS_PER_RUN, expectedByNow - postedToday);
+
+  const runCap = Math.max(1, Math.min(MAX_FACEBOOK_POSTS_PER_RUN, remainingToday, paceTarget));
+
+  const fbPool = [...freshCandidates, ...backlogExcludingFresh.filter((a) => !fbPostedIds.has(a.id))];
+  const fbByTrending = [...fbPool].sort((a, b) => b.trendingScore - a.trendingScore);
+  const fbEligible = fbByTrending.filter((a) => isHighlightWorthy(a.title));
+  const toPost = selectTopN(runCap, fbByTrending, fbEligible);
+
+  // Same pacing model as Facebook's runCap above, but budgeted against
+  // Instagram's own daily cap and counting only actual successful
+  // publishes (status "posted") — a failed/rate-limited attempt doesn't
+  // consume Meta's real 100/day limit, so it shouldn't consume ours either.
+  const [{ value: instagramPostedToday }] = await db.select({ value: count() }).from(socialPost)
+    .where(and(eq(socialPost.platform, "instagram"), eq(socialPost.status, "posted"), gte(socialPost.postedAt, todayStart)));
+  const instagramRemainingToday = Math.max(0, MAX_INSTAGRAM_POSTS_PER_DAY - instagramPostedToday);
+  const instagramExpectedByNow = Math.round((MAX_INSTAGRAM_POSTS_PER_DAY * currentRunIndex) / RUNS_PER_DAY);
+  // Same temporary traffic-recovery boost as Facebook (2026-09-16), but a
+  // lower floor (2, not 5) — confirmed live that Instagram's real 100/day
+  // cap means a 5/run floor would burn the whole daily budget in ~5 hours
+  // then go fully silent the rest of the day. 2/run stretches the budget
+  // to roughly half the day before tapering instead. Still hard-bounded by
+  // instagramRemainingToday below, same safety property as Facebook.
+  // Revert to 1 once traffic recovers.
+  const instagramPaceTarget = Math.max(2, instagramExpectedByNow - instagramPostedToday);
+  const instagramRunCap = Math.max(
+    0,
+    Math.min(MAX_INSTAGRAM_POSTS_PER_RUN, instagramRemainingToday, instagramPaceTarget)
+  );
+  const igPool = [...freshCandidates, ...backlogExcludingFresh.filter((a) => !igPostedIds.has(a.id))];
+  const igByTrending = [...igPool].sort((a, b) => b.trendingScore - a.trendingScore);
+  const igEligible = igByTrending.filter((a) => isHighlightWorthy(a.title));
+  const instagramCandidates = selectTopN(instagramRunCap, igByTrending, igEligible);
+
+  // Facebook is back to its original plain format (the old auto-link-card
+  // post, not the generated poster) per explicit request - the comment-
+  // link permission it would have unlocked isn't needed after all, and a
+  // single plain API call is cheap enough to attempt for every candidate
+  // here, same as before the poster work started.
+  for (const article of toPost) {
+    try {
+      await postArticleToFacebook(article.id);
+    } catch (err) {
+      console.error("Facebook post failed for article", article.id, err);
+    }
+  }
+
+  // Instagram still uses the generated poster (socialPoster.ts) - a
+  // Gemini call plus a real git commit/push/deploy-poll per attempt, far
+  // more expensive than Facebook's plain post above. Paced against its
+  // own daily budget (instagramRunCap, above) rather than the old flat
+  // "2 attempts" cap, and stops as soon as one succeeds within the run —
+  // no need to spend more of this run's already-paced budget once that
+  // run's slot is filled.
+  let instagramAttempts = 0;
+  let instagramDone = false;
+  for (const article of instagramCandidates) {
+    if (instagramDone || instagramAttempts >= instagramRunCap) break;
+    instagramAttempts++;
+    try {
+      const posted = await postInstagramPoster(article.id);
+      if (posted) instagramDone = true;
+    } catch (err) {
+      console.error("Instagram post failed for article", article.id, err);
+      // A persistent app-level rate-limit error fails identically for
+      // every article — stop immediately rather than spending the
+      // remaining attempt on the same guaranteed failure.
+      if (err instanceof Error && err.message.includes("Application request limit reached")) {
+        instagramDone = true;
       }
     }
   }
