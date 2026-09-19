@@ -35,7 +35,7 @@ export default function TermsPage() {
           color: "text.secondary",
           mb: 4
         }}>
-        Last updated: September 6, 2026
+        Last updated: September 19, 2026
       </Typography>
 
       <Section title="Acceptance of terms">
@@ -58,9 +58,9 @@ export default function TermsPage() {
         </p>
         <p>
           We are not affiliated with, and do not claim to represent, any sports league, team,
-          player, or the publishers we link to (BBC Sport, The Guardian, Sky Sports, ESPN
-          Cricinfo, or others). Team names, logos, and crests shown on the Site are the property
-          of their respective owners and are used solely for identification/editorial purposes.
+          player, or the publishers we link to. Team names, logos, and crests shown on the Site
+          are the property of their respective owners and are used solely for
+          identification/editorial purposes.
         </p>
       </Section>
 

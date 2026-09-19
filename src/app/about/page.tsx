@@ -45,17 +45,15 @@ export default function AboutPage() {
       <Section title="How our coverage is produced">
         <p>
           Sports Wire Live is a news aggregator: match data (scores, fixtures, standings) is
-          pulled from public sports data APIs, and news coverage is sourced from established
-          publishers' RSS feeds — including BBC Sport, The Guardian, Sky Sports, ESPN, ESPN
-          Cricinfo, CBS Sports, Yahoo Sports, and Hindustan Times, among others. Every article
-          links back to its original source, and every photo carries attribution to its
-          photographer or source when one is available.
+          pulled from public sports data sources, and news coverage draws on established sports
+          publishers around the world. Every article links back to its original source, and every
+          photo carries attribution to its photographer or source when one is available.
         </p>
         <p>
-          Some articles — particularly match previews and results built from structured data, and
-          player-focused stories gathered from multiple outlets — include original commentary
-          written with AI assistance, grounded in the source material rather than copied from it.
-          We do not republish other outlets' full articles verbatim.
+          Some articles — particularly match previews and results, and player-focused stories
+          gathered from multiple outlets — include original commentary written with AI assistance,
+          grounded in the source material rather than copied from it. We do not republish other
+          outlets' full articles verbatim.
         </p>
       </Section>
 

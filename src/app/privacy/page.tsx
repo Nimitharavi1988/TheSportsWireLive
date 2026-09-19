@@ -113,11 +113,11 @@ export default function PrivacyPolicyPage() {
 
       <Section title="Third-party links and content">
         <p>
-          Articles on the Site link out to the original reporting on other publishers' websites
-          (for example BBC Sport, The Guardian, Sky Sports, ESPN Cricinfo), and some images are
-          sourced from Pexels or Wikimedia Commons with attribution shown alongside them. When
-          you click through to any of those sites, you leave the Site and become subject to that
-          site's own privacy policy — we don't control and aren't responsible for their practices.
+          Articles on the Site link out to the original reporting on other publishers' websites,
+          and some images are sourced from stock/media libraries with attribution shown alongside
+          them. When you click through to any of those sites, you leave the Site and become
+          subject to that site's own privacy policy — we don't control and aren't responsible for
+          their practices.
         </p>
       </Section>
 
