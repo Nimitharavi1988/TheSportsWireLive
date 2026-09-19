@@ -1335,7 +1335,16 @@ export default async function HomePage(
                       )}
                     </Box>
                   ) : null}
-                  <Typography variant="subtitle2" component="h3" gutterBottom>
+                  <Typography
+                    variant="subtitle2"
+                    component="h3"
+                    sx={{
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
                     {article.title}
                   </Typography>
                 </CardContent>
