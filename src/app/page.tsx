@@ -388,7 +388,26 @@ export default async function HomePage(
       .limit(15),
   ]);
   const rankedIds = new Set(articlesRanked.map((a) => a.id));
-  const articles = [...manuallyFeaturedRaw.filter((a) => !rankedIds.has(a.id)), ...articlesRanked];
+  const articlesWithDupes = [...manuallyFeaturedRaw.filter((a) => !rankedIds.has(a.id)), ...articlesRanked];
+
+  // Real duplicate rows do exist in the DB for the same underlying story
+  // (confirmed live: identical Sky Sports headlines with different
+  // dedupeHash values) -- the ingest-time dedup hash buckets by UTC day,
+  // and a source's own pubDate can drift across a midnight boundary
+  // between two polls of the same RSS item, hashing the same real article
+  // differently each time. That's a deeper ingestion-level fix; this is
+  // the display-layer safety net, deduplicating by normalized title once
+  // here so every section built from `articles` below (hero, Transfers &
+  // Big News, Match Results, Also in the News, Just In, etc.) benefits at
+  // once. Keeps the first occurrence, which is always the highest-ranked
+  // one since manuallyFeatured/articlesRanked are already sorted.
+  const seenNormalizedTitles = new Set<string>();
+  const articles = articlesWithDupes.filter((a) => {
+    const norm = a.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    if (seenNormalizedTitles.has(norm)) return false;
+    seenNormalizedTitles.add(norm);
+    return true;
+  });
 
   // For each tracked player, find their single most prominent recent
   // article (reusing the already-fetched, trending-sorted `articles` list —
