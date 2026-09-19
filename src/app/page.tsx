@@ -35,6 +35,7 @@ import { isHeroFeatureStale, isHighlightStale } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { LiveScoreboardCarousel } from "@/components/LiveScoreboardCarousel";
 import { DisplayAd } from "@/components/DisplayAd";
+import { MoreHeadlinesAdTile } from "@/components/MoreHeadlinesAdTile";
 import { HomeBanners } from "@/components/HomeBanners";
 import { fetchLiveMatches } from "@/lib/liveMatches";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
@@ -1243,23 +1244,10 @@ export default async function HomePage(
                 dimensions so it reads as part of the same scroll row
                 instead of a separate banner block — see DisplayAd.tsx's
                 comment on why this is manual, not Auto ads. Labeled
-                "Advertisement" for transparency, same as any other ad. */}
-            {/* minHeight is a moderate middle-ground, not an exact match --
-                real cards in this row vary by content (crest-pair vs hero
-                image vs text-only), so there's no single "right" height to
-                copy. Until Google approves the site, this ad slot has
-                nothing to fill and can collapse to near-zero height, which
-                otherwise made this tile look like a broken short box; this
-                keeps it from collapsing without risking sticking out
-                taller than its shortest neighbors either. */}
-            <Card variant="outlined" sx={{ minWidth: 260, maxWidth: 260, minHeight: 240, flexShrink: 0 }}>
-              <CardContent>
-                <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 1 }}>
-                  Advertisement
-                </Typography>
-                <DisplayAd slot="3029496703" />
-              </CardContent>
-            </Card>
+                "Advertisement" for transparency, same as any other ad.
+                Collapses out of the row entirely when there's nothing to
+                fill (e.g. pre-approval) — see MoreHeadlinesAdTile.tsx. */}
+            <MoreHeadlinesAdTile slot="3029496703" />
             {moreArticles.map((article) => (
               <Link
                 key={article.id}
