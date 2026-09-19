@@ -14,7 +14,14 @@
  * Free tier: no credit card required, rate-limited (see Google AI Studio).
  */
 
-const MODEL = "gemini-flash-latest";
+// Lite tier — confirmed live (2026-09-19) resolves to gemini-3.5-flash-lite,
+// at a fraction of the standard Flash tier's per-token cost (Flash-Lite is
+// roughly 6x cheaper on input and 12x cheaper on output per Google's current
+// pricing). Same "-latest" auto-tracking alias pattern as before, just the
+// lite family instead of the standard one — every call here is short
+// factual summarization/translation grounded in given facts, not open-ended
+// reasoning, which is exactly the workload the lite tier is designed for.
+const MODEL = "gemini-flash-lite-latest";
 
 function buildRssPrompt(title: string, sourceSnippet: string, sourceName: string): string {
   return `You are writing a brief original news blurb for a sports aggregator site, based on a report from ${sourceName}.
@@ -77,12 +84,25 @@ async function callGemini(prompt: string, options: GeminiCallOptions): Promise<a
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            // Disable "thinking" — this is a short factual summarization
-            // task, not reasoning-heavy, and thinking tokens add real
-            // cost/quota use for no benefit here.
-            thinkingConfig: { thinkingBudget: 0 },
+            // No thinkingConfig override — confirmed live (2026-09-19) that
+            // gemini-flash-lite-latest (gemini-3.5-flash-lite) rejects
+            // thinkingBudget: 0 outright (400 INVALID_ARGUMENT), unlike the
+            // standard Flash tier this used to target. usageMetadata on this
+            // model shows no separate hidden reasoning-token cost anyway
+            // (totalTokenCount == promptTokenCount + candidatesTokenCount in
+            // every test call), so there's nothing to disable here.
             responseMimeType: "application/json",
             responseSchema: options.responseSchema,
+            // Low, not zero — a little variation keeps prose from feeling
+            // templated across near-identical stories, but the whole point
+            // of every prompt here is "stay faithful to the given facts,
+            // never invent," so a high-creativity default fights that goal.
+            // Free to set, no cost impact either way.
+            temperature: 0.3,
+            // Every prompt here asks for a couple short paragraphs at most —
+            // this caps worst-case cost on an occasional runaway response
+            // rather than silently paying for output nobody wants.
+            maxOutputTokens: 1024,
           },
         }),
       }

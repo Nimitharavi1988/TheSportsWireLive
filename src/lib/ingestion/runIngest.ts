@@ -80,7 +80,11 @@ const MAX_MATCH_RECAP_PER_RUN = 6;
 // doesn't touch, and the pending queue was growing largely because of that,
 // not because cricket's own floor was too low. Deliberately a rebalance,
 // not a raise — MAX_COMMENTARY_PER_RUN (real Gemini spend) is unchanged.
-const CRICKET_COMMENTARY_RESERVED = 20;
+// Trimmed again 20 -> 15 (2026-09-19, explicit request) once the pending
+// queue was found to be dominated by non-cricket volume (american-football
+// alone had 775 of 1,876 pending, cricket only 322) — this is now a genuine
+// ceiling, not always fully used; see the spillover logic below it.
+const CRICKET_COMMENTARY_RESERVED = 15;
 
 // RSS items older than this are skipped outright rather than ingested —
 // see the skip site below for why. 3 days comfortably covers a slow news
@@ -235,14 +239,37 @@ export async function runIngest() {
   let otherCommentaryCalls = 0;
   let matchRecapCalls = 0;
 
+  // Spillover: cricket's reserve is a ceiling, not a guarantee it'll all get
+  // used — on a run with genuinely little fresh cricket editorial news, the
+  // unused portion should go to the much larger non-cricket backlog instead
+  // of sitting idle while football/basketball/baseball starve. Estimated via
+  // a cheap pre-pass (no network calls) over rawItems counting real cricket
+  // commentary CANDIDATES — a still-pending existing article with no body
+  // yet, or a genuinely new item — same eligibility rawItems items are
+  // actually filtered on below. This is a deliberate upper bound (it doesn't
+  // replicate the quality-gate check new items still have to pass), so it
+  // can occasionally overestimate real demand and leave a slot unused, but
+  // never underestimates cricket's real need and steals a slot it would
+  // have used — the common, important case this fixes is "today just has
+  // fewer real cricket stories than 15," not quality-gate edge cases.
+  const cricketCandidateCount = rawItems.filter((item) => {
+    if (item.category !== "cricket" || isMatchDataSource(item.sourceName)) return false;
+    const existing = existingArticles.get(dedupeHashFor(item));
+    return existing
+      ? existing.body === null && existing.status !== "flagged" && existing.status !== "rejected"
+      : true;
+  }).length;
+  const cricketCommentaryCap = Math.min(CRICKET_COMMENTARY_RESERVED, cricketCandidateCount);
+  const otherCommentaryCap = MAX_COMMENTARY_PER_RUN - cricketCommentaryCap;
+
   // Cricket draws from its own reserved floor first; everything else shares
   // the remainder of MAX_COMMENTARY_PER_RUN by trending priority, same as
   // before. Total spend is unchanged — this only changes which items the
   // existing budget goes to.
   function canAffordCommentary(category: string): boolean {
     return category === "cricket"
-      ? cricketCommentaryCalls < CRICKET_COMMENTARY_RESERVED
-      : otherCommentaryCalls < MAX_COMMENTARY_PER_RUN - CRICKET_COMMENTARY_RESERVED;
+      ? cricketCommentaryCalls < cricketCommentaryCap
+      : otherCommentaryCalls < otherCommentaryCap;
   }
   function recordCommentaryCall(category: string): void {
     if (category === "cricket") cricketCommentaryCalls++;
