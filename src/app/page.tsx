@@ -1236,6 +1236,19 @@ export default async function HomePage(
             More Headlines
           </Typography>
           <ScrollRow gap={2}>
+            {/* One native-feeling ad tile, matching the real cards'
+                dimensions so it reads as part of the same scroll row
+                instead of a separate banner block — see DisplayAd.tsx's
+                comment on why this is manual, not Auto ads. Labeled
+                "Advertisement" for transparency, same as any other ad. */}
+            <Card variant="outlined" sx={{ minWidth: 260, maxWidth: 260, flexShrink: 0 }}>
+              <CardContent>
+                <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 1 }}>
+                  Advertisement
+                </Typography>
+                <DisplayAd slot="3029496703" />
+              </CardContent>
+            </Card>
             {moreArticles.map((article) => (
               <Link
                 key={article.id}
