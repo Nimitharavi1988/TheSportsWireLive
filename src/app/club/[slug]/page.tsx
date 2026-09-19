@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article } from "@/db/schema";
+import { and, eq, or, ilike, desc } from "drizzle-orm";
 import { TRACKED_CLUBS } from "@/lib/clubs";
 import { findClubCrest } from "@/lib/teamNames";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
@@ -39,14 +41,13 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
   const club = TRACKED_CLUBS.find((c) => c.slug === slug);
   if (!club) notFound();
 
-  const articles = await db.article.findMany({
-    where: {
-      status: "published",
-      OR: club.searchTerms.map((term) => ({ title: { contains: term, mode: "insensitive" as const } })),
-    },
-    orderBy: { publishedAt: "desc" },
-    take: 30,
-  });
+  const articles = await db.select().from(article)
+    .where(and(
+      eq(article.status, "published"),
+      or(...club.searchTerms.map((term) => ilike(article.title, `%${term}%`)))
+    ))
+    .orderBy(desc(article.publishedAt))
+    .limit(30);
 
   const crestUrl = findClubCrest(club, articles);
 

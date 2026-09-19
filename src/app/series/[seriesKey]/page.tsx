@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article } from "@/db/schema";
+import { and, eq, desc } from "drizzle-orm";
 import { ArticleThumb } from "@/components/ArticleThumb";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
@@ -18,10 +20,9 @@ import SportsCricketIcon from "@mui/icons-material/SportsCricket";
 export const revalidate = 300;
 
 async function findSeries(seriesKey: string) {
-  return db.article.findFirst({
-    where: { seriesKey },
-    select: { seriesLabel: true },
-  });
+  const rows = await db.select({ seriesLabel: article.seriesLabel }).from(article)
+    .where(eq(article.seriesKey, seriesKey)).limit(1);
+  return rows[0] ?? null;
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ seriesKey: string }> }) {
@@ -47,11 +48,10 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
     // low, minutes old) beneath 1-2 day old preview stories that had time to
     // build score — confirmed live: the actual newest 5 articles were absent
     // from the first 8 shown.
-    db.article.findMany({
-      where: { seriesKey, status: "published" },
-      orderBy: [{ publishedAt: "desc" }],
-      take: 60,
-    }),
+    db.select().from(article)
+      .where(and(eq(article.seriesKey, seriesKey), eq(article.status, "published")))
+      .orderBy(desc(article.publishedAt))
+      .limit(60),
   ]);
 
   if (!series) notFound();

@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { db } from "@/lib/db";
+import { db } from "@/db";
+import { article } from "@/db/schema";
+import { and, eq, isNotNull, count, max, desc } from "drizzle-orm";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
@@ -15,13 +17,17 @@ export default async function SeriesIndexPage() {
   // Only series with at least one published story are worth listing — a
   // series article can exist with only pending_review coverage for a while
   // right after ingestion.
-  const rows = await db.article.groupBy({
-    by: ["seriesKey", "seriesLabel"],
-    where: { seriesKey: { not: null }, status: "published" },
-    _count: { _all: true },
-    _max: { publishedAt: true },
-    orderBy: { _max: { publishedAt: "desc" } },
-  });
+  const rows = await db
+    .select({
+      seriesKey: article.seriesKey,
+      seriesLabel: article.seriesLabel,
+      count: count(),
+      maxPublishedAt: max(article.publishedAt),
+    })
+    .from(article)
+    .where(and(isNotNull(article.seriesKey), eq(article.status, "published")))
+    .groupBy(article.seriesKey, article.seriesLabel)
+    .orderBy(desc(max(article.publishedAt)));
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -70,7 +76,7 @@ export default async function SeriesIndexPage() {
                     {row.seriesLabel}
                   </Typography>
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                    {row._count._all} {row._count._all === 1 ? "story" : "stories"}
+                    {row.count} {row.count === 1 ? "story" : "stories"}
                   </Typography>
                 </Box>
                 <ChevronRightIcon sx={{ color: "text.secondary" }} />
