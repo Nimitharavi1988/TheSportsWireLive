@@ -84,6 +84,11 @@ export async function fetchCricinfoPlayerNews(): Promise<RawMatchItem[]> {
           publishedAt: entry.isoDate ? new Date(entry.isoDate) : new Date(),
           heroImageUrl: image?.url,
           heroImageCredit: image?.credit,
+          // Stable dedupe key -- same fix as rssFeeds.ts, safe here since
+          // these are genuine direct Cricinfo article URLs (not Google
+          // News redirects, which stay on the title-based fallback since
+          // those URLs aren't confirmed stable across repeated fetches).
+          dedupeKey: entry.link,
           // We already know exactly who this is about — see
           // RawMatchItem.knownPersonName — for the real Wikimedia photo
           // lookup, same as playerNewsFeeds.ts. Still set even when this

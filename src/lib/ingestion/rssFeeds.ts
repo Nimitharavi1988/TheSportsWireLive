@@ -222,6 +222,15 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
           publishedAt: entry.isoDate ? new Date(entry.isoDate) : new Date(),
           heroImageUrl: image?.url,
           heroImageCredit: image?.credit,
+          // Stable dedupe key, same mechanism match-data sources already
+          // use (see footballData.ts) — confirmed live that a live-
+          // updating blog post (same URL, headline changing as the story
+          // develops) was creating a fresh duplicate article every time
+          // its title changed, since the title+day-bucket hash
+          // (dedupe.ts's computeDedupeHash, the fallback when no
+          // dedupeKey is set) has no way to recognize it as the same
+          // underlying story. The URL itself doesn't change.
+          dedupeKey: entry.link,
         });
       }
     } catch (err) {
