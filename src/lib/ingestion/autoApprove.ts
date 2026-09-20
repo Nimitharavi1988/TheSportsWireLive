@@ -339,6 +339,18 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   const fbEligible = fbByTrending.filter((a) => isHighlightWorthy(a.title));
   const toPost = selectTopN(runCap, fbByTrending, fbEligible);
 
+  // Diagnostic logging — added 2026-09-20 after repeated reports of
+  // multi-run Facebook posting silence (0 posts across several consecutive
+  // "success" GitHub Actions runs) that DB-side inspection alone couldn't
+  // explain: the candidate pool, daily cap, and pacing numbers all looked
+  // healthy every time this was checked after the fact. This makes the
+  // actual decision inputs visible in the GitHub Actions run log itself
+  // (Settings -> Actions -> this workflow run's "autoApprove.ts" step),
+  // viewable directly without needing API/log-download access.
+  console.log(
+    `[facebook] postedToday=${postedToday} remainingToday=${remainingToday} runFloor=${runFloor} paceTarget=${paceTarget} runCap=${runCap} fbPool=${fbPool.length} fbEligible=${fbEligible.length} toPost=${toPost.length}`
+  );
+
   // Same pacing model as Facebook's runCap above, but budgeted against
   // Instagram's own daily cap and counting only actual successful
   // publishes (status "posted") — a failed/rate-limited attempt doesn't
@@ -377,6 +389,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   for (const article of toPost) {
     try {
       await postArticleToFacebook(article.id);
+      console.log(`[facebook] posted article ${article.id} ("${article.title.slice(0, 60)}")`);
     } catch (err) {
       console.error("Facebook post failed for article", article.id, err);
     }

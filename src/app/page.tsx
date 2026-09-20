@@ -955,15 +955,37 @@ export default async function HomePage(
             without it, the Star Players horizontal-scroll strip's intrinsic
             content width pushes this whole column (and the page) wider
             instead of scrolling inside its own box, a classic CSS Grid trap. */}
-        {/* Split out from <main> below so it can carry its own mobile
-            `order` — the hero is the site's first impression and needs to
-            render immediately after the nav on mobile, ahead of the Live
-            Cricket sidebar block (order -1) which itself needs to beat
-            everything else in <main> (order 0, thousands of pixels down
-            otherwise). Same gridColumn as <main> below so desktop/tablet
-            layout is unaffected. */}
+        {/* Hero and <main> share ONE grid item (flex column inside it)
+            instead of being two separate grid siblings — fixed 2026-09-20
+            (confirmed live, a real user-visible bug): as two siblings, each
+            got its own auto-placed grid row at md/lg, and whenever the
+            sidebar's own content (e.g. "Also in the News") was taller than
+            hero+main combined, the shared row stretched to match it,
+            leaving a large visible gap below <main>'s actual content before
+            the next section — worst on categories like cricket where
+            <main> itself is short (see the aside's own gridRow comment
+            below for the mirror-image version of this same fix). Combining
+            them into one grid item means this cell's height is governed
+            purely by ITS OWN content, immune to how tall its neighbor is.
+            The `order: -2` at xs still needs to live on this outer wrapper
+            (not just the hero) — the hero is the site's first impression
+            and needs to render immediately after the nav on mobile, ahead
+            of the Live Cricket sidebar block (order -1), which itself needs
+            to beat the rest of this combined block's content. `gap: 5`
+            replicates the spacing the grid's own `gap` used to provide
+            between hero and <main> when they were separate grid items. */}
+        <Box
+          sx={{
+            gridColumn: { xs: "1 / -1", md: "1", lg: "2" },
+            order: { xs: -2, md: 0 },
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: 5,
+          }}
+        >
         {heroSlides.length > 0 && (
-          <Box sx={{ gridColumn: { xs: "1 / -1", md: "1", lg: "2" }, order: { xs: -2, md: 0 }, minWidth: 0 }}>
+          <Box sx={{ minWidth: 0 }}>
             <HeroCarousel
               slides={heroSlides.map(({ article, banner }) => ({
                 slug: article.slug,
@@ -980,7 +1002,7 @@ export default async function HomePage(
           </Box>
         )}
 
-        <Box component="main" sx={{ gridColumn: { xs: "1 / -1", md: "1", lg: "2" }, minWidth: 0 }}>
+        <Box component="main" sx={{ minWidth: 0 }}>
           {activeSeriesRow?.seriesKey && (
             <Link href={`/series/${activeSeriesRow.seriesKey}`} style={{ textDecoration: "none", color: "inherit" }}>
               <Paper
@@ -1208,6 +1230,7 @@ export default async function HomePage(
             </Box>
           )}
         </Box>
+        </Box>
 
         {(liveMatches.length > 0 || briefArticles.length > 0 || PLAYER_QUOTES.length > 0) && (
           // Both modules share ONE sticky wrapper, same pattern as the left
@@ -1225,14 +1248,16 @@ export default async function HomePage(
               // later in the JSX. A live scoreboard needs to be prominent
               // on every screen size, not just desktop's 3-column layout.
               order: { xs: -1, md: 0 },
-              // Same fix as the aside's own gridRow comment above — at md/lg
-              // this block shares a column with the hero image (a separate,
-              // short grid item now — see the hero Box's own comment) and
-              // <main>. Without spanning both implicit rows, auto-placement
-              // put this block in the same row as the hero alone, stretching
-              // that row to this block's full height and pushing <main> down
-              // by the difference — a large visible gap (confirmed live).
-              gridRow: { md: "1 / span 2" },
+              // Was `"1 / span 2"` — needed when hero and <main> were two
+              // separate grid rows in column 1, so this column-2 block had
+              // to span both to avoid stretching just the (short) hero row.
+              // Now that hero+<main> are one combined grid item (see that
+              // Box's own comment above — same underlying gap bug, fixed at
+              // the source instead of worked around here), there's only one
+              // real row in column 1, so spanning a second one left an
+              // artificial empty row behind (confirmed live: a real visible
+              // gap remained below <main>'s content even after that fix).
+              gridRow: { md: "1" },
               position: { md: "sticky" },
               top: { md: 84 },
             }}
