@@ -65,7 +65,19 @@ jobs:
       # GEMINI_API_KEY is for the shared poster's per-article hook/table copy
       # (socialPoster.ts's generatePosterContent call) — a separate Gemini
       # call from runIngest.ts's own commentary budget above.
-      - run: npx tsx src/lib/ingestion/autoApprove.ts
+      # if: !cancelled() -- runIngest.ts above calls process.exit(1) on any
+      # uncaught error anywhere in its pipeline (hundreds of RSS/API calls
+      # per run, real surface area for a transient failure). Without this,
+      # GitHub Actions' default "skip remaining steps after a failure"
+      # behavior meant one flaky ingestion run silently skipped Facebook/
+      # Instagram posting entirely for that cycle -- confirmed live
+      # (2026-09-20): a real multi-run posting gap with a healthy backlog
+      # and daily budget to spare, explained by exactly this. Posting is
+      # meant to be independent of ingestion's success (see the comment
+      # above autoApprove.ts's own step), so it should still run even when
+      # runIngest.ts fails, same as the reverse is already true.
+      - if: ${{ !cancelled() }}
+        run: npx tsx src/lib/ingestion/autoApprove.ts
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SITE_URL: ${{ vars.SITE_URL }}
