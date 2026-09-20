@@ -2,7 +2,6 @@ import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
-import { displaySummary } from "@/lib/articleSummary";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { TRACKED_PLAYERS } from "@/lib/players";
 import { generatePosterContent } from "@/lib/ingestion/commentary";
@@ -154,7 +153,14 @@ export async function postArticleToFacebook(articleId: string) {
   // block a Facebook post, same as every other Gemini-dependent step here.
   const posterContent = article.body ? await generatePosterContent(article.title, article.body) : null;
   const headline = posterContent?.hook ?? article.title;
-  const message = `${emojiFor(article.category)} ${headline}\n\n${displaySummary(article, 400)}\n\n${hashtagsFor(article.title, article.category)}`;
+  // Full body, not displaySummary's truncated snippet — confirmed live
+  // (2026-09-20): a 468-char body got cut off mid-sentence at the old
+  // fixed 400-char limit and ended in "…", reading as an unfinished post.
+  // Facebook has no meaningful caption length limit (tens of thousands of
+  // characters), so there's no real reason to truncate here at all — every
+  // post should read as a complete thought.
+  const fullText = (article.body?.trim() || article.summary).trim();
+  const message = `${emojiFor(article.category)} ${headline}\n\n${fullText}\n\n${hashtagsFor(article.title, article.category)}`;
 
   const [socialPost] = await db.insert(socialPostTable)
     .values({ id: createId(), articleId, platform: "facebook", status: "queued" })
