@@ -1,6 +1,6 @@
 /**
- * Turns a tracked player/club's name into an inline link the first time it
- * appears in an article's body text — standard "wiki-style" internal
+ * Turns a tracked player/club/country's name into an inline link the first
+ * time it appears in an article's body text — standard "wiki-style" internal
  * linking (first mention only, same reasoning as any style guide: linking
  * every repeat would be visual noise, not helpful). Complements the
  * title-only player/club Chip row on the article page (article/[slug]/
@@ -8,16 +8,29 @@
  * only mentioned in the body, never the headline, currently has no link
  * anywhere on the page at all; this closes that gap.
  *
- * Reuses TRACKED_PLAYERS/TRACKED_CLUBS' existing searchTerms rather than a
- * separate list — those were already curated to avoid false-positive
- * substring matches (e.g. "Travis Head" not bare "Head", "Declan Rice" not
- * bare "Rice") for the exact same reason this needs, just applied to a
- * title instead of body prose elsewhere in the codebase.
+ * Reuses TRACKED_PLAYERS/TRACKED_CLUBS/TRACKED_COUNTRIES' existing
+ * searchTerms rather than a separate list — those were already curated to
+ * avoid false-positive substring matches (e.g. "Travis Head" not bare
+ * "Head", "Declan Rice" not bare "Rice") for the exact same reason this
+ * needs, just applied to a title instead of body prose elsewhere in the
+ * codebase.
+ *
+ * Two tiers, two href shapes (2026-09-20, explicit site-wide expansion):
+ * curated stars/clubs/countries link to their real dedicated page; every
+ * other real roster player (ROSTER_PLAYERS — see that file's own header for
+ * why a full profile page isn't built for these) links to an on-site search
+ * instead. ROSTER_PLAYERS is generated with anyone already in
+ * TRACKED_PLAYERS excluded, so the same name should never appear in both
+ * tiers — but `isSearchLink` on LinkableTerm still lets the styling/href
+ * logic branch correctly either way, rather than relying on generation-time
+ * exclusion alone.
  */
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { TRACKED_PLAYERS } from "./players";
 import { TRACKED_CLUBS } from "./clubs";
+import { TRACKED_COUNTRIES } from "./countries";
+import { ROSTER_PLAYERS } from "./rosterPlayers";
 
 interface LinkableTerm {
   term: string;
@@ -31,6 +44,8 @@ function escapeRegExp(value: string): string {
 const LINKABLE_TERMS: LinkableTerm[] = [
   ...TRACKED_PLAYERS.flatMap((p) => p.searchTerms.map((term) => ({ term, href: `/player/${p.slug}` }))),
   ...TRACKED_CLUBS.flatMap((c) => c.searchTerms.map((term) => ({ term, href: `/club/${c.slug}` }))),
+  ...TRACKED_COUNTRIES.flatMap((c) => c.searchTerms.map((term) => ({ term, href: `/country/${c.slug}` }))),
+  ...ROSTER_PLAYERS.flatMap((p) => p.searchTerms.map((term) => ({ term, href: `/search?q=${encodeURIComponent(p.name)}` }))),
   // Longest term first — if two terms could both start matching at the same
   // text position, the more specific (usually longer) one should win.
 ].sort((a, b) => b.term.length - a.term.length);

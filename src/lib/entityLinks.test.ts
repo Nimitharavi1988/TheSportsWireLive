@@ -64,4 +64,39 @@ describe("createEntityLinker", () => {
     const linkNode = nodes.find(isLinkElement);
     expect(linkNode!.props.children).toBe("KOHLI");
   });
+
+  // Site-wide entity expansion (2026-09-20): countries and the roster
+  // "search-link" player tier, added alongside the existing player/club
+  // tiers above.
+  it("links a tracked country's name to its page", () => {
+    const linkify = createEntityLinker();
+    const nodes = linkify("India won the toss and elected to bat.");
+    const linkNode = nodes.find(isLinkElement);
+    expect(linkNode).toBeDefined();
+    expect(linkNode!.props.href).toBe("/country/india");
+  });
+
+  it("links a real roster player (not a curated star) to an on-site search instead of a profile page", () => {
+    const linkify = createEntityLinker();
+    // A real current NFL roster name confirmed present in ROSTER_PLAYERS
+    // (generateRosterPlayers.ts, 2026-09-20) but never added to
+    // TRACKED_PLAYERS -- exactly the "highlight everyone, but scale via
+    // search instead of a full profile" case this tier exists for.
+    const nodes = linkify("J.J. McCarthy waits in the wings for his chance.");
+    const linkNode = nodes.find(isLinkElement);
+    expect(linkNode).toBeDefined();
+    expect(linkNode!.props.href).toBe(`/search?q=${encodeURIComponent("J.J. McCarthy")}`);
+  });
+
+  it("links a curated star to their real profile page, not a search link, even though they're also a real roster player", () => {
+    const linkify = createEntityLinker();
+    // Kyler Murray is both a TRACKED_PLAYERS star AND a real current NFL
+    // roster player -- the generator excludes anyone already tracked when
+    // building ROSTER_PLAYERS, so this confirms that exclusion actually
+    // worked, not just that the linker would prefer one tier over another.
+    const nodes = linkify("Kyler Murray suffered a concussion in Week 1.");
+    const linkNode = nodes.find(isLinkElement);
+    expect(linkNode).toBeDefined();
+    expect(linkNode!.props.href).toBe("/player/kyler-murray");
+  });
 });

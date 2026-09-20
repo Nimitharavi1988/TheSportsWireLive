@@ -4,18 +4,8 @@ import Image from "next/image";
 import { db } from "@/db";
 import { article } from "@/db/schema";
 import { and, eq, or, ilike, desc } from "drizzle-orm";
-import { TRACKED_CLUBS } from "@/lib/clubs";
+import { TRACKED_COUNTRIES } from "@/lib/countries";
 import { findClubCrest } from "@/lib/teamNames";
-import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
-import { StandingsCarousel } from "@/components/StandingsCarousel";
-import { fetchNflStandingsTable } from "@/lib/ingestion/nflData";
-import { NflStandingsCarousel } from "@/components/NflStandingsCarousel";
-import { fetchNbaStandingsTable } from "@/lib/ingestion/nbaData";
-import { NbaStandingsCarousel } from "@/components/NbaStandingsCarousel";
-import { fetchMlbStandingsTable } from "@/lib/ingestion/mlbData";
-import { MlbStandingsCarousel } from "@/components/MlbStandingsCarousel";
-import { fetchNhlStandingsTable } from "@/lib/ingestion/nhlData";
-import { NhlStandingsCarousel } from "@/components/NhlStandingsCarousel";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { ArticleThumb } from "@/components/ArticleThumb";
@@ -31,57 +21,48 @@ import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
 
+// Modeled directly on club/[slug]/page.tsx -- same breadcrumbs/article-feed/
+// crest pattern -- but deliberately no standings widget: no real
+// "country standings" data source exists anywhere in this pipeline (ICC
+// team rankings aren't ingested from anywhere), so it's omitted entirely
+// rather than estimated, matching the project's structured-data policy
+// (CLAUDE.md: never fabricate a field).
 export const revalidate = 300;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const club = TRACKED_CLUBS.find((c) => c.slug === slug);
-  if (!club) return {};
+  const country = TRACKED_COUNTRIES.find((c) => c.slug === slug);
+  if (!country) return {};
   return {
-    title: `${club.name} News`,
-    description: `Latest news and results for ${club.name}.`,
-    alternates: { canonical: `/club/${club.slug}` },
+    title: `${country.name} News`,
+    description: `Latest news and results involving ${country.name}.`,
+    alternates: { canonical: `/country/${country.slug}` },
   };
 }
 
-export default async function ClubPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function CountryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const club = TRACKED_CLUBS.find((c) => c.slug === slug);
-  if (!club) notFound();
+  const country = TRACKED_COUNTRIES.find((c) => c.slug === slug);
+  if (!country) notFound();
 
   const articles = await db.select().from(article)
     .where(and(
       eq(article.status, "published"),
-      or(...club.searchTerms.map((term) => ilike(article.title, `%${term}%`)))
+      or(...country.searchTerms.map((term) => ilike(article.title, `%${term}%`)))
     ))
     .orderBy(desc(article.publishedAt))
     .limit(30);
 
-  const crestUrl = findClubCrest(club, articles);
-
-  // Sport-aware standings widget — was hardcoded to Premier League
-  // regardless of the club (confirmed live, a real bug: any non-PL club's
-  // page showed PL standings). `sport` defaults to "football" for the
-  // original hand-curated entries (added before this field existed), which
-  // is genuinely correct for all of them (they're all football clubs, just
-  // predating the sport tag). Reuses the exact standings fetchers/carousels
-  // already built for the homepage's own per-category widgets.
-  const clubSport = club.sport ?? "football";
-  const standingsApiKey = process.env.FOOTBALL_DATA_API_KEY;
-  const footballStandings = clubSport === "football" && standingsApiKey ? await fetchStandingsTable(standingsApiKey, "PL") : null;
-  const nflStandings = clubSport === "american-football" ? await fetchNflStandingsTable() : null;
-  const nbaStandings = clubSport === "basketball" ? await fetchNbaStandingsTable() : null;
-  const mlbStandings = clubSport === "baseball" ? await fetchMlbStandingsTable() : null;
-  const nhlStandings = clubSport === "hockey" ? await fetchNhlStandingsTable() : null;
+  const crestUrl = findClubCrest(country, articles);
 
   const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
   const breadcrumbSteps = [
     { name: "Home", href: "/" },
-    { name: "Clubs", href: "/club" },
+    { name: "Countries", href: "/country" },
   ];
   const breadcrumbJsonLd = buildBreadcrumbJsonLd(
     breadcrumbSteps,
-    { name: club.name, href: `/club/${club.slug}` },
+    { name: country.name, href: `/country/${country.slug}` },
     siteUrl
   );
 
@@ -99,10 +80,10 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
         }}
       >
         <Box sx={{ minWidth: 0 }}>
-          <SiteBreadcrumbs steps={breadcrumbSteps} current={club.name} />
+          <SiteBreadcrumbs steps={breadcrumbSteps} current={country.name} />
           <Stack direction="row" spacing={3} sx={{ alignItems: "center", mb: 4 }}>
             {crestUrl ? (
-              <Box component={Image} src={crestUrl} alt={`${club.name} crest`} width={96} height={96} sx={{ objectFit: "contain", flexShrink: 0 }} />
+              <Box component={Image} src={crestUrl} alt={`${country.name} crest`} width={96} height={96} sx={{ objectFit: "contain", flexShrink: 0 }} />
             ) : (
               <Box
                 sx={{
@@ -116,7 +97,7 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
             )}
             <Box>
               <Typography variant="h4" component="h1" gutterBottom>
-                {club.name}
+                {country.name}
               </Typography>
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
                 {articles.length} {articles.length === 1 ? "story" : "stories"} on Sports Wire Live
@@ -126,7 +107,7 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
 
           {articles.length === 0 ? (
             <Typography sx={{ color: "text.secondary", py: 5, textAlign: "center" }}>
-              No stories about {club.name} yet — check back soon.
+              No stories about {country.name} yet — check back soon.
             </Typography>
           ) : (
             <Stack spacing={2}>
@@ -137,10 +118,6 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
                       <Stack direction="row" spacing={2}>
                         <ArticleThumb article={article} size={64} fallbackColor={categoryChipStyle(article.category).color} />
                         <Box sx={{ minWidth: 0, flex: 1 }}>
-                          {/* Sport/category badge at the top — our own
-                              taxonomy, not third-party attribution, so it's
-                              fine to keep prominent for scanning, same as
-                              every other section on the site. */}
                           <Chip
                             label={categoryChipStyle(article.category).label}
                             size="small"
@@ -174,31 +151,6 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
         </Box>
 
         <Box component="aside">
-          {footballStandings && footballStandings.rows.length > 0 && (
-            <Box sx={{ mb: 3 }}>
-              <StandingsCarousel leagues={STANDINGS_LEAGUES} initialCode="PL" initialTable={footballStandings} />
-            </Box>
-          )}
-          {nflStandings && nflStandings.length > 0 && (
-            <Box sx={{ mb: 3 }}>
-              <NflStandingsCarousel conferences={nflStandings} />
-            </Box>
-          )}
-          {nbaStandings && nbaStandings.length > 0 && (
-            <Box sx={{ mb: 3 }}>
-              <NbaStandingsCarousel conferences={nbaStandings} />
-            </Box>
-          )}
-          {mlbStandings && mlbStandings.length > 0 && (
-            <Box sx={{ mb: 3 }}>
-              <MlbStandingsCarousel conferences={mlbStandings} />
-            </Box>
-          )}
-          {nhlStandings && nhlStandings.length > 0 && (
-            <Box sx={{ mb: 3 }}>
-              <NhlStandingsCarousel conferences={nhlStandings} />
-            </Box>
-          )}
           {PLAYER_QUOTES.length > 0 && <QuotesStrip quotes={PLAYER_QUOTES} />}
         </Box>
       </Box>
