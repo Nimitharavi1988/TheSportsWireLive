@@ -96,11 +96,17 @@ const MAX_MATCH_RECAP_PER_RUN = 20;
 // doesn't touch, and the pending queue was growing largely because of that,
 // not because cricket's own floor was too low. Deliberately a rebalance,
 // not a raise — MAX_COMMENTARY_PER_RUN (real Gemini spend) is unchanged.
-// Trimmed again 20 -> 15 (2026-09-19, explicit request) once the pending
-// queue was found to be dominated by non-cricket volume (american-football
-// alone had 775 of 1,876 pending, cricket only 322) — this is now a genuine
+// Trimmed 20 -> 15 (2026-09-19, explicit request) once the pending queue
+// was found to be dominated by non-cricket volume (american-football alone
+// had 775 of 1,876 pending, cricket only 322) — this is now a genuine
 // ceiling, not always fully used; see the spillover logic below it.
-const CRICKET_COMMENTARY_RESERVED = 15;
+// Raised 15 -> 35 (2026-09-20) alongside MAX_COMMENTARY_PER_RUN's 60 -> 150
+// increase, restoring roughly the same ~23-25% share of the total budget
+// rather than leaving cricket's floor flat while everyone else's pool
+// tripled — still leaves 115 of 150 slots (nearly 2x the entire old total
+// budget) for the now much larger non-cricket backlog, and any of this 35
+// cricket doesn't actually need still spills over via the pre-pass below.
+const CRICKET_COMMENTARY_RESERVED = 35;
 
 // RSS items older than this are skipped outright rather than ingested —
 // see the skip site below for why. 3 days comfortably covers a slow news
