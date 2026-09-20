@@ -247,10 +247,21 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
       .where(and(eq(article.status, "published"), gte(article.publishedAt, backlogCutoff)))
       .orderBy(desc(article.trendingScore))
       .limit(300),
+    // Deliberately NO backlogCutoff here (unlike backlogPool above) — a real
+    // bug found live 2026-09-20: this used to be windowed to the same 3-day
+    // cutoff, so an article posted to Facebook/Instagram MORE than 3 days
+    // ago fell out of this exclusion set and became "eligible" again,
+    // getting picked as a candidate, silently no-op'd by
+    // postArticleToFacebook's own permanent (unwindowed) idempotency guard,
+    // then logged as a fresh "posted" success even though nothing new
+    // actually reached the Page. Confirmed live: exactly this happened to a
+    // manual run's hockey reserved-category pick (a real post from 4 days
+    // earlier, re-selected and silently skipped). A post, once made, should
+    // never be re-selected as a candidate — no reason to time-bound this.
     db.select({ articleId: socialPost.articleId }).from(socialPost)
-      .where(and(eq(socialPost.platform, "facebook"), inArray(socialPost.status, ["posted", "queued"]), gte(socialPost.createdAt, backlogCutoff))),
+      .where(and(eq(socialPost.platform, "facebook"), inArray(socialPost.status, ["posted", "queued"]))),
     db.select({ articleId: socialPost.articleId }).from(socialPost)
-      .where(and(eq(socialPost.platform, "instagram"), inArray(socialPost.status, ["posted", "queued"]), gte(socialPost.createdAt, backlogCutoff))),
+      .where(and(eq(socialPost.platform, "instagram"), inArray(socialPost.status, ["posted", "queued"]))),
   ]);
   const fbPostedIds = new Set(fbPostedRows.map((r) => r.articleId));
   const igPostedIds = new Set(igPostedRows.map((r) => r.articleId));
@@ -388,8 +399,12 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   // here, same as before the poster work started.
   for (const article of toPost) {
     try {
-      await postArticleToFacebook(article.id);
-      console.log(`[facebook] posted article ${article.id} ("${article.title.slice(0, 60)}")`);
+      const posted = await postArticleToFacebook(article.id);
+      console.log(
+        posted
+          ? `[facebook] posted article ${article.id} ("${article.title.slice(0, 60)}")`
+          : `[facebook] skipped article ${article.id} (already posted previously)`
+      );
     } catch (err) {
       console.error("Facebook post failed for article", article.id, err);
     }

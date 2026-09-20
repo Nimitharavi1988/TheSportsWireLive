@@ -105,7 +105,15 @@ export async function resolvePageAccessToken(pageId: string, token: string): Pro
 // its own configured yet, so single-vertical setups keep working unchanged.
 // A missing token/page id is treated as "not configured" rather than an
 // error, since Facebook posting is optional (see README).
-export async function postArticleToFacebook(articleId: string) {
+// Returns whether this call actually posted something new — callers (e.g.
+// autoApprove.ts's run log) need to tell a real post apart from a no-op, so
+// a log line can't just assume success from "didn't throw." Confirmed live
+// 2026-09-20: the log previously said "posted" unconditionally, even when
+// this returned early via the idempotency guard below, masking a real bug
+// (the caller's own already-posted exclusion set was time-windowed, so it
+// kept re-selecting long-since-posted articles as "candidates," which then
+// silently no-op'd here while still being logged as a fresh success).
+export async function postArticleToFacebook(articleId: string): Promise<boolean> {
   // Idempotency guard: confirmed live that repeated calls for the same
   // article (a manual admin re-click before the page re-rendered the
   // "already posted" state, or any future automated retry) were creating
@@ -115,7 +123,7 @@ export async function postArticleToFacebook(articleId: string) {
   const [alreadyPosted] = await db.select({ id: socialPostTable.id }).from(socialPostTable)
     .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.platform, "facebook"), eq(socialPostTable.status, "posted")))
     .limit(1);
-  if (alreadyPosted) return;
+  if (alreadyPosted) return false;
 
   const [row] = await db.select({ article: articleTable, vertical: verticalTable })
     .from(articleTable)
@@ -130,7 +138,7 @@ export async function postArticleToFacebook(articleId: string) {
     article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
 
   if (!pageId || !accessToken) {
-    return;
+    return false;
   }
 
   const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
@@ -209,6 +217,7 @@ export async function postArticleToFacebook(articleId: string) {
     await db.update(socialPostTable)
       .set({ status: "posted", externalPostId: data.id, postedAt: new Date() })
       .where(eq(socialPostTable.id, socialPost.id));
+    return true;
   } catch (err) {
     await db.update(socialPostTable)
       .set({ status: "failed", errorMessage: err instanceof Error ? err.message : String(err) })
