@@ -39,8 +39,15 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Stay well under Gemini's free-tier rate limit.
-const COMMENTARY_DELAY_MS = 4500;
+// Confirmed live (2026-09-20) against the account's own AI Studio rate-limit
+// dashboard for gemini-flash-lite-latest: 4,000 RPM / 4M TPM / 150,000 RPD,
+// with real peak usage sitting at just 6 RPM / 21 RPD — nowhere close. The
+// old 4500ms value was tuned for the previous model's free-tier ~15 RPM
+// ceiling and never revisited after the paid Flash-Lite switch. 400ms keeps
+// us at a max of 150 calls/min, still comfortably under 4% of the real 4,000
+// RPM ceiling, while letting a run actually get through far more of the
+// pending backlog in the same wall-clock window.
+const COMMENTARY_DELAY_MS = 400;
 
 // Cap real Gemini calls per ingestion run. Billing IS linked on this account
 // (a card was added after Gemini's `generateContent` required one to work at
@@ -63,8 +70,17 @@ const COMMENTARY_DELAY_MS = 4500;
 // football-data.org fixtures, which come first in the processing order) can
 // never starve the RSS commentary budget — the trending-sort prioritization
 // above depends on RSS items actually getting a turn.
-const MAX_COMMENTARY_PER_RUN = 60;
-const MAX_MATCH_RECAP_PER_RUN = 6;
+// Raised 60 -> 150 / 6 -> 20 (2026-09-20) after confirming the real
+// constraint isn't Gemini's rate limit at all (see COMMENTARY_DELAY_MS
+// above — real usage was 6 RPM against a 4,000 RPM ceiling) and after
+// switching to the far cheaper Flash-Lite tier (commentary.ts) — the old 60
+// cap was sized for a pricier model's free-tier RPM, not real cost or
+// throughput headroom. At 150/run x 96 runs/day this stays well under the
+// 150,000 RPD ceiling (14,400/day), and directly targets the pending-queue
+// finding that most thin-body backlog items were never even getting a
+// commentary attempt within the old budget, not that Gemini declined them.
+const MAX_COMMENTARY_PER_RUN = 150;
+const MAX_MATCH_RECAP_PER_RUN = 20;
 
 // Cricket gets a guaranteed floor of the shared RSS commentary budget above,
 // rather than competing purely on trending score against everything else.
