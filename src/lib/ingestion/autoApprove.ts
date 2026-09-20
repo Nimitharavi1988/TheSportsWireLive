@@ -182,7 +182,23 @@ export function hasRealImage(article: { heroImageUrl: string | null; homeCrestUr
   // A real photo — from the publisher's own RSS feed, a real player photo,
   // or a real match photo — as opposed to the generic category stock-photo
   // fallback (always served from Pexels; see stockImages.ts).
-  if (article.heroImageUrl && !article.heroImageUrl.includes("pexels.com")) return true;
+  if (article.heroImageUrl && !article.heroImageUrl.includes("pexels.com")) {
+    // Confirmed live 2026-09-20: ESPN Cricinfo's RSS feed occasionally
+    // supplies a media:content url that's just the bare domain
+    // ("https://p.imgci.com", no path) for a handful of items -- the
+    // upstream feed's own bug, faithfully carried through by
+    // extractRssImage (rssFeeds.ts), which only checks the field is
+    // non-empty. A bare domain isn't a real image (loading it 404s/shows
+    // no photo on the article page and posted with no image to Facebook),
+    // so it shouldn't count as one. A cheap synchronous pathname check
+    // catches this without a network fetch.
+    try {
+      if (new URL(article.heroImageUrl).pathname.length <= 1) return false;
+    } catch {
+      return false;
+    }
+    return true;
+  }
   return false;
 }
 
