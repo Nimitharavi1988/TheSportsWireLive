@@ -6,7 +6,7 @@ import { and, eq, inArray, ilike, asc } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { getSession } from "@/lib/auth";
 import { isMatchDataSource } from "@/lib/matchDataSources";
-import { isAutoApprovable } from "@/lib/ingestion/autoApprove";
+import { isAutoApprovable } from "@/lib/contentQuality";
 import { postArticleToFacebook } from "@/lib/social/facebook";
 import { postArticleToInstagram } from "@/lib/social/instagram";
 import { sendPushToAllSubscribers } from "@/lib/push";

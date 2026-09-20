@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import { isHeroFeatureStale, isHighlightStale } from "@/lib/heroConfig";
+import { isAutoApprovable } from "@/lib/contentQuality";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
@@ -71,6 +72,8 @@ export interface QueueArticle {
   sourceName: string;
   sourceUrl: string;
   heroImageUrl: string | null;
+  homeCrestUrl: string | null;
+  playerNewsSourced: boolean;
   featured: boolean;
   featuredAt: Date | null;
   highlighted: boolean;
@@ -351,6 +354,18 @@ export function ArticleQueueClient({
                     )}
                     {article.readabilityScore != null && article.readabilityScore < 40 && (
                       <Chip label="low readability score" size="small" variant="outlined" sx={{ color: "warning" }} />
+                    )}
+                    {/* Real incident 2026-09-20: a bulk-approve action published
+                        310 articles with no visibility into which ones were
+                        actually thin/imageless — approveArticles/
+                        approveAllMatching are now gated behind isAutoApprovable
+                        (see admin/actions.ts), but a single-article Approve
+                        click deliberately stays an override (a human curating
+                        one story at a time has real reasons to publish a thin
+                        one, e.g. breaking news with only a placeholder image).
+                        This makes that override informed instead of silent. */}
+                    {status === "pending_review" && !isAutoApprovable(article) && (
+                      <Chip label="Below quality bar" size="small" variant="outlined" color="error" />
                     )}
                   </Stack>
                   <Typography

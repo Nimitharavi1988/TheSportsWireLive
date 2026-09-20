@@ -1,7 +1,7 @@
 import { db } from "../src/db";
 import { article } from "../src/db/schema";
 import { eq } from "drizzle-orm";
-import { hasRealImage, isAutoApprovable } from "../src/lib/ingestion/autoApprove";
+import { hasRealImage, isAutoApprovable } from "../src/lib/contentQuality";
 
 async function main() {
   const rows = await db.select({

@@ -37,7 +37,7 @@ import { QuotesStrip } from "@/components/QuotesStrip";
 import { HeroCarousel } from "@/components/HeroCarousel";
 import { ArticleThumb } from "@/components/ArticleThumb";
 import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImages";
-import { isHeroFeatureStale, isHighlightStale } from "@/lib/heroConfig";
+import { isHeroFeatureStale, isHighlightStale, HIGHLIGHT_MAX_AGE_DAYS } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { LiveScoreboardCarousel } from "@/components/LiveScoreboardCarousel";
 import { CollapsibleAdBox } from "@/components/CollapsibleAdBox";
@@ -441,7 +441,7 @@ export default async function HomePage(
     db.select().from(articleTable)
       .where(and(
         ...baseConditions,
-        gte(articleTable.publishedAt, new Date(Date.now() - 3 * 24 * 60 * 60 * 1000))
+        gte(articleTable.publishedAt, new Date(Date.now() - HIGHLIGHT_MAX_AGE_DAYS * 24 * 60 * 60 * 1000))
       ))
       .orderBy(desc(articleTable.trendingScore))
       .limit(60),

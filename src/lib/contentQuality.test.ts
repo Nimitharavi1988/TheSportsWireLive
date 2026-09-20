@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hasRealImage, isAutoApprovable } from "./autoApprove";
+import { hasRealImage, isAutoApprovable } from "./contentQuality";
 
 describe("hasRealImage", () => {
   it("treats a team crest pair as a real image", () => {
@@ -18,10 +18,20 @@ describe("hasRealImage", () => {
   it("does not treat no image at all as a real image", () => {
     expect(hasRealImage({ heroImageUrl: null, homeCrestUrl: null })).toBe(false);
   });
+
+  // Confirmed live 2026-09-20: ESPN Cricinfo's RSS feed occasionally supplies
+  // a bare-domain media:content url with no real path.
+  it("does not treat a bare-domain URL (no path) as a real image", () => {
+    expect(hasRealImage({ heroImageUrl: "https://p.imgci.com", homeCrestUrl: null })).toBe(false);
+  });
+
+  it("does not treat an unparseable heroImageUrl as a real image", () => {
+    expect(hasRealImage({ heroImageUrl: "not-a-url", homeCrestUrl: null })).toBe(false);
+  });
 });
 
 describe("isAutoApprovable", () => {
-  const realBody = "A".repeat(200);
+  const realBody = "A".repeat(300);
   const thinBody = "Too short.";
   const realImage = { heroImageUrl: "https://ichef.bbci.co.uk/photo.jpg", homeCrestUrl: null };
   const stockImage = { heroImageUrl: "https://images.pexels.com/photos/1/stock.jpeg", homeCrestUrl: null };

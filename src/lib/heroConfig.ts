@@ -24,13 +24,17 @@ export function isHeroFeatureStale(featuredAt: Date | null): boolean {
 // explicitly un-highlighted would otherwise sit in one of the 4 Transfers
 // & Big News slots forever, permanently crowding out genuinely new
 // highlight-worthy stories (isHighlightWorthy's own automatic picks) even
-// after the manual pick is old news. Slightly more lenient than the hero
-// carousel's 2 days — a real transfer/big-news story usually stays
-// relevant a bit longer than a homepage-carousel slide — but still finite,
-// so the section self-corrects without needing an admin to remember to
-// come back and clear it. Shared between the homepage's highlight
-// selection (page.tsx) and the admin queue's "📌 Highlighted" chip.
-export const HIGHLIGHT_MAX_AGE_DAYS = 3;
+// after the manual pick is old news. Also shared with page.tsx's
+// `highlightCandidatesRaw` query window, which governs how far back the
+// *automatic* picks can come from — the two were drifting (3 days each,
+// duplicated as a separate hardcoded literal in page.tsx) until this was
+// unified. Matches the hero carousel's own 2-day window now (tightened
+// from 3, explicit request 2026-09-20: "don't keep any news in the
+// highlight sections which is more than 2 days old") — still finite, so
+// the section self-corrects without needing an admin to remember to come
+// back and clear it. Shared between the homepage's highlight selection
+// (page.tsx) and the admin queue's "📌 Highlighted" chip.
+export const HIGHLIGHT_MAX_AGE_DAYS = 2;
 
 export function isHighlightStale(highlightedAt: Date | null): boolean {
   if (!highlightedAt) return true;

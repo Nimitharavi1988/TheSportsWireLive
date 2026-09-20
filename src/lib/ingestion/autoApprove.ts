@@ -7,6 +7,7 @@ import { isHighlightWorthy } from "../highlightWorthy";
 import { postArticleToFacebook } from "../social/facebook";
 import { postInstagramPoster } from "../social/postInstagramPoster";
 import { isSimilarToAny } from "../titleSimilarity";
+import { MIN_BODY_LENGTH, MIN_MATCH_DATA_BODY_LENGTH, hasRealImage, isAutoApprovable } from "../contentQuality";
 
 // Runs as a follow-up step right after runIngest.ts in the same GitHub
 // Actions job — everything reaching "pending_review" has already passed
@@ -14,25 +15,9 @@ import { isSimilarToAny } from "../titleSimilarity";
 // non-news-filler, stale-age — see qualityCheck.ts/playerNewsFeeds.ts),
 // so this adds one more bar on top rather than replacing human review with
 // nothing: real substantive body content AND a real (non-generic) image.
-// Deliberately conservative thresholds — this is a genuine policy change
-// (some content now ships without a human looking at it first), so it
-// should only fire for articles that are unambiguously "as good as this
-// pipeline gets," not merely "technically has some text."
-// Raised from 150 — confirmed live that a couple of thin sentences was
-// clearing the old bar even for genuinely low-value articles (compounded
-// by Gemini's now-fixed tendency to pad thin source material with
-// content-free filler instead of writing less — see commentary.ts). 300
-// gives real room for actual substance without being so strict that a
-// genuinely short-but-real story (a brief injury update, a single
-// confirmed transfer) gets unfairly rejected.
-const MIN_BODY_LENGTH = 300;
-// Match-data preview/result templates ("Team A face Team B in MLB. First
-// pitch is...") are inherently terse, factual, and already fully vetted (no
-// extraction/scrape risk the way an arbitrary RSS body has) — the same
-// 150-char bar meant to catch a thin/garbled scrape was instead blocking
-// genuinely complete MLB previews sitting at 135-149 chars. Confirmed live:
-// every one of 16 pending MLB items was stuck on this alone.
-const MIN_MATCH_DATA_BODY_LENGTH = 80;
+// The actual bar (MIN_BODY_LENGTH, hasRealImage, isAutoApprovable) now
+// lives in contentQuality.ts, shared with admin/actions.ts's bulk-approve
+// paths — see that file's header for why.
 // isHighlightWorthy alone isn't a real volume filter here — confirmed live:
 // 412 of 592 pending items (70%) passed it, since SUPERSTAR_SEARCH_TERMS
 // now spans ~150 players across 5 sports and EVENT_KEYWORDS catches common
@@ -176,51 +161,6 @@ const RESERVED_CATEGORIES: { category: string; slots: number }[] = [
 // not so old that a week-old story starts appearing as "new" on the Page.
 const SOCIAL_BACKLOG_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
 
-export function hasRealImage(article: { heroImageUrl: string | null; homeCrestUrl: string | null }): boolean {
-  // A team crest pair is real by construction (never a stock photo).
-  if (article.homeCrestUrl) return true;
-  // A real photo — from the publisher's own RSS feed, a real player photo,
-  // or a real match photo — as opposed to the generic category stock-photo
-  // fallback (always served from Pexels; see stockImages.ts).
-  if (article.heroImageUrl && !article.heroImageUrl.includes("pexels.com")) {
-    // Confirmed live 2026-09-20: ESPN Cricinfo's RSS feed occasionally
-    // supplies a media:content url that's just the bare domain
-    // ("https://p.imgci.com", no path) for a handful of items -- the
-    // upstream feed's own bug, faithfully carried through by
-    // extractRssImage (rssFeeds.ts), which only checks the field is
-    // non-empty. A bare domain isn't a real image (loading it 404s/shows
-    // no photo on the article page and posted with no image to Facebook),
-    // so it shouldn't count as one. A cheap synchronous pathname check
-    // catches this without a network fetch.
-    try {
-      if (new URL(article.heroImageUrl).pathname.length <= 1) return false;
-    } catch {
-      return false;
-    }
-    return true;
-  }
-  return false;
-}
-
-export function isAutoApprovable(article: {
-  body: string | null;
-  heroImageUrl: string | null;
-  homeCrestUrl: string | null;
-  playerNewsSourced: boolean;
-  sourceName: string;
-}): boolean {
-  if (!hasRealImage(article)) return false;
-  // Player-news items (playerNewsFeeds.ts) used to be judged on image alone,
-  // since a body was structurally impossible for them — Google News' own
-  // RSS snippet for these is just the headline repeated. That's no longer
-  // true: runIngest.ts now grounds their commentary call in the real
-  // article page's text instead (articleTextExtractor.ts), so they're held
-  // to the same real-body bar as everything else. An item where extraction
-  // was blocked (robots.txt) or failed simply stays in pending_review for a
-  // human to look at, same as any other budget/extraction miss.
-  const minLength = isMatchDataSource(article.sourceName) ? MIN_MATCH_DATA_BODY_LENGTH : MIN_BODY_LENGTH;
-  return Boolean(article.body && article.body.trim().length >= minLength);
-}
 
 export async function autoApproveValidArticles(): Promise<{ checked: number; approved: number }> {
   const candidates = await db.select({
@@ -511,7 +451,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
 // rather than having failed one — a genuinely failed attempt is already
 // rejected same-run by runIngest.ts itself, so this window exists purely
 // to give budget-queued items their turn, not to protect bad content.
-const STALE_NO_IMAGE_HOURS = 12;
+export const STALE_NO_IMAGE_HOURS = 12;
 
 export async function rejectStaleNoImageArticles(): Promise<number> {
   const cutoff = new Date(Date.now() - STALE_NO_IMAGE_HOURS * 60 * 60 * 1000);
@@ -536,7 +476,7 @@ export async function rejectStaleNoImageArticles(): Promise<number> {
 // from outside, so this still gives every item a real window (~48 cron
 // cycles) before concluding it's not going to get a body, rather than
 // rejecting on the very run it was ingested.
-const STALE_NO_BODY_HOURS = 12;
+export const STALE_NO_BODY_HOURS = 12;
 
 export async function rejectStaleNoBodyArticles(): Promise<number> {
   const cutoff = new Date(Date.now() - STALE_NO_BODY_HOURS * 60 * 60 * 1000);

@@ -30,6 +30,8 @@ import Card from "@mui/material/Card";
 import Stack from "@mui/material/Stack";
 import Link from "next/link";
 import { ArticleQueueClient } from "./ArticleQueueClient";
+import { PipelineHealthPanel } from "./PipelineHealthPanel";
+import { getPipelineHealth } from "@/lib/pipelineHealth";
 
 const PAGE_SIZE = 50;
 
@@ -100,6 +102,7 @@ export default async function AdminQueuePage(
       : [];
 
   const hasFilters = Boolean(q || source || category);
+  const health = await getPipelineHealth();
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
@@ -122,6 +125,8 @@ export default async function AdminQueuePage(
           </Link>
         </Stack>
       </Stack>
+
+      <PipelineHealthPanel health={health} />
 
       <Card variant="outlined" sx={{ p: 2.5, mb: 3 }}>
         <Box
