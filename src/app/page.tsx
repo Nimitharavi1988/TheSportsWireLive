@@ -374,7 +374,7 @@ export default async function HomePage(
   // decision was silently getting overridden by a score cutoff instead of
   // actually taking priority. Capped at 5 (the same cap `featureArticle`
   // itself enforces), so this can never balloon the query.
-  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeSeriesRow, justInRaw, highlightCandidatesRaw] = await Promise.all([
+  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeSeriesRow, justInRaw, highlightCandidatesRaw, matchCandidatesRaw] = await Promise.all([
     db.select().from(articleTable)
       .where(and(...baseConditions))
       .orderBy(desc(articleTable.trendingScore), desc(articleTable.publishedAt))
@@ -445,6 +445,24 @@ export default async function HomePage(
       ))
       .orderBy(desc(articleTable.trendingScore))
       .limit(60),
+    // Independent freshness-first query for "Match Results & Previews" and
+    // "NFL Scores & Previews" below — same bug class as justInRaw/
+    // highlightCandidatesRaw above (confirmed live 2026-09-20: a 10-day-old
+    // NFL recap was still showing under "NFL Scores & Previews" because its
+    // trendingScore never decayed and it stayed inside the un-windowed
+    // top-80 `articlesRanked` pool). `gte(publishedAt, cutoff)` correctly
+    // handles both halves of this section: a real result's publishedAt is a
+    // real past date and needs the recency window, while a not-yet-played
+    // "Preview: X vs Y" article's publishedAt is set to its future kickoff
+    // time (see runIngest.ts's match-data sources) — always >= any past
+    // cutoff, so previews are never wrongly excluded by this filter.
+    db.select().from(articleTable)
+      .where(and(
+        ...baseConditions,
+        gte(articleTable.publishedAt, new Date(Date.now() - HIGHLIGHT_MAX_AGE_DAYS * 24 * 60 * 60 * 1000))
+      ))
+      .orderBy(desc(articleTable.trendingScore))
+      .limit(100),
   ]);
   const rankedIds = new Set(articlesRanked.map((a) => a.id));
   const articlesWithDupes = [...manuallyFeaturedRaw.filter((a) => !rankedIds.has(a.id)), ...articlesRanked];
@@ -588,7 +606,16 @@ export default async function HomePage(
   const manuallyHighlightedIds = new Set(manuallyHighlighted.map((a) => a.id));
   const remainingAfterHighlighted = remainingAfterFeatured.filter((a) => !manuallyHighlightedIds.has(a.id));
 
-  const allMatchArticlesFull = remainingAfterHighlighted.filter((a) => isMatchDataSource(a.sourceName));
+  // Sourced from matchCandidatesRaw (its own freshness-first query, see
+  // above) rather than remainingAfterHighlighted/articlesRanked — the same
+  // top-80-by-trending pool with no age bound that already caused "Just In"
+  // and "Transfers & Big News" to go stale before their own dedicated
+  // queries were added. Still excludes anything already claimed as a
+  // manual hero/highlight pick, same as every other section here.
+  const excludedFromMatchPool = new Set([...manuallyFeaturedIds, ...manuallyHighlightedIds]);
+  const allMatchArticlesFull = matchCandidatesRaw.filter(
+    (a) => isMatchDataSource(a.sourceName) && !excludedFromMatchPool.has(a.id)
+  );
   const allBriefArticlesFull = remainingAfterHighlighted.filter((a) => !isMatchDataSource(a.sourceName));
 
   // Hero carousel: manual picks (up to 5, latest first) always win the
