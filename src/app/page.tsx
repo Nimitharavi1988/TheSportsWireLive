@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { db } from "@/db";
 import { article as articleTable } from "@/db/schema";
-import { and, eq, like, isNotNull, isNull, ne, or, desc } from "drizzle-orm";
+import { and, eq, like, isNotNull, isNull, ne, or, desc, gte } from "drizzle-orm";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import Link from "next/link";
 import Image from "next/image";
@@ -374,7 +374,7 @@ export default async function HomePage(
   // decision was silently getting overridden by a score cutoff instead of
   // actually taking priority. Capped at 5 (the same cap `featureArticle`
   // itself enforces), so this can never balloon the query.
-  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeSeriesRow, justInRaw] = await Promise.all([
+  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeSeriesRow, justInRaw, highlightCandidatesRaw] = await Promise.all([
     db.select().from(articleTable)
       .where(and(...baseConditions))
       .orderBy(desc(articleTable.trendingScore), desc(articleTable.publishedAt))
@@ -426,6 +426,25 @@ export default async function HomePage(
       ))
       .orderBy(desc(articleTable.publishedAt))
       .limit(15),
+    // Independent freshness-first query for "Transfers & Big News" below —
+    // same bug class as justInRaw above (see its comment), confirmed live
+    // 2026-09-20: deriving this from the trending-limited `articlesRanked`
+    // (LIMIT 80) meant an old article whose trendingScore never decays
+    // could permanently occupy the top-80 window, silently squeezing out
+    // genuinely fresh, real, qualifying candidates — the section rendered
+    // completely empty for cricket/football while 71/48 fresh, real-image,
+    // highlight-worthy articles actually existed in the database. Ordered
+    // by trendingScore within the fresh window (not pure recency, unlike
+    // justInRaw) so the best fresh stories still surface first; the
+    // isHighlightWorthy/real-image/match-data-exclusion filters stay in JS
+    // below, unchanged.
+    db.select().from(articleTable)
+      .where(and(
+        ...baseConditions,
+        gte(articleTable.publishedAt, new Date(Date.now() - 3 * 24 * 60 * 60 * 1000))
+      ))
+      .orderBy(desc(articleTable.trendingScore))
+      .limit(60),
   ]);
   const rankedIds = new Set(articlesRanked.map((a) => a.id));
   const articlesWithDupes = [...manuallyFeaturedRaw.filter((a) => !rankedIds.has(a.id)), ...articlesRanked];
@@ -607,13 +626,24 @@ export default async function HomePage(
   // article could otherwise sit here indefinitely) and a real-image
   // requirement (same reasoning as the hero carousel/"Just In" filters —
   // this is a visual, photo-led section, not a bare text link list).
-  const HIGHLIGHT_FRESHNESS_CUTOFF = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-  const automaticHighlights = allBriefArticles
+  // Was deriving purely from `allBriefArticles` (itself sliced from the
+  // trending-limited `articlesRanked` query, LIMIT 80) — same bug class
+  // already fixed for "Just In" above (see that query's comment): old
+  // articles whose trendingScore never decays can permanently occupy the
+  // top-80 window, silently squeezing out genuinely fresh candidates.
+  // Confirmed live (2026-09-20): 71 real, fresh (published <3 days),
+  // highlight-worthy, real-image cricket articles existed in the database
+  // at the moment this section was rendering completely empty — all of
+  // them were simply outside the top-80-by-trending cutoff, out-ranked by
+  // older, higher-scoring stories. `highlightCandidatesRaw` (fetched above,
+  // its own dedicated freshness-first query) fixes this the same way
+  // `justInRaw` already does for "Just In" — a candidate pool that can
+  // never silently exclude a real, fresh, qualifying story just because an
+  // older one out-scored it in an unrelated query's LIMIT.
+  const highlightCandidateIds = new Set(heroArticles.map((a) => a.id));
+  const automaticHighlights = highlightCandidatesRaw
+    .filter((a) => !highlightCandidateIds.has(a.id) && !manuallyHighlightedIds.has(a.id) && !isMatchDataSource(a.sourceName))
     .filter((a) => isHighlightWorthy(a.title))
-    .filter((a) => a.publishedAt && a.publishedAt >= HIGHLIGHT_FRESHNESS_CUTOFF)
-    // Excludes the generic category stock-photo fallback (always Pexels —
-    // see stockImages.ts), same "real, story-specific image" bar
-    // autoApprove.ts's hasRealImage already applies before auto-publishing.
     .filter((a) => Boolean(a.heroImageUrl && !a.heroImageUrl.includes("pexels.com")) || Boolean(a.homeCrestUrl && a.awayCrestUrl))
     .slice(0, Math.max(0, 4 - manuallyHighlighted.length));
   const highlightArticles = [...manuallyHighlighted, ...automaticHighlights];
