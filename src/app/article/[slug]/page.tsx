@@ -477,12 +477,8 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           responsive across both. Sits after the body, before engagement —
           same placement logic as FanEngagementHub below: after the reader
           has actually read the story. */}
-      <Box sx={{ display: { xs: "block", md: "none" }, mb: 3 }}>
-        <InFeedAd slot="6766570899" layoutKey="-i7+9-t-18+5h" />
-      </Box>
-      <Box sx={{ display: { xs: "none", md: "block" }, mb: 3 }}>
-        <InFeedAd slot="6355507350" layoutKey="-i7+9-t-18+5h" />
-      </Box>
+      <InFeedAd slot="6766570899" layoutKey="-i7+9-t-18+5h" sx={{ display: { xs: "block", md: "none" }, mb: 3 }} />
+      <InFeedAd slot="6355507350" layoutKey="-i7+9-t-18+5h" sx={{ display: { xs: "none", md: "block" }, mb: 3 }} />
 
       {/* Engagement sits before the outbound source link, not after — a
           reader who clicks through to the source immediately after reading
