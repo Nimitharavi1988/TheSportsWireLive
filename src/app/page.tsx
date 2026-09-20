@@ -641,10 +641,26 @@ export default async function HomePage(
   // never silently exclude a real, fresh, qualifying story just because an
   // older one out-scored it in an unrelated query's LIMIT.
   const highlightCandidateIds = new Set(heroArticles.map((a) => a.id));
-  const automaticHighlights = highlightCandidatesRaw
+  const highlightEligiblePool = highlightCandidatesRaw
     .filter((a) => !highlightCandidateIds.has(a.id) && !manuallyHighlightedIds.has(a.id) && !isMatchDataSource(a.sourceName))
-    .filter((a) => isHighlightWorthy(a.title))
-    .filter((a) => Boolean(a.heroImageUrl && !a.heroImageUrl.includes("pexels.com")) || Boolean(a.homeCrestUrl && a.awayCrestUrl))
+    .filter((a) => Boolean(a.heroImageUrl && !a.heroImageUrl.includes("pexels.com")) || Boolean(a.homeCrestUrl && a.awayCrestUrl));
+  const highlightWorthyPicks = highlightEligiblePool.filter((a) => isHighlightWorthy(a.title));
+  // Fallback for categories that structurally almost never clear
+  // isHighlightWorthy — confirmed live (2026-09-20): rugby had 42 fresh,
+  // real-image articles and ZERO passed, because isHighlightWorthy only
+  // matches EVENT_KEYWORDS or a TRACKED_PLAYERS name, and rugby has no
+  // tracked players. Same root cause already solved for hockey/volleyball/
+  // formula-1 in autoApprove.ts's RESERVED_CATEGORIES (their Facebook/
+  // Instagram slot), but that fix never covered this homepage section.
+  // Rather than hardcode a category list here too, fall back to the best
+  // remaining fresh/real-image articles by trending score whenever the
+  // highlight-worthy set alone doesn't fill the section — a no-op for
+  // football/cricket, which already have plenty of highlight-worthy
+  // matches, but guarantees a single-category page is never left with
+  // nothing to show just because its sport isn't one Gemini/EVENT_KEYWORDS
+  // happens to recognize.
+  const highlightFallbackPicks = highlightEligiblePool.filter((a) => !isHighlightWorthy(a.title));
+  const automaticHighlights = [...highlightWorthyPicks, ...highlightFallbackPicks]
     .slice(0, Math.max(0, 4 - manuallyHighlighted.length));
   const highlightArticles = [...manuallyHighlighted, ...automaticHighlights];
   const highlightIds = new Set(highlightArticles.map((a) => a.id));
