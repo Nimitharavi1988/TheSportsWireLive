@@ -6,6 +6,7 @@ import { isMatchDataSource } from "../matchDataSources";
 import { isHighlightWorthy } from "../highlightWorthy";
 import { postArticleToFacebook } from "../social/facebook";
 import { postInstagramPoster } from "../social/postInstagramPoster";
+import { isSimilarToAny } from "../titleSimilarity";
 
 // Runs as a follow-up step right after runIngest.ts in the same GitHub
 // Actions job — everything reaching "pending_review" has already passed
@@ -239,7 +240,14 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   // per-run target most runs. Runs even when toApprove is empty.
   type SocialCandidate = { id: string; slug: string; title: string; trendingScore: number; category: string };
   const backlogCutoff = new Date(Date.now() - SOCIAL_BACKLOG_WINDOW_MS);
-  const [backlogPool, fbPostedRows, igPostedRows] = await Promise.all([
+  // Separate, much shorter window than the already-posted exclusion above —
+  // "don't post the same real-world event twice" is a same-day problem (a
+  // Salah hat-trick recap from 4 different outlets all landing within
+  // hours), not something that should keep suppressing a candidate for 3
+  // full days the way a genuine repost would.
+  const SIMILARITY_WINDOW_MS = 24 * 60 * 60 * 1000;
+  const similarityCutoff = new Date(Date.now() - SIMILARITY_WINDOW_MS);
+  const [backlogPool, fbPostedRows, igPostedRows, fbRecentTitleRows, igRecentTitleRows] = await Promise.all([
     db.select({
       id: article.id, slug: article.slug, title: article.title,
       trendingScore: article.trendingScore, category: article.category,
@@ -262,9 +270,20 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
       .where(and(eq(socialPost.platform, "facebook"), inArray(socialPost.status, ["posted", "queued"]))),
     db.select({ articleId: socialPost.articleId }).from(socialPost)
       .where(and(eq(socialPost.platform, "instagram"), inArray(socialPost.status, ["posted", "queued"]))),
+    // Same-event dedup: titles of everything actually posted in the last 24h,
+    // used to keep a same-day near-duplicate (different source, same real
+    // story) from also reaching the Page — see titleSimilarity.ts.
+    db.select({ title: article.title }).from(socialPost)
+      .innerJoin(article, eq(socialPost.articleId, article.id))
+      .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.status, "posted"), gte(socialPost.postedAt, similarityCutoff))),
+    db.select({ title: article.title }).from(socialPost)
+      .innerJoin(article, eq(socialPost.articleId, article.id))
+      .where(and(eq(socialPost.platform, "instagram"), eq(socialPost.status, "posted"), gte(socialPost.postedAt, similarityCutoff))),
   ]);
   const fbPostedIds = new Set(fbPostedRows.map((r) => r.articleId));
   const igPostedIds = new Set(igPostedRows.map((r) => r.articleId));
+  const fbRecentTitles = fbRecentTitleRows.map((r) => r.title);
+  const igRecentTitles = igRecentTitleRows.map((r) => r.title);
 
   const freshCandidates: SocialCandidate[] = toApprove.map((a) => ({
     id: a.id, slug: a.slug, title: a.title, trendingScore: a.trendingScore, category: a.category,
@@ -287,18 +306,34 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   // filled. Cricket's reserved slot picks up the same change, which only
   // widens what can fill it — matches the "reserved" name's own intent (a
   // guarantee, not a conditional one).
-  function selectTopN(n: number, byTrending: SocialCandidate[], eligible: SocialCandidate[]): SocialCandidate[] {
+  // recentTitles seeds the same-event dedup (see titleSimilarity.ts) — a
+  // candidate whose title significantly overlaps with something already
+  // posted in the last 24h, OR with something this very call already picked
+  // (chosenTitles grows as slots fill), is skipped. Growing the seed list
+  // as picks happen matters just as much as the historical seed: two
+  // near-duplicate FRESH candidates can both show up as "new" in the same
+  // run (e.g. two outlets' recaps of the same match ingested minutes apart).
+  function selectTopN(n: number, byTrending: SocialCandidate[], eligible: SocialCandidate[], recentTitles: string[]): SocialCandidate[] {
     const selected: SocialCandidate[] = [];
+    const chosenTitles = [...recentTitles];
+    function tryAdd(a: SocialCandidate): boolean {
+      if (selected.length >= n || selected.includes(a)) return false;
+      if (isSimilarToAny(a.title, chosenTitles)) return false;
+      selected.push(a);
+      chosenTitles.push(a.title);
+      return true;
+    }
     for (const { category, slots } of RESERVED_CATEGORIES) {
-      const matches = byTrending.filter((a) => a.category === category && !selected.includes(a));
-      for (const article of matches.slice(0, slots)) {
-        if (selected.length >= n) break;
-        selected.push(article);
+      const matches = byTrending.filter((a) => a.category === category);
+      let added = 0;
+      for (const article of matches) {
+        if (added >= slots) break;
+        if (tryAdd(article)) added++;
       }
     }
     for (const article of eligible) {
       if (selected.length >= n) break;
-      if (!selected.includes(article)) selected.push(article);
+      tryAdd(article);
     }
     return selected;
   }
@@ -348,7 +383,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     .filter((a) => a.category !== "volleyball");
   const fbByTrending = [...fbPool].sort((a, b) => b.trendingScore - a.trendingScore);
   const fbEligible = fbByTrending.filter((a) => isHighlightWorthy(a.title));
-  const toPost = selectTopN(runCap, fbByTrending, fbEligible);
+  const toPost = selectTopN(runCap, fbByTrending, fbEligible, fbRecentTitles);
 
   // Diagnostic logging — added 2026-09-20 after repeated reports of
   // multi-run Facebook posting silence (0 posts across several consecutive
@@ -390,7 +425,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     .filter((a) => a.category !== "volleyball");
   const igByTrending = [...igPool].sort((a, b) => b.trendingScore - a.trendingScore);
   const igEligible = igByTrending.filter((a) => isHighlightWorthy(a.title));
-  const instagramCandidates = selectTopN(instagramRunCap, igByTrending, igEligible);
+  const instagramCandidates = selectTopN(instagramRunCap, igByTrending, igEligible, igRecentTitles);
 
   // Facebook is back to its original plain format (the old auto-link-card
   // post, not the generated poster) per explicit request - the comment-
