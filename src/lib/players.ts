@@ -109,6 +109,34 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   { slug: "abhishek-sharma", name: "Abhishek Sharma", searchTerms: ["Abhishek Sharma"], sport: "cricket", cricinfoPlayerId: 1070183 },
   { slug: "phil-salt", name: "Phil Salt", searchTerms: ["Phil Salt"], sport: "cricket", cricinfoPlayerId: 669365 },
   { slug: "finn-allen", name: "Finn Allen", searchTerms: ["Finn Allen"], sport: "cricket", cricinfoPlayerId: 959759 },
+  // Added 2026-09-20 (explicit request): full playing XIs for the
+  // Zimbabwe vs Australia 3rd ODI (Harare) — every Cricinfo ID
+  // WebSearch-verified live against espncricinfo.com/cricketers pages, not
+  // taken from the scorecard fetch alone. Common surnames (Evans, Bartlett,
+  // Ellis, Peake) kept to full-name search terms only to avoid collisions;
+  // distinctive surnames (Madhevere, Masuku, Cremer, Muzarabani, Connolly,
+  // Inglis, Renshaw, Zampa) added as a second term.
+  { slug: "brian-bennett", name: "Brian Bennett", searchTerms: ["Brian Bennett"], sport: "cricket", cricinfoPlayerId: 1071484 },
+  { slug: "ben-curran", name: "Ben Curran", searchTerms: ["Ben Curran"], sport: "cricket", cricinfoPlayerId: 910695 },
+  { slug: "innocent-kaia", name: "Innocent Kaia", searchTerms: ["Innocent Kaia"], sport: "cricket", cricinfoPlayerId: 465327 },
+  { slug: "brendan-taylor", name: "Brendan Taylor", searchTerms: ["Brendan Taylor"], sport: "cricket", cricinfoPlayerId: 55814 },
+  { slug: "craig-ervine", name: "Craig Ervine", searchTerms: ["Craig Ervine"], sport: "cricket", cricinfoPlayerId: 55412 },
+  { slug: "sikandar-raza", name: "Sikandar Raza", searchTerms: ["Sikandar Raza"], sport: "cricket", cricinfoPlayerId: 299572 },
+  { slug: "wessly-madhevere", name: "Wessly Madhevere", searchTerms: ["Wessly Madhevere", "Madhevere"], sport: "cricket", cricinfoPlayerId: 938959 },
+  { slug: "brad-evans", name: "Brad Evans", searchTerms: ["Brad Evans"], sport: "cricket", cricinfoPlayerId: 696127 },
+  { slug: "ernest-masuku", name: "Ernest Masuku", searchTerms: ["Ernest Masuku", "Masuku"], sport: "cricket", cricinfoPlayerId: 728085 },
+  { slug: "graeme-cremer", name: "Graeme Cremer", searchTerms: ["Graeme Cremer", "Cremer"], sport: "cricket", cricinfoPlayerId: 55346 },
+  { slug: "blessing-muzarabani", name: "Blessing Muzarabani", searchTerms: ["Blessing Muzarabani", "Muzarabani"], sport: "cricket", cricinfoPlayerId: 827051 },
+  { slug: "mitch-marsh", name: "Mitch Marsh", searchTerms: ["Mitch Marsh", "Mitchell Marsh"], sport: "cricket", cricinfoPlayerId: 272450 },
+  { slug: "cooper-connolly", name: "Cooper Connolly", searchTerms: ["Cooper Connolly", "Connolly"], sport: "cricket", cricinfoPlayerId: 1210488 },
+  { slug: "josh-inglis", name: "Josh Inglis", searchTerms: ["Josh Inglis", "Inglis"], sport: "cricket", cricinfoPlayerId: 662235 },
+  { slug: "alex-carey", name: "Alex Carey", searchTerms: ["Alex Carey"], sport: "cricket", cricinfoPlayerId: 326434 },
+  { slug: "matt-renshaw", name: "Matt Renshaw", searchTerms: ["Matt Renshaw", "Renshaw"], sport: "cricket", cricinfoPlayerId: 722303 },
+  { slug: "ollie-peake", name: "Ollie Peake", searchTerms: ["Ollie Peake"], sport: "cricket", cricinfoPlayerId: 1418371 },
+  { slug: "xavier-bartlett", name: "Xavier Bartlett", searchTerms: ["Xavier Bartlett"], sport: "cricket", cricinfoPlayerId: 1050545 },
+  { slug: "nathan-ellis", name: "Nathan Ellis", searchTerms: ["Nathan Ellis"], sport: "cricket", cricinfoPlayerId: 826915 },
+  { slug: "adam-zampa", name: "Adam Zampa", searchTerms: ["Zampa"], sport: "cricket", cricinfoPlayerId: 379504 },
+  { slug: "spencer-johnson", name: "Spencer Johnson", searchTerms: ["Spencer Johnson"], sport: "cricket", cricinfoPlayerId: 1123718 },
   // Found via nameGapReport.ts (2026-09-12): 3 mentions in 2 weeks, all
   // referring to him as just "Boult" — no collision found for that surname
   // alone.
