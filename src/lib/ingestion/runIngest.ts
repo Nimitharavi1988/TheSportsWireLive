@@ -213,7 +213,9 @@ export async function runIngest() {
   // so computeTrendingScore's own superstar-name detection already tends to
   // rank them highly rather than needing a separate carve-out.
   const sortedNewsItems = [...newsItems, ...playerNewsItems, ...cricinfoPlayerItems].sort(
-    (a, b) => computeTrendingScore(b.title, trendingKeywords) - computeTrendingScore(a.title, trendingKeywords)
+    (a, b) =>
+      computeTrendingScore(b.title, trendingKeywords, undefined, b.category) -
+      computeTrendingScore(a.title, trendingKeywords, undefined, a.category)
   );
   const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...mlbItems, ...nbaItems, ...domesticFootballItems, ...nhlItems, ...volleyballItems, ...espnVolleyballItems, ...sortedNewsItems, ...cricketItems]
     // Checked against every source regardless of which fetcher it came
@@ -475,7 +477,7 @@ export async function runIngest() {
     }
 
     const quality = runQualityChecks(item.title, item.summary);
-    const trendingScore = computeTrendingScore(item.title, trendingKeywords);
+    const trendingScore = computeTrendingScore(item.title, trendingKeywords, undefined, item.category);
     const slug = `${item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
 
     // Priority: a real, story-specific photo the publisher's own RSS feed

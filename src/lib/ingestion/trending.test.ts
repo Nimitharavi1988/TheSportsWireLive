@@ -48,4 +48,19 @@ describe("computeTrendingScore", () => {
   it("matching is case-insensitive throughout", () => {
     expect(computeTrendingScore("MESSI SIGNS NEW DEAL", ["messi"])).toBeGreaterThan(0);
   });
+
+  it("adds 5 for a category matching the real audience (NFL/NBA/MLB/NHL)", () => {
+    const title = "A quiet Tuesday in the lower leagues";
+    expect(computeTrendingScore(title, [], undefined, "american-football")).toBe(5);
+    expect(computeTrendingScore(title, [], undefined, "basketball")).toBe(5);
+    expect(computeTrendingScore(title, [], undefined, "baseball")).toBe(5);
+    expect(computeTrendingScore(title, [], undefined, "hockey")).toBe(5);
+  });
+
+  it("does not boost categories outside the real audience match", () => {
+    const title = "A quiet Tuesday in the lower leagues";
+    expect(computeTrendingScore(title, [], undefined, "football")).toBe(0);
+    expect(computeTrendingScore(title, [], undefined, "cricket")).toBe(0);
+    expect(computeTrendingScore(title, [], undefined)).toBe(0);
+  });
 });

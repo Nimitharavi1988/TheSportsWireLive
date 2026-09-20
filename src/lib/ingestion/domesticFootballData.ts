@@ -2,8 +2,8 @@
  * Pulls match data for major domestic football leagues that our existing
  * football-data.org integration (footballData.ts) doesn't cover well —
  * BBC/Sky/ESPN's RSS feeds (rssFeeds.ts) skew heavily toward the Premier
- * League, leaving Bundesliga/Serie A/Ligue 1/MLS/Indian Super League with
- * almost no coverage despite real audience reach.
+ * League, leaving Bundesliga/Serie A/Ligue 1/MLS with almost no coverage
+ * despite real audience reach.
  *
  * Same ESPN public scoreboard API as nflData.ts/mlbData.ts/nbaData.ts
  * (site.api.espn.com) — unofficial and undocumented, but no API key
@@ -15,12 +15,18 @@
  */
 import type { RawMatchItem } from "./footballData";
 
+// Indian Super League removed (2026-09-20, explicit request) — confirmed
+// real audience breakdown is mostly USA with Sweden/Ireland second, India
+// actually low despite this site's cricket-heavy coverage, so ISL was
+// spending ingestion/commentary budget on a league with ~no relevance to
+// who's actually reading. Frees the budget for the other four leagues,
+// which map onto the real audience far better (MLS for the US directly,
+// Bundesliga/Serie A/Ligue 1 for general European-football crossover).
 const LEAGUES: { code: string; label: string }[] = [
   { code: "ger.1", label: "Bundesliga" },
   { code: "ita.1", label: "Serie A" },
   { code: "fra.1", label: "Ligue 1" },
   { code: "usa.1", label: "MLS" },
-  { code: "ind.1", label: "Indian Super League" },
 ];
 
 interface EspnTeam {

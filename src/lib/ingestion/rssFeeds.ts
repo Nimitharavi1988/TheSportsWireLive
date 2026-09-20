@@ -180,6 +180,18 @@ const FEEDS: { url: string; category: string; sourceName: string }[] = [
   // media:thumbnail/content/enclosure) — falls back to og:image extraction
   // during commentary grounding, same as any other image-less feed.
   { url: "https://athleticsweekly.com/feed/", category: "athletics", sourceName: "Athletics Weekly" },
+  // Third athletics source — ESPN's Olympic-sports desk, added 2026-09-20
+  // (explicit request for multi-sport-games coverage like the Asian Games).
+  // Confirmed live: current items (Sept 18-20 2026), and its very first
+  // item on check was real Asian Games coverage. Deliberately picked ESPN's
+  // own take on these games over a foreign wire/official source — this
+  // site's confirmed real audience is US-majority, so a US outlet's
+  // framing of an event like the Asian Games is a better fit than a
+  // dedicated Asian-Games-specific feed would be. Broader than pure track
+  // and field (Olympic sports generally), but "athletics" is the closest
+  // existing category and every other athletics source here is already
+  // similarly broad (start-list/results news, not a fixed sport list).
+  { url: "https://www.espn.com/espn/rss/oly/news", category: "athletics", sourceName: "ESPN" },
   // Rugby — news-only, same reasoning as Athletics: no single clean
   // structured-data source exists. Specifically no ESPN scoreboard-style
   // endpoint either, unlike NBA/MLB/NFL — rugby is fragmented across many

@@ -50,10 +50,23 @@ export async function fetchTrendingKeywords(): Promise<string[]> {
   return [...new Set(results.flat())];
 }
 
+// Confirmed real audience breakdown (2026-09-20): mostly USA, Sweden and
+// Ireland a real secondary segment, India actually low despite this site's
+// cricket-heavy coverage. These four categories are where that audience's
+// real demand is — american-football/basketball/baseball for the US
+// directly, hockey for both the US and Sweden (NHL has heavy Swedish
+// representation, real fan crossover). A flat, modest boost (same order as
+// the superstar-name boost below) nudges close calls in the ranking toward
+// what this audience actually reads, without letting it override a
+// genuinely bigger story in another category.
+const AUDIENCE_MATCH_CATEGORIES = new Set(["american-football", "basketball", "baseball", "hockey"]);
+const AUDIENCE_MATCH_BOOST = 5;
+
 export function computeTrendingScore(
   title: string,
   trendingKeywords: string[],
-  redditEngagement?: Map<string, number>
+  redditEngagement?: Map<string, number>,
+  category?: string
 ): number {
   const lowerTitle = title.toLowerCase();
   let score = 0;
@@ -72,6 +85,9 @@ export function computeTrendingScore(
   }
   if (SUPERSTAR_SEARCH_TERMS.some((term) => lowerTitle.includes(term.toLowerCase()))) {
     score += 5;
+  }
+  if (category && AUDIENCE_MATCH_CATEGORIES.has(category)) {
+    score += AUDIENCE_MATCH_BOOST;
   }
 
   if (redditEngagement) {
