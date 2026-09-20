@@ -19,6 +19,12 @@ import { fetchOneStockImage } from "@/lib/ingestion/stockImages";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 import { fetchNflStandingsTable } from "@/lib/ingestion/nflData";
 import { NflStandingsCarousel } from "@/components/NflStandingsCarousel";
+import { fetchNbaStandingsTable } from "@/lib/ingestion/nbaData";
+import { NbaStandingsCarousel } from "@/components/NbaStandingsCarousel";
+import { fetchMlbStandingsTable } from "@/lib/ingestion/mlbData";
+import { MlbStandingsCarousel } from "@/components/MlbStandingsCarousel";
+import { fetchNhlStandingsTable } from "@/lib/ingestion/nhlData";
+import { NhlStandingsCarousel } from "@/components/NhlStandingsCarousel";
 import { crestAltText, competitionFromSummary } from "@/lib/teamNames";
 import { displaySummary } from "@/lib/articleSummary";
 import { relativeTime } from "@/lib/relativeTime";
@@ -307,6 +313,40 @@ async function NflStandingsWidget() {
   return (
     <Box sx={{ mb: 3 }}>
       <NflStandingsCarousel conferences={nflStandings} />
+    </Box>
+  );
+}
+
+// Same streaming/null-check pattern as NflStandingsWidget above — added
+// 2026-09-20 to close the empty sidebar slot that basketball/baseball/
+// hockey category views previously had (only football and NFL had a
+// standings widget before this).
+async function NbaStandingsWidget() {
+  const nbaStandings = await fetchNbaStandingsTable();
+  if (!nbaStandings || nbaStandings.length === 0) return null;
+  return (
+    <Box sx={{ mb: 3 }}>
+      <NbaStandingsCarousel conferences={nbaStandings} />
+    </Box>
+  );
+}
+
+async function MlbStandingsWidget() {
+  const mlbStandings = await fetchMlbStandingsTable();
+  if (!mlbStandings || mlbStandings.length === 0) return null;
+  return (
+    <Box sx={{ mb: 3 }}>
+      <MlbStandingsCarousel conferences={mlbStandings} />
+    </Box>
+  );
+}
+
+async function NhlStandingsWidget() {
+  const nhlStandings = await fetchNhlStandingsTable();
+  if (!nhlStandings || nhlStandings.length === 0) return null;
+  return (
+    <Box sx={{ mb: 3 }}>
+      <NhlStandingsCarousel conferences={nhlStandings} />
     </Box>
   );
 }
@@ -731,6 +771,24 @@ export default async function HomePage(
             {category === "american-football" && (
               <Suspense fallback={null}>
                 <NflStandingsWidget />
+              </Suspense>
+            )}
+
+            {category === "basketball" && (
+              <Suspense fallback={null}>
+                <NbaStandingsWidget />
+              </Suspense>
+            )}
+
+            {category === "baseball" && (
+              <Suspense fallback={null}>
+                <MlbStandingsWidget />
+              </Suspense>
+            )}
+
+            {category === "hockey" && (
+              <Suspense fallback={null}>
+                <NhlStandingsWidget />
               </Suspense>
             )}
 

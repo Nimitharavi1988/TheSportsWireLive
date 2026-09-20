@@ -5,11 +5,18 @@
  * MLB's own official data, not a third-party aggregator, so no daily
  * request cap to self-throttle against.
  *
+ * Standings table added 2026-09-20 (real gap: no standings widget existed
+ * for `?category=baseball`) — uses ESPN's standings endpoint instead of the
+ * MLB Stats API above, same `site.api.espn.com/apis/v2/sports/.../standings`
+ * family already used for NFL/NBA, confirmed live with the same stat names
+ * plus `ties`.
+ *
  * Same RawMatchItem shape as footballData.ts/nflData.ts, reused directly.
  */
 import type { RawMatchItem } from "./footballData";
 
 const SCHEDULE_URL = "https://statsapi.mlb.com/api/v1/schedule";
+const ESPN_STANDINGS_URL = "https://site.api.espn.com/apis/v2/sports/baseball/mlb/standings";
 
 // Static per-team logo CDN — MLB's own, confirmed working directly
 // (2026-09-12): https://www.mlbstatic.com/team-logos/{teamId}.svg
@@ -129,4 +136,55 @@ export async function fetchMlbData(): Promise<RawMatchItem[]> {
   }
 
   return items;
+}
+
+export interface MlbStandingsRow {
+  teamId: string;
+  teamName: string;
+  teamLogo: string | null;
+  wins: number;
+  losses: number;
+  ties: number;
+  playoffSeed: number;
+}
+
+export interface MlbConferenceStandings {
+  conferenceName: string;
+  rows: MlbStandingsRow[];
+}
+
+// Same shape as nflData.ts's fetchNflStandingsTable — direct copy of that
+// pattern (confirmed live 2026-09-20: MLB's ESPN standings entries expose
+// the same stat names as NFL's, plus "ties").
+export async function fetchMlbStandingsTable(): Promise<MlbConferenceStandings[] | null> {
+  try {
+    const res = await fetch(`${ESPN_STANDINGS_URL}?season=${new Date().getFullYear()}`, { next: { revalidate: 300 } });
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const conferences: MlbConferenceStandings[] = [];
+
+    for (const conference of data.children ?? []) {
+      const rows: MlbStandingsRow[] = (conference.standings?.entries ?? []).map((entry: any) => {
+        const stat = (name: string) =>
+          Number(entry.stats?.find((s: { name: string }) => s.name === name)?.displayValue ?? 0);
+        return {
+          teamId: entry.team?.id ?? "",
+          teamName: entry.team?.displayName ?? "Unknown",
+          teamLogo: entry.team?.logo ?? entry.team?.logos?.[0]?.href ?? null,
+          wins: stat("wins"),
+          losses: stat("losses"),
+          ties: stat("ties"),
+          playoffSeed: stat("playoffSeed"),
+        };
+      });
+      rows.sort((a, b) => (a.playoffSeed || 99) - (b.playoffSeed || 99));
+      conferences.push({ conferenceName: conference.name ?? "Conference", rows });
+    }
+
+    return conferences.length > 0 ? conferences : null;
+  } catch (err) {
+    console.error("MLB standings table fetch failed:", err);
+    return null;
+  }
 }

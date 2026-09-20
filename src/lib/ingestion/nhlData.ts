@@ -164,3 +164,59 @@ export async function fetchNhlData(): Promise<RawMatchItem[]> {
 
   return items;
 }
+
+export interface NhlStandingsRow {
+  teamId: string;
+  teamName: string;
+  teamLogo: string | null;
+  wins: number;
+  losses: number;
+  otLosses: number;
+  points: number;
+  playoffSeed: number;
+}
+
+export interface NhlConferenceStandings {
+  conferenceName: string;
+  rows: NhlStandingsRow[];
+}
+
+// Added 2026-09-20 (real gap: no standings widget existed for
+// `?category=hockey`) — same shape as nflData.ts's fetchNflStandingsTable,
+// but hockey standings are conventionally ranked/displayed by points (not
+// raw win-loss, since an OT/shootout loss still earns a point) — confirmed
+// live the endpoint exposes "otLosses" (not "ties") and "points" alongside
+// the usual wins/losses/playoffSeed.
+export async function fetchNhlStandingsTable(): Promise<NhlConferenceStandings[] | null> {
+  try {
+    const res = await fetch(`${STANDINGS_URL}?season=${new Date().getFullYear()}`, { next: { revalidate: 300 } });
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const conferences: NhlConferenceStandings[] = [];
+
+    for (const conference of data.children ?? []) {
+      const rows: NhlStandingsRow[] = (conference.standings?.entries ?? []).map((entry: any) => {
+        const stat = (name: string) =>
+          Number(entry.stats?.find((s: { name: string }) => s.name === name)?.displayValue ?? 0);
+        return {
+          teamId: entry.team?.id ?? "",
+          teamName: entry.team?.displayName ?? "Unknown",
+          teamLogo: entry.team?.logo ?? entry.team?.logos?.[0]?.href ?? null,
+          wins: stat("wins"),
+          losses: stat("losses"),
+          otLosses: stat("otLosses"),
+          points: stat("points"),
+          playoffSeed: stat("playoffSeed"),
+        };
+      });
+      rows.sort((a, b) => (a.playoffSeed || 99) - (b.playoffSeed || 99));
+      conferences.push({ conferenceName: conference.name ?? "Conference", rows });
+    }
+
+    return conferences.length > 0 ? conferences : null;
+  } catch (err) {
+    console.error("NHL standings table fetch failed:", err);
+    return null;
+  }
+}
