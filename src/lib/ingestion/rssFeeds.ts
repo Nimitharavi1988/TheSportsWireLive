@@ -100,6 +100,20 @@ const FEEDS: { url: string; category: string; sourceName: string }[] = [
   // content, same as this file's other sources, rather than the
   // RawMatchItem match-data pattern the other new sports use.
   { url: "https://www.autosport.com/rss/f1/news/", category: "formula-1", sourceName: "Autosport" },
+  // Added 2026-09-20 (explicit request) after Autosport alone went ~33h
+  // with no new item, which read as a real gap even though it wasn't an
+  // ingestion bug (confirmed live by comparing the DB directly against
+  // Autosport's own feed — every item present, feed itself just quiet).
+  // Motorsport.com is a sister publication under the same Motorsport
+  // Network as Autosport (identical feed shape, confirmed live), but
+  // publishes independently and was meaningfully fresher when checked
+  // (items from within the hour vs. Autosport's 33h-old latest) — a real,
+  // different update cadence despite the shared parent company, not a
+  // near-duplicate source. BBC Sport F1 adds a genuinely different
+  // publisher/voice, same domain pattern already proven reliable for this
+  // pipeline's football/cricket feeds below.
+  { url: "https://www.motorsport.com/rss/f1/news/", category: "formula-1", sourceName: "Motorsport.com" },
+  { url: "http://feeds.bbci.co.uk/sport/formula1/rss.xml", category: "formula-1", sourceName: "BBC Sport" },
   { url: "http://feeds.bbci.co.uk/sport/football/rss.xml", category: "football", sourceName: "BBC Sport" },
   { url: "http://feeds.bbci.co.uk/sport/cricket/rss.xml", category: "cricket", sourceName: "BBC Sport" },
   // Feed 11095 is Sky's football-only feed — confirmed by inspecting its
