@@ -5,6 +5,7 @@ import { createId } from "@paralleldrive/cuid2";
 import { displaySummary } from "@/lib/articleSummary";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { TRACKED_PLAYERS } from "@/lib/players";
+import { generatePosterContent } from "@/lib/ingestion/commentary";
 
 // A sport emoji at the start of the post text is a small, low-risk
 // engagement lever on Facebook (unlike extra hashtags, which hurt reach —
@@ -142,7 +143,18 @@ export async function postArticleToFacebook(articleId: string) {
   // article page's own og:image (generateMetadata in article/[slug]/
   // page.tsx), so it only works correctly now that SITE_URL is set right
   // (see the earlier production fix — before that it pointed at localhost).
-  const message = `${emojiFor(article.category)} ${article.title}\n\n${displaySummary(article, 400)}\n\n${hashtagsFor(article.title, article.category)}`;
+  // Unchanged by the headline change below — this stays exactly as-is.
+
+  // Crafted hook instead of the raw scraped title — added 2026-09-20 since
+  // organic Facebook is the dominant traffic channel to the site, and this
+  // was the one caption still using the raw title while Instagram's poster
+  // path already gets a punchier Gemini-crafted hook (generatePosterContent,
+  // same function, reused directly — no new prompt/schema). Best-effort:
+  // falls back to the raw title on any failure so a Gemini hiccup can never
+  // block a Facebook post, same as every other Gemini-dependent step here.
+  const posterContent = article.body ? await generatePosterContent(article.title, article.body) : null;
+  const headline = posterContent?.hook ?? article.title;
+  const message = `${emojiFor(article.category)} ${headline}\n\n${displaySummary(article, 400)}\n\n${hashtagsFor(article.title, article.category)}`;
 
   const [socialPost] = await db.insert(socialPostTable)
     .values({ id: createId(), articleId, platform: "facebook", status: "queued" })

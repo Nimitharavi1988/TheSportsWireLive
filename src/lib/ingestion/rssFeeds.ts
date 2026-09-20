@@ -165,6 +165,15 @@ const FEEDS: { url: string; category: string; sourceName: string }[] = [
   // Confirmed live and working directly (2026-09-12).
   { url: "https://www.espn.com/espn/rss/mlb/news", category: "baseball", sourceName: "ESPN" },
   { url: "https://www.espn.com/espn/rss/nba/news", category: "basketball", sourceName: "ESPN" },
+  // Hockey editorial news — same gap NFL/MLB/NBA originally had:
+  // nhlData.ts only ever provides structured match data (scores/standings)
+  // via ESPN's scoreboard API, no news coverage. Added 2026-09-20 — real
+  // audience relevance for the confirmed Sweden secondary audience too,
+  // since Swedish NHL players are frequent subjects in NHL editorial
+  // coverage even without a dedicated Swedish Hockey League feed (checked;
+  // no confirmed-working free SHL-specific source found). Confirmed live
+  // and working directly (2026-09-20).
+  { url: "https://www.espn.com/espn/rss/nhl/news", category: "hockey", sourceName: "ESPN" },
   // Athletics/track and field — news-only section (no structured match-data
   // source exists the way football-data.org/CricketData.org/ESPN NFL do for
   // the others; athletics is start-list/results based, not "matches"), per
