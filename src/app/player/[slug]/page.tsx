@@ -3,8 +3,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { db } from "@/db";
 import { article } from "@/db/schema";
-import { and, eq, or, ilike, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { TRACKED_PLAYERS } from "@/lib/players";
+import { titleMatchesAnyTerm } from "@/lib/titleMatch";
 import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImages";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 import { StandingsCarousel } from "@/components/StandingsCarousel";
@@ -55,7 +56,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
     db.select().from(article)
       .where(and(
         eq(article.status, "published"),
-        or(...player.searchTerms.map((term) => ilike(article.title, `%${term}%`)))
+        titleMatchesAnyTerm(player.searchTerms)
       ))
       .orderBy(desc(article.publishedAt))
       .limit(30),

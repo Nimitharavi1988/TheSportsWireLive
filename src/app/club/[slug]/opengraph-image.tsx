@@ -3,8 +3,9 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { db } from "@/db";
 import { article } from "@/db/schema";
-import { and, eq, or, ilike, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { TRACKED_CLUBS } from "@/lib/clubs";
+import { titleMatchesAnyTerm } from "@/lib/titleMatch";
 import { findClubCrest } from "@/lib/teamNames";
 
 // Club pages previously had no Open Graph image at all. Same gradient-card
@@ -24,7 +25,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
         .from(article)
         .where(and(
           eq(article.status, "published"),
-          or(...club.searchTerms.map((term) => ilike(article.title, `%${term}%`)))
+          titleMatchesAnyTerm(club.searchTerms)
         ))
         .orderBy(desc(article.publishedAt))
         .limit(10)

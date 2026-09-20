@@ -3,8 +3,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { db } from "@/db";
 import { article } from "@/db/schema";
-import { and, eq, or, ilike, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { TRACKED_COUNTRIES } from "@/lib/countries";
+import { titleMatchesAnyTerm } from "@/lib/titleMatch";
 import { findClubCrest } from "@/lib/teamNames";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
@@ -48,7 +49,7 @@ export default async function CountryPage({ params }: { params: Promise<{ slug: 
   const articles = await db.select().from(article)
     .where(and(
       eq(article.status, "published"),
-      or(...country.searchTerms.map((term) => ilike(article.title, `%${term}%`)))
+      titleMatchesAnyTerm(country.searchTerms)
     ))
     .orderBy(desc(article.publishedAt))
     .limit(30);
