@@ -448,12 +448,43 @@ export async function rejectStaleNoImageArticles(): Promise<number> {
   return staleIds.length;
 }
 
+// Mirror of rejectStaleNoImageArticles above, for the other half of
+// isAutoApprovable's bar — added 2026-09-20 (explicit request, confirmed
+// live: 1,222 of 2,139 pending articles were stuck purely on a missing/
+// too-short body, oldest over 4 days, no automatic disposition existed for
+// this case the way the image side already had one). Same reasoning and
+// same 3-day window: budget-starved items (never got a real commentary
+// attempt at all — see runIngest.ts's per-run Gemini budget) vs. genuinely
+// failed attempts (already rejected immediately by runIngest.ts's own
+// retry-path check) are indistinguishable from outside, so this gives every
+// item a real multi-day window before concluding it's not going to get a
+// body, rather than rejecting on day one.
+const STALE_NO_BODY_DAYS = 3;
+
+export async function rejectStaleNoBodyArticles(): Promise<number> {
+  const cutoff = new Date(Date.now() - STALE_NO_BODY_DAYS * 24 * 60 * 60 * 1000);
+  const candidates = await db.select({ id: article.id, body: article.body, sourceName: article.sourceName })
+    .from(article).where(and(eq(article.status, "pending_review"), lt(article.createdAt, cutoff)));
+  const staleIds = candidates
+    .filter((a) => {
+      const minLength = isMatchDataSource(a.sourceName) ? MIN_MATCH_DATA_BODY_LENGTH : MIN_BODY_LENGTH;
+      return !(a.body && a.body.trim().length >= minLength);
+    })
+    .map((a) => a.id);
+  if (staleIds.length === 0) return 0;
+
+  await db.update(article).set({ status: "rejected", updatedAt: new Date() }).where(inArray(article.id, staleIds));
+  return staleIds.length;
+}
+
 if (require.main === module) {
   autoApproveValidArticles()
     .then(async ({ checked, approved }) => {
       console.log(`Auto-approve: ${approved} of ${checked} pending articles met the bar (real image + body >= ${MIN_BODY_LENGTH} chars, or >= ${MIN_MATCH_DATA_BODY_LENGTH} for match-data sources).`);
-      const rejected = await rejectStaleNoImageArticles();
-      console.log(`Rejected ${rejected} pending articles still with no real image after ${STALE_NO_IMAGE_DAYS}+ days.`);
+      const rejectedNoImage = await rejectStaleNoImageArticles();
+      console.log(`Rejected ${rejectedNoImage} pending articles still with no real image after ${STALE_NO_IMAGE_DAYS}+ days.`);
+      const rejectedNoBody = await rejectStaleNoBodyArticles();
+      console.log(`Rejected ${rejectedNoBody} pending articles still with no real body after ${STALE_NO_BODY_DAYS}+ days.`);
       process.exit(0);
     })
     .catch((err) => {
