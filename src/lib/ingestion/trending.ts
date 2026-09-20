@@ -24,9 +24,15 @@ import { SUPERSTAR_SEARCH_TERMS } from "../players";
 
 // BBC/Sky/Guardian — most of this site's RSS sources — are UK outlets, so
 // US-only search trends were a real mismatch for a lot of the content.
-// Both geos are queried and merged; either one failing independently
-// (rather than a single combined call) keeps the other's results.
-const TRENDS_GEOS = ["US", "GB"];
+// India added 2026-09-20 (explicit request) — cricket's real audience
+// skews India/Asia (Cricinfo India feed, Hindustan Times, the ongoing
+// India promotions push), but this signal previously had zero India
+// coverage despite being the single highest-weighted signal in
+// computeTrendingScore (+10 per match). Confirmed live: geo "IN" works and
+// returns real trending items via the same dailyTrends call. All three
+// geos are queried and merged independently — one failing never drops the
+// other two's results.
+const TRENDS_GEOS = ["US", "GB", "IN"];
 
 export async function fetchTrendingKeywords(): Promise<string[]> {
   const results = await Promise.all(
