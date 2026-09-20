@@ -313,8 +313,21 @@ export function ArticleQueueClient({
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
                     <Typography variant="caption" sx={{ color: "text.secondary" }}>
                       {article.category} · {article.sourceName}
+                      {/* Match-data sources (nflData.ts, nbaData.ts, etc.) set
+                          publishedAt to the real-world event's own scheduled
+                          kickoff/tip-off time, not when we published the
+                          article -- correct for chronological sorting, but
+                          "Published Oct 3" on a preview article ingested
+                          today reads as a real data bug (a publish date in
+                          the future) rather than what it actually is. Labeled
+                          "Game" instead for these sources so the same date
+                          reads honestly. */}
                       {status === "published" && article.publishedAt && (
-                        <> · Published {article.publishedAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</>
+                        <>
+                          {" "}
+                          · {isMatchDataSource(article.sourceName) ? "Game" : "Published"}{" "}
+                          {article.publishedAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                        </>
                       )}
                       {status === "pending_review" && (
                         <> · Submitted {article.createdAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</>
