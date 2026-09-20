@@ -92,22 +92,32 @@ const MAX_INSTAGRAM_POSTS_PER_RUN = 3;
 // of 1" fix — that's the opposite of "one per interval, all day."
 const RUNS_PER_DAY = 96;
 const RUNS_PER_HOUR = RUNS_PER_DAY / 24;
-// Relative audience-activity weight per UTC hour, combining the three
-// regions this Page's traffic actually comes from (US, Europe, India — the
-// last one matters a lot given how much cricket content this site carries)
-// so posting concentrates in whichever hours put the most of those
-// audiences in their own local afternoon/evening (roughly 12:00-22:00
-// local), instead of spreading evenly across all 24 UTC hours regardless of
-// who's actually awake. This is a general social-media-engagement heuristic
-// (published "best time to post" guidance for these regions), not yet
-// measured against this Page's own Facebook Insights — the account doesn't
-// have enough volume yet for that to be statistically meaningful. Replace
-// with real "when our fans are online" data from Page Insights once it does.
+// Relative audience-activity weight per UTC hour. Re-centered 2026-09-20
+// (explicit correction: most viewers are actually US-based, not the
+// US+Europe+India blend this was originally built around) on the union of
+// all four continental US time zones' waking hours (ET/CT/PT dominate by
+// population, MT included), peaking where ET+CT+PT are simultaneously in
+// their evening prime-time window (roughly 6pm-11pm local, which staggers
+// across UTC 22:00-04:00 given the 3-hour ET-to-PT spread), troughing
+// during the dead-of-night window with nobody awake in any US zone
+// (roughly UTC 06:00-10:00, i.e. ET 2-6am through PT overnight). Still a
+// heuristic, not measured against this Page's own Facebook Insights — the
+// account doesn't have enough volume yet for that to be statistically
+// meaningful. Replace with real "when our fans are online" data (with a
+// real country breakdown) from Page Insights once it does.
+// Confirmed real secondary audiences (2026-09-20): Sweden (UTC+2) and
+// Ireland (UTC+1) both have real viewers, India confirmed LOW despite this
+// site's heavy cricket coverage — no India-specific term needed here as a
+// result (the curve below is pure US-timezone-derived). Sweden/Ireland's
+// own evening hours (~18:00-23:00 local) land around UTC 16:00-22:00,
+// which this curve already weights moderately-to-highly since that's the
+// same window the US East/Central population is hitting midday-into-
+// evening — no separate adjustment needed for them either.
 // Index 0 = 00:00-00:59 UTC, ... index 23 = 23:00-23:59 UTC.
 const HOURLY_ENGAGEMENT_WEIGHT: number[] = [
-  0.6, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.4, // 00-07 UTC (US evening tapering into US/UK overnight)
-  0.45, 0.45, 0.5, 0.6, 0.75, 0.8, 0.85, 0.9, // 08-15 UTC (UK/EU morning into afternoon, India afternoon/evening)
-  1.0, 1.0, 0.95, 1.0, 1.0, 0.95, 0.85, 0.75, // 16-23 UTC (UK/EU evening + US afternoon/evening overlap — daily peak)
+  0.95, 1.0, 1.0, 0.95, 0.85, 0.6, 0.4, 0.2, // 00-07 UTC (ET/CT/PT evening peak tapering into overnight)
+  0.15, 0.15, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, // 08-15 UTC (dead of night across the US, then ET/CT/MT/PT waking in sequence)
+  0.65, 0.7, 0.7, 0.72, 0.75, 0.8, 0.88, 0.95, // 16-23 UTC (US midday/lunch across zones rising into ET/CT evening)
 ];
 // Bug fixed 2026-09-19: this must be the total across all RUNS_PER_DAY runs
 // (each hour contributes RUNS_PER_HOUR times, not once), matching what
