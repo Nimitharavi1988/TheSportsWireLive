@@ -105,7 +105,16 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                 sx={{
                   position: "absolute",
                   inset: 0,
-                  background: "linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 55%, rgba(0,0,0,0) 90%)",
+                  // Was 0.9 -> 0.6 -> 0 over 0-55-90%, darkening most of the
+                  // image just to keep text legible in the bottom ~22% (see
+                  // the text block's maxHeight below) — real complaint: the
+                  // photo read as dull/muted compared to the exact same
+                  // image shown with no overlay at all on the article page
+                  // itself. Same peak darkness right behind the text (still
+                  // 0.9 at the very bottom), but pulled in to fade out by
+                  // 55% instead of 90%, so the top ~45% of the image stays
+                  // essentially untouched.
+                  background: "linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.45) 30%, rgba(0,0,0,0) 55%)",
                 }}
               />
               {/* Was unbounded — a long headline at a fixed h4 size could
