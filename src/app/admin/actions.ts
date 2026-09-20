@@ -6,6 +6,7 @@ import { and, eq, inArray, ilike, asc } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { getSession } from "@/lib/auth";
 import { isMatchDataSource } from "@/lib/matchDataSources";
+import { isAutoApprovable } from "@/lib/ingestion/autoApprove";
 import { postArticleToFacebook } from "@/lib/social/facebook";
 import { postArticleToInstagram } from "@/lib/social/instagram";
 import { sendPushToAllSubscribers } from "@/lib/push";
@@ -154,10 +155,26 @@ export async function postInstagramPosterManually(articleId: string): Promise<{ 
 // approveArticle above, this deliberately skips the per-article Facebook
 // post — auto-posting dozens of articles to the Page in one shot at once
 // isn't something an admin selecting a batch is necessarily asking for.
+//
+// Quality-gated (added 2026-09-20) — a real incident: this action published
+// 310 articles in one shot with no quality check at all, many well under
+// the real-body bar the automated pipeline (autoApprove.ts) enforces for
+// everything else. Now holds a human bulk-selection to the exact same
+// isAutoApprovable bar, so a batch that includes thin/imageless items just
+// publishes the ones that qualify and silently leaves the rest pending,
+// instead of publishing everything selected regardless of quality.
 export async function approveArticles(articleIds: string[]) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
   if (articleIds.length === 0) return;
+
+  const candidates = await db.select({
+    id: article.id, slug: article.slug, body: article.body,
+    heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
+    playerNewsSourced: article.playerNewsSourced, sourceName: article.sourceName,
+  }).from(article).where(inArray(article.id, articleIds));
+  const approvableIds = candidates.filter(isAutoApprovable).map((a) => a.id);
+  if (approvableIds.length === 0) return;
 
   const now = new Date();
   const published = await db.update(article)
@@ -168,7 +185,7 @@ export async function approveArticles(articleIds: string[]) {
       reviewedAt: now,
       updatedAt: now,
     })
-    .where(inArray(article.id, articleIds))
+    .where(inArray(article.id, approvableIds))
     .returning({ slug: article.slug });
   await submitToIndexNow(published.map((a) => articleUrl(a.slug)));
 
@@ -177,9 +194,11 @@ export async function approveArticles(articleIds: string[]) {
 
 // "Approve all" from the queue toolbar — approves every pending article
 // matching the current search/source/category filter (not just the current
-// page's 50), in one updateMany so this stays cheap regardless of count:
-// a single UPDATE statement server-side, not N individual calls. Same as
-// the multi-select bulk approve, this skips the per-article Facebook post.
+// page's 50). Same as the multi-select bulk approve, this skips the
+// per-article Facebook post, and is quality-gated the same way (see
+// approveArticles above) — this was the action actually responsible for
+// the 310-article incident, since a broad/empty filter selects the entire
+// pending queue at once.
 export async function approveAllMatching(filters: { q?: string; source?: string; category?: string }) {
   const session = await getSession();
   if (!session) throw new Error("Not authenticated");
@@ -192,12 +211,15 @@ export async function approveAllMatching(filters: { q?: string; source?: string;
     ...(q ? [ilike(article.title, `%${q}%`)] : []),
   ];
 
+  const candidates = await db.select({
+    id: article.id, body: article.body,
+    heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
+    playerNewsSourced: article.playerNewsSourced, sourceName: article.sourceName,
+  }).from(article).where(and(...whereConditions));
+  const approvableIds = candidates.filter(isAutoApprovable).map((a) => a.id);
+  if (approvableIds.length === 0) return;
+
   const now = new Date();
-  // .returning() gives back each affected row's post-update values in one
-  // atomic statement — the WHERE clause is still evaluated against each
-  // row's state before the update, so this replaces what used to need a
-  // separate pre-update query (a Prisma updateMany limitation, not a real
-  // requirement) with something that's also race-condition-free.
   const matching = await db.update(article)
     .set({
       status: "published",
@@ -206,7 +228,7 @@ export async function approveAllMatching(filters: { q?: string; source?: string;
       reviewedAt: now,
       updatedAt: now,
     })
-    .where(and(...whereConditions))
+    .where(inArray(article.id, approvableIds))
     .returning({ slug: article.slug });
 
   await submitToIndexNow(matching.map((a) => articleUrl(a.slug)));
