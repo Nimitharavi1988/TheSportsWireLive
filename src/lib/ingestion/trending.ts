@@ -28,11 +28,20 @@ import { SUPERSTAR_SEARCH_TERMS } from "../players";
 // skews India/Asia (Cricinfo India feed, Hindustan Times, the ongoing
 // India promotions push), but this signal previously had zero India
 // coverage despite being the single highest-weighted signal in
-// computeTrendingScore (+10 per match). Confirmed live: geo "IN" works and
-// returns real trending items via the same dailyTrends call. All three
-// geos are queried and merged independently — one failing never drops the
-// other two's results.
-const TRENDS_GEOS = ["US", "GB", "IN"];
+// computeTrendingScore (+10 per match).
+// Ireland and Sweden added same day (explicit request) — this site's
+// confirmed real secondary audience, and this signal is shared across every
+// article regardless of category (not cricket-specific), so it benefits
+// every sport equally. Confirmed live: Sweden's own daily trends already
+// include "shl tabell" (Swedish Hockey League standings) — real overlap
+// with hockey, one of the categories boosted in computeTrendingScore's
+// audience-match bonus. UK is already covered via "GB"; Australia
+// deliberately left out — real, live trending data exists for it too, but
+// it wasn't part of the confirmed real audience breakdown, so adding it
+// would be a guess rather than a data-backed choice.
+// All geos are queried and merged independently — one failing never drops
+// the others' results.
+const TRENDS_GEOS = ["US", "GB", "IN", "IE", "SE"];
 
 export async function fetchTrendingKeywords(): Promise<string[]> {
   const results = await Promise.all(
