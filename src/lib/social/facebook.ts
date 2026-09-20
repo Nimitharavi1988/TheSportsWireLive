@@ -153,13 +153,37 @@ export async function postArticleToFacebook(articleId: string) {
   // block a Facebook post, same as every other Gemini-dependent step here.
   const posterContent = article.body ? await generatePosterContent(article.title, article.body) : null;
   const headline = posterContent?.hook ?? article.title;
-  // Full body, not displaySummary's truncated snippet — confirmed live
-  // (2026-09-20): a 468-char body got cut off mid-sentence at the old
-  // fixed 400-char limit and ended in "…", reading as an unfinished post.
-  // Facebook has no meaningful caption length limit (tens of thousands of
-  // characters), so there's no real reason to truncate here at all — every
-  // post should read as a complete thought.
-  const fullText = (article.body?.trim() || article.summary).trim();
+  // Reintroduced a length cap (explicit request, 2026-09-20) — the
+  // untruncated full body (previous fix) kept posts scannable-sized most of
+  // the time but could run long. Unlike displaySummary's "…" (reads as an
+  // abrupt, unfinished cutoff — the exact complaint that fix addressed),
+  // this ends on a real CTA sentence instead, so a truncated post still
+  // reads as complete and gives a real reason to click through.
+  const MAX_FB_SUMMARY_CHARS = 400;
+  const rawBody = (article.body?.trim() || article.summary).trim();
+  const fullText =
+    rawBody.length <= MAX_FB_SUMMARY_CHARS
+      ? rawBody
+      : (() => {
+          const cut = rawBody.slice(0, MAX_FB_SUMMARY_CHARS);
+          // Prefer cutting at a real sentence boundary over a bare word
+          // boundary — confirmed live: a word-boundary cut landed right
+          // after "including", producing "...channel lineups for games
+          // including." — grammatically broken despite reading as
+          // "complete" by punctuation alone. A sentence boundary avoids
+          // that class of bug entirely. Only accepted if it leaves a
+          // reasonably substantial summary (>100 chars) — otherwise (one
+          // giant early sentence) falls back to the word boundary.
+          const lastSentenceEnd = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "));
+          const trimmedCut =
+            lastSentenceEnd > 100
+              ? cut.slice(0, lastSentenceEnd + 1).trimEnd()
+              : (() => {
+                  const lastSpace = cut.lastIndexOf(" ");
+                  return (lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trimEnd().replace(/[,;:.!?]+$/, "") + ".";
+                })();
+          return `${trimmedCut} Read the full story on SportsWireLive.com.`;
+        })();
   const message = `${emojiFor(article.category)} ${headline}\n\n${fullText}\n\n${hashtagsFor(article.title, article.category)}`;
 
   const [socialPost] = await db.insert(socialPostTable)
