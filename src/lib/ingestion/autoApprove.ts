@@ -291,6 +291,24 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
       if (selected.length >= n) break;
       tryAdd(article);
     }
+    // Fallback for categories that structurally almost never clear
+    // isHighlightWorthy — the same fix already shipped for page.tsx's
+    // "Transfers & Big News" section (see highlightFallbackPicks there):
+    // confirmed live 2026-09-20 that rugby/athletics sit at near-zero daily
+    // volume specifically because isHighlightWorthy only matches
+    // EVENT_KEYWORDS or a TRACKED_PLAYERS name, and those categories have
+    // neither. RESERVED_CATEGORIES above already guarantees a slot for
+    // cricket/hockey/formula-1, but that's a fixed list — this instead
+    // falls back to the best remaining fresh candidates by trending score,
+    // regardless of category, whenever the eligible set alone doesn't fill
+    // the run's slots. A no-op for football/cricket, which already have
+    // plenty of eligible matches; the only real effect is that a
+    // low-volume category's real content can now reach a run's remaining
+    // slots instead of the run simply posting fewer than its own cap.
+    for (const article of byTrending) {
+      if (selected.length >= n) break;
+      tryAdd(article);
+    }
     return selected;
   }
 

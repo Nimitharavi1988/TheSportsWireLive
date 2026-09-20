@@ -19,7 +19,7 @@ import { computeDedupeHash, computeStableDedupeHash } from "./dedupe";
 import { runQualityChecks } from "./qualityCheck";
 import { fetchTrendingKeywords, computeTrendingScore } from "./trending";
 import { fetchStockImagePools, createStockImagePicker } from "./stockImages";
-import { generateCommentary, generateMatchRecap } from "./commentary";
+import { generateCommentary, generateMatchRecap, verifyCommentaryHasSubstance } from "./commentary";
 import { extractArticleContent } from "./articleTextExtractor";
 import { fetchPersonPhoto, sportSearchHint } from "./wikimediaImages";
 import { isExcludedSource } from "../excludedSources";
@@ -379,7 +379,12 @@ export async function runIngest() {
         const grounding = await resolveGrounding(item);
         if (grounding) {
           recordCommentaryCall(item.category);
-          const { commentary, personNames, venue: extractedVenue } = await generateCommentary(item.title, grounding.text, item.sourceName);
+          const { commentary: rawCommentary, personNames, venue: extractedVenue } = await generateCommentary(item.title, grounding.text, item.sourceName);
+          // Second-pass vagueness check (see verifyCommentaryHasSubstance's
+          // own comment) — a commentary that comes back non-empty but reads
+          // as pure headline-paraphrase is treated the same as an empty one
+          // below, not silently accepted.
+          const commentary = rawCommentary && (await verifyCommentaryHasSubstance(item.title, rawCommentary)) ? rawCommentary : null;
           await sleep(COMMENTARY_DELAY_MS);
 
           // A real generation attempt just failed on retry — same rule the
@@ -543,7 +548,11 @@ export async function runIngest() {
       const grounding = await resolveGrounding(item);
       if (grounding) {
         recordCommentaryCall(item.category);
-        const { commentary, personNames, venue: extractedVenue } = await generateCommentary(item.title, grounding.text, item.sourceName);
+        const { commentary: rawCommentary, personNames, venue: extractedVenue } = await generateCommentary(item.title, grounding.text, item.sourceName);
+        // Second-pass vagueness check — see verifyCommentaryHasSubstance's
+        // own comment and the retry-path branch above for why this can't
+        // just be folded into generateCommentary's own response.
+        const commentary = rawCommentary && (await verifyCommentaryHasSubstance(item.title, rawCommentary)) ? rawCommentary : null;
         if (commentary) body = commentary;
         else commentaryAttemptFailed = true;
         if (extractedVenue) venue = extractedVenue;

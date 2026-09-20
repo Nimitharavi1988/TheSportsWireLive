@@ -169,6 +169,48 @@ export async function generateCommentary(
   return { commentary: commentary || null, personNames, venue };
 }
 
+// buildRssPrompt above already instructs the model to self-police vagueness
+// in the same generation pass ("if you can't [state a real, specific,
+// checkable fact], return an empty commentary instead") -- confirmed live
+// 2026-09-20 that it doesn't reliably follow that instruction: a real
+// published example ("During the recent match, Manchester City secured a
+// high-scoring moment when Erling Haaland successfully converted from close
+// range at the far post...") named no opponent, no score, nothing
+// checkable, despite the rule. Asking a model to generate prose and
+// critically self-assess it in the same autoregressive pass is weaker than
+// a second, narrowly-scoped verification call -- this is that second call.
+// Deliberately NOT folded into generateCommentary's own response schema for
+// the same reason: a self-reported "hasSubstance: true" field returned
+// alongside text the model just committed to writing has the identical
+// self-assessment weakness this exists to avoid.
+function buildSubstanceCheckPrompt(title: string, commentary: string): string {
+  return `Headline: "${title}"
+
+Text to check:
+"""
+${commentary}
+"""
+
+Does the text above contain at least one specific, checkable fact (a number, a named individual beyond who's already in the headline, a direct quote, or a concrete result/decision) that a reader couldn't already have guessed from the headline alone? Answer strictly based on the text given -- a sentence that merely restates the headline in different words, or reads as exciting but conveys nothing concrete, does not count.`;
+}
+
+export async function verifyCommentaryHasSubstance(title: string, commentary: string): Promise<boolean> {
+  const parsed = await callGemini(buildSubstanceCheckPrompt(title, commentary), {
+    responseSchema: {
+      type: "OBJECT",
+      properties: { hasSubstance: { type: "BOOLEAN" } },
+      required: ["hasSubstance"],
+    },
+  });
+  // Fail open (treat as substantive) on a Gemini hiccup -- this check
+  // narrows an already-generated, already-accepted-by-the-first-pass
+  // commentary; a verification-call outage should never itself cause a
+  // real, possibly-fine article to be rejected. Only an explicit `false`
+  // from a successful check rejects.
+  if (!parsed) return true;
+  return parsed.hasSubstance !== false;
+}
+
 function buildPosterPrompt(title: string, body: string): string {
   return `You are writing the on-image copy for a single sports-news Instagram poster (bold cover graphic, not the caption).
 
