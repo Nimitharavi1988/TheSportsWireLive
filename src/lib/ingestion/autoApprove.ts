@@ -194,7 +194,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   // doesn't already have a posted/queued row for that platform, so the
   // pacing logic below actually has enough real candidates to hit its
   // per-run target most runs. Runs even when toApprove is empty.
-  type SocialCandidate = { id: string; slug: string; title: string; trendingScore: number; category: string };
+  type SocialCandidate = { id: string; slug: string; title: string; trendingScore: number; category: string; sourceName: string };
   const backlogCutoff = new Date(Date.now() - SOCIAL_BACKLOG_WINDOW_MS);
   // Separate, much shorter window than the already-posted exclusion above —
   // "don't post the same real-world event twice" is a same-day problem (a
@@ -206,7 +206,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   const [backlogPool, fbPostedRows, igPostedRows, fbRecentTitleRows, igRecentTitleRows] = await Promise.all([
     db.select({
       id: article.id, slug: article.slug, title: article.title,
-      trendingScore: article.trendingScore, category: article.category,
+      trendingScore: article.trendingScore, category: article.category, sourceName: article.sourceName,
     }).from(article)
       .where(and(eq(article.status, "published"), gte(article.publishedAt, backlogCutoff)))
       .orderBy(desc(article.trendingScore))
@@ -242,7 +242,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   const igRecentTitles = igRecentTitleRows.map((r) => r.title);
 
   const freshCandidates: SocialCandidate[] = toApprove.map((a) => ({
-    id: a.id, slug: a.slug, title: a.title, trendingScore: a.trendingScore, category: a.category,
+    id: a.id, slug: a.slug, title: a.title, trendingScore: a.trendingScore, category: a.category, sourceName: a.sourceName,
   }));
   const freshIds = new Set(freshCandidates.map((a) => a.id));
   const backlogExcludingFresh = backlogPool.filter((a) => !freshIds.has(a.id));
@@ -274,7 +274,24 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     const chosenTitles = [...recentTitles];
     function tryAdd(a: SocialCandidate): boolean {
       if (selected.length >= n || selected.includes(a)) return false;
-      if (isSimilarToAny(a.title, chosenTitles)) return false;
+      // Real bug found live 2026-09-20, hours after this shipped: a bare
+      // match-data template ("Colorado Rockies 4-5 Seattle Mariners") has
+      // only 3-4 significant words total, so sharing just the 2 team names
+      // with ANY other headline mentioning either team that day (extremely
+      // common — a team plays many games/gets many mentions) produced a
+      // >=0.5 overlap coefficient and got wrongly skipped as a "duplicate."
+      // Confirmed live: every one of 96 fresh candidates in one run was
+      // blocked this way, a full Facebook posting stall. Match-data
+      // articles don't have the problem this check exists for in the first
+      // place — the "same real event covered by many outlets" scenario
+      // (isSimilarToAny's actual target) can't happen for them, since each
+      // is already a single canonical article for a unique real match
+      // (deduped at ingestion by the match's own stable id, see dedupe.ts)
+      // rather than independently-written editorial coverage. Skip the
+      // check entirely for them instead of trying to tune the threshold —
+      // short-title false positives are a structural mismatch with this
+      // heuristic, not a threshold calibration issue.
+      if (!isMatchDataSource(a.sourceName) && isSimilarToAny(a.title, chosenTitles)) return false;
       selected.push(a);
       chosenTitles.push(a.title);
       return true;

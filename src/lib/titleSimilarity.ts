@@ -34,12 +34,29 @@ export function significantWords(title: string): Set<string> {
 // count as a near-duplicate of a longer one that contains all the same
 // words plus more color commentary, not get diluted by the longer title's
 // extra word count.
+//
+// MIN_ABSOLUTE_OVERLAP guards a real structural flaw in the ratio alone,
+// found live 2026-09-20 (hours after this shipped): a bare match-result
+// template ("Colorado Rockies 4-5 Seattle Mariners") has only 3-4
+// significant words total, so sharing just 2 of them — the team names —
+// with ANY other headline mentioning either team that day (extremely
+// common) already clears 0.5 on a 4-word title. Confirmed live: this
+// blocked every one of 96 fresh Facebook-posting candidates in one run, a
+// full posting stall. The ratio alone can't distinguish "these titles are
+// about the same real event" from "these titles are both short and happen
+// to share one proper noun" once titles get this small — an absolute
+// floor is required regardless of source or title length, not just a
+// ratio, since the failure mode is short titles in general, not any one
+// category of them.
+const MIN_ABSOLUTE_OVERLAP = 3;
+
 export function isSimilarTitle(a: string, b: string, threshold = 0.5): boolean {
   const wa = significantWords(a);
   const wb = significantWords(b);
   if (wa.size === 0 || wb.size === 0) return false;
   let overlap = 0;
   for (const w of wa) if (wb.has(w)) overlap++;
+  if (overlap < MIN_ABSOLUTE_OVERLAP) return false;
   return overlap / Math.min(wa.size, wb.size) >= threshold;
 }
 
