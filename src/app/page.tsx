@@ -619,10 +619,15 @@ export default async function HomePage(
   const allBriefArticlesFull = remainingAfterHighlighted.filter((a) => !isMatchDataSource(a.sourceName));
 
   // Hero carousel: manual picks (up to 5, latest first) always win the
-  // first slots; any remaining slots fill with the top-ranked match
-  // articles, falling back to top RSS headlines if there aren't enough
-  // (cricket, right now, has no non-RSS "match" data source at all —
-  // without this fallback the hero would be empty there). Capped at 5
+  // first slots; any remaining slots fill from match articles and RSS
+  // headlines merged into ONE pool and re-ranked by trending score —
+  // standardized 2026-09-20 (explicit request) after a real complaint: a
+  // bare, minimal-content match-result template (crests only, ~100-char
+  // body) was winning a hero slot over genuinely bigger, better-illustrated
+  // stories, simply because match articles used to be concatenated ahead
+  // of RSS articles regardless of actual trending score. Merit now decides
+  // — a bare score template only leads the hero when it's genuinely the
+  // most trending story available, not by category default. Capped at 5
   // slides total — enough to feel like a real rotation without turning the
   // front page into an endless slideshow.
   //
@@ -633,7 +638,10 @@ export default async function HomePage(
   // "Match Results & Previews" below (matchStatus is untouched there) —
   // this only narrows what's eligible to lead the hero.
   const heroEligibleMatchArticles = allMatchArticlesFull.filter((a) => a.matchStatus !== "scheduled");
-  const heroCandidates = [...manuallyFeatured, ...heroEligibleMatchArticles, ...allBriefArticlesFull];
+  const heroMergedPool = [...heroEligibleMatchArticles, ...allBriefArticlesFull].sort(
+    (a, b) => b.trendingScore - a.trendingScore
+  );
+  const heroCandidates = [...manuallyFeatured, ...heroMergedPool];
   const seenHeroIds = new Set<string>();
   const heroArticles = heroCandidates
     .filter((a) => {
