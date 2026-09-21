@@ -15,6 +15,7 @@ import { fetchPlayerNews } from "./playerNewsFeeds";
 import { fetchCricinfoPlayerNews } from "./cricinfoPlayerFeeds";
 import { fetchCricketData } from "./cricketData";
 import { detectSeriesFromTitle } from "./cricketSeries";
+import { detectEventSeries } from "./eventTagging";
 import { computeDedupeHash, computeStableDedupeHash } from "./dedupe";
 import { runQualityChecks } from "./qualityCheck";
 import { fetchTrendingKeywords, computeTrendingScore } from "./trending";
@@ -598,21 +599,23 @@ export async function runIngest() {
 
     // Match-data items already have their own seriesKey/seriesLabel (set
     // directly in cricketData.ts, from the two teams it already knows) —
-    // this only applies to editorial/player-news cricket items, detecting
-    // the series directly from the title (see cricketSeries.ts — no
-    // match-data confirmation required). Gated on seriesLabel alone (not
-    // "both seriesKey and seriesLabel") — confirmed live that this was
-    // silently discarding domesticFootballData.ts's seriesLabel (Bundesliga/
-    // Serie A/etc.), which is deliberately seriesKey-less (see that file's
-    // comment: the /series/[seriesKey] grouping page is cricket-specific
-    // infrastructure it doesn't need, but organizer JSON-LD still wants the
-    // real competition name).
+    // that takes priority when present. Otherwise, a real dated multi-sport
+    // event (eventTagging.ts — cross-category, e.g. the 2026 Asian Games)
+    // is checked before falling back to cricket's own bilateral-series
+    // detection (cricketSeries.ts — cricket-only, since it requires two
+    // recognized cricket teams and a match format in the title, a shape
+    // that doesn't generalize past cricket). Cricket's bilateral check is
+    // gated on seriesLabel alone (not "both seriesKey and seriesLabel") —
+    // confirmed live that requiring both was silently discarding
+    // domesticFootballData.ts's seriesLabel (Bundesliga/Serie A/etc.),
+    // which is deliberately seriesKey-less (see that file's comment: the
+    // /series/[seriesKey] grouping page didn't need it before this, but
+    // organizer JSON-LD still wants the real competition name).
     const series =
       item.seriesLabel
         ? { key: item.seriesKey, label: item.seriesLabel }
-        : item.category.startsWith("cricket")
-          ? detectSeriesFromTitle(item.title)
-          : null;
+        : (detectEventSeries(item.title) ??
+          (item.category.startsWith("cricket") ? detectSeriesFromTitle(item.title) : null));
 
     const [created] = await db.insert(article).values({
         id: createId(),

@@ -15,7 +15,7 @@ import Stack from "@mui/material/Stack";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
-import SportsCricketIcon from "@mui/icons-material/SportsCricket";
+import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 
 export const revalidate = 300;
 
@@ -75,7 +75,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
       />
       <SiteBreadcrumbs steps={breadcrumbSteps} current={series.seriesLabel ?? "Series"} />
       <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", mb: 1 }}>
-        <SportsCricketIcon sx={{ color: "primary.main" }} />
+        <EmojiEventsIcon sx={{ color: "primary.main" }} />
         <Typography variant="h4" component="h1">
           {series.seriesLabel}
         </Typography>

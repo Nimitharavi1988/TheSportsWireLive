@@ -7,11 +7,17 @@ import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Box from "@mui/material/Box";
-import SportsCricketIcon from "@mui/icons-material/SportsCricket";
+import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 export const revalidate = 300;
-export const metadata = { title: "Cricket Series", alternates: { canonical: "/series" } };
+// Was "Cricket Series" — generalized 2026-09-20 (explicit request) when this
+// page's underlying data model, always generic (any seriesKey/seriesLabel,
+// no cricket-specific logic), started actually being used for something
+// other than cricket bilateral series: eventTagging.ts's cross-category
+// multi-sport events (e.g. the 2026 Asian Games, cricket + football/teqball
+// together). The heading was the only cricket-specific thing left.
+export const metadata = { title: "Series & Events", alternates: { canonical: "/series" } };
 
 export default async function SeriesIndexPage() {
   // Only series with at least one published story are worth listing — a
@@ -32,10 +38,10 @@ export default async function SeriesIndexPage() {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h4" gutterBottom>
-        Cricket Series
+        Series &amp; Events
       </Typography>
       <Typography variant="body1" sx={{ color: "text.secondary", mb: 3 }}>
-        Browse coverage grouped by international series.
+        Browse coverage grouped by international series and multi-sport events.
       </Typography>
 
       {rows.length === 0 ? (
@@ -69,7 +75,7 @@ export default async function SeriesIndexPage() {
                     bgcolor: "rgba(29, 107, 63, 0.08)",
                   }}
                 >
-                  <SportsCricketIcon sx={{ color: "primary.main", fontSize: 20 }} />
+                  <EmojiEventsIcon sx={{ color: "primary.main", fontSize: 20 }} />
                 </Box>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography variant="h6" noWrap>
