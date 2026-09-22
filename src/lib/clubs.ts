@@ -15,7 +15,7 @@
  * shortlist) with an explicit `sport` tag — re-run that script later to
  * pick up renamed/relocated/expansion teams, same "living config" spirit.
  */
-export type ClubSport = "football" | "american-football" | "basketball" | "baseball" | "hockey";
+export type ClubSport = "football" | "american-football" | "basketball" | "baseball" | "hockey" | "cricket";
 
 export interface TrackedClub {
   slug: string;
@@ -297,4 +297,23 @@ export const TRACKED_CLUBS: TrackedClub[] = [
   { slug: "st-louis-city-sc", name: "St. Louis CITY SC", searchTerms: ["St. Louis CITY SC"], sport: "football" },
   { slug: "toronto-fc", name: "Toronto FC", searchTerms: ["Toronto FC"], sport: "football" },
   { slug: "vancouver-whitecaps", name: "Vancouver Whitecaps", searchTerms: ["Vancouver Whitecaps"], sport: "football" },
+  // IPL (Indian Premier League) — added 2026-09-20 (explicit request, real
+  // article gap: Chennai Super Kings' new head coach announcement had no
+  // club page to link to). All 10 current real franchises, WebSearch-
+  // verified live against ESPNcricinfo/Wikipedia, not guessed — includes
+  // Royal Challengers Bengaluru's real 2023 rename (searchTerms keeps the
+  // old "Bangalore" name too, since older/habitual references still use
+  // it). No crest URL needed here — club pages resolve crests dynamically
+  // from matched articles' own homeCrestUrl/awayCrestUrl (findClubCrest),
+  // not a hardcoded field on this entry, same as every other club below.
+  { slug: "chennai-super-kings", name: "Chennai Super Kings", searchTerms: ["Chennai Super Kings"], sport: "cricket" },
+  { slug: "mumbai-indians", name: "Mumbai Indians", searchTerms: ["Mumbai Indians"], sport: "cricket" },
+  { slug: "royal-challengers-bengaluru", name: "Royal Challengers Bengaluru", searchTerms: ["Royal Challengers Bengaluru", "Royal Challengers Bangalore"], sport: "cricket" },
+  { slug: "kolkata-knight-riders", name: "Kolkata Knight Riders", searchTerms: ["Kolkata Knight Riders"], sport: "cricket" },
+  { slug: "sunrisers-hyderabad", name: "Sunrisers Hyderabad", searchTerms: ["Sunrisers Hyderabad"], sport: "cricket" },
+  { slug: "rajasthan-royals", name: "Rajasthan Royals", searchTerms: ["Rajasthan Royals"], sport: "cricket" },
+  { slug: "delhi-capitals", name: "Delhi Capitals", searchTerms: ["Delhi Capitals"], sport: "cricket" },
+  { slug: "punjab-kings", name: "Punjab Kings", searchTerms: ["Punjab Kings"], sport: "cricket" },
+  { slug: "gujarat-titans", name: "Gujarat Titans", searchTerms: ["Gujarat Titans"], sport: "cricket" },
+  { slug: "lucknow-super-giants", name: "Lucknow Super Giants", searchTerms: ["Lucknow Super Giants"], sport: "cricket" },
 ];

@@ -21,4 +21,18 @@ describe("detectEventSeries", () => {
   it("is case-insensitive", () => {
     expect(detectEventSeries("asian games: India march into semi-final")).not.toBeNull();
   });
+
+  it("tags an IPL headline (evergreen, no season year)", () => {
+    expect(detectEventSeries("Chennai Super Kings appoint Zaheer Khan as their new head coach")).toBeNull();
+    expect(detectEventSeries("Zaheer Khan appointed IPL side Chennai Super Kings' head coach")).toEqual({
+      key: "ipl",
+      label: "IPL",
+    });
+  });
+
+  // Real false-positive risk: a naive substring match on "IPL" would also
+  // match inside unrelated words.
+  it("does not false-positive on words that merely contain the letters ipl", () => {
+    expect(detectEventSeries("Multiple players face discipline after the incident")).toBeNull();
+  });
 });

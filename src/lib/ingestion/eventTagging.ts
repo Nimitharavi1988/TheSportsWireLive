@@ -29,6 +29,18 @@ import type { SeriesInfo } from "./cricketSeries";
  */
 const EVENTS: { match: RegExp; key: string; label: string }[] = [
   { match: /\bAsian Games\b/i, key: "asian-games-2026", label: "Asian Games 2026" },
+  // Deliberately evergreen (no season year in the key/label), unlike the
+  // Asian Games above — IPL isn't a fixed-window event the way a Games
+  // ceremony is. Confirmed live 2026-09-20: real IPL coverage (Chennai
+  // Super Kings appointing Zaheer Khan head coach) is happening in
+  // September, months after the 2026 season (Mar-May) ended, clearly about
+  // next season rather than a specific past/future edition. A dated
+  // "IPL 2026" label would misleadingly claim every grouped story is about
+  // that one season when trade/auction/coaching news genuinely spans the
+  // whole year. \bIPL\b (not a bare substring) matters here — confirmed
+  // live that a plain substring match would false-positive on "multiple"
+  // and "discipline".
+  { match: /\bIPL\b/i, key: "ipl", label: "IPL" },
 ];
 
 export function detectEventSeries(title: string): SeriesInfo | null {
