@@ -16,6 +16,18 @@ const MIN_SIZE_FOR_CREDIT = 64;
 // colored placeholder. Keeps these visually consistent instead of some rows
 // having thumbnails and others being plain text. No "use client" needed —
 // purely presentational, safe in Server Components.
+//
+// 3:2, not a square — was a perfect 1:1 square, which forced every wide
+// press photo into a much narrower crop than it was shot at. Confirmed
+// live 2026-09-21: Hindustan Times serves every photo at a fixed 1600x900
+// (16:9) crop, so squeezing that into a 1:1 square cropped away roughly
+// 44% of the image's width, reading as "zoomed in" on whatever was
+// centered — most visible on HT specifically because their images are
+// uniformly wide every time, but the same math applies to any wide source
+// photo. `size` is still the prop every call site passes and still governs
+// the row height (unchanged), width is now derived from it.
+const THUMB_ASPECT_RATIO = 1.5; // width : height
+
 export function ArticleThumb({
   article,
   size = 40,
@@ -31,16 +43,17 @@ export function ArticleThumb({
   size?: number;
   fallbackColor?: string;
 }) {
+  const width = Math.round(size * THUMB_ASPECT_RATIO);
   if (article.heroImageUrl) {
     const showCredit = size >= MIN_SIZE_FOR_CREDIT && article.heroImageCredit;
     return (
-      <Box sx={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <Box sx={{ position: "relative", width, height: size, flexShrink: 0 }}>
         <Box
           component={Image}
           src={article.heroImageUrl}
           alt=""
           fill
-          sizes={`${size}px`}
+          sizes={`${width}px`}
           sx={{ borderRadius: 1.5, objectFit: "cover", objectPosition: "top" }}
         />
         {showCredit && (
@@ -82,7 +95,7 @@ export function ArticleThumb({
     return (
       <Box
         sx={{
-          width: size,
+          width,
           height: size,
           borderRadius: 1.5,
           flexShrink: 0,
@@ -101,7 +114,7 @@ export function ArticleThumb({
   return (
     <Box
       sx={{
-        width: size,
+        width,
         height: size,
         borderRadius: 1.5,
         flexShrink: 0,
