@@ -11,6 +11,14 @@ export const revalidate = 900; // matches the ingest cron cadence — no point r
 // our own original content (body — Gemini commentary over real facts,
 // never a source's copyrighted prose), so there's no republishing concern
 // going the other direction.
+//
+// <dc:creator> added 2026-09-21 against Flipboard's own published RSS
+// guidelines (about.flipboard.com/rss-guidelines) -- explicitly listed as
+// required for an item to "display correctly in layout view", and this
+// feed had none. "Sports Wire Live" (not a named individual) matches the
+// same author attribution already used in article/[slug]/page.tsx's
+// NewsArticle JSON-LD -- accurate, since the body is Gemini commentary
+// over real facts attributed to the org, not a byline for a human writer.
 const MAX_ITEMS = 50;
 
 function escapeXml(value: string): string {
@@ -65,6 +73,7 @@ export async function GET() {
       <guid isPermaLink="true">${url}</guid>
       <pubDate>${pubDate}</pubDate>
       <category>${escapeXml(article.category)}</category>
+      <dc:creator>Sports Wire Live</dc:creator>
       <description>${escapeXml(description)}</description>
       ${enclosure}
     </item>`;
@@ -72,7 +81,7 @@ export async function GET() {
     .join("\n");
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <title>Sports Wire Live</title>
     <link>${siteUrl}</link>
