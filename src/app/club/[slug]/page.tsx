@@ -38,9 +38,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const club = TRACKED_CLUBS.find((c) => c.slug === slug);
   if (!club) return {};
+  // Was `"${club.name} News"` / `"Latest news and results for
+  // ${club.name}."` — same Bing "too short" warning as player pages (this
+  // template runs for every one of the ~150+ tracked clubs, a real
+  // contributor to the "many pages" scope). `?? "football"` matches this
+  // file's own club.sport fallback used elsewhere (clubs.ts: the original
+  // ~22 soccer entries have no explicit sport field).
+  const sportLabel = categoryChipStyle(club.sport ?? "football").label;
   return {
-    title: `${club.name} News`,
-    description: `Latest news and results for ${club.name}.`,
+    title: `${club.name} News, Fixtures & Latest ${sportLabel} Results`,
+    description: `Follow the latest ${club.name} news, match results, transfer updates, and fixtures — automatically updated on Sports Wire Live.`,
     alternates: { canonical: `/club/${club.slug}` },
   };
 }

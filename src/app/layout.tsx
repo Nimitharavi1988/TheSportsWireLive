@@ -26,9 +26,22 @@ export const metadata = {
   metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:3000"),
   title: {
     template: "%s | Sports Wire Live",
-    default: "Sports Wire Live",
+    // Was the bare "Sports Wire Live" (17 chars) — Bing Webmaster Tools
+    // flagged this as a moderate "title too short" warning (2026-09-24),
+    // since this exact string is also what the homepage itself falls back
+    // to (page.tsx's generateMetadata only overrides title/description
+    // when a ?category= param is present — see its own comment). Real
+    // recommended range is ~50-60 characters; this is 54, still accurate
+    // to what the homepage actually is, no invented claims.
+    default: "Sports Wire Live — Live Football, Cricket & NFL News",
   },
-  description: "Trending football, cricket, and NFL news, updated automatically.",
+  // Was 67 chars ("Trending football, cricket, and NFL news, updated
+  // automatically.") — same Bing warning, this time for meta descriptions.
+  // Recommended range is ~120-158 characters; expanded to name the site's
+  // real, actual categories (NBA/NHL were already live categories this
+  // description simply never mentioned) rather than padding with filler.
+  description:
+    "Breaking football, cricket, NFL, NBA, and NHL news, live scores, transfer updates, and match reports from Sports Wire Live — automatically updated around the clock.",
   openGraph: {
     siteName: "Sports Wire Live",
     type: "website",

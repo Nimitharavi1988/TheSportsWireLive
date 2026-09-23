@@ -34,9 +34,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const country = TRACKED_COUNTRIES.find((c) => c.slug === slug);
   if (!country) return {};
+  // Was `"${country.name} News"` / `"Latest news and results involving
+  // ${country.name}."` — same Bing "too short" warning as player/club
+  // pages. Kept sport-agnostic in the copy (unlike player/club, this page
+  // has no single `sport` field — see this file's own header comment: it
+  // deliberately spans whichever sports real coverage exists for) rather
+  // than naming a sport this page doesn't consistently have.
   return {
-    title: `${country.name} News`,
-    description: `Latest news and results involving ${country.name}.`,
+    title: `${country.name} News, Results & National Team Updates`,
+    description: `Follow the latest ${country.name} sports news, match results, and national team updates — automatically updated on Sports Wire Live.`,
     alternates: { canonical: `/country/${country.slug}` },
   };
 }

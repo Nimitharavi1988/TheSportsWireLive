@@ -29,9 +29,12 @@ export async function generateMetadata({ params }: { params: Promise<{ seriesKey
   const { seriesKey } = await params;
   const series = await findSeries(seriesKey);
   if (!series?.seriesLabel) return {};
+  // Was `"${series.seriesLabel} News"` / `"Every story on Sports Wire Live
+  // about the ${series.seriesLabel} series."` — same Bing "too short"
+  // warning as the other entity pages.
   return {
-    title: `${series.seriesLabel} News`,
-    description: `Every story on Sports Wire Live about the ${series.seriesLabel} series.`,
+    title: `${series.seriesLabel} News, Results & Full Coverage`,
+    description: `Every article on Sports Wire Live covering the ${series.seriesLabel} — match reports, results, and player news, updated automatically.`,
     alternates: { canonical: `/series/${seriesKey}` },
   };
 }

@@ -39,9 +39,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const player = TRACKED_PLAYERS.find((p) => p.slug === slug);
   if (!player) return {};
+  // Was `"${player.name} News"` / `"Latest news and coverage of
+  // ${player.name}."` — Bing Webmaster Tools flagged both as too short
+  // site-wide (2026-09-24); this template runs for every one of the ~100+
+  // tracked players, so it was the single biggest contributor to the "many
+  // pages" warning. Named the real sport (categoryChipStyle's own label,
+  // same one used elsewhere on this page) rather than padding with generic
+  // filler — makes the description more specific, not just longer.
+  const sportLabel = categoryChipStyle(player.sport).label;
   return {
-    title: `${player.name} News`,
-    description: `Latest news and coverage of ${player.name}.`,
+    title: `${player.name} News, Stats & Latest ${sportLabel} Updates`,
+    description: `Follow ${player.name}'s latest ${sportLabel} news, match performances, interviews, and career updates — automatically updated on Sports Wire Live.`,
     alternates: { canonical: `/player/${player.slug}` },
   };
 }
