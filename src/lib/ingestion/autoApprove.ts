@@ -152,6 +152,22 @@ const RESERVED_CATEGORIES: { category: string; slots: number }[] = [
   { category: "cricket", slots: 1 },
   { category: "hockey", slots: 1 },
   { category: "formula-1", slots: 1 },
+  // Added 2026-09-23, explicit request, after a real US-audience spike (38
+  // concurrent viewers) was traced directly to a burst of NFL posts at
+  // 04:22-04:25 UTC -- inside the international-audience window that
+  // socialSelectionScore below down-weights american-football in. That
+  // down-weight is deliberately soft (0.5x, not exclusion) precisely
+  // because US engagement doesn't fully disappear in that window, as this
+  // spike itself proved live. Listed LAST (not first) so on a
+  // small-runCap run, cricket/hockey/formula-1 -- categories that
+  // structurally can't win a slot any other way, see the comment above --
+  // still get priority; american-football rarely needs this reservation to
+  // win a slot (it dominates the eligible pool on its own), so this exists
+  // purely as a floor for the rare case where growing cricket supply (see
+  // the two new RSS feeds added the same day) would otherwise fill an
+  // entire run's slots and squeeze real, demonstrated-engagement NFL
+  // content out completely.
+  { category: "american-football", slots: 2 },
 ];
 
 // Time-of-day category weighting constants — added 2026-09-22, explicit
