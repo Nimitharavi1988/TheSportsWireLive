@@ -20,7 +20,15 @@
     "FACEBOOK_PAGE_ID": "1287339801134616",
     // Also not secret — same reasoning as FACEBOOK_PAGE_ID above. Reuses
     // the same FACEBOOK_PAGE_ACCESS_TOKEN Cloudflare secret to post here.
-    "INSTAGRAM_BUSINESS_ACCOUNT_ID": "17841426520820898"
+    "INSTAGRAM_BUSINESS_ACCOUNT_ID": "17841426520820898",
+    // A GA4 Measurement ID is meant to be public (it's shipped straight into
+    // the page's own <script> tag for every visitor's browser to see) — not
+    // a secret, same reasoning as the two IDs above. GoogleAnalytics.tsx
+    // (a Server Component, not "use client") reads this via process.env at
+    // render time, the same pattern already proven working here for
+    // SITE_URL/FACEBOOK_PAGE_ID — no separate Cloudflare build-time
+    // environment variable needed.
+    "NEXT_PUBLIC_GA_MEASUREMENT_ID": "G-K8STQKWCBP"
   },
   "assets": {
     "directory": ".open-next/assets",
