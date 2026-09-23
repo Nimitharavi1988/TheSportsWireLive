@@ -145,6 +145,19 @@ const FEEDS: { url: string; category: string; sourceName: string }[] = [
   // and it sidesteps Google News search's unresolvable-redirect problem
   // entirely for whatever this outlet covers.
   { url: "https://www.hindustantimes.com/feeds/rss/cricket/rssfeed.xml", category: "cricket", sourceName: "Hindustan Times" },
+  // Added 2026-09-23 (explicit request to increase real cricket volume,
+  // specifically during Asia daytime hours) after confirming two real gaps:
+  // CricketData.org's free-tier match API doesn't surface domestic/A-team
+  // cricket (Ranji Trophy, India A, U19), and most of cricket's Google News
+  // search volume was structurally unable to produce a real article body
+  // (see runIngest.ts's resolveGrounding — those links can never be
+  // extracted). Both feeds checked live: direct article URLs (not Google
+  // News redirects), robots.txt allows crawling, and real extraction
+  // succeeded at 2100-3000 chars on every sampled item, including genuine
+  // domestic coverage (Ranji Trophy) and Asian Games content Google News
+  // search alone was missing.
+  { url: "https://timesofindia.indiatimes.com/rssfeeds/54829575.cms", category: "cricket", sourceName: "The Times of India" },
+  { url: "https://www.wisden.com/feed", category: "cricket", sourceName: "Wisden" },
   // ESPN's general soccer feed — broader global coverage than the UK-focused
   // feeds above, more likely to pick up MLS (Messi/Inter Miami) and Saudi
   // Pro League (Ronaldo/Al-Nassr) news, which football-data.org's structured
