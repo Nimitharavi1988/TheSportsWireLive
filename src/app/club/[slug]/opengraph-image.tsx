@@ -1,12 +1,11 @@
 import { ImageResponse } from "next/og";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { db } from "@/db";
 import { article } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
 import { TRACKED_CLUBS } from "@/lib/clubs";
 import { titleMatchesAnyTerm } from "@/lib/titleMatch";
 import { findClubCrest } from "@/lib/teamNames";
+import { loadOgFonts } from "@/lib/ogFonts";
 
 // Club pages previously had no Open Graph image at all. Same gradient-card
 // pattern as article/[slug] and player/[slug]'s opengraph-image routes,
@@ -32,11 +31,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
     : [];
   const crestUrl = club ? findClubCrest(club, articles) : null;
 
-  const fontsDir = join(process.cwd(), "src/assets/fonts");
-  const [bold, semibold] = await Promise.all([
-    readFile(join(fontsDir, "Poppins-Bold.ttf")),
-    readFile(join(fontsDir, "Poppins-SemiBold.ttf")),
-  ]);
+  const { bold, semibold } = await loadOgFonts();
 
   return new ImageResponse(
     (

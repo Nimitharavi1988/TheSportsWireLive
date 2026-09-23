@@ -1,9 +1,8 @@
 import { ImageResponse } from "next/og";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { db } from "@/db";
 import { article as articleTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { loadOgFonts } from "@/lib/ogFonts";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -27,11 +26,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const category = article?.category ?? "";
   const [from, to] = gradientFor(category);
 
-  const fontsDir = join(process.cwd(), "src/assets/fonts");
-  const [bold, semibold] = await Promise.all([
-    readFile(join(fontsDir, "Poppins-Bold.ttf")),
-    readFile(join(fontsDir, "Poppins-SemiBold.ttf")),
-  ]);
+  const { bold, semibold } = await loadOgFonts();
 
   const hasCrests = Boolean(article?.homeCrestUrl && article?.awayCrestUrl);
 
