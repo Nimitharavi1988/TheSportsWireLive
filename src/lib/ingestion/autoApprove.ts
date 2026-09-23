@@ -152,23 +152,39 @@ const RESERVED_CATEGORIES: { category: string; slots: number }[] = [
   { category: "cricket", slots: 1 },
   { category: "hockey", slots: 1 },
   { category: "formula-1", slots: 1 },
-  // Added 2026-09-23, explicit request, after a real US-audience spike (38
-  // concurrent viewers) was traced directly to a burst of NFL posts at
-  // 04:22-04:25 UTC -- inside the international-audience window that
-  // socialSelectionScore below down-weights american-football in. That
-  // down-weight is deliberately soft (0.5x, not exclusion) precisely
-  // because US engagement doesn't fully disappear in that window, as this
-  // spike itself proved live. Listed LAST (not first) so on a
-  // small-runCap run, cricket/hockey/formula-1 -- categories that
-  // structurally can't win a slot any other way, see the comment above --
-  // still get priority; american-football rarely needs this reservation to
-  // win a slot (it dominates the eligible pool on its own), so this exists
-  // purely as a floor for the rare case where growing cricket supply (see
-  // the two new RSS feeds added the same day) would otherwise fill an
-  // entire run's slots and squeeze real, demonstrated-engagement NFL
-  // content out completely.
-  { category: "american-football", slots: 2 },
 ];
+
+// american-football's own reservation — added 2026-09-23, explicit request,
+// after a real US-audience spike (38 concurrent viewers) was traced
+// directly to a burst of NFL posts at 04:22-04:25 UTC (~11:22pm US
+// Central), inside the international-audience window that
+// socialSelectionScore below down-weights american-football in. That
+// down-weight is deliberately soft (0.5x, not exclusion) precisely because
+// US engagement doesn't fully disappear right at the start of that window,
+// as this spike itself proved live.
+//
+// Unlike RESERVED_CATEGORIES above, this isn't a flat reservation across
+// the whole 03:00-11:00 UTC window — explicit follow-up request: "very
+// late night it can be zero". The observed spike was at the window's very
+// start (~11pm Central); by its back half (roughly 1am-6am Central) there's
+// no real evidence anyone's still watching, and holding a slot back from
+// cricket then would just be waste, not audience protection. So the
+// reservation only covers the front slice of the window (03:00-06:00 UTC,
+// ~10pm-1am Central, closest to the actual observed engagement) and is
+// zero for the rest of it, including the back half of the same window
+// (06:00-11:00 UTC) and every hour outside the window entirely, where
+// american-football isn't down-weighted at all and doesn't need a floor —
+// it already wins slots on its own there.
+const AMERICAN_FOOTBALL_RESERVED_UTC_START_HOUR = 3;
+const AMERICAN_FOOTBALL_RESERVED_UTC_END_HOUR = 6; // exclusive
+const AMERICAN_FOOTBALL_RESERVED_SLOTS = 2;
+
+function americanFootballReservedSlots(now: Date): number {
+  const hour = now.getUTCHours();
+  return hour >= AMERICAN_FOOTBALL_RESERVED_UTC_START_HOUR && hour < AMERICAN_FOOTBALL_RESERVED_UTC_END_HOUR
+    ? AMERICAN_FOOTBALL_RESERVED_SLOTS
+    : 0;
+}
 
 // Time-of-day category weighting constants — added 2026-09-22, explicit
 // request, after confirming a real mismatch, not a guessed one: during
@@ -356,7 +372,12 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
       chosenTitles.push(a.title);
       return true;
     }
-    for (const { category, slots } of RESERVED_CATEGORIES) {
+    // american-football's reservation is time-dependent (see
+    // americanFootballReservedSlots above) and zero most of the time, unlike
+    // the always-1 entries in RESERVED_CATEGORIES, so it's appended here
+    // rather than living in that static array.
+    const reservations = [...RESERVED_CATEGORIES, { category: "american-football", slots: americanFootballReservedSlots(now) }];
+    for (const { category, slots } of reservations) {
       const matches = byTrending.filter((a) => a.category === category);
       let added = 0;
       for (const article of matches) {
