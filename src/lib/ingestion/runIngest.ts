@@ -16,7 +16,7 @@ import { fetchCricinfoPlayerNews } from "./cricinfoPlayerFeeds";
 import { fetchAsianGamesNews } from "./asianGamesFeeds";
 import { fetchCricketData } from "./cricketData";
 import { detectSeriesFromTitle } from "./cricketSeries";
-import { detectEventSeries } from "./eventTagging";
+import { detectEventSeries, detectEventSeriesNear, detectIplTeamMention } from "./eventTagging";
 import { computeDedupeHash, computeStableDedupeHash } from "./dedupe";
 import { runQualityChecks } from "./qualityCheck";
 import { fetchTrendingKeywords, computeTrendingScore } from "./trending";
@@ -652,10 +652,63 @@ export async function runIngest() {
     // which is deliberately seriesKey-less (see that file's comment: the
     // /series/[seriesKey] grouping page didn't need it before this, but
     // organizer JSON-LD still wants the real competition name).
+    //
+    // item.seriesKey ?? detectEventSeries(item.seriesLabel)?.key — added
+    // 2026-09-23 after a real gap: volleyballData.ts sets seriesLabel
+    // directly from the upstream API's own league name (game.league.name)
+    // for every league, with no seriesKey ever derived from it. Most of the
+    // time that's fine and unchanged (a domestic Russian league label still
+    // has no matching EVENTS entry, so this stays null exactly as before) —
+    // but when that raw label happens to BE a known cross-sport event
+    // ("Asian Games Women", confirmed live in the DB), the label alone was
+    // silently orphaning the article from /series entirely (that page
+    // requires a non-null seriesKey), even though eventTagging.ts already
+    // had the matching key. Checking the label text (not just the title)
+    // against the same EVENTS list catches this without a volleyball-
+    // specific special case — any future match-data source with the same
+    // "real label, no key" shape gets the same fix for free.
+    // detectEventSeries(body.slice(0, EVENT_LEAD_CHARS)) — added 2026-09-23,
+    // real gap reported live: a Hindustan Times retrospective feature
+    // ("Harmanpreet Kaur and the making of a winning habit...") whose
+    // headline never says "Asian Games" was missing the tag, even though
+    // its generated body opens with "...secured an Asian Games gold medal
+    // in Nagoya..." — the event IS the lead fact, just not in the
+    // headline's own wording. Checked real data before picking a threshold
+    // rather than guessing one: of 46 real cricket articles whose body
+    // mentions "Asian Games" but whose title doesn't, checking only the
+    // first 100 characters catches exactly the ones that are genuinely
+    // ABOUT the Games (this one, an India-Japan match report, a Smriti
+    // Mandhana record set at the Games) while excluding the ones where it's
+    // just background context deeper in the piece (a West Indies ODI squad
+    // story, a coaching-hire story, a personal-life story) — those mention
+    // "Asian Games" past character ~140-150, well outside this window.
+    // Body-only (title still checked first, unchanged) because a title
+    // naming an event is a much stronger signal than a body mention can
+    // ever be — this is deliberately a narrow, late-arriving fallback, not
+    // a replacement for the title check above it.
+    const EVENT_LEAD_CHARS = 100;
+    // detectIplTeamMention(title/body) — added 2026-09-23, real gap
+    // reported live: 23 real Chennai Super Kings head-coach (Zaheer Khan)
+    // articles had no seriesKey, because IPL team news is almost always
+    // written around the TEAM (full name or, very commonly in headlines,
+    // its official abbreviation "CSK"), not the league name -- \bIPL\b
+    // alone can never catch this whole class of story. See
+    // eventTagging.ts's detectIplTeamMention for why this is its own
+    // cricket-gated check rather than folded into the generic EVENTS list
+    // above (team abbreviations are genuinely ambiguous outside cricket
+    // context, unlike "Asian Games"/"IPL" themselves). Checks the title
+    // first, then the body -- same lead-signal priority as the Asian Games
+    // checks above, not unconditionally scanning the whole body for a team
+    // abbreviation as thin a signal as e.g. "MI" or "DC".
+    const iplTeamSeries = item.category === "cricket"
+      ? (detectIplTeamMention(item.title) ?? (body ? detectIplTeamMention(body) : null))
+      : null;
     const series =
       item.seriesLabel
-        ? { key: item.seriesKey, label: item.seriesLabel }
+        ? { key: item.seriesKey ?? detectEventSeries(item.seriesLabel)?.key, label: item.seriesLabel }
         : (detectEventSeries(item.title) ??
+          (body ? detectEventSeriesNear(body, EVENT_LEAD_CHARS) : null) ??
+          iplTeamSeries ??
           (item.category.startsWith("cricket") ? detectSeriesFromTitle(item.title) : null));
 
     const [created] = await db.insert(article).values({
