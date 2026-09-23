@@ -154,6 +154,32 @@ const RESERVED_CATEGORIES: { category: string; slots: number }[] = [
   { category: "formula-1", slots: 1 },
 ];
 
+// Time-of-day category weighting constants — added 2026-09-22, explicit
+// request, after confirming a real mismatch, not a guessed one: during
+// 03:00-11:00 UTC (the window when the US audience is asleep — 10pm-6am US
+// Central — while India and Australia are genuinely awake, verified by real
+// UTC/local time-zone math, not assumed), american-football still won MORE
+// Facebook slots than cricket over the last 4 days (61 vs 51), purely
+// because NFL's much higher raw article volume gives it a structural
+// trendingScore advantage around the clock — including hours its own
+// audience isn't looking. Cricket's own real source coverage during this
+// exact window is already strong (238 articles/4 days, 70+ distinct real
+// Indian/international sources) — this isn't a content-availability
+// problem, it's a selection-ranking one. See socialSelectionScore below
+// (defined inside autoApproveValidArticles, where SocialCandidate is
+// scoped) for how this is actually applied — deliberately scoped to
+// exactly the one category/window pair this project has real evidence for,
+// not a broader all-sports/all-hours matrix guessed without equal data
+// behind each cell.
+const INTERNATIONAL_WINDOW_UTC_START_HOUR = 3;
+const INTERNATIONAL_WINDOW_UTC_END_HOUR = 11; // exclusive
+const AMERICAN_FOOTBALL_INTERNATIONAL_WINDOW_MULTIPLIER = 0.5;
+
+function isInternationalAudienceWindow(now: Date): boolean {
+  const hour = now.getUTCHours();
+  return hour >= INTERNATIONAL_WINDOW_UTC_START_HOUR && hour < INTERNATIONAL_WINDOW_UTC_END_HOUR;
+}
+
 // How far back the social-posting candidate pool looks for published,
 // not-yet-posted articles — see the pool-building comment below for why
 // this exists at all. 3 days matches runIngest.ts's own staleness window
@@ -269,6 +295,24 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   // as picks happen matters just as much as the historical seed: two
   // near-duplicate FRESH candidates can both show up as "new" in the same
   // run (e.g. two outlets' recaps of the same match ingested minutes apart).
+  // Applies the international-audience-window down-weight (see the
+  // constants above this function for the real evidence behind it) to a
+  // candidate's trendingScore for social-selection ORDERING purposes only —
+  // the stored `trendingScore` column itself is never touched, so the
+  // homepage and every other feature still rank by the real, unmodified
+  // value. A down-weight, not a hard exclusion: a genuinely huge NFL story
+  // can still outrank a middling cricket one during this window, it just no
+  // longer wins purely on category volume. Closes over `now`, declared once
+  // below (shared with the pacing math further down) rather than a second
+  // `new Date()` here — both need "this run's start time," not
+  // independently-sampled clock reads a few lines apart.
+  function socialSelectionScore(a: SocialCandidate): number {
+    if (a.category === "american-football" && isInternationalAudienceWindow(now)) {
+      return a.trendingScore * AMERICAN_FOOTBALL_INTERNATIONAL_WINDOW_MULTIPLIER;
+    }
+    return a.trendingScore;
+  }
+
   function selectTopN(n: number, byTrending: SocialCandidate[], eligible: SocialCandidate[], recentTitles: string[]): SocialCandidate[] {
     const selected: SocialCandidate[] = [];
     const chosenTitles = [...recentTitles];
@@ -372,7 +416,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
 
   const fbPool = [...freshCandidates, ...backlogExcludingFresh.filter((a) => !fbPostedIds.has(a.id))]
     .filter((a) => a.category !== "volleyball");
-  const fbByTrending = [...fbPool].sort((a, b) => b.trendingScore - a.trendingScore);
+  const fbByTrending = [...fbPool].sort((a, b) => socialSelectionScore(b) - socialSelectionScore(a));
   const fbEligible = fbByTrending.filter((a) => isHighlightWorthy(a.title));
   const toPost = selectTopN(runCap, fbByTrending, fbEligible, fbRecentTitles);
 
@@ -414,7 +458,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   );
   const igPool = [...freshCandidates, ...backlogExcludingFresh.filter((a) => !igPostedIds.has(a.id))]
     .filter((a) => a.category !== "volleyball");
-  const igByTrending = [...igPool].sort((a, b) => b.trendingScore - a.trendingScore);
+  const igByTrending = [...igPool].sort((a, b) => socialSelectionScore(b) - socialSelectionScore(a));
   const igEligible = igByTrending.filter((a) => isHighlightWorthy(a.title));
   const instagramCandidates = selectTopN(instagramRunCap, igByTrending, igEligible, igRecentTitles);
 
