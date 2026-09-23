@@ -13,6 +13,7 @@ import { fetchEspnVolleyballData } from "./espnVolleyballData";
 import { fetchRssNews } from "./rssFeeds";
 import { fetchPlayerNews } from "./playerNewsFeeds";
 import { fetchCricinfoPlayerNews } from "./cricinfoPlayerFeeds";
+import { fetchAsianGamesNews } from "./asianGamesFeeds";
 import { fetchCricketData } from "./cricketData";
 import { detectSeriesFromTitle } from "./cricketSeries";
 import { detectEventSeries } from "./eventTagging";
@@ -199,7 +200,7 @@ export async function runIngest() {
     [verticalRow] = await db.insert(vertical).values({ id: createId(), name: "sports" }).returning();
   }
 
-  const [scoreItems, nflItems, mlbItems, nbaItems, domesticFootballItems, nhlItems, volleyballItems, espnVolleyballItems, newsItems, playerNewsItems, cricinfoPlayerItems, cricketItems, trendingKeywords, stockImagePools] =
+  const [scoreItems, nflItems, mlbItems, nbaItems, domesticFootballItems, nhlItems, volleyballItems, espnVolleyballItems, newsItems, playerNewsItems, cricinfoPlayerItems, asianGamesItems, cricketItems, trendingKeywords, stockImagePools] =
     await Promise.all([
       fetchFootballData(),
       fetchNflData(),
@@ -230,6 +231,13 @@ export async function runIngest() {
       // player coverage now; Google News search stays as the breadth
       // fallback for whoever/whatever Cricinfo doesn't carry.
       fetchCricinfoPlayerNews(),
+      // General (multi-sport) Indian news feeds, filtered down to just
+      // "Asian Games" titles — see asianGamesFeeds.ts's own header comment
+      // for why this exists as a separate fetcher rather than a plain
+      // rssFeeds.ts entry (those feeds carry unrelated sports too, so they
+      // can't be assigned one fixed category the way every other feed
+      // there is).
+      fetchAsianGamesNews(),
       fetchCricketData(),
       fetchTrendingKeywords(),
       // Reddit engagement (redditEngagement.ts) is intentionally not called
@@ -246,7 +254,7 @@ export async function runIngest() {
   // folded in here too — they're about a tracked superstar by construction,
   // so computeTrendingScore's own superstar-name detection already tends to
   // rank them highly rather than needing a separate carve-out.
-  const sortedNewsItems = [...newsItems, ...playerNewsItems, ...cricinfoPlayerItems].sort(
+  const sortedNewsItems = [...newsItems, ...playerNewsItems, ...cricinfoPlayerItems, ...asianGamesItems].sort(
     (a, b) =>
       computeTrendingScore(b.title, trendingKeywords, undefined, b.category) -
       computeTrendingScore(a.title, trendingKeywords, undefined, a.category)

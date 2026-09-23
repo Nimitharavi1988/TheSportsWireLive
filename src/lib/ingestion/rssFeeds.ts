@@ -244,6 +244,21 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
   const items: RawMatchItem[] = [];
 
   for (const feed of FEEDS) {
+    // Per-feed item count, logged unconditionally (not just on error) —
+    // added 2026-09-23 after discovering the ESPN Olympic-sports feed
+    // (sourceName "ESPN", category "athletics") had silently produced
+    // zero articles for 3 full days despite the feed itself being live,
+    // current, and passing every check when tested directly (real items,
+    // real snippets, no dedupe collisions, not excluded). The existing
+    // catch block below only logs when parseURL itself throws — it can't
+    // explain a feed that "succeeds" from outside this exact runtime (this
+    // repo's own dev machine, this sandbox) but silently returns nothing,
+    // times out, or gets rate-limited/blocked specifically from GitHub
+    // Actions' shared IP range in production, which is the leading
+    // suspect here and can't be confirmed without this line existing in
+    // the actual run logs. A one-line count per feed, every run, is cheap
+    // and makes a repeat of this exact 3-day blind spot impossible.
+    const startCount = items.length;
     try {
       const parsed = await parser.parseURL(feed.url);
 
@@ -281,6 +296,7 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
           dedupeKey: entry.link,
         });
       }
+      console.log(`[rssFeeds] ${feed.sourceName} (${feed.category}, ${feed.url}): ${items.length - startCount} items`);
     } catch (err) {
       console.error(`RSS fetch failed for ${feed.url}:`, err);
     }
