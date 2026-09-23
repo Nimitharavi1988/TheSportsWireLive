@@ -126,6 +126,26 @@ const MAX_RSS_ITEM_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 // extraction fallback rather than accepting a near-empty grounding input.
 const THIN_SNIPPET_THRESHOLD = 200;
 
+// Google News' own redirect pages (news.google.com/rss/articles/...) are
+// blocked by Google's own robots.txt for every article, every time —
+// confirmed live, not assumed: a sample of real recent items across
+// cricket/NFL/football all came back robotsAllowed=false. extractArticleContent
+// already fails safely on these (robotsAllows returns false, no fetch even
+// attempted), so this doesn't change behavior on its own — it exists so the
+// thin-grounding check right below it can treat "Google News link + thin
+// snippet" as a known dead end instead of spending a real Gemini call
+// finding that out empirically. fetchPlayerNews() (playerNewsFeeds.ts) is
+// the only source whose sourceUrl is ever shaped like this — every other
+// feed (rssFeeds.ts, cricinfoPlayerFeeds.ts, the match-data APIs) already
+// links directly to the publisher, which robots.txt generally allows.
+function isGoogleNewsRedirect(url: string): boolean {
+  try {
+    return new URL(url).hostname === "news.google.com";
+  } catch {
+    return false;
+  }
+}
+
 interface Grounding {
   text: string;
   // Real, story-specific photo pulled from the article page's own og:image
@@ -150,6 +170,19 @@ interface Grounding {
 async function resolveGrounding(item: RawMatchItem): Promise<Grounding | null> {
   const snippet = item.sourceSnippet?.trim();
   if (snippet && snippet.length >= THIN_SNIPPET_THRESHOLD) return { text: snippet };
+  // A Google News redirect link can never be extracted (see
+  // isGoogleNewsRedirect above), so when its own snippet is also under the
+  // thin threshold there's no path to real grounding at all -- skip the
+  // extraction attempt (guaranteed to fail) and the Gemini call that would
+  // follow it (real spend on a real API), rather than discovering the same
+  // dead end empirically. Confirmed live: this exact combination converts
+  // to a publishable article only ~3% of the time across a real 24h sample
+  // (cricket), because Gemini correctly declines to pad a genuinely thin
+  // fact set past the ~300-char approval bar rather than inventing filler
+  // (see commentary.ts's own instruction). Every other source still gets
+  // the full extraction attempt below -- this only short-circuits the one
+  // case already known to be a dead end before spending anything on it.
+  if (isGoogleNewsRedirect(item.sourceUrl)) return null;
   const extracted = await extractArticleContent(item.sourceUrl);
   if (extracted) return { text: extracted.text, imageUrl: extracted.imageUrl };
   return snippet ? { text: snippet } : null;
