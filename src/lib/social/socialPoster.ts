@@ -5,11 +5,10 @@ import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
-import { generatePosterContent, type PosterContent } from "@/lib/ingestion/commentary";
+import { generatePosterContent, generateSocialCaptions, type PosterContent, type SocialCaptions } from "@/lib/ingestion/commentary";
 import { renderInstagramPoster } from "./instagramPoster";
 import { resolvePageAccessToken } from "./facebook";
-import { categoryChipStyle } from "@/lib/categoryDisplay";
-import { displaySummary } from "@/lib/articleSummary";
+import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepertoire";
 
 // Shared poster-generation core for both Facebook and Instagram, so an
 // article going to both platforms in the same run gets ONE Gemini call and
@@ -64,7 +63,7 @@ async function waitUntilLive(url: string, maxAttempts = 20): Promise<void> {
 
 type ArticleWithVertical = typeof articleTable.$inferSelect & { vertical: typeof verticalTable.$inferSelect };
 
-async function postToInstagram(article: ArticleWithVertical, publicUrl: string, content: PosterContent): Promise<boolean> {
+async function postToInstagram(article: ArticleWithVertical, publicUrl: string, captions: SocialCaptions | null): Promise<boolean> {
   const igUserId = article.vertical.instagramBusinessAccountId ?? process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
   const pageId = article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
   const rawToken = article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
@@ -72,13 +71,18 @@ async function postToInstagram(article: ArticleWithVertical, publicUrl: string, 
   const accessToken = await resolvePageAccessToken(pageId, rawToken);
 
   const emoji = CATEGORY_EMOJI[article.category] ?? "🏆";
-  const categoryTag = categoryChipStyle(article.category).label.replace(/[^a-zA-Z0-9]/g, "");
   const creditLine = article.heroImageCredit ? `\n\n📷 ${article.heroImageCredit}` : "";
-  // article.summary is always a generic "Full coverage from X. Read the
-  // original report..." placeholder for RSS-sourced content, never the
-  // real text — confirmed live, it leaked straight into a poster caption
-  // this way. displaySummary correctly prefers the real generated body.
-  const caption = `${emoji} ${content.hook}\n\n${displaySummary(article, 300)}\n\nWhere do you land? 👇\n\n👉 Full breakdown — link in bio\n🔔 Follow @sportswirelivenews for daily sports news${creditLine}\n\n#${categoryTag} #sportsWireLiveNews #SportsNews`;
+  // Full caption upgrade (explicit request, 2026-09-22) — same
+  // generateSocialCaptions call as the plain-image Instagram/Facebook paths
+  // (instagram.ts/facebook.ts), generated once in postSocialPoster below and
+  // passed in here so an article going to both platforms in one run still
+  // only costs one Gemini call for captions, same sharing principle this
+  // file already applies to the poster image itself. Hashtags come from
+  // hashtagRepertoire.ts's deterministic selection, not the model.
+  // Best-effort: falls back to just the real title on any Gemini failure.
+  const captionBody = captions?.instagram ?? article.title;
+  const hashtags = selectInstagramHashtags(article.title, article.category).join(" ");
+  const caption = `${emoji} ${captionBody}\n\n👉 Full breakdown — link in bio\n🔔 Follow @sportswirelivenews for daily sports news${creditLine}\n\n${hashtags}`;
   const altText = article.heroImageCredit ? `${article.title}. ${article.heroImageCredit}.` : article.title;
 
   const [socialPost] = await db.insert(socialPostTable)
@@ -131,15 +135,18 @@ async function postToInstagram(article: ArticleWithVertical, publicUrl: string, 
 // goes on as a first comment instead, which Facebook (unlike Instagram)
 // does render as a clickable link — genuinely avoiding the penalty rather
 // than just moving where the link visually sits.
-async function postToFacebook(article: ArticleWithVertical, publicUrl: string, content: PosterContent, articleUrl: string): Promise<boolean> {
+async function postToFacebook(article: ArticleWithVertical, publicUrl: string, captions: SocialCaptions | null, articleUrl: string): Promise<boolean> {
   const pageId = article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
   const rawToken = article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
   if (!pageId || !rawToken) return false;
   const accessToken = await resolvePageAccessToken(pageId, rawToken);
 
   const emoji = CATEGORY_EMOJI[article.category] ?? "🏆";
-  const categoryTag = categoryChipStyle(article.category).label.replace(/[^a-zA-Z0-9]/g, "");
   const creditLine = article.heroImageCredit ? `\n\n📷 ${article.heroImageCredit}` : "";
+  // Full caption upgrade (explicit request, 2026-09-22), same as
+  // postToInstagram above — kept in sync even though this function is
+  // currently dormant (see this file's own header comment) so it isn't
+  // left stale relative to the rest of the pipeline's caption style.
   // Temporary reversion to a real link directly in the post — confirmed
   // live: with pages_manage_engagement still pending App Review, the
   // comment step never actually lands, so the caption's old "linked in the
@@ -147,7 +154,9 @@ async function postToFacebook(article: ArticleWithVertical, publicUrl: string, c
   // traffic dropped as a result. Once pages_manage_engagement is approved,
   // switch this back to the no-link/first-comment version for the reach
   // benefit.
-  const caption = `${emoji} ${content.hook}\n\n${displaySummary(article, 300)}\n\nFull breakdown: ${articleUrl}${creditLine}\n\n#${categoryTag} #SportsWireLive`;
+  const captionBody = captions?.facebook ?? article.title;
+  const hashtags = selectFacebookHashtags(article.title, article.category).join(" ");
+  const caption = `${emoji} ${captionBody}\n\nFull breakdown: ${articleUrl}${creditLine}\n\n${hashtags}`;
 
   const [socialPost] = await db.insert(socialPostTable)
     .values({ id: createId(), articleId: article.id, platform: "facebook", status: "queued" })
@@ -234,6 +243,10 @@ export async function postSocialPoster(
   if (!content) return none;
   console.log("Poster content:", JSON.stringify(content));
 
+  // Shared once for whichever platform(s) this run actually needs — same
+  // "one Gemini call, not two" principle as the poster image itself above.
+  const captions = await generateSocialCaptions(article.title, article.body);
+
   console.log("Rendering poster image...");
   const png = await renderInstagramPoster({ content, heroImageUrl: article.heroImageUrl });
 
@@ -261,8 +274,8 @@ export async function postSocialPoster(
     console.log(`Waiting for ${publicUrl} to go live...`);
     await waitUntilLive(publicUrl);
 
-    const instagramPosted = needInstagram ? await postToInstagram(article, publicUrl, content) : false;
-    const facebookPosted = needFacebook ? await postToFacebook(article, publicUrl, content, articleUrl) : false;
+    const instagramPosted = needInstagram ? await postToInstagram(article, publicUrl, captions) : false;
+    const facebookPosted = needFacebook ? await postToFacebook(article, publicUrl, captions, articleUrl) : false;
     return { instagramPosted, facebookPosted };
   } finally {
     // Runs even if waitUntilLive itself throws (confirmed live: it did,

@@ -211,6 +211,67 @@ export async function verifyCommentaryHasSubstance(title: string, commentary: st
   return parsed.hasSubstance !== false;
 }
 
+// Explicit-request caption upgrade (2026-09-22), replacing the previous
+// mechanical "hook + truncated body" caption assembly in facebook.ts/
+// instagram.ts. Deliberately does NOT generate hashtags here — those come
+// from hashtagRepertoire.ts's deterministic, signal-based selection
+// (category/title-text/player matches), not the model's judgment, so a tag
+// can never be attached to an article it doesn't actually apply to. One
+// call produces both platform captions together (cheaper than two calls,
+// and keeps the two versions consistent with the same underlying facts).
+function buildSocialCaptionsPrompt(title: string, body: string): string {
+  return `You are an expert sports social media manager. Write two captions for the same story, one for Facebook and one for Instagram, following these platform rules exactly.
+
+Headline: "${title}"
+
+Facts (the ONLY source of information you may use — never invent a detail, quote, or statistic not stated here):
+"""
+${body}
+"""
+
+FACEBOOK caption:
+- Punchy, professional, engaging — 2-4 short sentences.
+- End with a clear call to action telling readers to click the link to read more (your own wording, doesn't need to be verbatim).
+- Do not include any hashtags — those are added separately.
+- Do not repeat the headline verbatim at the top.
+
+INSTAGRAM caption:
+- Longer than the Facebook version, with a captivating hook as the very first sentence.
+- Use 1-3 emojis as visual breaks between short paragraphs (not decorative clutter — each one should mark a real break in the text).
+- End with a call to action telling readers to click the link in the bio to read the full story (your own wording).
+- Do not include any hashtags — those are added separately.
+- Do not repeat the headline verbatim at the top.
+
+Both captions must stay strictly true to the facts given above — no invented details, no speculation stated as fact. Plain text only, no markdown.`;
+}
+
+export interface SocialCaptions {
+  facebook: string;
+  instagram: string;
+}
+
+export async function generateSocialCaptions(title: string, body: string): Promise<SocialCaptions | null> {
+  if (!body || body.trim().length < 40) return null;
+
+  const parsed = await callGemini(buildSocialCaptionsPrompt(title, body), {
+    responseSchema: {
+      type: "OBJECT",
+      properties: {
+        facebookCaption: { type: "STRING" },
+        instagramCaption: { type: "STRING" },
+      },
+      required: ["facebookCaption", "instagramCaption"],
+    },
+  });
+  if (!parsed) return null;
+
+  const facebook = typeof parsed.facebookCaption === "string" ? parsed.facebookCaption.trim() : "";
+  const instagram = typeof parsed.instagramCaption === "string" ? parsed.instagramCaption.trim() : "";
+  if (!facebook || !instagram) return null;
+
+  return { facebook, instagram };
+}
+
 function buildPosterPrompt(title: string, body: string): string {
   return `You are writing the on-image copy for a single sports-news Instagram poster (bold cover graphic, not the caption).
 

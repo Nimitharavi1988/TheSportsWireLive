@@ -2,9 +2,8 @@ import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
-import { categoryChipStyle } from "@/lib/categoryDisplay";
-import { TRACKED_PLAYERS } from "@/lib/players";
-import { generatePosterContent } from "@/lib/ingestion/commentary";
+import { generateSocialCaptions } from "@/lib/ingestion/commentary";
+import { selectFacebookHashtags } from "./hashtagRepertoire";
 
 // A sport emoji at the start of the post text is a small, low-risk
 // engagement lever on Facebook (unlike extra hashtags, which hurt reach —
@@ -25,53 +24,6 @@ const CATEGORY_EMOJI: Record<string, string> = {
 
 function emojiFor(category: string): string {
   return CATEGORY_EMOJI[category] ?? "🏆";
-}
-
-// International team names/codes as they commonly appear in headlines —
-// used only to build a series-specific hashtag ("#INDvAFG"), not for flag
-// display (see cricketCountries.ts for why Afghanistan is excluded there),
-// so there's no "wrong flag" risk in including it here.
-const TEAM_TO_CODE: Record<string, string> = {};
-for (const [name, code] of [
-  ["India", "IND"], ["Australia", "AUS"], ["England", "ENG"], ["Pakistan", "PAK"],
-  ["South Africa", "SA"], ["New Zealand", "NZ"], ["Sri Lanka", "SL"], ["Bangladesh", "BAN"],
-  ["Afghanistan", "AFG"], ["Zimbabwe", "ZIM"], ["Ireland", "IRE"], ["Scotland", "SCO"],
-  ["Netherlands", "NED"], ["Nepal", "NEP"],
-] as const) {
-  TEAM_TO_CODE[name.toLowerCase()] = code;
-  TEAM_TO_CODE[code.toLowerCase()] = code;
-}
-
-// Matches "IND vs AFG LIVE Score, ..." / "India vs Afghanistan, 1st T20I" —
-// same shape as liveCricket.ts's extractInternationalPair, kept separate
-// here since this only needs the resulting hashtag, not team display names.
-function seriesHashtag(title: string): string | null {
-  const m = title.match(/^\s*([A-Za-z .]{2,20}?)\s+v(?:s\.?)?\s+([A-Za-z .]{2,20}?)(?:\s*[,:]|\s+LIVE\b|\s+Live\b|$)/i);
-  if (!m) return null;
-  const home = TEAM_TO_CODE[m[1].trim().toLowerCase()];
-  const away = TEAM_TO_CODE[m[2].trim().toLowerCase()];
-  if (!home || !away || home === away) return null;
-  return `#${home}v${away}`;
-}
-
-// 2-3 hashtags reads as normal on Facebook; more than that measurably hurts
-// reach on FB specifically (unlike Instagram/X, where stacking many is
-// normal) — so this is deliberately capped, not "more tags = more reach."
-// A series-specific tag (e.g. #INDvAFG) replaces the generic category tag
-// when the headline is clearly about a specific international matchup —
-// more discoverable without adding to the total count. Brand tag always
-// included; a third, more specific tag only when a tracked star player is
-// actually named in the headline.
-function hashtagsFor(title: string, category: string): string {
-  const categoryTag = categoryChipStyle(category).label.replace(/[^a-zA-Z0-9]/g, "");
-  const primaryTag = seriesHashtag(title) ?? `#${categoryTag}`;
-  const tags = [primaryTag, "#SportsWireLive"];
-
-  const lower = title.toLowerCase();
-  const player = TRACKED_PLAYERS.find((p) => p.searchTerms.some((term) => lower.includes(term.toLowerCase())));
-  if (player) tags.push(`#${player.name.replace(/[^a-zA-Z0-9]/g, "")}`);
-
-  return tags.join(" ");
 }
 
 // A Business System User's own token (what FACEBOOK_PAGE_ACCESS_TOKEN
@@ -152,47 +104,20 @@ export async function postArticleToFacebook(articleId: string): Promise<boolean>
   // (see the earlier production fix — before that it pointed at localhost).
   // Unchanged by the headline change below — this stays exactly as-is.
 
-  // Crafted hook instead of the raw scraped title — added 2026-09-20 since
-  // organic Facebook is the dominant traffic channel to the site, and this
-  // was the one caption still using the raw title while Instagram's poster
-  // path already gets a punchier Gemini-crafted hook (generatePosterContent,
-  // same function, reused directly — no new prompt/schema). Best-effort:
-  // falls back to the raw title on any failure so a Gemini hiccup can never
-  // block a Facebook post, same as every other Gemini-dependent step here.
-  const posterContent = article.body ? await generatePosterContent(article.title, article.body) : null;
-  const headline = posterContent?.hook ?? article.title;
-  // Reintroduced a length cap (explicit request, 2026-09-20) — the
-  // untruncated full body (previous fix) kept posts scannable-sized most of
-  // the time but could run long. Unlike displaySummary's "…" (reads as an
-  // abrupt, unfinished cutoff — the exact complaint that fix addressed),
-  // this ends on a real CTA sentence instead, so a truncated post still
-  // reads as complete and gives a real reason to click through.
-  const MAX_FB_SUMMARY_CHARS = 400;
-  const rawBody = (article.body?.trim() || article.summary).trim();
-  const fullText =
-    rawBody.length <= MAX_FB_SUMMARY_CHARS
-      ? rawBody
-      : (() => {
-          const cut = rawBody.slice(0, MAX_FB_SUMMARY_CHARS);
-          // Prefer cutting at a real sentence boundary over a bare word
-          // boundary — confirmed live: a word-boundary cut landed right
-          // after "including", producing "...channel lineups for games
-          // including." — grammatically broken despite reading as
-          // "complete" by punctuation alone. A sentence boundary avoids
-          // that class of bug entirely. Only accepted if it leaves a
-          // reasonably substantial summary (>100 chars) — otherwise (one
-          // giant early sentence) falls back to the word boundary.
-          const lastSentenceEnd = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "));
-          const trimmedCut =
-            lastSentenceEnd > 100
-              ? cut.slice(0, lastSentenceEnd + 1).trimEnd()
-              : (() => {
-                  const lastSpace = cut.lastIndexOf(" ");
-                  return (lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trimEnd().replace(/[,;:.!?]+$/, "") + ".";
-                })();
-          return `${trimmedCut} Read the full story on SportsWireLive.com.`;
-        })();
-  const message = `${emojiFor(article.category)} ${headline}\n\n${fullText}\n\n${hashtagsFor(article.title, article.category)}`;
+  // Full caption upgrade (explicit request, 2026-09-22) — replaced the
+  // previous mechanical "Gemini hook + sentence-boundary-truncated body"
+  // assembly with a single dedicated caption-writing call
+  // (generateSocialCaptions) that writes the whole Facebook caption as one
+  // real piece of prose per the platform's own style rules (punchy, a real
+  // CTA, no hashtags — those come from hashtagRepertoire.ts's deterministic
+  // signal-based selection instead of the model's judgment). Best-effort:
+  // falls back to a minimal safe caption (just the real title) on any
+  // Gemini failure so a hiccup can never block a Facebook post, same as
+  // every other Gemini-dependent step here.
+  const captions = article.body ? await generateSocialCaptions(article.title, article.body) : null;
+  const captionBody = captions?.facebook ?? article.title;
+  const hashtags = selectFacebookHashtags(article.title, article.category).join(" ");
+  const message = `${emojiFor(article.category)} ${captionBody}\n\n${hashtags}`;
 
   const [socialPost] = await db.insert(socialPostTable)
     .values({ id: createId(), articleId, platform: "facebook", status: "queued" })

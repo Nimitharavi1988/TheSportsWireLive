@@ -2,14 +2,10 @@ import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
-import { displaySummary } from "@/lib/articleSummary";
-import { categoryChipStyle } from "@/lib/categoryDisplay";
-import { TRACKED_PLAYERS } from "@/lib/players";
+import { generateSocialCaptions } from "@/lib/ingestion/commentary";
+import { selectInstagramHashtags } from "./hashtagRepertoire";
 import { resolvePageAccessToken } from "./facebook";
 
-// Unlike Facebook (facebook.ts), stacking hashtags on Instagram is normal
-// and doesn't hurt reach — capped at 8 here purely to stay readable, not for
-// a reach-penalty reason.
 const CATEGORY_EMOJI: Record<string, string> = {
   cricket: "🏏",
   football: "⚽",
@@ -22,17 +18,6 @@ const CATEGORY_EMOJI: Record<string, string> = {
   volleyball: "🏐",
   "formula-1": "🏎️",
 };
-
-function hashtagsForInstagram(title: string, category: string): string {
-  const categoryTag = categoryChipStyle(category).label.replace(/[^a-zA-Z0-9]/g, "");
-  const tags = [`#${categoryTag}`, "#sportsWireLiveNews", "#SportsNews"];
-
-  const lower = title.toLowerCase();
-  const player = TRACKED_PLAYERS.find((p) => p.searchTerms.some((term) => lower.includes(term.toLowerCase())));
-  if (player) tags.push(`#${player.name.replace(/[^a-zA-Z0-9]/g, "")}`);
-
-  return tags.join(" ");
-}
 
 // Isolated social publisher, same shape as facebook.ts's postArticleToFacebook
 // (per-vertical config with an env-var fallback, best-effort with its own
@@ -77,10 +62,19 @@ export async function postArticleToInstagram(articleId: string): Promise<boolean
   const accessToken = await resolvePageAccessToken(pageId, rawToken);
 
   const emoji = CATEGORY_EMOJI[article.category] ?? "🏆";
-  // Not a clickable link (Instagram captions don't render URLs as links —
-  // see FollowUs.tsx's own comment on the same limitation), just plain text
-  // pointing readers to the site as the source for more coverage.
-  const caption = `${emoji} ${article.title}\n\n${displaySummary(article, 300)}\n\n📲 More sports news at sportswirelive.com\n\n${hashtagsForInstagram(article.title, article.category)}`;
+  // Full caption upgrade (explicit request, 2026-09-22) — same
+  // generateSocialCaptions call facebook.ts now uses (one Gemini call
+  // writes both platform captions together), asked specifically for a
+  // longer, hook-first caption with emoji visual breaks per Instagram's own
+  // style, ending on a "link in bio" CTA rather than a spelled-out URL
+  // (captions don't render URLs as links — see FollowUs.tsx's own comment
+  // on the same limitation). Hashtags come from hashtagRepertoire.ts's
+  // deterministic signal-based selection, not the model's judgment.
+  // Best-effort: falls back to just the real title on any Gemini failure.
+  const captions = article.body ? await generateSocialCaptions(article.title, article.body) : null;
+  const captionBody = captions?.instagram ?? article.title;
+  const hashtags = selectInstagramHashtags(article.title, article.category).join(" ");
+  const caption = `${emoji} ${captionBody}\n\n${hashtags}`;
 
   const [socialPost] = await db.insert(socialPostTable)
     .values({ id: createId(), articleId, platform: "instagram", status: "queued" })
