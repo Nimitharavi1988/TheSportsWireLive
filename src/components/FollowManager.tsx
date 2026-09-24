@@ -18,12 +18,28 @@ import { FollowButton } from "./FollowButton";
 import { useFollows } from "./useFollows";
 import { entitiesSeenInSuggestions, useSuggest } from "./useSuggest";
 
+function chipSx(active: boolean) {
+  return {
+    borderRadius: 5,
+    border: "1px solid",
+    borderColor: active ? "primary.main" : "divider",
+    bgcolor: active ? "rgba(29, 107, 63, 0.1)" : "transparent",
+    color: active ? "primary.main" : "text.primary",
+    transition: "border-color 0.15s, background-color 0.15s",
+    "&:hover": { borderColor: active ? "primary.main" : "text.secondary" },
+  } as const;
+}
+
 // Top of /for-you: what you follow (removable chips) and a "Follow more"
 // picker with search + popular suggestions — the onboarding screen The
 // Athletic/FotMob show, but inline and reopenable instead of a one-time
 // modal. The page itself is server-rendered from the cookie, so any change
 // here just refreshes it.
-export function FollowManager({ initialEntities }: { initialEntities: EntityResult[] }) {
+//
+// The followed chips double as feed filters (ESPN favorites / The Athletic
+// "Following" style): clicking one shows only that follow's stories via
+// ?only=kind:slug, "All" clears it. The x on each chip unfollows.
+export function FollowManager({ initialEntities, activeKey }: { initialEntities: EntityResult[]; activeKey: string | null }) {
   const router = useRouter();
   const { follows, ready, toggle } = useFollows();
   const [pickerOpen, setPickerOpen] = useState(initialEntities.length === 0);
@@ -60,20 +76,39 @@ export function FollowManager({ initialEntities }: { initialEntities: EntityResu
   return (
     <Box sx={{ mb: 3 }}>
       <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1, mb: pickerOpen ? 2 : 0 }}>
-        {followed.map((e) => (
+        {followed.length > 1 && (
           <Box
-            key={followKey(e)}
-            sx={{ display: "flex", alignItems: "center", gap: 0.75, pl: 0.5, pr: 0.25, py: 0.25, borderRadius: 5, border: "1px solid", borderColor: "divider" }}
+            component={Link}
+            href="/for-you"
+            scroll={false}
+            aria-current={activeKey === null ? "page" : undefined}
+            sx={{ ...chipSx(activeKey === null), px: 1.75, py: 0.75, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
           >
-            <EntityAvatar initials={e.initials} color={e.color} size={26} />
-            <Typography component={Link} href={e.href} sx={{ fontSize: 14, fontWeight: 600, color: "text.primary", textDecoration: "none", "&:hover": { color: "primary.main" } }}>
-              {e.name}
-            </Typography>
-            <IconButton size="small" aria-label={`Unfollow ${e.name}`} onClick={() => toggle({ kind: e.kind, slug: e.slug })}>
-              <CloseIcon sx={{ fontSize: 16 }} />
-            </IconButton>
+            All
           </Box>
-        ))}
+        )}
+        {followed.map((e) => {
+          const key = followKey(e);
+          const isActive = key === activeKey;
+          return (
+            <Box key={key} sx={{ ...chipSx(isActive), display: "flex", alignItems: "center", gap: 0.25, pl: 0.5, pr: 0.25, py: 0.25 }}>
+              <Box
+                component={Link}
+                href={isActive ? "/for-you" : `/for-you?only=${encodeURIComponent(key)}`}
+                scroll={false}
+                aria-current={isActive ? "page" : undefined}
+                aria-label={isActive ? `Show all followed stories` : `Show only ${e.name} stories`}
+                sx={{ display: "flex", alignItems: "center", gap: 0.75, color: "inherit", textDecoration: "none", pr: 0.25 }}
+              >
+                <EntityAvatar initials={e.initials} color={e.color} size={26} />
+                <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{e.name}</Typography>
+              </Box>
+              <IconButton size="small" aria-label={`Unfollow ${e.name}`} onClick={() => toggle({ kind: e.kind, slug: e.slug })} sx={{ color: "inherit" }}>
+                <CloseIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Box>
+          );
+        })}
         <Button
           size="small"
           variant={pickerOpen ? "text" : "outlined"}

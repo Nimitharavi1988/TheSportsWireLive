@@ -2,7 +2,8 @@ import { cookies } from "next/headers";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import { readFollowsFrom } from "@/lib/follows";
+import Link from "next/link";
+import { followKey, parseFollows, readFollowsFrom } from "@/lib/follows";
 import { resolveFollows } from "@/lib/entitySearch";
 import { fetchFollowingArticles } from "@/lib/myFeed";
 import { FollowManager } from "@/components/FollowManager";
@@ -19,11 +20,16 @@ export const metadata = {
   robots: { index: false },
 };
 
-export default async function ForYouPage() {
-  const store = await cookies();
+export default async function ForYouPage({ searchParams }: { searchParams: Promise<{ only?: string }> }) {
+  const [store, { only }] = await Promise.all([cookies(), searchParams]);
   const refs = readFollowsFrom((name) => store.get(name)?.value);
   const entities = resolveFollows(refs);
-  const articles = entities.length > 0 ? await fetchFollowingArticles(refs, 30) : [];
+  // ?only=club:arsenal narrows the feed to one follow (the filter chips in
+  // FollowManager). Ignored unless it's something the visitor actually
+  // follows — an unfollowed or stale value just shows everything.
+  const onlyKey = only ? parseFollows(only).map(followKey)[0] : undefined;
+  const active = entities.find((e) => followKey(e) === onlyKey) ?? null;
+  const articles = entities.length > 0 ? await fetchFollowingArticles(active ? [active] : refs, 30) : [];
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -37,12 +43,23 @@ export default async function ForYouPage() {
             : "Follow teams, players, countries or whole sports, and their latest stories will collect here."}
         </Typography>
 
-        <FollowManager initialEntities={entities} />
+        <FollowManager initialEntities={entities} activeKey={active ? followKey(active) : null} />
+
+        {active && (
+          <Typography sx={{ fontSize: 14, color: "text.secondary", mb: 1 }}>
+            Showing {active.name} only ·{" "}
+            <Link href={active.href} style={{ color: "inherit", fontWeight: 600 }}>
+              Go to the {active.name} page
+            </Link>
+          </Typography>
+        )}
 
         {entities.length > 0 &&
           (articles.length === 0 ? (
             <Typography sx={{ color: "text.secondary", py: 5, textAlign: "center" }}>
-              No recent stories for what you follow yet. Try following a few more teams or a whole sport.
+              {active
+                ? `No recent stories about ${active.name} yet.`
+                : "No recent stories for what you follow yet. Try following a few more teams or a whole sport."}
             </Typography>
           ) : (
             <Box component="section" aria-label="Your stories">

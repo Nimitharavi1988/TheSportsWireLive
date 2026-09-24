@@ -11,6 +11,11 @@ import type { ImageLoaderProps } from "next/image";
 // again. Requires "Resize images from any origin" enabled on the zone —
 // without it, only images already served from this domain can be resized.
 export default function cloudflareImageLoader({ src, width, quality }: ImageLoaderProps): string {
+  // /cdn-cgi/image only exists on the sportswirelive.com zone — on
+  // *.workers.dev preview URLs and localhost it 404s, which left every
+  // preview with broken images. Those builds get the original URL instead
+  // (see next.config.mjs's NEXT_PUBLIC_IMAGE_RESIZING).
+  if (process.env.NEXT_PUBLIC_IMAGE_RESIZING !== "1") return src;
   const params = [`width=${width}`, `quality=${quality ?? 75}`, "format=auto"];
   return `/cdn-cgi/image/${params.join(",")}/${src}`;
 }
