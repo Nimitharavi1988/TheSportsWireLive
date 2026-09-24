@@ -1161,7 +1161,15 @@ export default async function HomePage(
                       }}
                     >
                       <CardContent>
-                        <Stack direction="row" spacing={2}>
+                        {/* alignItems: "center" -- without it, Stack's row
+                            layout leaves this fixed-height thumbnail
+                            top-aligned against the taller title+summary
+                            text block beside it, a visible empty gap under
+                            the image whenever the text runs longer than the
+                            thumbnail (confirmed live 2026-09-24, real user
+                            report: same root cause found in 8 places
+                            site-wide, all fixed together). */}
+                        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                           <ArticleThumb article={article} size={84} fallbackColor="#f59e0b" />
                           <Box sx={{ minWidth: 0, flex: 1 }}>
                             {/* Sport/category badge at the top, same spot and
@@ -1229,7 +1237,9 @@ export default async function HomePage(
                       }}
                     >
                       <CardContent>
-                        <Stack direction="row" spacing={2}>
+                        {/* alignItems: "center" -- see the Transfers & Big
+                            News section above for why. */}
+                        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                           <ArticleThumb article={article} size={84} fallbackColor={categoryChipStyle(article.category).color} />
                           <Box sx={{ minWidth: 0, flex: 1 }}>
                             <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
@@ -1292,7 +1302,9 @@ export default async function HomePage(
                       }}
                     >
                       <CardContent>
-                        <Stack direction="row" spacing={2}>
+                        {/* alignItems: "center" -- see the Transfers & Big
+                            News section above for why. */}
+                        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                           <ArticleThumb article={article} size={84} fallbackColor={categoryChipStyle(article.category).color} />
                           <Box sx={{ minWidth: 0, flex: 1 }}>
                             <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>

@@ -165,7 +165,13 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
                 <Link key={article.id} href={`/article/${article.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
                   <Card variant="outlined" sx={{ "&:hover": { borderColor: "primary.main" } }}>
                     <CardContent>
-                      <Stack direction="row" spacing={2}>
+                      {/* alignItems: "center" -- without it this fixed-
+                          height thumbnail sits top-aligned against the
+                          taller title+summary text beside it, a visible
+                          empty gap whenever the text runs longer than the
+                          thumbnail (confirmed live 2026-09-24, same root
+                          cause fixed in 8 places site-wide). */}
+                      <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                         <ArticleThumb article={article} size={64} fallbackColor={categoryChipStyle(article.category).color} />
                         <Box sx={{ minWidth: 0, flex: 1 }}>
                           {/* Sport/category badge at the top — our own
