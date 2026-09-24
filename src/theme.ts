@@ -4,7 +4,22 @@ import { createTheme } from "@mui/material/styles";
 // Material Design components, rather than using MUI's default blue theme.
 const theme = createTheme({
   palette: {
-    primary: { main: "#1d6b3f" },
+    // Was #1d6b3f -- real, verified against the site's own screenshots as
+    // reading muted/corporate rather than vivid, a genuine contributor to
+    // "the site looks dull" (2026-09-24). Same hue (still unmistakably
+    // "this site's green," not a rebrand) but higher saturation/lightness
+    // for real visual punch -- deliberately NOT a move toward dark mode or
+    // a different accent color (e.g. neon/gold/red), which would go
+    // against wanting to stay light and simple.
+    //
+    // #0c7d45, not the more vivid #0f9d58 first tried -- checked white-text
+    // contrast (this color is used as button/chip backgrounds with white
+    // text throughout) with the real WCAG relative-luminance formula, not
+    // assumed: #0f9d58 only reaches 3.51:1 against white, under the 4.5:1
+    // AA minimum for normal-size text (old #1d6b3f was a very safe 6.51:1).
+    // #0c7d45 reaches 5.20:1 -- still a real step up in vividness, but
+    // without trading accessibility for it.
+    primary: { main: "#0c7d45" },
     background: { default: "#f7f7f5", paper: "#ffffff" },
     text: { primary: "#1a1a1a", secondary: "#6b6b6b" },
   },
@@ -26,7 +41,13 @@ const theme = createTheme({
     h6: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.125rem" }, // 18px — matches the ad-hoc value most components had already converged on
     button: { fontFamily: "var(--font-body)", textTransform: "none", fontWeight: 600 },
   },
-  shape: { borderRadius: 10 },
+  // Was 10 -- real request to move away from the soft, bubbly, rounded
+  // feel toward something more angular/athletic. Not fully square (0):
+  // confirmed live that some components (avatars, small icon buttons)
+  // genuinely need to stay round regardless of this value and look broken
+  // squared off, and it's applied via each component's own shape logic,
+  // not this token, so this only affects cards/buttons/chips/inputs.
+  shape: { borderRadius: 4 },
   components: {
     MuiButton: {
       styleOverrides: {
