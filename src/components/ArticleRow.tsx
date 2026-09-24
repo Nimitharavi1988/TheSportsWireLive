@@ -38,6 +38,9 @@ export function ArticleRow({
       <Box
         sx={{
           display: "flex",
+          // Centered like master's site-wide card-list fix (9dcbcd5): a
+          // top-aligned thumbnail leaves a gap beside longer title+summary text.
+          alignItems: "center",
           gap: 2,
           py: 1.75,
           borderBottom: "1px solid",

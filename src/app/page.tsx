@@ -1163,14 +1163,28 @@ export default async function HomePage(
                       }}
                     >
                       <CardContent>
-                        <Stack direction="row" spacing={2}>
+                        {/* alignItems: "center" -- without it, Stack's row
+                            layout leaves this fixed-height thumbnail
+                            top-aligned against the taller title+summary
+                            text block beside it, a visible empty gap under
+                            the image whenever the text runs longer than the
+                            thumbnail (confirmed live 2026-09-24, real user
+                            report: same root cause found in 8 places
+                            site-wide, all fixed together). */}
+                        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                           <ArticleThumb article={article} size={84} fallbackColor="#f59e0b" />
                           <Box sx={{ minWidth: 0, flex: 1 }}>
                             {/* Sport/category badge at the top, same spot and
                                 style "Match Results & Previews" etc. already use
                                 — this is our own taxonomy, not third-party
                                 attribution, so it's fine (good, even) for
-                                scanning to keep it prominent up here. */}
+                                scanning to keep it prominent up here. Date
+                                moved inline here too (2026-09-24, explicit
+                                request) — was its own line below the title;
+                                now on the top line alongside the category
+                                chip, matching "Match Results & Previews" and
+                                "NFL Scores & Previews" exactly instead of
+                                being the one section styled differently. */}
                             <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
                               <Chip
                                 label={categoryChipStyle(article.category).label}
@@ -1187,15 +1201,15 @@ export default async function HomePage(
                                   color: "warning.contrastText", bgcolor: "warning.main"
                                 }} />
                               )}
+                              {article.publishedAt && (
+                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                  {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                </Typography>
+                              )}
                             </Stack>
                             <Typography variant="h6" component="h2" gutterBottom>
                               {article.title}
                             </Typography>
-                            {article.publishedAt && (
-                              <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                                {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                              </Typography>
-                            )}
                           </Box>
                         </Stack>
                       </CardContent>
@@ -1231,7 +1245,9 @@ export default async function HomePage(
                       }}
                     >
                       <CardContent>
-                        <Stack direction="row" spacing={2}>
+                        {/* alignItems: "center" -- see the Transfers & Big
+                            News section above for why. */}
+                        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                           <ArticleThumb article={article} size={84} fallbackColor={categoryChipStyle(article.category).color} />
                           <Box sx={{ minWidth: 0, flex: 1 }}>
                             <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
@@ -1294,7 +1310,9 @@ export default async function HomePage(
                       }}
                     >
                       <CardContent>
-                        <Stack direction="row" spacing={2}>
+                        {/* alignItems: "center" -- see the Transfers & Big
+                            News section above for why. */}
+                        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                           <ArticleThumb article={article} size={84} fallbackColor={categoryChipStyle(article.category).color} />
                           <Box sx={{ minWidth: 0, flex: 1 }}>
                             <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>

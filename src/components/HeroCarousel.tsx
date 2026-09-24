@@ -139,8 +139,15 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                   sx={{
                     color: "#fff",
                     fontWeight: 700,
-                    lineHeight: 1.25,
-                    fontSize: "clamp(1.15rem, 1.6vw + 0.7rem, 2.125rem)",
+                    lineHeight: 1.15,
+                    // Was clamp(1.15rem, ..., 2.125rem) -- 18.4px on mobile up
+                    // to just 34px max on desktop, quite small for the single
+                    // biggest, most attention-grabbing text on the homepage
+                    // (real sports-news sites typically run hero headlines in
+                    // the 36-48px range on desktop). Raised to 24px-48px:
+                    // clamps to 24px below ~320px viewport width, scales
+                    // smoothly, and reaches the full 48px by ~1520px wide.
+                    fontSize: "clamp(1.5rem, 1.1rem + 2vw, 3rem)",
                     display: "-webkit-box",
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: "vertical",
