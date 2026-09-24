@@ -94,7 +94,7 @@ export async function getHappeningNow(category?: string): Promise<Competition[]>
 }
 
 export async function happeningNowEntities(limit: number, category?: string): Promise<EntityResult[]> {
-  return (await getHappeningNow(category)).slice(0, limit).map(competitionToEntity);
+  return (await getHappeningNow(category)).slice(0, limit).map((c) => competitionToEntity(c));
 }
 
 // Labels for followed competitions, including ones no longer active.
