@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { article } from "@/db/schema";
-import { and, eq, or, ilike, desc } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { ArticleThumb } from "@/components/ArticleThumb";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
@@ -24,12 +24,19 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   };
 }
 
-// Title-or-summary ilike search — no full-text index exists on this table
-// (no pg_trgm/tsvector setup), and at this scale a plain ilike scan is
-// plenty fast; matches the same pattern already used by club/player pages'
-// own team/player-name search and the admin queue's title filter, rather
-// than reaching for new search infrastructure for what's still a simple
-// substring match.
+// Real Postgres full-text search (tsvector + GIN index, see db/schema.ts's
+// `language`/searchVector comment and the migration that added them) —
+// replaced the previous plain ilike-on-title-or-summary scan (2026-09-24).
+// websearch_to_tsquery accepts natural user input directly (quoted phrases,
+// -exclusion, implicit AND between words) rather than needing a hand-built
+// query string, and ranks by ts_rank so a title match (weight A) beats a
+// buried body mention (weight C) instead of both being equally "found" the
+// way ilike was. Body text is now searchable too, not just title/summary —
+// a real gap before (a story could headline-mismatch its own content and
+// never surface). English-only for now (see schema.ts's language field
+// comment) since no Spanish content exists yet; the query-side config
+// should switch on a language param once that ships, matching how the
+// column's own stored vector already will.
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q } = await searchParams;
   const query = q?.trim() ?? "";
@@ -38,9 +45,9 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     ? await db.select().from(article)
         .where(and(
           eq(article.status, "published"),
-          or(ilike(article.title, `%${query}%`), ilike(article.summary, `%${query}%`))
+          sql`"searchVector" @@ websearch_to_tsquery('english', ${query})`
         ))
-        .orderBy(desc(article.publishedAt))
+        .orderBy(sql`ts_rank("searchVector", websearch_to_tsquery('english', ${query})) DESC`)
         .limit(30)
     : [];
 

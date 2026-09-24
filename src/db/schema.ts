@@ -67,6 +67,24 @@ export const article = pgTable("Article", {
   seriesKey: text("seriesKey"),
   seriesLabel: text("seriesLabel"),
   venue: text("venue"),
+  // Added 2026-09-24 ahead of a planned (not yet implemented) Spanish-
+  // language content pipeline -- default 'en' means every existing row and
+  // every current (English-only) ingestion source is unaffected. Drives the
+  // Postgres text-search config choice for `searchVector` below (English
+  // stemming is wrong for Spanish text, and vice versa), and is the same
+  // field a future <html lang>/hreflang/RSS <language> implementation would
+  // need -- cheap to add now, expensive to retrofit once searchVector's
+  // GENERATED expression and 18,000+ rows already assume English-only.
+  language: text("language").notNull().default("en"),
+  // GENERATED ALWAYS AS ... STORED in Postgres itself (see the migration
+  // that added this column) -- Postgres maintains it automatically on every
+  // insert/update, so it's intentionally NOT a normal Drizzle column here
+  // (the app never writes to it directly, only queries against it via raw
+  // sql`"searchVector"` fragments, same pattern as titleMatch.ts's regex
+  // helper). Declaring it here is just documentation of what really exists
+  // in the table -- Drizzle has no native tsvector column type to declare
+  // it with anyway.
+  // searchVector: tsvector, GENERATED ALWAYS AS (...) STORED — see search/page.tsx
   createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { precision: 3 }).notNull(),
 }, (t) => [
