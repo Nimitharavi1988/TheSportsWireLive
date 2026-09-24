@@ -8,6 +8,7 @@ import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
 import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
 import { buildBreadcrumbJsonLd } from "@/lib/breadcrumbs";
+import { FollowButton } from "@/components/FollowButton";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
@@ -83,9 +84,12 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
           {series.seriesLabel}
         </Typography>
       </Stack>
-      <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
+      <Typography variant="body2" sx={{ color: "text.secondary", mb: 1.5 }}>
         {articles.length} {articles.length === 1 ? "story" : "stories"} · every match, preview, and player story from this series
       </Typography>
+      <Box sx={{ mb: 3 }}>
+        <FollowButton kind="series" slug={seriesKey} name={series.seriesLabel ?? "this series"} size="medium" />
+      </Box>
 
       {articles.length === 0 ? (
         <Typography sx={{ color: "text.secondary", py: 5, textAlign: "center" }}>

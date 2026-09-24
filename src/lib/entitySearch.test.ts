@@ -64,3 +64,18 @@ describe("buildPrefixTsQuery", () => {
     expect(buildPrefixTsQuery("  !!  ")).toBeNull();
   });
 });
+
+describe("searchEntities with extra items", () => {
+  const series = {
+    entity: { kind: "series" as const, slug: "india-vs-west-indies-odi", name: "India vs West Indies • ODI", subtitle: "ODI series", href: "/series/india-vs-west-indies-odi", initials: "IW", color: "#b8752e" },
+    haystack: ["india vs west indies  odi", "india vs west indies odi"],
+  };
+
+  it("matches a multi-word query starting mid-name", () => {
+    expect(searchEntities("west indies", 6, [series]).map((e) => e.slug)).toContain("india-vs-west-indies-odi");
+  });
+
+  it("still never matches mid-word", () => {
+    expect(searchEntities("ndies", 6, [series]).map((e) => e.slug)).not.toContain("india-vs-west-indies-odi");
+  });
+});

@@ -4,7 +4,7 @@ import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Link from "next/link";
 import { followKey, parseFollows, readFollowsFrom } from "@/lib/follows";
-import { resolveFollows } from "@/lib/entitySearch";
+import { resolveAllFollows } from "@/lib/competitions";
 import { fetchFollowingArticles } from "@/lib/myFeed";
 import { FollowManager } from "@/components/FollowManager";
 import { ArticleRow } from "@/components/ArticleRow";
@@ -23,7 +23,7 @@ export const metadata = {
 export default async function ForYouPage({ searchParams }: { searchParams: Promise<{ only?: string }> }) {
   const [store, { only }] = await Promise.all([cookies(), searchParams]);
   const refs = readFollowsFrom((name) => store.get(name)?.value);
-  const entities = resolveFollows(refs);
+  const entities = await resolveAllFollows(refs);
   // ?only=club:arsenal narrows the feed to one follow (the filter chips in
   // FollowManager). Ignored unless it's something the visitor actually
   // follows — an unfollowed or stale value just shows everything.

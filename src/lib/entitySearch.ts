@@ -110,29 +110,40 @@ function toResult(entry: CatalogEntry): EntityResult {
 
 // Word-prefix matching, scored so the most natural hit wins: "ars" ranks
 // Arsenal (name starts with it) above anything that merely contains a word
-// starting with it. No substring-anywhere matching — "ma" shouldn't surface
-// every name with "ma" buried mid-word.
-function score(entry: CatalogEntry, q: string): number {
+// starting with it. A match may start at any word boundary and span words
+// ("west indies" finds "India vs West Indies • ODI"), but never mid-word —
+// "ma" shouldn't surface every name with "ma" buried inside a word.
+export function scoreHaystack(haystack: string[], q: string): number {
   let best = 0;
-  entry.haystack.forEach((text, i) => {
+  haystack.forEach((text, i) => {
     const isName = i === 0;
     if (text === q) best = Math.max(best, isName ? 100 : 90);
     else if (text.startsWith(q)) best = Math.max(best, isName ? 80 : 60);
-    else if (text.split(/[\s-]+/).some((word) => word.startsWith(q))) best = Math.max(best, isName ? 50 : 40);
+    else if ((" " + text.replace(/[\s-]+/g, " ")).includes(" " + q)) best = Math.max(best, isName ? 50 : 40);
   });
   return best;
 }
 
 export const MIN_QUERY_LENGTH = 2;
 
-export function searchEntities(query: string, limit = 6): EntityResult[] {
+// Something searchable that isn't in the static catalog — today, active
+// competitions from competitions.ts, which come from the database.
+export interface ExtraSearchItem {
+  entity: EntityResult;
+  haystack: string[];
+}
+
+export function searchEntities(query: string, limit = 6, extra: ExtraSearchItem[] = []): EntityResult[] {
   const q = normalizeForSearch(query);
   if (q.length < MIN_QUERY_LENGTH) return [];
-  return CATALOG.map((entry) => ({ entry, s: score(entry, q) }))
+  return [
+    ...CATALOG.map((entry) => ({ entity: toResult(entry), s: scoreHaystack(entry.haystack, q) })),
+    ...extra.map((item) => ({ entity: item.entity, s: scoreHaystack(item.haystack, q) })),
+  ]
     .filter(({ s }) => s > 0)
-    .sort((a, b) => b.s - a.s || a.entry.name.length - b.entry.name.length)
+    .sort((a, b) => b.s - a.s || a.entity.name.length - b.entity.name.length)
     .slice(0, limit)
-    .map(({ entry }) => toResult(entry));
+    .map(({ entity }) => entity);
 }
 
 // Drops anything not in the real catalogs — a cookie or query param can

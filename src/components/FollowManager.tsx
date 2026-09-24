@@ -71,7 +71,8 @@ export function FollowManager({ initialEntities, activeKey }: { initialEntities:
     .map((ref) => known.get(followKey(ref)))
     .filter((e): e is EntityResult => Boolean(e));
 
-  const suggestions = query.trim().length >= 2 ? data?.entities ?? [] : data?.popular ?? [];
+  // Empty box: competitions running now first, then the fixed popular list.
+  const suggestions = query.trim().length >= 2 ? data?.entities ?? [] : [...(data?.live ?? []), ...(data?.popular ?? [])];
 
   return (
     <Box sx={{ mb: 3 }}>
@@ -127,13 +128,13 @@ export function FollowManager({ initialEntities, activeKey }: { initialEntities:
             <InputBase
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Find a team, player, country or sport"
+              placeholder="Find a team, player, competition or sport"
               sx={{ flex: 1, fontSize: 15 }}
               inputProps={{ "aria-label": "Find something to follow" }}
             />
           </Box>
           <Typography sx={{ fontSize: 12, fontWeight: 600, color: "text.secondary", mb: 0.5 }}>
-            {query.trim().length >= 2 ? "Results" : "Popular"}
+            {query.trim().length >= 2 ? "Results" : "Happening now and popular"}
           </Typography>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, columnGap: 2 }}>
             {suggestions.map((e) => (

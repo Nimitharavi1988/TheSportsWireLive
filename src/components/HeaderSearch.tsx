@@ -70,7 +70,7 @@ function highlight(text: string, query: string): ReactNode {
 
 type Item =
   | { type: "recent"; query: string; href: string }
-  | { type: "entity"; entity: EntityResult; href: string }
+  | { type: "entity"; entity: EntityResult; href: string; group?: "live" }
   | { type: "story"; story: SuggestStory; href: string }
   | { type: "all"; href: string };
 
@@ -116,7 +116,8 @@ function SearchPanel({
   });
 
   const recentItems = items.map((it, i) => ({ it, i })).filter(({ it }) => it.type === "recent");
-  const entityItems = items.map((it, i) => ({ it, i })).filter(({ it }) => it.type === "entity");
+  const liveItems = items.map((it, i) => ({ it, i })).filter(({ it }) => it.type === "entity" && it.group === "live");
+  const entityItems = items.map((it, i) => ({ it, i })).filter(({ it }) => it.type === "entity" && it.group !== "live");
   const storyItems = items.map((it, i) => ({ it, i })).filter(({ it }) => it.type === "story");
   const allIndex = items.findIndex((it) => it.type === "all");
   const isEmptyQuery = query.trim().length < MIN_QUERY;
@@ -154,10 +155,13 @@ function SearchPanel({
         </>
       )}
 
-      {entityItems.length > 0 && (
-        <>
-          <Typography sx={SECTION_LABEL_SX}>{isEmptyQuery ? "Popular" : "Teams, players and sports"}</Typography>
-          {entityItems.map(({ it, i }) => it.type === "entity" && (
+      {[
+        { label: "Happening now", rows: liveItems },
+        { label: isEmptyQuery ? "Popular" : "Teams, players and competitions", rows: entityItems },
+      ].map((section) => section.rows.length > 0 && (
+        <Box key={section.label}>
+          <Typography sx={SECTION_LABEL_SX}>{section.label}</Typography>
+          {section.rows.map(({ it, i }) => it.type === "entity" && (
             <Box key={`${it.entity.kind}:${it.entity.slug}`} id={optionId(i)} role="option" aria-selected={i === activeIndex} sx={{ ...rowSx(i), py: 0.75 }}>
               <Box
                 component={Link}
@@ -174,8 +178,8 @@ function SearchPanel({
               <FollowButton kind={it.entity.kind} slug={it.entity.slug} name={it.entity.name} />
             </Box>
           ))}
-        </>
-      )}
+        </Box>
+      ))}
 
       {storyItems.length > 0 && (
         <>
@@ -209,7 +213,7 @@ function SearchPanel({
 
       {!isEmptyQuery && hasData && entityItems.length === 0 && storyItems.length === 0 && !loading && (
         <Typography sx={{ fontSize: 14, color: "text.secondary", px: 1.5, py: 2 }}>
-          No quick matches for &ldquo;{query.trim()}&rdquo;. Try a team, player or sport.
+          No quick matches for &ldquo;{query.trim()}&rdquo;. Try a team, player, competition or sport.
         </Typography>
       )}
       {!isEmptyQuery && !hasData && (
@@ -259,6 +263,7 @@ function SearchBox({ variant, onClose }: { variant: "popover" | "dialog"; onClos
     if (isEmptyQuery) {
       return [
         ...recent.map((q): Item => ({ type: "recent", query: q, href: searchHref(q) })),
+        ...(data?.live ?? []).map((entity): Item => ({ type: "entity", entity, href: entity.href, group: "live" })),
         ...(data?.popular ?? []).map((entity): Item => ({ type: "entity", entity, href: entity.href })),
       ];
     }

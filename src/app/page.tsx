@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { article as articleTable } from "@/db/schema";
 import { and, eq, like, isNotNull, isNull, ne, or, desc, gte } from "drizzle-orm";
 import { ForYouStrip } from "@/components/ForYouStrip";
+import { HappeningNow } from "@/components/HappeningNow";
+import { competitionToEntity, getActiveCompetitions } from "@/lib/competitions";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import Link from "next/link";
 import Image from "next/image";
@@ -52,8 +54,6 @@ import ScoreboardIcon from "@mui/icons-material/Scoreboard";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import ArticleIcon from "@mui/icons-material/Article";
 import SportsFootballIcon from "@mui/icons-material/SportsFootball";
-import SportsCricketIcon from "@mui/icons-material/SportsCricket";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 // Main-column section headers (Player News, Transfers & Big News, etc.) were
 // using the theme's default h5 styling — Poppins, near-black — while the
@@ -394,7 +394,7 @@ export default async function HomePage(
   // decision was silently getting overridden by a score cutoff instead of
   // actually taking priority. Capped at 5 (the same cap `featureArticle`
   // itself enforces), so this can never balloon the query.
-  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeSeriesRow, justInRaw, highlightCandidatesRaw, matchCandidatesRaw] = await Promise.all([
+  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeCompetitions, justInRaw, highlightCandidatesRaw, matchCandidatesRaw] = await Promise.all([
     db.select().from(articleTable)
       .where(and(...baseConditions))
       .orderBy(desc(articleTable.trendingScore), desc(articleTable.publishedAt))
@@ -411,19 +411,19 @@ export default async function HomePage(
     // wrong/out of place, same rule /scores follows for its own in-progress
     // section — and to "All" when no filter is set.
     fetchLiveMatches(30, category),
-    // The single most recently active cricket series (cricketSeries.ts),
-    // for a discovery banner under the hero — no permanent nav item for
-    // this (same reasoning as the World Cup nav exclusion above: a series
-    // runs for a couple of weeks then goes quiet, so a fixed link would sit
-    // empty most of the time; /series stays reachable via the footer).
-    category === undefined || category === "cricket"
-      ? db.select({ seriesKey: articleTable.seriesKey, seriesLabel: articleTable.seriesLabel })
-          .from(articleTable)
-          .where(and(isNotNull(articleTable.seriesKey), eq(articleTable.status, "published")))
-          .orderBy(desc(articleTable.publishedAt))
-          .limit(1)
-          .then((rows) => rows[0] ?? null)
-      : Promise.resolve(null),
+    // Every competition with fresh coverage (competitions.ts) for the
+    // "Happening now" row under the hero. Replaced a single "most recent
+    // cricket series" banner that could only show one of several series/
+    // events running at once. A sport filter narrows it to that sport's
+    // competitions (multi-sport events like the Asian Games only show on
+    // "All"). No permanent nav item per competition: each runs for a couple
+    // of weeks then goes quiet; /series lists them all.
+    getActiveCompetitions().then((all) =>
+      all
+        .filter((c) => !category || c.category === category.split("/")[0])
+        .slice(0, 8)
+        .map(competitionToEntity)
+    ),
     // Independent pure-recency query for "Just In" below — deriving this
     // from `articlesRanked` (trending-sorted, LIMIT 80) instead used to
     // silently cap "newest" at whatever happened to also be inside that
@@ -1105,29 +1105,7 @@ export default async function HomePage(
         )}
 
         <Box component="main" sx={{ minWidth: 0 }}>
-          {activeSeriesRow?.seriesKey && (
-            <Link href={`/series/${activeSeriesRow.seriesKey}`} style={{ textDecoration: "none", color: "inherit" }}>
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: 1.5,
-                  mb: 3,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1.25,
-                  borderColor: "primary.main",
-                  transition: "background-color 0.15s",
-                  "&:hover": { bgcolor: "action.hover" },
-                }}
-              >
-                <SportsCricketIcon sx={{ color: "primary.main" }} />
-                <Typography variant="body2" sx={{ flex: 1, fontWeight: 600 }}>
-                  All coverage: {activeSeriesRow.seriesLabel}
-                </Typography>
-                <ChevronRightIcon sx={{ color: "text.secondary" }} />
-              </Paper>
-            </Link>
-          )}
+          <HappeningNow competitions={activeCompetitions} />
 
           {playerNewsMatches.length > 0 && (
             <Suspense fallback={<PlayerNewsSkeleton />}>

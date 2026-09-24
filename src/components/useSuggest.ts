@@ -14,6 +14,8 @@ export interface SuggestStory {
 export interface SuggestResponse {
   entities: EntityResult[];
   stories: SuggestStory[];
+  // Competitions running now (empty query only).
+  live?: EntityResult[];
   popular: EntityResult[];
 }
 
@@ -23,7 +25,7 @@ const cache = new Map<string, SuggestResponse>();
 // Every entity any suggestion response has returned this session — lets
 // FollowManager label a just-followed team before its page refresh lands.
 export function entitiesSeenInSuggestions(): EntityResult[] {
-  return [...cache.values()].flatMap((r) => [...r.entities, ...r.popular]);
+  return [...cache.values()].flatMap((r) => [...r.entities, ...(r.live ?? []), ...r.popular]);
 }
 
 // Debounced fetch of /api/search/suggest. Keeps showing the last response

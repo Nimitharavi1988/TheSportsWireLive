@@ -1,8 +1,9 @@
 import { db } from "@/db";
 import { article } from "@/db/schema";
-import { and, eq, or, like, desc, type SQL } from "drizzle-orm";
+import { and, eq, or, like, desc, inArray, type SQL } from "drizzle-orm";
 import { titleMatchesAnyTerm } from "./titleMatch";
 import { followMatchers } from "./entitySearch";
+import { resolveCompetitionEntities } from "./competitions";
 import { parseFollows, type FollowRef } from "./follows";
 import { isSelectableSport } from "./preferences";
 
@@ -40,7 +41,12 @@ function escapeRegex(value: string): string {
 export async function fetchFollowingArticles(refs: FollowRef[], limit = 30): Promise<MyFeedArticle[]> {
   const matchers = followMatchers(refs);
   const allTerms = matchers.titleTerms.flatMap((m) => m.terms);
+  // Competitions match on the exact seriesKey the ingestion pipeline
+  // assigned, not on headline words.
+  const seriesKeys = refs.filter((r) => r.kind === "series").map((r) => r.slug);
+  const competitions = await resolveCompetitionEntities(seriesKeys);
   const conditions: SQL[] = [
+    ...(seriesKeys.length > 0 ? [inArray(article.seriesKey, seriesKeys)] : []),
     ...(allTerms.length > 0 ? [titleMatchesAnyTerm(allTerms)] : []),
     // Prefix match so "football" also catches "football/world-cup" rows,
     // same as the homepage's own category filter.
@@ -60,6 +66,7 @@ export async function fetchFollowingArticles(refs: FollowRef[], limit = 30): Pro
       heroImageCreditUrl: article.heroImageCreditUrl,
       homeCrestUrl: article.homeCrestUrl,
       awayCrestUrl: article.awayCrestUrl,
+      seriesKey: article.seriesKey,
     })
     .from(article)
     .where(and(eq(article.status, "published"), or(...conditions)))
@@ -72,9 +79,10 @@ export async function fetchFollowingArticles(refs: FollowRef[], limit = 30): Pro
     name: m.name,
     pattern: new RegExp(`\\b(${m.terms.map(escapeRegex).join("|")})\\b`, "i"),
   }));
-  return rows.map((row) => ({
+  return rows.map(({ seriesKey, ...row }) => ({
     ...row,
     matchedFollows: [
+      ...(seriesKey && competitions.has(seriesKey) ? [competitions.get(seriesKey)!.name] : []),
       ...termPatterns.filter((t) => t.pattern.test(row.title)).map((t) => t.name),
       ...matchers.categories.filter((m) => row.category.startsWith(m.category)).map((m) => m.name),
     ],

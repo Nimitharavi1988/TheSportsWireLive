@@ -3,18 +3,23 @@ import { db } from "@/db";
 import { article } from "@/db/schema";
 import { and, eq, sql, desc } from "drizzle-orm";
 import { MIN_QUERY_LENGTH, buildPrefixTsQuery, popularEntities, searchEntities } from "@/lib/entitySearch";
+import { activeCompetitionEntities, competitionSearchItems } from "@/lib/competitions";
 
 const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" };
 
 export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get("q") ?? "").trim().slice(0, 80);
 
-  // Empty box: the "Popular" starting list instead of a blank dropdown.
+  // Empty box: competitions running now, then the fixed "Popular" list,
+  // instead of a blank dropdown.
   if (q.length < MIN_QUERY_LENGTH) {
-    return NextResponse.json({ entities: [], stories: [], popular: popularEntities() }, { headers: CACHE_HEADERS });
+    return NextResponse.json(
+      { entities: [], stories: [], live: await activeCompetitionEntities(4), popular: popularEntities() },
+      { headers: CACHE_HEADERS }
+    );
   }
 
-  const entities = searchEntities(q, 5);
+  const entities = searchEntities(q, 5, await competitionSearchItems());
   const parts = buildPrefixTsQuery(q);
   // See buildPrefixTsQuery for why the last word uses the simple config.
   const lastWord = parts && sql`(to_tsquery('simple', ${parts.partial + ":*"}) || to_tsquery('english', ${parts.partial}))`;
@@ -28,5 +33,5 @@ export async function GET(req: NextRequest) {
         .limit(5)
     : [];
 
-  return NextResponse.json({ entities, stories, popular: [] }, { headers: CACHE_HEADERS });
+  return NextResponse.json({ entities, stories, live: [], popular: [] }, { headers: CACHE_HEADERS });
 }

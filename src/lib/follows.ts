@@ -22,7 +22,7 @@ export const FOLLOWS_COOKIE = "swl_follows";
 export const FOLLOWS_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year, matches preferences.ts
 export const FOLLOWS_CHANGED_EVENT = "swl:follows-changed";
 
-export const FOLLOW_KINDS = ["club", "player", "country", "sport"] as const;
+export const FOLLOW_KINDS = ["club", "player", "country", "sport", "series"] as const;
 export type FollowKind = (typeof FOLLOW_KINDS)[number];
 
 export interface FollowRef {

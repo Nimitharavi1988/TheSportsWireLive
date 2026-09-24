@@ -17,6 +17,10 @@ describe("parseFollows", () => {
     expect(parseFollows(encodeURIComponent("club:arsenal,sport:cricket"))).toHaveLength(2);
   });
 
+  it("accepts series follows", () => {
+    expect(parseFollows("series:asian-games-2026")).toEqual([{ kind: "series", slug: "asian-games-2026" }]);
+  });
+
   it("drops unknown kinds, bad slugs and duplicates", () => {
     expect(parseFollows("team:arsenal,club:Arsenal,club:a b,club:arsenal,club:arsenal,:x,club:")).toEqual([
       { kind: "club", slug: "arsenal" },

@@ -34,6 +34,7 @@ import SportsVolleyballIcon from "@mui/icons-material/SportsVolleyball";
 import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
+import EventIcon from "@mui/icons-material/Event";
 import type { SvgIconComponent } from "@mui/icons-material";
 
 // World Cup is deliberately not a permanent nav item — it only runs every
@@ -83,6 +84,9 @@ const MORE_SPORTS_LINKS: { href: string; label: string; category: string | null;
   { href: "/?category=basketball", label: "NBA", category: "basketball", icon: SportsBasketballIcon },
   { href: "/?category=baseball", label: "MLB", category: "baseball", icon: SportsBaseballIcon },
   { href: "/standings", label: "Standings", category: null, icon: EmojiEventsIcon },
+  // All series and events (Asian Games, bilateral cricket series, IPL) —
+  // was footer-only; the homepage "Happening now" row covers active ones.
+  { href: "/series", label: "Series & Events", category: null, icon: EventIcon },
   { href: "/?category=rugby", label: "Rugby", category: "rugby", icon: SportsRugbyIcon },
   { href: "/?category=athletics", label: "Athletics", category: "athletics", icon: DirectionsRunIcon },
   { href: "/?category=hockey", label: "NHL", category: "hockey", icon: SportsHockeyIcon },
@@ -122,7 +126,8 @@ function NavLinks() {
   // nothing actually selected from it.
   const isMoreActive =
     (pathname === "/" && MORE_SPORTS_LINKS.some((l) => l.category !== null && l.category === activeCategory)) ||
-    pathname === "/standings";
+    pathname.startsWith("/standings") ||
+    pathname.startsWith("/series");
 
   // Confirmed live (real mouse, not simulated): MUI's Menu/Popover renders
   // via a React Portal, so the trigger and the dropdown live in different

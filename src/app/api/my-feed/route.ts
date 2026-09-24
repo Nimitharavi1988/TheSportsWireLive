@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFollowingArticles, parseFollowsParams } from "@/lib/myFeed";
-import { resolveFollows } from "@/lib/entitySearch";
+import { resolveAllFollows } from "@/lib/competitions";
 
 // Deliberately a client-fetched API route, not a cookie-read inside the
 // homepage server component itself — page.tsx's `/` has `export const
@@ -18,7 +18,7 @@ import { resolveFollows } from "@/lib/entitySearch";
 export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams;
   const refs = parseFollowsParams(params.get("follows"), params.get("sports"));
-  const entities = resolveFollows(refs);
+  const entities = await resolveAllFollows(refs);
   if (entities.length === 0) return NextResponse.json({ entities: [], articles: [] });
 
   const limit = Math.min(Math.max(Number(params.get("limit")) || 12, 1), 30);
