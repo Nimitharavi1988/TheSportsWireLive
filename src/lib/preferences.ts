@@ -3,14 +3,24 @@
  * has no public user accounts, see voterCookie.ts's own comment). Stored in
  * a plain (NOT httpOnly, unlike voterCookie.ts's swl_voter_id) cookie so the
  * client component can write it directly via document.cookie with no API
- * round-trip, while the homepage server component still reads it on the
- * next request -- that's what makes the homepage "already personalized" the
- * moment a returning visitor lands, not just after client JS re-runs.
+ * round-trip.
+ *
+ * The homepage server component (page.tsx) deliberately does NOT read this
+ * cookie -- an earlier version did, and a real production build caught the
+ * problem: page.tsx has `export const revalidate = 60` (ISR, cached at
+ * Cloudflare's edge), and reading a per-visitor cookie inside it would risk
+ * one visitor's personalized render being cached and served to a different
+ * visitor. Personalization instead renders client-side, a beat after the
+ * rest of the (still fully cached) page: MyFeedPicker reads this cookie in
+ * the browser and fetches /api/my-feed itself. See that route's own comment
+ * for the full reasoning.
  *
  * Shared constants only in this file (no `next/headers` import) so it's
  * safe to import from both server components (page.tsx) and the "use
  * client" picker component -- next/headers can't be bundled into client
- * code at all.
+ * code at all. (No server component currently reads FAVORITE_SPORTS_COOKIE
+ * for exactly the reason above, but the constant stays shared in case a
+ * future, genuinely dynamic route wants it.)
  */
 import { categoryChipStyle } from "./categoryDisplay";
 
