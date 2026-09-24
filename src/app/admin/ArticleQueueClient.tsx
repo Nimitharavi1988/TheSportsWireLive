@@ -83,7 +83,13 @@ export interface QueueArticle {
   createdAt: Date;
   publishedAt: Date | null;
   poll: { id: string; question: string; options: { id: string; text: string }[] } | null;
-  socialPosts: { platform: "facebook" | "x" | "instagram"; status: "queued" | "posted" | "failed"; errorMessage: string | null; externalPostId: string | null }[];
+  // "push" added 2026-09-24 (automated breaking-news push notifications,
+  // see autoApprove.ts) — not surfaced anywhere in this queue UI
+  // (SocialPostButton below only ever looks up "facebook"/"instagram"
+  // explicitly), but real rows with this platform now exist, so the type
+  // has to admit them or every query pulling raw socialPosts rows fails to
+  // typecheck.
+  socialPosts: { platform: "facebook" | "x" | "instagram" | "push"; status: "queued" | "posted" | "failed"; errorMessage: string | null; externalPostId: string | null }[];
 }
 
 const SOCIAL_LABEL: Record<"facebook" | "instagram", string> = { facebook: "Facebook", instagram: "Instagram" };

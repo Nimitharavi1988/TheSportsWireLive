@@ -1,11 +1,14 @@
 import { db } from "@/db";
 import { article, socialPost } from "@/db/schema";
 import { eq, and, inArray, gte, lt, count, desc } from "drizzle-orm";
+import { createId } from "@paralleldrive/cuid2";
 import { submitToIndexNow, articleUrl } from "../indexNow";
 import { isMatchDataSource } from "../matchDataSources";
 import { isHighlightWorthy } from "../highlightWorthy";
+import { isPushWorthy } from "../pushWorthy";
 import { postArticleToFacebook } from "../social/facebook";
 import { postInstagramPoster } from "../social/postInstagramPoster";
+import { sendPushToAllSubscribers } from "../push";
 import { isSimilarToAny } from "../titleSimilarity";
 import { MIN_BODY_LENGTH, MIN_MATCH_DATA_BODY_LENGTH, hasRealImage, isAutoApprovable } from "../contentQuality";
 
@@ -54,6 +57,14 @@ const MIN_FACEBOOK_POSTS_PER_RUN = 5;
 // each post travels — a soft, unmeasurable-in-advance risk, which is why
 // this is a modest bump rather than a much larger one.
 const MAX_FACEBOOK_POSTS_PER_DAY = 260;
+// Automated push notifications (see sendAutomatedPushNotifications below) —
+// deliberately tiny compared to every other daily cap here. This channel
+// interrupts a subscriber's phone directly (see push.ts's own comment on
+// why it was manual-only until now); the real cap on "how newsworthy" is
+// isPushWorthy's own narrow bar, not this number, but a hard ceiling stays
+// as a safety net regardless of how many articles happen to clear that bar
+// on an unusually eventful day.
+const MAX_PUSH_NOTIFICATIONS_PER_DAY = 3;
 // Confirmed live against this account's own quota (GET
 // /{ig-user-id}/content_publishing_limit on 2026-09-15): quota_total is 100
 // posts per rolling 24-hour window, not the commonly-cited-but-outdated 25,
@@ -543,7 +554,50 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     }
   }
 
+  await sendAutomatedPushNotifications(toApprove);
+
   return { checked: candidates.length, approved: toApprove.length };
+}
+
+// Automated breaking-news push notifications — explicit request 2026-09-24,
+// deliberately built as a MUCH narrower bar than the Facebook/Instagram
+// selection above (see pushWorthy.ts's own comment for why isPushWorthy
+// requires both a genuinely major event type and a tracked superstar name,
+// not just isHighlightWorthy). Only ever considers `toApprove` — articles
+// freshly published THIS run — not the 3-day backlog pool Facebook/
+// Instagram draw from; a notification about news from days ago reads as
+// stale in a way a Facebook post never does, and since these are
+// guaranteed newly-published-this-run, there's no possibility of a prior
+// "push" SocialPost row for them (unlike Facebook/Instagram's backlog pool,
+// which needs an explicit already-posted check).
+async function sendAutomatedPushNotifications(toApprove: { id: string; slug: string; title: string }[]): Promise<void> {
+  const pushWorthyArticles = toApprove.filter((a) => isPushWorthy(a.title));
+  if (pushWorthyArticles.length === 0) return;
+
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const [{ value: pushedToday }] = await db.select({ value: count() }).from(socialPost)
+    .where(and(eq(socialPost.platform, "push"), eq(socialPost.status, "posted"), gte(socialPost.createdAt, todayStart)));
+  let remainingToday = Math.max(0, MAX_PUSH_NOTIFICATIONS_PER_DAY - pushedToday);
+
+  for (const article of pushWorthyArticles) {
+    if (remainingToday <= 0) break;
+
+    const [row] = await db.insert(socialPost)
+      .values({ id: createId(), articleId: article.id, platform: "push", status: "queued" })
+      .returning();
+    try {
+      const { sent, failed } = await sendPushToAllSubscribers(article);
+      await db.update(socialPost).set({ status: "posted", postedAt: new Date() }).where(eq(socialPost.id, row.id));
+      console.log(`[push] sent for article ${article.id} ("${article.title.slice(0, 60)}") sent=${sent} failed=${failed}`);
+      remainingToday--;
+    } catch (err) {
+      await db.update(socialPost)
+        .set({ status: "failed", errorMessage: err instanceof Error ? err.message : String(err) })
+        .where(eq(socialPost.id, row.id));
+      console.error("Automated push notification failed for article", article.id, err);
+    }
+  }
 }
 
 // A pending_review article missing a real image isn't necessarily dead on
