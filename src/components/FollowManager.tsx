@@ -134,7 +134,7 @@ export function FollowManager({ initialEntities, activeKey }: { initialEntities:
             />
           </Box>
           <Typography sx={{ fontSize: 12, fontWeight: 600, color: "text.secondary", mb: 0.5 }}>
-            {query.trim().length >= 2 ? "Results" : "Happening now and popular"}
+            {query.trim().length >= 2 ? "Results" : "Series, events and popular"}
           </Typography>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, columnGap: 2 }}>
             {suggestions.map((e) => (

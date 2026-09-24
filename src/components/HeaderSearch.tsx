@@ -156,7 +156,7 @@ function SearchPanel({
       )}
 
       {[
-        { label: "Happening now", rows: liveItems },
+        { label: "Series & events", rows: liveItems },
         { label: isEmptyQuery ? "Popular" : "Teams, players and competitions", rows: entityItems },
       ].map((section) => section.rows.length > 0 && (
         <Box key={section.label}>

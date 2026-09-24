@@ -4,7 +4,7 @@ import { article as articleTable } from "@/db/schema";
 import { and, eq, like, isNotNull, isNull, ne, or, desc, gte } from "drizzle-orm";
 import { ForYouStrip } from "@/components/ForYouStrip";
 import { HappeningNow } from "@/components/HappeningNow";
-import { competitionToEntity, getActiveCompetitions } from "@/lib/competitions";
+import { happeningNowEntities } from "@/lib/competitions";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import Link from "next/link";
 import Image from "next/image";
@@ -411,19 +411,14 @@ export default async function HomePage(
     // wrong/out of place, same rule /scores follows for its own in-progress
     // section — and to "All" when no filter is set.
     fetchLiveMatches(30, category),
-    // Every competition with fresh coverage (competitions.ts) for the
+    // Competitions being played now (competitions.ts isHappeningNow) for the
     // "Happening now" row under the hero. Replaced a single "most recent
     // cricket series" banner that could only show one of several series/
     // events running at once. A sport filter narrows it to that sport's
     // competitions (multi-sport events like the Asian Games only show on
     // "All"). No permanent nav item per competition: each runs for a couple
     // of weeks then goes quiet; /series lists them all.
-    getActiveCompetitions().then((all) =>
-      all
-        .filter((c) => !category || c.category === category.split("/")[0])
-        .slice(0, 8)
-        .map(competitionToEntity)
-    ),
+    happeningNowEntities(8, category),
     // Independent pure-recency query for "Just In" below — deriving this
     // from `articlesRanked` (trending-sorted, LIMIT 80) instead used to
     // silently cap "newest" at whatever happened to also be inside that

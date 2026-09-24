@@ -17,7 +17,7 @@ import { db } from "@/db";
 import { article } from "@/db/schema";
 import { and, count, desc, eq, gt, inArray, isNotNull, max, min, sql } from "drizzle-orm";
 import { normalizeForSearch, resolveFollows, type EntityResult, type ExtraSearchItem } from "./entitySearch";
-import { competitionToEntity, type CompetitionFields } from "./competitionEntity";
+import { competitionToEntity, isHappeningNow, type CompetitionFields } from "./competitionEntity";
 
 export { competitionToEntity };
 import { followKey, type FollowRef } from "./follows";
@@ -27,6 +27,8 @@ const CACHE_MS = 5 * 60 * 1000;
 
 export interface Competition extends CompetitionFields {
   storyCount: number;
+  // Stories in the last 7 days — feeds isHappeningNow for bilateral series.
+  recentCount: number;
   lastPublishedAt: Date | null;
 }
 
@@ -41,6 +43,7 @@ export async function getActiveCompetitions(): Promise<Competition[]> {
       key: article.seriesKey,
       label: article.seriesLabel,
       storyCount: count(),
+      recentCount: sql<number>`count(*) filter (where ${article.publishedAt} > now() - interval '7 days')`,
       lastPublishedAt: max(article.publishedAt),
       categories: sql<number>`count(distinct ${article.category})`,
       category: min(article.category),
@@ -60,6 +63,7 @@ export async function getActiveCompetitions(): Promise<Competition[]> {
           key: r.key,
           label: r.label,
           storyCount: Number(r.storyCount),
+          recentCount: Number(r.recentCount),
           lastPublishedAt: r.lastPublishedAt,
           // Top-level sport only: "football/world-cup" counts as football.
           category: Number(r.categories) === 1 && r.category ? r.category.split("/")[0] : null,
@@ -79,8 +83,18 @@ export async function competitionSearchItems(): Promise<ExtraSearchItem[]> {
   }));
 }
 
-export async function activeCompetitionEntities(limit: number): Promise<EntityResult[]> {
-  return (await getActiveCompetitions()).slice(0, limit).map(competitionToEntity);
+// Competitions actually being played now (see isHappeningNow) — a subset of
+// the active (searchable) ones. Optionally narrowed to one sport; multi-
+// sport events have no single category, so they only show unfiltered.
+export async function getHappeningNow(category?: string): Promise<Competition[]> {
+  const now = new Date();
+  return (await getActiveCompetitions()).filter(
+    (c) => isHappeningNow(c, now) && (!category || c.category === category.split("/")[0])
+  );
+}
+
+export async function happeningNowEntities(limit: number, category?: string): Promise<EntityResult[]> {
+  return (await getHappeningNow(category)).slice(0, limit).map(competitionToEntity);
 }
 
 // Labels for followed competitions, including ones no longer active.

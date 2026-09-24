@@ -28,8 +28,14 @@ import { TRACKED_CLUBS } from "../clubs";
  * next real multi-sport event — a Commonwealth Games, an Olympics — rather
  * than special-casing detection per event.
  */
-const EVENTS: { match: RegExp; key: string; label: string }[] = [
-  { match: /\bAsian Games\b/i, key: "asian-games-2026", label: "Asian Games 2026" },
+// `season` (inclusive ISO dates) is when the event is actually being
+// played — it decides whether the event shows in "Happening now"
+// (competitions.ts). Story volume can't: an evergreen league like IPL gets
+// coaching/auction news all year, so it would always look "live". An event
+// without a season (IPL until next season's dates are confirmed) is still
+// grouped, searchable and followable — it just never shows as happening.
+const EVENTS: { match: RegExp; key: string; label: string; season?: { start: string; end: string } }[] = [
+  { match: /\bAsian Games\b/i, key: "asian-games-2026", label: "Asian Games 2026", season: { start: "2026-09-19", end: "2026-10-04" } },
   // Deliberately evergreen (no season year in the key/label), unlike the
   // Asian Games above — IPL isn't a fixed-window event the way a Games
   // ceremony is. Confirmed live 2026-09-20: real IPL coverage (Chennai
@@ -43,6 +49,13 @@ const EVENTS: { match: RegExp; key: string; label: string }[] = [
   // and "discipline".
   { match: /\bIPL\b/i, key: "ipl", label: "IPL" },
 ];
+
+// null = not an EVENTS key (e.g. a bilateral cricket series from
+// cricketSeries.ts); otherwise the event's season, if one is set.
+export function eventSeason(key: string): { season?: { start: string; end: string } } | null {
+  const event = EVENTS.find((e) => e.key === key);
+  return event ? { season: event.season } : null;
+}
 
 export function detectEventSeries(title: string): SeriesInfo | null {
   for (const event of EVENTS) {

@@ -87,3 +87,25 @@ describe("detectSeriesFromTitle", () => {
     expect(detectSeriesFromTitle("Guyana Amazon Warriors vs Trinbago Knight Riders, 33rd Match, CPL")).toBeNull();
   });
 });
+
+describe("detectSeriesFromTitle — rankings headlines", () => {
+  it("does not turn a rankings story into a series", () => {
+    expect(detectSeriesFromTitle("Latest ICC men's T20I rankings: India displace England to reclaim No.1 spot after Japan thrashing")).toBeNull();
+    expect(detectSeriesFromTitle("England replaces India as World No.1 T20I team after sealing 3-0 series whitewash vs Sri Lanka")).toBeNull();
+  });
+
+  it("still detects a real series headline", () => {
+    expect(detectSeriesFromTitle("India squad for West Indies ODIs announced: Rohit Sharma, Virat Kohli headline")).not.toBeNull();
+  });
+});
+
+describe("detectSeriesFromTitle — rankings headlines", () => {
+  it("does not turn a rankings story into a series", () => {
+    expect(detectSeriesFromTitle("Latest ICC men's T20I rankings: India displace England to reclaim No.1 spot after Japan thrashing")).toBeNull();
+    expect(detectSeriesFromTitle("England replaces India as World No.1 T20I team after sealing 3-0 series whitewash vs Sri Lanka")).toBeNull();
+  });
+
+  it("still detects a real series headline", () => {
+    expect(detectSeriesFromTitle("India squad for West Indies ODIs announced: Rohit Sharma, Virat Kohli headline")).not.toBeNull();
+  });
+});

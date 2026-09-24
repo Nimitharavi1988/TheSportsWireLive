@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { competitionToEntity } from "./competitionEntity";
+import { competitionToEntity, isHappeningNow } from "./competitionEntity";
 
 describe("competitionToEntity", () => {
   it("formats a bilateral cricket series", () => {
@@ -24,5 +24,24 @@ describe("competitionToEntity", () => {
       subtitle: "Cricket competition",
       initials: "IP",
     });
+  });
+});
+
+describe("isHappeningNow", () => {
+  const during = new Date("2026-09-25T12:00:00Z");
+  const after = new Date("2026-10-10T12:00:00Z");
+
+  it("never counts an event without a season, however busy (IPL off-season news)", () => {
+    expect(isHappeningNow({ key: "ipl", recentCount: 50 }, during)).toBe(false);
+  });
+
+  it("counts an event only within its season dates", () => {
+    expect(isHappeningNow({ key: "asian-games-2026", recentCount: 0 }, during)).toBe(true);
+    expect(isHappeningNow({ key: "asian-games-2026", recentCount: 50 }, after)).toBe(false);
+  });
+
+  it("needs recent volume for a bilateral series", () => {
+    expect(isHappeningNow({ key: "india-vs-west-indies-odi", recentCount: 12 }, during)).toBe(true);
+    expect(isHappeningNow({ key: "india-vs-pakistan-t20i", recentCount: 1 }, during)).toBe(false);
   });
 });

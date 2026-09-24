@@ -2,6 +2,7 @@
 // from the database code so they can be unit-tested without a DB.
 import { categoryChipStyle } from "./categoryDisplay";
 import type { EntityResult } from "./entitySearch";
+import { eventSeason } from "./ingestion/eventTagging";
 
 export interface CompetitionFields {
   key: string;
@@ -36,4 +37,24 @@ export function competitionToEntity(c: CompetitionFields): EntityResult {
     initials: competitionInitials(c.label),
     color: c.category ? categoryChipStyle(c.category).color : "#3d5a73",
   };
+}
+
+// Minimum stories in the last 7 days for a bilateral series to count as
+// happening — below this it's usually a one-off mention (a look-back
+// piece naming an old series), not a series being played.
+export const HAPPENING_MIN_RECENT_STORIES = 3;
+
+// "Happening now" (homepage row, empty search box, For You picker) — a
+// stricter bar than "active" (searchable). Named events (eventTagging.ts)
+// use their season dates, since story volume can't tell an in-season IPL
+// from off-season coaching news; an event with no season set never counts.
+// Everything else (bilateral cricket series) goes by recent volume.
+export function isHappeningNow(c: { key: string; recentCount: number }, now: Date = new Date()): boolean {
+  const event = eventSeason(c.key);
+  if (event) {
+    if (!event.season) return false;
+    const today = now.toISOString().slice(0, 10);
+    return today >= event.season.start && today <= event.season.end;
+  }
+  return c.recentCount >= HAPPENING_MIN_RECENT_STORIES;
 }

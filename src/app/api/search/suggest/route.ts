@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { article } from "@/db/schema";
 import { and, eq, sql, desc } from "drizzle-orm";
 import { MIN_QUERY_LENGTH, buildPrefixTsQuery, popularEntities, searchEntities } from "@/lib/entitySearch";
-import { activeCompetitionEntities, competitionSearchItems } from "@/lib/competitions";
+import { happeningNowEntities, competitionSearchItems } from "@/lib/competitions";
 
 const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" };
 
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   // instead of a blank dropdown.
   if (q.length < MIN_QUERY_LENGTH) {
     return NextResponse.json(
-      { entities: [], stories: [], live: await activeCompetitionEntities(4), popular: popularEntities() },
+      { entities: [], stories: [], live: await happeningNowEntities(4), popular: popularEntities() },
       { headers: CACHE_HEADERS }
     );
   }

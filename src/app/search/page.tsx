@@ -8,7 +8,7 @@ import { FollowButton } from "@/components/FollowButton";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
 import { popularEntities, searchEntities, type EntityResult } from "@/lib/entitySearch";
-import { activeCompetitionEntities, competitionSearchItems } from "@/lib/competitions";
+import { happeningNowEntities, competitionSearchItems } from "@/lib/competitions";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
@@ -73,7 +73,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         .limit(FETCH_LIMIT)
     : [];
   const entities = query ? searchEntities(query, 6, await competitionSearchItems()) : [];
-  const live = query ? [] : await activeCompetitionEntities(4);
+  const live = query ? [] : await happeningNowEntities(4);
 
   const sportCounts = new Map<string, number>();
   for (const row of rows) {
@@ -121,7 +121,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
         {!query && live.length > 0 && (
           <Box sx={{ mb: 3 }}>
-            <Typography sx={{ fontSize: 13, fontWeight: 600, color: "text.secondary", mb: 1 }}>Happening now</Typography>
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: "text.secondary", mb: 1 }}>Series &amp; events</Typography>
             <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}>
               {live.map((e) => <EntityCard key={e.slug} entity={e} />)}
             </Box>

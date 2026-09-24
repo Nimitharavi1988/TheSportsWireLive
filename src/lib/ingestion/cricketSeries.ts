@@ -153,7 +153,15 @@ function findTeamPair(title: string): [string, string] | null {
 // alone — no CricketData.org match-data confirmation required (see the
 // module comment for why that anchor turned out to be unreliable). Used for
 // every cricket-category item, match-data and editorial alike.
+//
+// Rankings headlines name two teams and a format without being about a
+// series between them ("India displace England to reclaim No.1 T20I
+// spot") — confirmed live 2026-09-25: four such stories had created a
+// phantom "England vs India • T20I" series that surfaced on the homepage.
+const RANKINGS_PATTERN = /\brankings?\b|\bno\.?\s?1\b|\bnumber one\b|\btop spot\b/i;
+
 export function detectSeriesFromTitle(title: string): SeriesInfo | null {
+  if (RANKINGS_PATTERN.test(title)) return null;
   const teams = findTeamPair(title);
   if (!teams) return null;
   return deriveSeriesKey(teams[0], teams[1], title);

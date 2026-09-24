@@ -6,19 +6,20 @@ import type { EntityResult } from "@/lib/entitySearch";
 import { EntityAvatar } from "./EntityAvatar";
 import { ScrollRow } from "./ScrollRow";
 
-// Homepage "Happening now" row — every competition with fresh coverage
-// (competitions.ts), replacing the single "All coverage: <latest series>"
+// Homepage "Series & events" row — competitions in play or about to start
+// (competitions.ts isHappeningNow), replacing the single "All coverage: <latest series>"
 // banner, which could only ever show one of several series/events running
-// at the same time (e.g. Asian Games + India vs West Indies ODI + IPL).
+// at the same time. Deliberately not labeled "Happening now"/live: for a
+// bilateral series we only know it's busy in the news (squads, previews,
+// matches), not whether a ball has been bowled yet.
 // Plain <Link> wrappers: this renders inside a server component.
 export function HappeningNow({ competitions }: { competitions: EntityResult[] }) {
   if (competitions.length === 0) return null;
   return (
-    <Box component="section" aria-label="Happening now" sx={{ mb: 3 }}>
+    <Box component="section" aria-label="Series and events" sx={{ mb: 3 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-        <Box aria-hidden sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "error.main" }} />
         <Typography sx={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.3, color: "text.secondary" }}>
-          Happening now
+          Series &amp; events
         </Typography>
         <Link href="/series" style={{ marginLeft: "auto", textDecoration: "none" }}>
           <Typography component="span" sx={{ fontSize: 13, fontWeight: 600, color: "primary.main", display: "flex", alignItems: "center" }}>
