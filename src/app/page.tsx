@@ -1176,7 +1176,13 @@ export default async function HomePage(
                                 style "Match Results & Previews" etc. already use
                                 — this is our own taxonomy, not third-party
                                 attribution, so it's fine (good, even) for
-                                scanning to keep it prominent up here. */}
+                                scanning to keep it prominent up here. Date
+                                moved inline here too (2026-09-24, explicit
+                                request) — was its own line below the title;
+                                now on the top line alongside the category
+                                chip, matching "Match Results & Previews" and
+                                "NFL Scores & Previews" exactly instead of
+                                being the one section styled differently. */}
                             <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
                               <Chip
                                 label={categoryChipStyle(article.category).label}
@@ -1193,15 +1199,15 @@ export default async function HomePage(
                                   color: "warning.contrastText", bgcolor: "warning.main"
                                 }} />
                               )}
+                              {article.publishedAt && (
+                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                  {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                </Typography>
+                              )}
                             </Stack>
                             <Typography variant="h6" component="h2" gutterBottom>
                               {article.title}
                             </Typography>
-                            {article.publishedAt && (
-                              <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                                {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                              </Typography>
-                            )}
                           </Box>
                         </Stack>
                       </CardContent>
