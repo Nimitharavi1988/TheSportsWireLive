@@ -122,12 +122,24 @@ function selectAllRelevantTags(title: string, category: string): string[] {
   return [...new Set(tags)];
 }
 
+// Brand tags, always last. Tapping one shows only our own posts — the one
+// tag that leads back to us rather than into everyone's topic feed — and it
+// always applies, so it fits the "only real signals" rule above. Were in
+// every caption until the repertoire rewrite (974403d, 2026-09-22) dropped
+// them by accident; restored 2026-09-25. Spellings match 0ea23e7: Facebook
+// uses the site name, Instagram matches the @sportswirelivenews handle.
+export const FACEBOOK_BRAND_TAG = "#SportsWireLive";
+export const INSTAGRAM_BRAND_TAG = "#sportsWireLiveNews";
+
+// 2 topic tags + the brand tag, keeping the 3-tag Facebook cap.
 export function selectFacebookHashtags(title: string, category: string): string[] {
-  return selectAllRelevantTags(title, category).slice(0, 3);
+  return [...selectAllRelevantTags(title, category).slice(0, 2), FACEBOOK_BRAND_TAG];
 }
 
 // No artificial minimum/maximum beyond a sane upper bound — see module
-// comment for why padding to hit "10-15" isn't done here.
+// comment for why padding to hit "10-15" isn't done here. Instagram
+// allows 30, so the brand tag is added on top of the topic tags rather
+// than replacing one.
 export function selectInstagramHashtags(title: string, category: string): string[] {
-  return selectAllRelevantTags(title, category).slice(0, 15);
+  return [...selectAllRelevantTags(title, category).slice(0, 15), INSTAGRAM_BRAND_TAG];
 }

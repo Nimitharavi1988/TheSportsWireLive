@@ -56,3 +56,21 @@ describe("selectInstagramHashtags", () => {
     expect(tags).not.toContain("#LeBronJames");
   });
 });
+
+describe("brand hashtags", () => {
+  it("ends every Facebook post with #SportsWireLive, keeping 3 tags", () => {
+    const tags = selectFacebookHashtags("Virat Kohli hits a century in the IPL T20 final", "cricket");
+    expect(tags).toEqual(["#ViratKohli", "#T20Cricket", "#SportsWireLive"]);
+  });
+
+  it("adds the brand tag even for a category with no sport-specific tags", () => {
+    expect(selectFacebookHashtags("Some hockey headline", "hockey").at(-1)).toBe("#SportsWireLive");
+  });
+
+  it("adds #sportsWireLiveNews to Instagram on top of the topic tags", () => {
+    const tags = selectInstagramHashtags("Kylian Mbappé nets a brace for Real Madrid", "football");
+    expect(tags.at(-1)).toBe("#sportsWireLiveNews");
+    expect(tags).toContain("#KylianMbappe");
+    expect(tags.length).toBeLessThanOrEqual(30);
+  });
+});
