@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { db } from "@/db";
 import { article as articleTable } from "@/db/schema";
 import { and, eq, like, isNotNull, isNull, ne, or, desc, gte } from "drizzle-orm";
-import { MyFeedPicker } from "@/components/MyFeedPicker";
+import { ForYouStrip } from "@/components/ForYouStrip";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import Link from "next/link";
 import Image from "next/image";
@@ -785,7 +785,7 @@ export default async function HomePage(
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <HomeBanners />
-      {!category && <MyFeedPicker />}
+      {!category && <ForYouStrip />}
       {articles.length === 0 && (
         <Box sx={{ textAlign: "center", py: 8 }}>
           <Typography variant="h6" gutterBottom>

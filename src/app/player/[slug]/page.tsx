@@ -16,6 +16,7 @@ import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import { displaySummary } from "@/lib/articleSummary";
 import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
+import { FollowButton } from "@/components/FollowButton";
 import { buildBreadcrumbJsonLd } from "@/lib/breadcrumbs";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
@@ -141,6 +142,9 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
                 {articles.length} {articles.length === 1 ? "story" : "stories"} on Sports Wire Live
               </Typography>
+              <Box sx={{ mt: 1.5 }}>
+                <FollowButton kind="player" slug={player.slug} name={player.name} size="medium" />
+              </Box>
             </Box>
           </Stack>
 

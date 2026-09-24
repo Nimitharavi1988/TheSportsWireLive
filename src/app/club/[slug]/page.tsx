@@ -23,6 +23,7 @@ import { ArticleThumb } from "@/components/ArticleThumb";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
 import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
+import { FollowButton } from "@/components/FollowButton";
 import { buildBreadcrumbJsonLd } from "@/lib/breadcrumbs";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
@@ -129,6 +130,9 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
                 {articles.length} {articles.length === 1 ? "story" : "stories"} on Sports Wire Live
               </Typography>
+              <Box sx={{ mt: 1.5 }}>
+                <FollowButton kind="club" slug={club.slug} name={club.name} size="medium" />
+              </Box>
             </Box>
           </Stack>
 

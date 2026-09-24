@@ -1,0 +1,57 @@
+import { cookies } from "next/headers";
+import Container from "@mui/material/Container";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
+import { readFollowsFrom } from "@/lib/follows";
+import { resolveFollows } from "@/lib/entitySearch";
+import { fetchFollowingArticles } from "@/lib/myFeed";
+import { FollowManager } from "@/components/FollowManager";
+import { ArticleRow } from "@/components/ArticleRow";
+
+// Unlike the homepage (ISR-cached, so it must never read a per-visitor
+// cookie — see preferences.ts), this page exists only to be personal, so
+// it renders per request and reads the follows cookie server-side.
+export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: "For You — Your Teams, Players and Sports",
+  description: "The latest stories about the teams, players, countries and sports you follow on Sports Wire Live.",
+  robots: { index: false },
+};
+
+export default async function ForYouPage() {
+  const store = await cookies();
+  const refs = readFollowsFrom((name) => store.get(name)?.value);
+  const entities = resolveFollows(refs);
+  const articles = entities.length > 0 ? await fetchFollowingArticles(refs, 30) : [];
+
+  return (
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Box sx={{ maxWidth: 760 }}>
+        <Typography variant="h4" component="h1" gutterBottom>
+          For You
+        </Typography>
+        <Typography sx={{ color: "text.secondary", mb: 3 }}>
+          {entities.length > 0
+            ? "The latest from everything you follow."
+            : "Follow teams, players, countries or whole sports, and their latest stories will collect here."}
+        </Typography>
+
+        <FollowManager initialEntities={entities} />
+
+        {entities.length > 0 &&
+          (articles.length === 0 ? (
+            <Typography sx={{ color: "text.secondary", py: 5, textAlign: "center" }}>
+              No recent stories for what you follow yet. Try following a few more teams or a whole sport.
+            </Typography>
+          ) : (
+            <Box component="section" aria-label="Your stories">
+              {articles.map((a) => (
+                <ArticleRow key={a.id} article={a} context={a.matchedFollows.join(", ") || null} />
+              ))}
+            </Box>
+          ))}
+      </Box>
+    </Container>
+  );
+}

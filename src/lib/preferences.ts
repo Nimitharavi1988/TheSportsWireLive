@@ -1,4 +1,8 @@
 /**
+ * Superseded by follows.ts (entity-level follows) — this sport-only cookie
+ * is still read as a fallback there, so existing visitors keep their picks,
+ * and SELECTABLE_SPORTS remains the list of followable sports.
+ *
  * "My Feed" sport preferences -- guest-only, no login required (this site
  * has no public user accounts, see voterCookie.ts's own comment). Stored in
  * a plain (NOT httpOnly, unlike voterCookie.ts's swl_voter_id) cookie so the

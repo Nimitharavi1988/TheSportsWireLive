@@ -13,6 +13,7 @@ import { ArticleThumb } from "@/components/ArticleThumb";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
 import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
+import { FollowButton } from "@/components/FollowButton";
 import { buildBreadcrumbJsonLd } from "@/lib/breadcrumbs";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
@@ -109,6 +110,9 @@ export default async function CountryPage({ params }: { params: Promise<{ slug: 
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
                 {articles.length} {articles.length === 1 ? "story" : "stories"} on Sports Wire Live
               </Typography>
+              <Box sx={{ mt: 1.5 }}>
+                <FollowButton kind="country" slug={country.slug} name={country.name} size="medium" />
+              </Box>
             </Box>
           </Stack>
 

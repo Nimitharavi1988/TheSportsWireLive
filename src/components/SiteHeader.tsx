@@ -17,6 +17,7 @@ import Divider from "@mui/material/Divider";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import { ScrollRow } from "./ScrollRow";
+import { HeaderSearch } from "./HeaderSearch";
 import MenuIcon from "@mui/icons-material/Menu";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
@@ -32,7 +33,7 @@ import SportsHockeyIcon from "@mui/icons-material/SportsHockey";
 import SportsVolleyballIcon from "@mui/icons-material/SportsVolleyball";
 import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import SearchIcon from "@mui/icons-material/Search";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
 import type { SvgIconComponent } from "@mui/icons-material";
 
 // World Cup is deliberately not a permanent nav item — it only runs every
@@ -55,6 +56,8 @@ import type { SvgIconComponent } from "@mui/icons-material";
 // here once it's genuinely cross-sport.
 const NAV_LINKS: { href: string; label: string; category: string | null; icon: SvgIconComponent }[] = [
   { href: "/", label: "All", category: null, icon: ViewListIcon },
+  // Personalized feed of followed teams/players/sports (see for-you/page.tsx).
+  { href: "/for-you", label: "For You", category: null, icon: StarBorderIcon },
   { href: "/?category=football", label: "Football", category: "football", icon: SportsSoccerIcon },
   { href: "/?category=cricket", label: "Cricket", category: "cricket", icon: SportsCricketIcon },
   { href: "/?category=american-football", label: "NFL", category: "american-football", icon: SportsFootballIcon },
@@ -168,7 +171,7 @@ function NavLinks() {
   }, [isDesktop]);
 
   const isLinkActive = (link: { href: string; category: string | null }) =>
-    link.href === "/standings" || link.href === "/scores"
+    link.href !== "/" && !link.href.startsWith("/?")
       ? pathname.startsWith(link.href)
       : pathname === "/" && activeCategory === link.category;
 
@@ -474,12 +477,9 @@ export default function SiteHeader() {
         <Suspense fallback={<NavLinksFallback />}>
           <NavLinks />
         </Suspense>
-        {/* Always visible regardless of screen size — unlike the nav links'
-            desktop-strip/mobile-drawer split, a plain route link needs none
-            of that responsive complexity, so it sits outside NavLinks. */}
-        <IconButton component={Link} href="/search" aria-label="Search" sx={{ color: "text.secondary" }}>
-          <SearchIcon />
-        </IconButton>
+        {/* Search icon: popover on desktop, full-screen on phones — see
+            HeaderSearch.tsx. */}
+        <HeaderSearch />
       </Toolbar>
     </AppBar>
   );

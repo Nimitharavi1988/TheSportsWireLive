@@ -1,7 +1,10 @@
 import { db } from "@/db";
 import { article } from "@/db/schema";
-import { and, eq, or, like, desc } from "drizzle-orm";
-import { isSelectableSport, type SelectableSport } from "./preferences";
+import { and, eq, or, like, desc, type SQL } from "drizzle-orm";
+import { titleMatchesAnyTerm } from "./titleMatch";
+import { followMatchers } from "./entitySearch";
+import { parseFollows, type FollowRef } from "./follows";
+import { isSelectableSport } from "./preferences";
 
 export interface MyFeedArticle {
   id: string;
@@ -14,24 +17,38 @@ export interface MyFeedArticle {
   heroImageCreditUrl: string | null;
   homeCrestUrl: string | null;
   awayCrestUrl: string | null;
+  // Names of the followed entities this story matched ("Arsenal", "Cricket")
+  // — shown as the row's context line so it's clear why it's in the feed.
+  matchedFollows: string[];
 }
 
-const MY_FEED_LIMIT = 12;
-
-// Query-string input is client-writable, so this re-validates against the
-// same known-category allowlist parseFavoriteSports uses for the cookie —
-// never trusts the raw strings straight into a LIKE pattern.
-export function parseSportsParam(raw: string | null): SelectableSport[] {
-  if (!raw) return [];
-  return raw.split(",").map((s) => s.trim()).filter(isSelectableSport);
+// Query-string input is client-writable. `follows` is the current format;
+// `sports` is the older My Feed format, still accepted so a cached client
+// bundle from before this change keeps working.
+export function parseFollowsParams(follows: string | null, sports: string | null): FollowRef[] {
+  if (follows) return parseFollows(follows);
+  if (!sports) return [];
+  return sports.split(",").map((s) => s.trim()).filter(isSelectableSport).map((slug) => ({ kind: "sport", slug }));
 }
 
-// Same prefix-match reasoning as the homepage's own category filter
-// (page.tsx) — "football" should also catch "football/world-cup" rows,
-// not just an exact "football" category value.
-export async function fetchMyFeedArticles(sports: SelectableSport[]): Promise<MyFeedArticle[]> {
-  if (sports.length === 0) return [];
-  return db
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Newest first rather than trendingScore — a following feed is "what's new
+// with my teams", the same ordering club/player pages already use.
+export async function fetchFollowingArticles(refs: FollowRef[], limit = 30): Promise<MyFeedArticle[]> {
+  const matchers = followMatchers(refs);
+  const allTerms = matchers.titleTerms.flatMap((m) => m.terms);
+  const conditions: SQL[] = [
+    ...(allTerms.length > 0 ? [titleMatchesAnyTerm(allTerms)] : []),
+    // Prefix match so "football" also catches "football/world-cup" rows,
+    // same as the homepage's own category filter.
+    ...matchers.categories.map((m) => like(article.category, `${m.category}%`)),
+  ];
+  if (conditions.length === 0) return [];
+
+  const rows = await db
     .select({
       id: article.id,
       slug: article.slug,
@@ -45,10 +62,21 @@ export async function fetchMyFeedArticles(sports: SelectableSport[]): Promise<My
       awayCrestUrl: article.awayCrestUrl,
     })
     .from(article)
-    .where(and(
-      eq(article.status, "published"),
-      or(...sports.map((sport) => like(article.category, `${sport}%`)))
-    ))
-    .orderBy(desc(article.trendingScore), desc(article.publishedAt))
-    .limit(MY_FEED_LIMIT);
+    .where(and(eq(article.status, "published"), or(...conditions)))
+    .orderBy(desc(article.publishedAt))
+    .limit(limit);
+
+  // Same word-boundary rule titleMatchesAnyTerm applies in SQL, re-checked
+  // per row here only to label which follow each story came from.
+  const termPatterns = matchers.titleTerms.map((m) => ({
+    name: m.name,
+    pattern: new RegExp(`\\b(${m.terms.map(escapeRegex).join("|")})\\b`, "i"),
+  }));
+  return rows.map((row) => ({
+    ...row,
+    matchedFollows: [
+      ...termPatterns.filter((t) => t.pattern.test(row.title)).map((t) => t.name),
+      ...matchers.categories.filter((m) => row.category.startsWith(m.category)).map((m) => m.name),
+    ],
+  }));
 }
