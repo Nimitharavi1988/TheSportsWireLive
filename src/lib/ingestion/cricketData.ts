@@ -11,7 +11,7 @@ import { vertical, source } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import type { RawMatchItem } from "./footballData";
-import { cricketLeagueLabel } from "../scores/cricketLabels";
+import { cricketLeagueLabel, cricketTeamScore } from "../scores/cricketLabels";
 import { fetchCommonsFile } from "./wikimediaImages";
 import { matchCountry, isInternationalFormat, type CricketCountry } from "./cricketCountries";
 import { deriveSeriesKey } from "./cricketSeries";
@@ -247,8 +247,11 @@ export async function fetchCricketData(): Promise<RawMatchItem[]> {
       // fuller result/status; see inferCricketMatchStatus above.
       matchStatus: inferCricketMatchStatus(match.status),
       kickoffAt: match.dateTimeGMT ? new Date(match.dateTimeGMT) : new Date(),
-      homeScoreText: teams ? extractTeamScoreLine(match.score, teams[0]) : undefined,
-      awayScoreText: teams ? extractTeamScoreLine(match.score, teams[1]) : undefined,
+      // cricketTeamScore, not extractTeamScoreLine: CricketData labels one
+      // side's innings with both team names, which the old substring
+      // match attributed to both teams (see cricketLabels.ts).
+      homeScoreText: teams ? cricketTeamScore(match.score, teams[0], teams[1]) : undefined,
+      awayScoreText: teams ? cricketTeamScore(match.score, teams[1], teams[0]) : undefined,
       venue: match.venue || undefined,
       leagueLabel: cricketLeagueLabel(title) ?? series?.label,
       // CricketData's own status line ("India need 93 runs in 70 balls",
