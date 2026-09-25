@@ -117,7 +117,7 @@ describe("fetchNflData", () => {
     expect(items[0].body).toContain("Kickoff is");
   });
 
-  it("skips in-progress (live) games rather than producing a confusing snapshot", async () => {
+  it("keeps an in-progress game with its running score, still marked scheduled", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) => {
@@ -136,7 +136,63 @@ describe("fetchNflData", () => {
     );
 
     const items = await fetchNflData();
-    expect(items).toHaveLength(0);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      homeScore: 10,
+      awayScore: 7,
+      // "scheduled" + past kickoff is what every display reads as live;
+      // "finished" stays reserved for final results.
+      matchStatus: "scheduled",
+      dedupeKey: "espn-nfl-e3",
+    });
+    // Title/body are only rewritten at the final whistle (runIngest.ts),
+    // so a live game keeps preview-style text, never a score-shaped title.
+    expect(items[0].title).toMatch(/^Preview: Buffalo Bills vs New York Jets/);
+  });
+
+  it("leaves the score unset rather than storing NaN when ESPN sends none", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("scoreboard")) {
+          return scoreboardResponse([
+            {
+              id: "e4",
+              date: "2026-09-14T18:00Z",
+              status: { type: { state: "in", completed: false } },
+              competitions: [{ competitors: [competitor("home", "1", "Buffalo Bills", ""), competitor("away", "2", "New York Jets", "7")] }],
+            },
+          ]);
+        }
+        return standingsResponse();
+      })
+    );
+
+    const items = await fetchNflData();
+    expect(items[0].homeScore).toBeUndefined();
+    expect(items[0].awayScore).toBe(7);
+  });
+
+  it("stores the final score as numbers and marks the game finished", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("scoreboard")) {
+          return scoreboardResponse([
+            {
+              id: "e5",
+              date: "2026-09-14T18:00Z",
+              status: { type: { state: "post", completed: true } },
+              competitions: [{ competitors: [competitor("home", "1", "Buffalo Bills", "27"), competitor("away", "2", "New York Jets", "14")] }],
+            },
+          ]);
+        }
+        return standingsResponse();
+      })
+    );
+
+    const items = await fetchNflData();
+    expect(items[0]).toMatchObject({ homeScore: 27, awayScore: 14, matchStatus: "finished" });
   });
 
   it("returns an empty list without throwing when the scoreboard fetch fails", async () => {

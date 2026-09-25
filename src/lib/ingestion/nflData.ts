@@ -145,6 +145,12 @@ function recordContext(teamName: string, record: TeamRecord | undefined): string
   return ` ${teamName} are ${recordStr}${seedText}.`;
 }
 
+function scoreOf(competitor: { score?: string }): number | undefined {
+  if (competitor.score === undefined || competitor.score.trim() === "") return undefined;
+  const n = Number(competitor.score);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 export async function fetchNflData(): Promise<RawMatchItem[]> {
   const [scoreboardRes, teamRecords] = await Promise.all([
     fetch(SCOREBOARD_URL).catch((err) => {
@@ -163,11 +169,18 @@ export async function fetchNflData(): Promise<RawMatchItem[]> {
   const items: RawMatchItem[] = [];
 
   for (const event of (data.events ?? []) as EspnEvent[]) {
-    // Only finished results and pre-game previews — an in-progress game
-    // (state "in": live, halftime, etc.) would just be a confusing partial
-    // snapshot by the time this article is actually read.
+    // "pre" = upcoming, "in" = in progress (live, halftime, etc.), "post" =
+    // final. In-progress games used to be skipped entirely, so a live game
+    // showed no score anywhere until it ended. They're now kept with the
+    // running score but stay matchStatus "scheduled" (see below): every
+    // score display already reads "scheduled + kickoff in the past" as live
+    // (liveMatches.ts, MatchTicker, /scores), and "finished" stays reserved
+    // for final results so a live game never lands in results sections or
+    // the hero. runIngest.ts's duplicate refresh updates the score each poll.
     const state = event.status?.type?.state;
-    if (state !== "post" && state !== "pre") continue;
+    if (state !== "post" && state !== "pre" && state !== "in") continue;
+    const isFinal = state === "post";
+    const isLive = state === "in";
 
     const competitors = event.competitions?.[0]?.competitors ?? [];
     const home = competitors.find((c) => c.homeAway === "home");
@@ -192,7 +205,7 @@ export async function fetchNflData(): Promise<RawMatchItem[]> {
     let summary: string;
     let body: string;
 
-    if (state === "post") {
+    if (isFinal) {
       const homeScore = home.score;
       const awayScore = away.score;
       const fullDateLabel = new Date(event.date).toLocaleDateString("en-US", {
@@ -232,9 +245,11 @@ export async function fetchNflData(): Promise<RawMatchItem[]> {
       awayCrestUrl: away.team.logo,
       homeTeam,
       awayTeam,
-      homeScore: state === "post" ? Number(home.score) : undefined,
-      awayScore: state === "post" ? Number(away.score) : undefined,
-      matchStatus: state === "post" ? "finished" : "scheduled",
+      // Final score, or the running score while live. scoreOf drops a
+      // missing/non-numeric value rather than storing 0 or NaN.
+      homeScore: isFinal || isLive ? scoreOf(home) : undefined,
+      awayScore: isFinal || isLive ? scoreOf(away) : undefined,
+      matchStatus: isFinal ? "finished" : "scheduled",
       kickoffAt: new Date(event.date),
       // event.id is ESPN's own stable game identifier — unlike the title
       // (which embeds a kickoff date ESPN can revise as broadcast slots get
