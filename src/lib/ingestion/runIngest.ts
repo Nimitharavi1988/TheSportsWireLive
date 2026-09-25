@@ -17,6 +17,7 @@ import { fetchAsianGamesNews } from "./asianGamesFeeds";
 import { fetchCricketData } from "./cricketData";
 import { detectSeriesFromTitle } from "./cricketSeries";
 import { buildMatchKey } from "../scores/matchKey";
+import { matchRefreshValues } from "./matchRefresh";
 import { detectEventSeries, detectEventSeriesNear, detectIplTeamMention } from "./eventTagging";
 import { computeDedupeHash, computeStableDedupeHash } from "./dedupe";
 import { runQualityChecks } from "./qualityCheck";
@@ -375,35 +376,14 @@ export async function runIngest() {
       // the scheduled->finished transition here, not every poll — unlike
       // CricketData.org's title (which never encodes the score and so
       // never needed refreshing), every other source's title/summary/body
-      // format IS the score/result ("Preview: X vs Y" vs "X 2-1 Y"), and
-      // these sources never emit a genuine in-progress "live" state at all
-      // (see e.g. nflData.ts's `state !== "post" && state !== "pre"`
-      // skip) — so there's no intermediate text to keep in sync with, only
-      // one real transition to catch.
+      // format IS the score/result ("Preview: X vs Y" vs "X 2-1 Y"). Live
+      // games (ESPN "in" state, kept since 2026-09-25) carry their running
+      // score and clock in the score fields, not the text, so the text still
+      // only has one real transition to catch. See matchRefresh.ts.
       if (isMatchDataSource(item.sourceName)) {
-        const justFinished = existing.matchStatus !== "finished" && item.matchStatus === "finished";
-        const isCricketData = item.sourceName === "CricketData.org";
+        // Shared with the fast live refresh (scores/liveRefresh.ts).
         await db.update(article)
-          .set({
-            matchStatus: item.matchStatus,
-            homeScore: item.homeScore,
-            awayScore: item.awayScore,
-            homeScoreText: item.homeScoreText,
-            awayScoreText: item.awayScoreText,
-            venue: item.venue,
-            // Standard scoreboard fields (src/lib/scores/). undefined = source
-            // doesn't provide it (Drizzle leaves the column alone); null = clear it.
-            leagueLabel: item.leagueLabel,
-            matchClock: item.matchClock,
-            matchNote: item.matchNote,
-            homeRecord: item.homeRecord,
-            awayRecord: item.awayRecord,
-            broadcast: item.broadcast,
-            matchKey: buildMatchKey(item.category, item.kickoffAt, item.homeTeam, item.awayTeam),
-            ...(isCricketData || justFinished ? { summary: item.summary, body: item.body } : {}),
-            ...(justFinished && !isCricketData ? { title: item.title } : {}),
-            updatedAt: new Date(),
-          })
+          .set(matchRefreshValues(item, existing.matchStatus))
           .where(eq(article.id, existing.id));
         existing.matchStatus = item.matchStatus ?? null;
       }
