@@ -123,3 +123,28 @@ async function newsDerivedCricket(existing: ScoreMatch[], now: Date): Promise<Sc
       away: { name: m.awayTeam, crestUrl: null, score: null, record: null, winner: false },
     }));
 }
+
+const LIVE_NOW_WINDOW_MS = 36 * 60 * 60 * 1000;
+const STATE_RANK = { live: 0, upcoming: 1, final: 2 } as const;
+
+// Homepage "Live now" box and the site-wide score strip: live games first,
+// then the soonest kickoffs, then the most recent results — the same cards
+// and live/final/upcoming rules as /scores, over a shorter window.
+export async function fetchLiveNow(opts: { take: number; sport?: string }): Promise<ScoreMatch[]> {
+  const matches = await fetchScoreboard({ windowMs: LIVE_NOW_WINDOW_MS, sport: opts.sport });
+  const kickoff = (m: ScoreMatch) => (m.kickoffAt ? Date.parse(m.kickoffAt) : 0);
+  return matches
+    .sort((a, b) => {
+      const byState = STATE_RANK[a.state] - STATE_RANK[b.state];
+      if (byState !== 0) return byState;
+      // Among live games, ones with a real score/clock lead; headline-only
+      // cards (no score feed for that match) come after them.
+      if (a.state === "live") {
+        const detail = (m: ScoreMatch) => (m.home.score !== null || m.clock ? 0 : 1);
+        const byDetail = detail(a) - detail(b);
+        if (byDetail !== 0) return byDetail;
+      }
+      return a.state === "final" ? kickoff(b) - kickoff(a) : kickoff(a) - kickoff(b);
+    })
+    .slice(0, opts.take);
+}

@@ -1,103 +1,88 @@
-import { db } from "@/db";
-import { article } from "@/db/schema";
-import { and, eq, isNotNull, desc } from "drizzle-orm";
 import Link from "next/link";
-import Image from "next/image";
 import Box from "@mui/material/Box";
+import { fetchLiveNow } from "@/lib/scores/scoreboard";
+import type { ScoreMatch, ScoreSide } from "@/lib/scores/scoreboardModel";
+import { LiveBadge, TeamCrest } from "./scores/ScoreCard";
+import { KickoffTime } from "./scores/KickoffTime";
 
-interface TickerArticle {
-  id: string;
-  slug: string;
-  category: string;
-  homeTeam: string | null;
-  awayTeam: string | null;
-  homeScore: number | null;
-  awayScore: number | null;
-  matchStatus: string | null;
-  kickoffAt: Date | null;
-  homeCrestUrl: string | null;
-  awayCrestUrl: string | null;
+// Site-wide score strip under the header. Mini versions of the standard
+// score card (src/components/scores/ScoreCard.tsx) from the same data and
+// live/final/upcoming rules as /scores (fetchLiveNow): live games first,
+// then the next kickoffs, then recent results. Was its own query and card
+// style, with "LIVE" guessed from kickoff time and no clock.
+const TICKER_SIZE = 14;
+const STRIP_BG = "#e9f1ec";
+
+function MiniTeam({ side, muted }: { side: ScoreSide; muted: boolean }) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, color: muted ? "text.secondary" : "text.primary" }}>
+      <TeamCrest side={side} size={16} />
+      <Box component="span" sx={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", fontWeight: side.winner ? 700 : 500 }}>
+        {side.name}
+      </Box>
+      {side.score !== null && (
+        <Box component="span" sx={{ fontVariantNumeric: "tabular-nums", fontWeight: side.winner ? 700 : 600, pl: 1 }}>
+          {side.score}
+        </Box>
+      )}
+    </Box>
+  );
 }
 
-// Reads the structured match fields (footballData.ts/cricketData.ts/
-// nflData.ts) directly instead of regex-parsing the title — needed once
-// cricket/NFL are included here too, since their title shapes differ from
-// football's (and cricket has no single home/away score to begin with; see
-// the schema comment on Article.homeScore).
-function parseTick(article: TickerArticle) {
-  if (!article.homeTeam || !article.awayTeam) return null;
-
-  const hasScore = article.homeScore !== null && article.awayScore !== null;
-  // A "scheduled" match with a kickoffAt already in the past is a cricket
-  // match already underway (cricketData.ts's currentMatches source — see
-  // the schema comment on Article.matchStatus) rather than a genuinely
-  // upcoming fixture. Same distinction /scores makes for its "In Progress"
-  // section — without it this just showed the kickoff date, indistinguishable
-  // from a real future fixture.
-  const isInProgress = article.matchStatus !== "finished" && (article.kickoffAt?.getTime() ?? Infinity) < Date.now();
-  const status =
-    article.matchStatus === "finished"
-      ? hasScore ? "FT" : "Result"
-      : isInProgress
-        ? "LIVE"
-        : (article.kickoffAt?.toLocaleDateString("en-US", { month: "short", day: "numeric" }) ?? "").toUpperCase();
-
-  return {
-    home: article.homeTeam,
-    away: article.awayTeam,
-    status,
-    score: hasScore ? `${article.homeScore}–${article.awayScore}` : null,
-    isLive: isInProgress,
-  };
-}
-
-async function getTickerArticles(): Promise<TickerArticle[]> {
-  return db
-    .select({
-      id: article.id, slug: article.slug, category: article.category,
-      homeTeam: article.homeTeam, awayTeam: article.awayTeam,
-      homeScore: article.homeScore, awayScore: article.awayScore,
-      matchStatus: article.matchStatus, kickoffAt: article.kickoffAt,
-      homeCrestUrl: article.homeCrestUrl, awayCrestUrl: article.awayCrestUrl,
-    })
-    .from(article)
-    .where(and(
-      eq(article.status, "published"),
-      isNotNull(article.matchStatus),
-      isNotNull(article.homeCrestUrl),
-      isNotNull(article.awayCrestUrl)
-    ))
-    // createdAt, not kickoffAt — a scheduled match's kickoffAt can be weeks
-    // out, which would float distant future fixtures above genuinely recent
-    // activity (same bug, same fix, as the RSS feed's ordering earlier).
-    .orderBy(desc(article.createdAt))
-    .limit(12);
+function MiniCard({ match }: { match: ScoreMatch }) {
+  const isFinal = match.state === "final";
+  return (
+    <Link href={`/article/${match.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
+      <Box
+        sx={{
+          width: 200,
+          mx: 0.6,
+          my: 0.9,
+          px: 1.25,
+          py: 0.75,
+          borderRadius: 2,
+          bgcolor: "background.paper",
+          border: "1px solid",
+          borderColor: match.state === "live" ? "rgba(211, 47, 47, 0.35)" : "divider",
+          fontSize: 12.5,
+          lineHeight: 1.5,
+          whiteSpace: "nowrap",
+          transition: "box-shadow 0.15s, border-color 0.15s",
+          "&:hover": { boxShadow: "0 2px 8px rgba(0,0,0,0.1)", borderColor: "primary.main" },
+        }}
+      >
+        <Box sx={{ fontSize: 11, color: "text.secondary", display: "flex", justifyContent: "space-between", gap: 1, mb: 0.25 }}>
+          <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+            {match.state === "live" ? (
+              <LiveBadge label={match.clock} />
+            ) : isFinal ? (
+              "Final"
+            ) : match.kickoffAt ? (
+              <KickoffTime iso={match.kickoffAt} withDate />
+            ) : (
+              "Upcoming"
+            )}
+          </Box>
+          {match.broadcast && <span>{match.broadcast}</span>}
+        </Box>
+        <MiniTeam side={match.home} muted={isFinal && !match.home.winner} />
+        <MiniTeam side={match.away} muted={isFinal && !match.away.winner} />
+      </Box>
+    </Link>
+  );
 }
 
 export default async function MatchTicker() {
-  const articles = await getTickerArticles();
-  const ticks = articles
-    .map((article) => {
-      const parsed = parseTick(article);
-      return parsed ? { ...parsed, id: article.id, slug: article.slug, homeCrestUrl: article.homeCrestUrl!, awayCrestUrl: article.awayCrestUrl! } : null;
-    })
-    .filter((t): t is NonNullable<typeof t> => t !== null);
-
-  if (ticks.length === 0) return null;
-
-  // Rendered twice back-to-back so a -50% translateX loop is seamless.
-  const doubled = [...ticks, ...ticks];
+  const matches = await fetchLiveNow({ take: TICKER_SIZE });
+  if (matches.length === 0) return null;
+  // Doubled so the -50% scroll loops seamlessly.
+  const doubled = [...matches, ...matches];
 
   return (
     <Box
       sx={{
-        // Hidden below `sm` — a horizontally-scrolling marquee needs real
-        // width to read well, and on a narrow phone screen it was eating
-        // the entire top of the page (team names cut off mid-scroll) before
-        // any actual headline. The same results already appear properly,
-        // full-width, in the "Match Results & Previews" section below.
         display: { xs: "none", sm: "block" },
-        bgcolor: "#e9f1ec",
+        bgcolor: STRIP_BG,
         borderBottom: "1px solid",
         borderColor: "divider",
         overflow: "hidden",
@@ -113,8 +98,8 @@ export default async function MatchTicker() {
           .sw-ticker-track { animation: none !important; }
         }
       `}</style>
-      {/* Right-edge fade so items scroll out of view smoothly rather than
-          getting hard-clipped mid-crest by the container edge. */}
+      {/* Right-edge fade so cards scroll out smoothly instead of being
+          hard-clipped by the container edge. */}
       <Box
         sx={{
           position: "absolute",
@@ -124,34 +109,22 @@ export default async function MatchTicker() {
           width: 48,
           zIndex: 2,
           pointerEvents: "none",
-          background: "linear-gradient(to right, rgba(233,241,236,0), #e9f1ec)",
+          background: `linear-gradient(to right, rgba(233,241,236,0), ${STRIP_BG})`,
         }}
       />
+      {/* Plain <Link> wrapper: this is a server component, and MUI Box
+          can't take component={Link} across the server/client boundary. */}
+      <Link href="/scores" aria-label="All scores" style={{ position: "absolute", top: 0, bottom: 0, left: 0, zIndex: 3, display: "flex", textDecoration: "none" }}>
       <Box
         sx={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          left: 0,
-          zIndex: 3,
           display: "flex",
           alignItems: "center",
           pl: 2,
           pr: 1.5,
-          // A flat solid fill read as a heavy, plain block — a subtle
-          // gradient keeps the same brand green but gives it some depth.
           background: "linear-gradient(135deg, #2f8a5c 0%, #17512f 100%)",
         }}
       >
-        <Box
-          sx={{
-            width: 6,
-            height: 6,
-            borderRadius: "50%",
-            bgcolor: "#fff",
-            mr: 1,
-          }}
-        />
+        <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#fff", mr: 1 }} />
         <Box
           component="span"
           sx={{
@@ -166,118 +139,20 @@ export default async function MatchTicker() {
         >
           Scores
         </Box>
-        {/* Angled edge so the badge reads as a distinct tag rather than a
-            plain rectangle butting into the scrolling track. */}
-        <Box
-          sx={{
-            width: 0,
-            height: 0,
-            borderTop: "18px solid transparent",
-            borderBottom: "18px solid transparent",
-            borderLeft: "10px solid",
-            borderLeftColor: "#17512f",
-            ml: 1.5,
-          }}
-        />
       </Box>
+      </Link>
       <Box
         className="sw-ticker-track"
         sx={{
           display: "flex",
           width: "max-content",
-          animation: "sw-ticker-scroll 70s linear infinite",
-          pl: "148px",
+          animation: "sw-ticker-scroll 90s linear infinite",
+          pl: "120px",
           "&:hover": { animationPlayState: "paused" },
         }}
       >
-        {doubled.map((tick, i) => (
-          <Link key={`${tick.id}-${i}`} href={`/article/${tick.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1.1,
-                px: 1.75,
-                py: 1,
-                mx: 0.75,
-                my: 1,
-                borderRadius: 2,
-                // Plain text separated by a divider line read as flat/bland
-                // against the panel's own tint — a distinct card per match
-                // (white against the tinted backdrop) gives the row some
-                // visual texture without changing the actual color scheme.
-                bgcolor: "background.paper",
-                border: "1px solid",
-                borderColor: "divider",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                whiteSpace: "nowrap",
-                fontSize: 13.5,
-                transition: "box-shadow 0.15s, border-color 0.15s",
-                "&:hover": { boxShadow: "0 2px 8px rgba(0,0,0,0.1)", borderColor: "primary.main" },
-              }}
-            >
-              <Image src={tick.homeCrestUrl} alt="" width={19} height={19} />
-              <Box component="span" sx={{ color: "text.secondary", fontWeight: 500 }}>
-                {tick.home}
-              </Box>
-              {tick.score ? (
-                <Box
-                  component="span"
-                  sx={{
-                    fontVariantNumeric: "tabular-nums",
-                    fontWeight: 700,
-                    bgcolor: "background.paper",
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 4,
-                    px: 0.9,
-                    py: 0.15,
-                  }}
-                >
-                  {tick.score}
-                </Box>
-              ) : (
-                <Box component="span" sx={{ color: "text.secondary" }}>v</Box>
-              )}
-              <Box component="span" sx={{ color: "text.secondary", fontWeight: 500 }}>
-                {tick.away}
-              </Box>
-              <Image src={tick.awayCrestUrl} alt="" width={19} height={19} />
-              {tick.isLive && (
-                // Purely decorative — the adjacent status span below already
-                // renders the literal text "LIVE", so a screen reader isn't
-                // missing any information here; aria-hidden just keeps this
-                // dot from being announced as an unlabeled element.
-                <Box
-                  component="span"
-                  aria-hidden="true"
-                  sx={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: "50%",
-                    bgcolor: "#d32f2f",
-                    flexShrink: 0,
-                    animation: "sw-ticker-live-pulse 1.5s ease-in-out infinite",
-                    "@keyframes sw-ticker-live-pulse": {
-                      "0%, 100%": { opacity: 1 },
-                      "50%": { opacity: 0.3 },
-                    },
-                  }}
-                />
-              )}
-              <Box
-                component="span"
-                sx={{
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  letterSpacing: "0.03em",
-                  color: tick.isLive ? "#d32f2f" : tick.score ? "text.secondary" : "primary.main",
-                }}
-              >
-                {tick.status}
-              </Box>
-            </Box>
-          </Link>
+        {doubled.map((match, i) => (
+          <MiniCard key={`${match.id}-${i}`} match={match} />
         ))}
       </Box>
     </Box>
