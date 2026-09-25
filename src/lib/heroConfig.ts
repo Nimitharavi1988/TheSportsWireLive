@@ -52,3 +52,14 @@ export function isHighlightStale(highlightedAt: Date | null): boolean {
 export function sectionOf(category: string): string {
   return category.split("/")[0];
 }
+
+// Homepage news freshness (2026-09-25). trendingScore never decays, so the
+// homepage's main list — the one most sections are built from (hero,
+// Player News, Also in the News, category tiles, ...) — is limited to
+// stories published in the last FRESH_NEWS_MAX_AGE_DAYS. A quiet sport page
+// with fewer than FRESH_NEWS_MIN_RESULTS such stories widens to
+// FRESH_NEWS_FALLBACK_DAYS instead of rendering empty sections; nothing
+// older than that is ever shown.
+export const FRESH_NEWS_MAX_AGE_DAYS = 2;
+export const FRESH_NEWS_FALLBACK_DAYS = 7;
+export const FRESH_NEWS_MIN_RESULTS = 25;
