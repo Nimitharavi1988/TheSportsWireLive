@@ -1,0 +1,42 @@
+name: Live score refresh
+
+# Refreshes scores/clocks for games in play (src/lib/scores/liveRefresh.ts)
+# between full ingestion runs, so live scores move every couple of minutes
+# instead of every ~15. Exits after one DB query when nothing is live.
+#
+# Primary trigger: the same external scheduler that triggers ingest-cron.yml
+# (cron-job.org -> GitHub's workflow_dispatch API), set to every 2 minutes —
+# GitHub's own `schedule` is best-effort and has shown multi-hour gaps under
+# load (see ingest-cron.yml). The schedule below is only a fallback so live
+# scores still move (roughly every 5-10 minutes) if the external trigger
+# isn't set up or misses.
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "*/5 * * * *"
+
+# Never run two at once; a trigger that arrives mid-run waits (GitHub keeps
+# at most one pending run), so bursts can't pile up.
+concurrency:
+  group: live-refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      # ESPN only (no API keys); CricketData stays with full ingestion to
+      # protect its 100-calls/day free plan.
+      - run: npx tsx src/lib/scores/liveRefresh.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

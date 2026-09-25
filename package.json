@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "ingest": "tsx --env-file=.env src/lib/ingestion/runIngest.ts",
+    "live-refresh": "tsx --env-file=.env src/lib/scores/liveRefresh.ts",
     "test": "vitest run",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
