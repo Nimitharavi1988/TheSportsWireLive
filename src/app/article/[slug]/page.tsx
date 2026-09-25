@@ -24,6 +24,9 @@ import { InFeedAd } from "@/components/InFeedAd";
 import { TRACKED_PLAYERS } from "@/lib/players";
 import { TRACKED_CLUBS } from "@/lib/clubs";
 import { createEntityLinker } from "@/lib/entityLinks";
+import { isMatchDataSource } from "@/lib/matchDataSources";
+import { currentScoreMatch } from "@/lib/scores/scoreboard";
+import { MatchHeader } from "@/components/scores/MatchHeader";
 import { FanEngagementHub } from "@/components/FanEngagementHub";
 import { FollowUs } from "@/components/FollowUs";
 import { ShareButtons } from "@/components/ShareButtons";
@@ -71,6 +74,9 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
   const articleRows = await db.select().from(articleTable).where(eq(articleTable.slug, params.slug)).limit(1);
   const article = articleRows[0] ?? null;
   if (!article || article.status !== "published") notFound();
+  // Match stories get the standard scoreboard header (src/lib/scores/)
+  // instead of the plain crest-vs-crest row.
+  const scoreMatch = isMatchDataSource(article.sourceName) ? currentScoreMatch(article) : null;
 
   // author/dateModified/mainEntityOfPage were all missing — Google's Rich
   // Results Test flags a NewsArticle with no author as a warning, and
@@ -341,7 +347,9 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
 
       <SiteBreadcrumbs steps={breadcrumbSteps} current={article.title} />
 
-      {article.homeCrestUrl && article.awayCrestUrl ? (
+      {scoreMatch ? (
+        <MatchHeader match={scoreMatch} />
+      ) : article.homeCrestUrl && article.awayCrestUrl ? (
         <Stack
           direction="row"
           spacing={2.5}

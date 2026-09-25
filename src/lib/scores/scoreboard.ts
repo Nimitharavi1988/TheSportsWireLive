@@ -9,7 +9,7 @@ import { article } from "@/db/schema";
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, like, lte, ne, or } from "drizzle-orm";
 import { MATCH_DATA_SOURCE_NAMES } from "../matchDataSources";
 import { findNewsBasedCricketMatches } from "../liveCricket";
-import { CRICKET_STALE_MS, toScoreMatch, type ScoreMatch } from "./scoreboardModel";
+import { CRICKET_STALE_MS, toScoreMatch, type MatchRow, type ScoreMatch } from "./scoreboardModel";
 
 // Enough for a busy weekend window across every sport, while keeping the
 // query and page payload bounded.
@@ -44,11 +44,18 @@ const MATCH_COLUMNS = {
   broadcast: article.broadcast,
 };
 
-// Games kicking off between `from` and `to`, plus any cricket match still
+// The match header on a story page: the same card data, as of now.
+export function currentScoreMatch(row: MatchRow): ScoreMatch | null {
+  return toScoreMatch(row, new Date());
+}
+
+// Games kicking off within `windowMs` either side of now, plus any cricket match still
 // being updated right now even if it started earlier (a Test runs for days).
 // `sport` is a top-level category ("football" also covers "football/...").
-export async function fetchScoreboard(opts: { from: Date; to: Date; sport?: string }): Promise<ScoreMatch[]> {
+export async function fetchScoreboard(opts: { windowMs: number; sport?: string }): Promise<ScoreMatch[]> {
   const now = new Date();
+  const from = new Date(now.getTime() - opts.windowMs);
+  const to = new Date(now.getTime() + opts.windowMs);
   const sportFilter = opts.sport ? [like(article.category, `${opts.sport}%`)] : [];
 
   const rows = await db
@@ -61,7 +68,7 @@ export async function fetchScoreboard(opts: { from: Date; to: Date; sport?: stri
       isNotNull(article.awayTeam),
       ...sportFilter,
       or(
-        and(gte(article.kickoffAt, opts.from), lte(article.kickoffAt, opts.to)),
+        and(gte(article.kickoffAt, from), lte(article.kickoffAt, to)),
         and(
           like(article.category, "cricket%"),
           ne(article.matchStatus, "finished"),
