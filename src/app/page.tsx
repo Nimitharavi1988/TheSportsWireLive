@@ -1,11 +1,12 @@
 import { Suspense } from "react";
 import { db } from "@/db";
 import { article as articleTable } from "@/db/schema";
-import { and, eq, like, isNotNull, isNull, ne, or, desc, gte } from "drizzle-orm";
+import { and, eq, like, isNotNull, isNull, ne, or, desc, gte, type SQL } from "drizzle-orm";
 import { ForYouStrip } from "@/components/ForYouStrip";
 import { HappeningNow } from "@/components/HappeningNow";
 import { happeningNowEntities } from "@/lib/competitions";
 import { isMatchDataSource } from "@/lib/matchDataSources";
+import { hasRealImage } from "@/lib/contentQuality";
 import Link from "next/link";
 import Image from "next/image";
 import { ScrollRow } from "@/components/ScrollRow";
@@ -40,7 +41,14 @@ import { QuotesStrip } from "@/components/QuotesStrip";
 import { HeroCarousel } from "@/components/HeroCarousel";
 import { ArticleThumb } from "@/components/ArticleThumb";
 import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImages";
-import { isHeroFeatureStale, isHighlightStale, HIGHLIGHT_MAX_AGE_DAYS } from "@/lib/heroConfig";
+import {
+  isHeroFeatureStale,
+  isHighlightStale,
+  HIGHLIGHT_MAX_AGE_DAYS,
+  FRESH_NEWS_MAX_AGE_DAYS,
+  FRESH_NEWS_FALLBACK_DAYS,
+  FRESH_NEWS_MIN_RESULTS,
+} from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { LiveNowCarousel } from "@/components/scores/LiveNowCarousel";
 import { CollapsibleAdBox } from "@/components/CollapsibleAdBox";
@@ -371,6 +379,22 @@ async function NhlStandingsWidget() {
   );
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// The homepage's main trending list (top 80 by trendingScore), limited to
+// stories published in the last FRESH_NEWS_MAX_AGE_DAYS — widened once to
+// FRESH_NEWS_FALLBACK_DAYS when that leaves a quiet sport page with too few
+// stories. Every section built from `articles` inherits the limit.
+async function fetchFreshRanked(baseConditions: SQL[]) {
+  const query = (days: number) =>
+    db.select().from(articleTable)
+      .where(and(...baseConditions, gte(articleTable.publishedAt, new Date(Date.now() - days * DAY_MS))))
+      .orderBy(desc(articleTable.trendingScore), desc(articleTable.publishedAt))
+      .limit(80);
+  const fresh = await query(FRESH_NEWS_MAX_AGE_DAYS);
+  return fresh.length >= FRESH_NEWS_MIN_RESULTS ? fresh : query(FRESH_NEWS_FALLBACK_DAYS);
+}
+
 export default async function HomePage(
   props: {
     searchParams: Promise<{ category?: string }>;
@@ -395,10 +419,10 @@ export default async function HomePage(
   // actually taking priority. Capped at 5 (the same cap `featureArticle`
   // itself enforces), so this can never balloon the query.
   const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeCompetitions, justInRaw, highlightCandidatesRaw, matchCandidatesRaw] = await Promise.all([
-    db.select().from(articleTable)
-      .where(and(...baseConditions))
-      .orderBy(desc(articleTable.trendingScore), desc(articleTable.publishedAt))
-      .limit(80),
+    // Main trending list, limited to fresh stories — see heroConfig.ts's
+    // FRESH_NEWS_* for why (trendingScore never decays: on 2026-09-25 an
+    // 11-day-old story with score 175 was still leading the hero).
+    fetchFreshRanked(baseConditions),
     db.select().from(articleTable)
       .where(and(...baseConditions, eq(articleTable.featured, true)))
       .orderBy(desc(articleTable.featuredAt))
@@ -496,6 +520,11 @@ export default async function HomePage(
   // one since manuallyFeatured/articlesRanked are already sorted.
   const seenNormalizedTitles = new Set<string>();
   const articles = articlesWithDupes.filter((a) => {
+    // Main sections only show stories with a real image (hasRealImage: a
+    // real photo or a team-crest pair, not the generic Pexels stock
+    // fallback or a broken URL) — explicit request 2026-09-25. An admin's
+    // own hero/highlight pick is kept regardless: it's a deliberate choice.
+    if (!a.featured && !a.highlighted && !hasRealImage(a)) return false;
     const norm = a.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
     if (seenNormalizedTitles.has(norm)) return false;
     seenNormalizedTitles.add(norm);
@@ -654,6 +683,8 @@ export default async function HomePage(
   // "Match Results & Previews" below (matchStatus is untouched there) —
   // this only narrows what's eligible to lead the hero.
   const heroEligibleMatchArticles = allMatchArticlesFull.filter((a) => a.matchStatus !== "scheduled");
+  // allBriefArticlesFull is fresh now that articlesRanked is windowed
+  // (fetchFreshRanked), so the hero shares it with every other section.
   const heroMergedPool = [...heroEligibleMatchArticles, ...allBriefArticlesFull].sort(
     (a, b) => b.trendingScore - a.trendingScore
   );
