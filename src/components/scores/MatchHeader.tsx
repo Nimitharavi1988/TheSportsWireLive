@@ -2,7 +2,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import type { ScoreMatch, ScoreSide } from "@/lib/scores/scoreboardModel";
 import { KickoffTime } from "./KickoffTime";
-import { LiveBadge, TeamCrest } from "./ScoreCard";
+import { LiveBadge, PausedBadge, TeamCrest } from "./ScoreCard";
 import { LiveRefresher } from "./LiveRefresher";
 
 // Large form of the score card, shown at the top of a match story (the
@@ -32,12 +32,14 @@ export function MatchHeader({ match }: { match: ScoreMatch }) {
       aria-label="Match score"
       sx={{ border: "1px solid", borderColor: match.state === "live" ? "rgba(211, 47, 47, 0.35)" : "divider", borderRadius: 2, p: { xs: 2, sm: 2.5 }, mb: 2.5, bgcolor: "background.paper" }}
     >
-      <LiveRefresher active={match.state === "live"} />
+      <LiveRefresher active={match.state === "live" || match.state === "paused"} />
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 1, flexWrap: "wrap", fontSize: 13, color: "text.secondary", mb: 2 }}>
         <span>{match.leagueLabel}</span>
         <span aria-hidden>·</span>
         {match.state === "live" ? (
           <LiveBadge label={match.clock} />
+        ) : match.state === "paused" ? (
+          <PausedBadge label={match.clock} />
         ) : isFinal ? (
           <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>Final</Box>
         ) : match.kickoffAt ? (

@@ -35,6 +35,17 @@ export function LiveBadge({ label }: { label: string | null }) {
   );
 }
 
+// A started game in a break (cricket stumps/lunch/tea): muted, no pulse —
+// nothing is happening, so it shouldn't read as LIVE.
+export function PausedBadge({ label }: { label: string | null }) {
+  return (
+    <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, color: "text.secondary", fontWeight: 700 }}>
+      <Box component="span" aria-hidden sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "text.disabled" }} />
+      <span>{label ?? "Paused"}</span>
+    </Box>
+  );
+}
+
 export function TeamCrest({ side, size }: { side: Pick<ScoreSide, "name" | "crestUrl">; size: number }) {
   if (side.crestUrl) {
     // next/image directly, not Box component={Image}: MUI can't receive a
@@ -88,6 +99,7 @@ function TeamRow({ side, isFinal }: { side: ScoreSide; isFinal: boolean }) {
 
 export function ScoreStatus({ match }: { match: ScoreMatch }) {
   if (match.state === "live") return <LiveBadge label={match.clock} />;
+  if (match.state === "paused") return <PausedBadge label={match.clock} />;
   if (match.state === "final") return <span>Final</span>;
   return match.kickoffAt ? <KickoffTime iso={match.kickoffAt} /> : <span>Upcoming</span>;
 }

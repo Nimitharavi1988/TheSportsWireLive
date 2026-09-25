@@ -10,7 +10,8 @@ import { dayKey, useViewerTimeZone } from "./useViewerTimeZone";
 
 const DAY_MS = 86_400_000;
 
-const STATE_ORDER = { live: 0, upcoming: 1, final: 2 } as const;
+const STATE_ORDER = { live: 0, paused: 1, upcoming: 2, final: 3 } as const;
+const inPlay = (m: ScoreMatch) => m.state === "live" || m.state === "paused";
 
 function dayLabel(key: string, todayKey: string): string {
   const offsetDays = Math.round((Date.parse(`${key}T12:00:00Z`) - Date.parse(`${todayKey}T12:00:00Z`)) / DAY_MS);
@@ -39,8 +40,8 @@ function groupByLeague(matches: ScoreMatch[]): LeagueGroup[] {
       matches: list.sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || kickoff(a) - kickoff(b)),
     }))
     .sort((a, b) => {
-      const aLive = a.matches.some((m) => m.state === "live") ? 0 : 1;
-      const bLive = b.matches.some((m) => m.state === "live") ? 0 : 1;
+      const aLive = a.matches.some(inPlay) ? 0 : 1;
+      const bLive = b.matches.some(inPlay) ? 0 : 1;
       return aLive - bLive || kickoff(a.matches[0]) - kickoff(b.matches[0]);
     });
 }
@@ -48,7 +49,8 @@ function groupByLeague(matches: ScoreMatch[]): LeagueGroup[] {
 export function ScoresBoard({ matches, emptyLabel }: { matches: ScoreMatch[]; emptyLabel: string }) {
   const timeZone = useViewerTimeZone();
   const [picked, setPicked] = useState<string | null>(null);
-  const hasLive = matches.some((m) => m.state === "live");
+  // Paused games (cricket stumps/tea) can resume, so they keep refreshing too.
+  const hasLive = matches.some(inPlay);
 
   const { todayKey, byDay, days } = useMemo(() => {
     const todayKey = dayKey(new Date(), timeZone);
@@ -56,7 +58,7 @@ export function ScoresBoard({ matches, emptyLabel }: { matches: ScoreMatch[]; em
     for (const m of matches) {
       // Live games always belong to "Today" — a Test that started three
       // days ago is still today's game.
-      const key = m.state === "live" || !m.kickoffAt ? todayKey : dayKey(new Date(m.kickoffAt), timeZone);
+      const key = inPlay(m) || !m.kickoffAt ? todayKey : dayKey(new Date(m.kickoffAt), timeZone);
       const list = byDay.get(key) ?? [];
       list.push(m);
       byDay.set(key, list);

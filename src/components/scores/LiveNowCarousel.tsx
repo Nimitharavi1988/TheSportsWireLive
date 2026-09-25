@@ -23,7 +23,7 @@ export function LiveNowCarousel({ matches }: { matches: ScoreMatch[] }) {
 
   return (
     <Box component="section" aria-label="Scores" sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, bgcolor: "background.paper", p: 1.5 }}>
-      <LiveRefresher active={liveCount > 0} />
+      <LiveRefresher active={matches.some((m) => m.state === "live" || m.state === "paused")} />
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 1 }}>
         <Typography component="h2" sx={{ fontSize: 15, fontWeight: 700, flex: 1, display: "flex", alignItems: "center", gap: 0.75 }}>
           {liveCount > 0 ? (

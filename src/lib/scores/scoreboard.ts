@@ -93,7 +93,7 @@ export async function fetchScoreboard(opts: { windowMs: number; sport?: string }
 // — teams and status only, never an invented score.
 async function newsDerivedCricket(existing: ScoreMatch[], now: Date): Promise<ScoreMatch[]> {
   const pool = await db
-    .select({ id: article.id, slug: article.slug, title: article.title })
+    .select({ id: article.id, slug: article.slug, title: article.title, createdAt: article.createdAt })
     .from(article)
     .where(and(
       eq(article.status, "published"),
@@ -106,8 +106,15 @@ async function newsDerivedCricket(existing: ScoreMatch[], now: Date): Promise<Sc
   const covered = new Set(
     existing.filter((m) => m.sport === "cricket").map((m) => [m.home.name, m.away.name].sort().join("|"))
   );
+  // Live only while "live score" headlines keep arriving: the newest one
+  // for the pair must be within CRICKET_STALE_MS, same limit as a
+  // CricketData match going quiet. Without this a morning "LIVE score"
+  // headline kept the card LIVE for the whole 24h lookback (seen
+  // 2026-09-25: England v Sri Lanka still LIVE at 1 AM US time).
+  const createdAt = new Map(pool.map((p) => [p.id, p.createdAt]));
+  const liveSince = now.getTime() - CRICKET_STALE_MS;
   return findNewsBasedCricketMatches(pool, 10, covered)
-    .filter((m) => m.matchState === "live")
+    .filter((m) => m.matchState === "live" && (createdAt.get(m.id)?.getTime() ?? 0) >= liveSince)
     .map((m) => ({
       id: m.id,
       slug: m.slug,
@@ -125,7 +132,7 @@ async function newsDerivedCricket(existing: ScoreMatch[], now: Date): Promise<Sc
 }
 
 const LIVE_NOW_WINDOW_MS = 36 * 60 * 60 * 1000;
-const STATE_RANK = { live: 0, upcoming: 1, final: 2 } as const;
+const STATE_RANK = { live: 0, paused: 1, upcoming: 2, final: 3 } as const;
 
 // Homepage "Live now" box and the site-wide score strip: live games first,
 // then the soonest kickoffs, then the most recent results — the same cards

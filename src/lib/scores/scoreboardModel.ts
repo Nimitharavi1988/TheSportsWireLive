@@ -8,7 +8,10 @@
 import { categoryChipStyle } from "../categoryDisplay";
 import { cricketLeagueLabel } from "./cricketLabels";
 
-export type ScoreState = "live" | "final" | "upcoming";
+// "paused": a started match in a scheduled break — cricket stumps, lunch,
+// tea, innings break, rain. Not shown as LIVE (nothing is happening), but
+// still today's game and not over.
+export type ScoreState = "live" | "paused" | "final" | "upcoming";
 
 export interface ScoreSide {
   name: string;
@@ -26,7 +29,7 @@ export interface ScoreMatch {
   sport: string;
   leagueLabel: string;
   state: ScoreState;
-  // Live only: "Q3 · 8:42", "67'", "Shootout".
+  // Live: "Q3 · 8:42", "67'", "Shootout". Paused: "Stumps · Day 1", "Tea".
   clock: string | null;
   // "India need 93 runs from 70 balls", or null.
   note: string | null;
@@ -88,6 +91,27 @@ export function deriveState(row: MatchRow, now: Date): ScoreState | null {
   return now.getTime() - row.kickoffAt.getTime() <= LIVE_WINDOW_MS ? "live" : null;
 }
 
+// Cricket breaks, read from CricketData's own status line (matchNote), e.g.
+// "Day 1: Stumps - Worcestershire lead by 131 runs" (seen live 2026-09-25
+// on a card that still said LIVE after play had stopped for the day).
+export function cricketPauseLabel(note: string | null): string | null {
+  if (!note) return null;
+  const day = note.match(/\bDay (\d+)\b/i)?.[1];
+  if (/\bstumps\b/i.test(note)) return day ? `Stumps · Day ${day}` : "Stumps";
+  if (/\blunch\b/i.test(note)) return "Lunch";
+  if (/\btea\b/i.test(note)) return "Tea";
+  if (/\binnings break\b/i.test(note)) return "Innings break";
+  if (/\b(rain|bad light|wet outfield)\b|\bdelayed\b|\binterrupted\b/i.test(note)) return "Play delayed";
+  return null;
+}
+
+// Multi-day (Test / first-class) cricket in play: "Day 2" from the status
+// line, so a live Test reads "LIVE · Day 2". null for one-day games.
+export function cricketDayLabel(note: string | null): string | null {
+  const day = note?.match(/\bDay (\d+)\b/i)?.[1];
+  return day ? `Day ${day}` : null;
+}
+
 function displayScore(numeric: number | null, text: string | null): string | null {
   if (text && text.trim()) return text.trim();
   return numeric === null || numeric === undefined ? null : String(numeric);
@@ -129,8 +153,10 @@ function effectiveNote(row: MatchRow): string | null {
 export function toScoreMatch(rawRow: MatchRow, now: Date): ScoreMatch | null {
   const row = { ...rawRow, matchNote: effectiveNote(rawRow) };
   if (!row.homeTeam || !row.awayTeam) return null;
-  const state = deriveState(row, now);
-  if (!state) return null;
+  const derived = deriveState(row, now);
+  if (!derived) return null;
+  const pause = derived === "live" && row.category.startsWith("cricket") ? cricketPauseLabel(row.matchNote) : null;
+  const state: ScoreState = pause ? "paused" : derived;
   const win = winners(row, state);
   const showScore = state !== "upcoming";
   return {
@@ -139,7 +165,12 @@ export function toScoreMatch(rawRow: MatchRow, now: Date): ScoreMatch | null {
     sport: row.category.split("/")[0],
     leagueLabel: defaultLeague(row),
     state,
-    clock: state === "live" ? row.matchClock : null,
+    clock:
+      state === "paused"
+        ? pause
+        : state === "live"
+          ? row.matchClock ?? (row.category.startsWith("cricket") ? cricketDayLabel(row.matchNote) : null)
+          : null,
     note: state === "upcoming" ? null : row.matchNote,
     kickoffAt: row.kickoffAt ? row.kickoffAt.toISOString() : null,
     venue: row.venue,

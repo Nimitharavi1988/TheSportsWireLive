@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { deriveState, toScoreMatch, type MatchRow } from "./scoreboardModel";
+import { cricketPauseLabel, deriveState, toScoreMatch, type MatchRow } from "./scoreboardModel";
 
 const now = new Date("2026-09-27T19:00:00Z");
 const hours = (h: number) => new Date(now.getTime() + h * 3600_000);
@@ -121,5 +121,43 @@ describe("toScoreMatch", () => {
   it("skips rows without both teams or with an unknown state", () => {
     expect(toScoreMatch(row({ awayTeam: null }), now)).toBeNull();
     expect(toScoreMatch(row({ kickoffAt: hours(-8) }), now)).toBeNull();
+  });
+});
+
+describe("cricket breaks and multi-day matches", () => {
+  const county = {
+    category: "cricket",
+    sourceName: "CricketData.org",
+    homeTeam: "Worcestershire",
+    awayTeam: "Derbyshire",
+    homeScoreText: "5/0 (3)",
+    awayScoreText: "88 (34)",
+    leagueLabel: "County Championship Division Two 2026",
+  };
+
+  it("shows stumps as paused, not live (real CricketData status)", () => {
+    const m = toScoreMatch(row({ ...county, matchNote: "Day 1: Stumps - Worcestershire lead by 131 runs" }), now)!;
+    expect(m.state).toBe("paused");
+    expect(m.clock).toBe("Stumps · Day 1");
+  });
+
+  it("labels other breaks", () => {
+    expect(cricketPauseLabel("Day 3: Lunch - India lead by 12 runs")).toBe("Lunch");
+    expect(cricketPauseLabel("Tea - England need 140 runs")).toBe("Tea");
+    expect(cricketPauseLabel("Innings Break")).toBe("Innings break");
+    expect(cricketPauseLabel("Match delayed due to rain")).toBe("Play delayed");
+    expect(cricketPauseLabel("India need 93 runs in 70 balls")).toBeNull();
+  });
+
+  it("shows the day for a live multi-day match", () => {
+    const m = toScoreMatch(row({ ...county, matchNote: "Day 2: Derbyshire trail by 45 runs" }), now)!;
+    expect(m.state).toBe("live");
+    expect(m.clock).toBe("Day 2");
+  });
+
+  it("treats a drawn Test as final with no winner", () => {
+    const m = toScoreMatch(row({ ...county, matchStatus: "finished", matchNote: "Match drawn" }), now)!;
+    expect(m.state).toBe("final");
+    expect(m.home.winner || m.away.winner).toBe(false);
   });
 });

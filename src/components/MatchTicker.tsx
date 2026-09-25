@@ -2,7 +2,7 @@ import Link from "next/link";
 import Box from "@mui/material/Box";
 import { fetchLiveNow } from "@/lib/scores/scoreboard";
 import type { ScoreMatch, ScoreSide } from "@/lib/scores/scoreboardModel";
-import { LiveBadge, TeamCrest } from "./scores/ScoreCard";
+import { LiveBadge, PausedBadge, TeamCrest } from "./scores/ScoreCard";
 import { KickoffTime } from "./scores/KickoffTime";
 
 // Site-wide score strip under the header. Mini versions of the standard
@@ -55,6 +55,8 @@ function MiniCard({ match }: { match: ScoreMatch }) {
           <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis" }}>
             {match.state === "live" ? (
               <LiveBadge label={match.clock} />
+            ) : match.state === "paused" ? (
+              <PausedBadge label={match.clock} />
             ) : isFinal ? (
               "Final"
             ) : match.kickoffAt ? (
