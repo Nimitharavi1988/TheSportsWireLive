@@ -50,3 +50,24 @@ describe("splitIntoParagraphs", () => {
     expect(splitIntoParagraphs(text)).toEqual(["First.", "Second."]);
   });
 });
+
+describe("splitIntoParagraphs never drops text", () => {
+  const letters = (s: string) => s.replace(/\s+/g, "");
+
+  it("keeps a sentence whose period isn't followed by a space (real article, 2026-09-24)", () => {
+    const body =
+      "Analyst predictions suggest the Detroit Lions could pursue a blockbuster trade with the Pittsburgh Steelers involving wide receiver Jameson Williams, cornerback Joey Porter Jr., and pass catcher DK Metcalf. Such a deal would reshape the roster for Detroit general manager Brad Holmes, while Pittsburgh adjusts to early offensive struggles under quarterback Aaron Rodgers.";
+    const paragraphs = splitIntoParagraphs(body);
+    expect(paragraphs[0]).toMatch(/^Analyst predictions suggest the Detroit Lions/);
+    expect(letters(paragraphs.join(" "))).toBe(letters(body));
+  });
+
+  it("keeps decimals, abbreviations and missing final punctuation", () => {
+    const body =
+      "India won by 3.5 wickets in the U.S. opener after a No.1 ranked side collapsed early on a slow pitch that nobody expected. " +
+      "The captain said the team had prepared for weeks and the result reflected that work across every department of the game. " +
+      "Next up is a trip to Lucknow where conditions should suit the spinners and the batting line-up will be tested again later this month";
+    expect(body.length).toBeGreaterThan(320);
+    expect(letters(splitIntoParagraphs(body).join(" "))).toBe(letters(body));
+  });
+});

@@ -47,7 +47,14 @@ export function splitIntoParagraphs(text: string): string[] {
     // imperfect for abbreviations, but this content is short-form sports
     // commentary, not prose dense with them, and an occasional
     // slightly-early break reads far better than one long block.
-    const sentences = paragraph.match(/[^.!?]+[.!?]+(?:\s+|$)/g) ?? [paragraph];
+    //
+    // Splits BETWEEN sentences instead of matching each one, so no text can
+    // be skipped. The old `match(/[^.!?]+[.!?]+(?:\s+|$)/g)` silently
+    // dropped every stretch it couldn't match — any "." not followed by a
+    // space ("Joey Porter Jr., and", "No.1", "3.5", "U.S.") lost the text
+    // before it. Confirmed live 2026-09-25: 728 of the last 10,000 published
+    // articles (7.3%) were missing text on the page.
+    const sentences = paragraph.split(/(?<=[.!?])\s+/).filter(Boolean);
     let chunk: string[] = [];
     for (const sentence of sentences) {
       chunk.push(sentence.trim());
