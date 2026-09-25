@@ -27,6 +27,8 @@ import { createEntityLinker } from "@/lib/entityLinks";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import { currentScoreMatch } from "@/lib/scores/scoreboard";
 import { MatchHeader } from "@/components/scores/MatchHeader";
+import { MatchHighlightsForArticle } from "@/components/videos/VideoStrip";
+import { Suspense } from "react";
 import { FanEngagementHub } from "@/components/FanEngagementHub";
 import { FollowUs } from "@/components/FollowUs";
 import { ShareButtons } from "@/components/ShareButtons";
@@ -348,7 +350,12 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
       <SiteBreadcrumbs steps={breadcrumbSteps} current={article.title} />
 
       {scoreMatch ? (
-        <MatchHeader match={scoreMatch} />
+        <>
+          <MatchHeader match={scoreMatch} />
+          <Suspense fallback={null}>
+            <MatchHighlightsForArticle articleId={article.id} />
+          </Suspense>
+        </>
       ) : article.homeCrestUrl && article.awayCrestUrl ? (
         <Stack
           direction="row"

@@ -142,6 +142,32 @@ export const source = pgTable("Source", {
   createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
 });
 
+// Videos from official league/broadcaster YouTube channels (created
+// 2026-09-25 via CREATE TABLE, like the other schema changes). Filled by
+// ingestion/youtubeVideos.ts from each channel's public RSS feed — no API
+// key, no quota. Only regular videos (not Shorts) that YouTube allows to be
+// embedded; played through YouTube's own player, never re-hosted.
+// isHighlights + matchArticleId link a highlights video to the match story
+// it's about, for the video on that match page.
+export const video = pgTable("Video", {
+  id: text("id").primaryKey(),
+  youtubeId: text("youtubeId").notNull(),
+  channelId: text("channelId").notNull(),
+  channelTitle: text("channelTitle").notNull(),
+  title: text("title").notNull(),
+  publishedAt: timestamp("publishedAt", { precision: 3 }).notNull(),
+  thumbnailUrl: text("thumbnailUrl"),
+  // Top-level sport category, same values as Article.category's first part.
+  category: text("category").notNull(),
+  isHighlights: boolean("isHighlights").notNull().default(false),
+  matchArticleId: text("matchArticleId"),
+  createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("Video_youtubeId_key").on(t.youtubeId),
+  index("Video_matchArticleId_idx").on(t.matchArticleId),
+  index("Video_category_publishedAt_idx").on(t.category, t.publishedAt),
+]);
+
 // Web Push subscriptions — anonymous, one row per browser that's granted
 // notification permission (see ServiceWorkerRegister.tsx/public/sw.js). No
 // article/user relation: an admin-triggered push (admin/actions.ts) sends

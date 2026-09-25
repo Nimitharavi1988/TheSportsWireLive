@@ -45,6 +45,14 @@ jobs:
           CRICKETDATA_API_KEY: ${{ secrets.CRICKETDATA_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # Official YouTube videos (src/lib/videos/youtubeSync.ts): new uploads
+      # from the channels' RSS feeds, and highlights linked to the match
+      # stories ingestion just updated. Keyless; own step so a YouTube
+      # outage never touches ingestion or posting.
+      - if: ${{ !cancelled() }}
+        run: npx tsx src/lib/videos/youtubeSync.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
       # Auto-approves only the pending articles that clear a real bar on top
       # of every automated quality gate already passed to reach
       # pending_review: substantive real body content (not the generic
