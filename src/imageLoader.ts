@@ -1,4 +1,5 @@
 import type { ImageLoaderProps } from "next/image";
+import { upgradeImageUrl } from "./lib/imageQuality";
 
 // Routes every next/image request through Cloudflare's on-the-fly Image
 // Resizing (the "Images" product's transformation endpoint) instead of
@@ -15,7 +16,10 @@ export default function cloudflareImageLoader({ src, width, quality }: ImageLoad
   // *.workers.dev preview URLs and localhost it 404s, which left every
   // preview with broken images. Those builds get the original URL instead
   // (see next.config.mjs's NEXT_PUBLIC_IMAGE_RESIZING).
-  if (process.env.NEXT_PUBLIC_IMAGE_RESIZING !== "1") return src;
+  // Small feed thumbnails (e.g. BBC's 240x135) become the full picture
+  // first — see lib/imageQuality.ts.
+  const source = upgradeImageUrl(src);
+  if (process.env.NEXT_PUBLIC_IMAGE_RESIZING !== "1") return source;
   const params = [`width=${width}`, `quality=${quality ?? 75}`, "format=auto"];
-  return `/cdn-cgi/image/${params.join(",")}/${src}`;
+  return `/cdn-cgi/image/${params.join(",")}/${source}`;
 }

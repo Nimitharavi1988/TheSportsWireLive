@@ -7,6 +7,7 @@ import { HappeningNow } from "@/components/HappeningNow";
 import { happeningNowEntities } from "@/lib/competitions";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import { hasRealImage } from "@/lib/contentQuality";
+import { isHeroQualityImage } from "@/lib/imageQuality";
 import Link from "next/link";
 import Image from "next/image";
 import { ScrollRow } from "@/components/ScrollRow";
@@ -686,7 +687,12 @@ export default async function HomePage(
   const heroEligibleMatchArticles = allMatchArticlesFull.filter((a) => a.matchStatus !== "scheduled");
   // allBriefArticlesFull is fresh now that articlesRanked is windowed
   // (fetchFreshRanked), so the hero shares it with every other section.
-  const heroMergedPool = [...heroEligibleMatchArticles, ...allBriefArticlesFull].sort(
+  // The hero is a large, full-width photo slot: automatic candidates need a
+  // real photo that isn't known to be small (lib/imageQuality.ts). Crest-only
+  // match results ("Royals 1-9 White Sox" with two logos) and 240px BBC
+  // thumbnails were leading it (2026-09-25); they still show in their own
+  // sections. Admin hero picks (manuallyFeatured) are exempt.
+  const heroMergedPool = [...heroEligibleMatchArticles, ...allBriefArticlesFull].filter((a) => isHeroQualityImage(a.heroImageUrl)).sort(
     (a, b) => b.trendingScore - a.trendingScore
   );
   const heroCandidates = [...manuallyFeatured, ...heroMergedPool];
