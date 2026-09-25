@@ -4,6 +4,7 @@ import { article as articleTable } from "@/db/schema";
 import { and, eq, like, isNotNull, isNull, ne, or, desc, gte, type SQL } from "drizzle-orm";
 import { ForYouStrip } from "@/components/ForYouStrip";
 import { HappeningNow } from "@/components/HappeningNow";
+import { LatestVideos, VideoStripSkeleton } from "@/components/videos/VideoStrip";
 import { happeningNowEntities } from "@/lib/competitions";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import { hasRealImage } from "@/lib/contentQuality";
@@ -1148,6 +1149,13 @@ export default async function HomePage(
               <PlayerNewsSection playerNewsMatches={playerNewsMatches} />
             </Suspense>
           )}
+
+          {/* Official league/broadcaster videos (src/lib/videos/), filtered
+              to the current sport; its own Suspense so the query never
+              delays the news below. */}
+          <Suspense fallback={<VideoStripSkeleton headingSx={SECTION_HEADING_SX} />}>
+            <LatestVideos category={category} headingSx={SECTION_HEADING_SX} />
+          </Suspense>
 
           {highlightArticles.length > 0 && (
             <Box component="section" sx={{ mb: 4 }}>
