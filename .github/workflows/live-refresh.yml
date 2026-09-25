@@ -35,8 +35,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
-      # ESPN only (no API keys); CricketData stays with full ingestion to
-      # protect its 100-calls/day free plan.
+      # ESPN (no key) + tracked international cricket within CricketData's
+      # 100-calls/day budget (scores/trackedCricket.ts).
       - run: npx tsx src/lib/scores/liveRefresh.ts
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CRICKETDATA_API_KEY: ${{ secrets.CRICKETDATA_API_KEY }}

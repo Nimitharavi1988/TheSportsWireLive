@@ -8,9 +8,10 @@
  * Deliberately narrow so it's cheap to run often:
  * - Nothing live or about to start -> one DB query, no provider calls.
  * - Never creates articles, never calls Gemini, never posts anywhere.
- * - ESPN sources only (no API key, no quota). CricketData.org stays with
- *   full ingestion: its free plan allows 100 calls/day, which that already
- *   uses; refreshing it here would exhaust it.
+ * - ESPN sources (no API key, no quota), plus tracked international
+ *   cricket matches (scores/trackedCricket.ts) every ~7 min within
+ *   CricketData's 100-calls/day budget. The general CricketData feed stays
+ *   with full ingestion.
  *
  * Runs on GitHub Actions (.github/workflows/live-refresh.yml), not the
  * site's Worker: the Workers free plan's 10ms CPU limit per request can't
@@ -20,7 +21,9 @@ import { db } from "@/db";
 import { article } from "@/db/schema";
 import { and, eq, gte, inArray, lte } from "drizzle-orm";
 import type { RawMatchItem } from "../ingestion/footballData";
-import { computeStableDedupeHash } from "../ingestion/dedupe";
+import { computeDedupeHash, computeStableDedupeHash } from "../ingestion/dedupe";
+import { fetchTrackedCricketMatch } from "../ingestion/cricketData";
+import { TRACKED_REFRESH_MS, trackedInPlay } from "./trackedCricket";
 import { matchRefreshValues } from "../ingestion/matchRefresh";
 import { fetchNflData } from "../ingestion/nflData";
 import { fetchNbaData } from "../ingestion/nbaData";
@@ -78,8 +81,9 @@ export async function runLiveRefresh(now: Date = new Date()): Promise<LiveRefres
       lte(article.kickoffAt, new Date(now.getTime() + PRE_KICKOFF_MS))
     ));
   const sources = active.map((r) => r.sourceName);
-  const result: LiveRefreshResult = { sources, fetched: 0, updated: 0, finished: 0 };
-  if (sources.length === 0) return result;
+  const tracked = trackedInPlay(now);
+  const result: LiveRefreshResult = { sources: [...sources], fetched: 0, updated: 0, finished: 0 };
+  if (sources.length === 0 && tracked.length === 0) return result;
 
   for (const sourceName of sources) {
     let items: RawMatchItem[];
@@ -106,7 +110,40 @@ export async function runLiveRefresh(now: Date = new Date()): Promise<LiveRefres
       if (item.matchStatus === "finished") result.finished++;
     }
   }
+  if (tracked.length > 0) {
+    result.sources.push("CricketData.org (tracked)");
+    await refreshTrackedCricket(tracked, now, result);
+  }
   return result;
+}
+
+// Tracked internationals: refresh an existing match row once its last
+// update is older than TRACKED_REFRESH_MS (full ingestion refreshes it
+// every ~15 min too, and creates it — this job never does). Each refresh
+// is one CricketData call, gated by the shared daily budget.
+async function refreshTrackedCricket(
+  tracked: ReturnType<typeof trackedInPlay>,
+  now: Date,
+  result: LiveRefreshResult
+): Promise<void> {
+  for (const match of tracked) {
+    // Same identity full ingestion gives it: title + kickoff day.
+    const hash = computeDedupeHash(match.name, new Date(match.startGmt));
+    const [row] = await db
+      .select({ id: article.id, matchStatus: article.matchStatus, updatedAt: article.updatedAt })
+      .from(article)
+      .where(eq(article.dedupeHash, hash))
+      .limit(1);
+    if (!row || row.matchStatus === "finished") continue;
+    if (now.getTime() - row.updatedAt.getTime() < TRACKED_REFRESH_MS) continue;
+
+    const item = await fetchTrackedCricketMatch(match.id);
+    if (!item) continue;
+    result.fetched++;
+    await db.update(article).set(matchRefreshValues(item, row.matchStatus, now)).where(eq(article.id, row.id));
+    result.updated++;
+    if (item.matchStatus === "finished") result.finished++;
+  }
 }
 
 if (require.main === module) {
