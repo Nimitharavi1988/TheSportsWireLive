@@ -654,7 +654,27 @@ export default async function HomePage(
   // "Match Results & Previews" below (matchStatus is untouched there) —
   // this only narrows what's eligible to lead the hero.
   const heroEligibleMatchArticles = allMatchArticlesFull.filter((a) => a.matchStatus !== "scheduled");
-  const heroMergedPool = [...heroEligibleMatchArticles, ...allBriefArticlesFull].sort(
+  // News (non-match) hero candidates come from highlightCandidatesRaw — the
+  // fresh window (published within HIGHLIGHT_MAX_AGE_DAYS), trending-sorted
+  // — not allBriefArticlesFull, which is built from the un-windowed top-80
+  // articlesRanked. trendingScore never decays, so that pool let an
+  // 11-day-old story (trendingScore 175, "Pro Ref Admits VAR Error...",
+  // published Sep 14) keep leading the hero on 2026-09-25 — the same bug
+  // class already fixed above for Just In, Transfers & Big News and Match
+  // Results. Same exclusions as allBriefArticlesFull (manual picks, match
+  // data) and the same title de-duplication as `articles`.
+  const seenFreshHeroTitles = new Set<string>();
+  const freshHeroBriefs = highlightCandidatesRaw.filter((a) => {
+    if (isMatchDataSource(a.sourceName) || excludedFromMatchPool.has(a.id)) return false;
+    const norm = a.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    if (seenFreshHeroTitles.has(norm)) return false;
+    seenFreshHeroTitles.add(norm);
+    return true;
+  });
+  // A category page with no fresh stories at all (a quiet sport) falls
+  // back to the previous pool rather than showing an empty hero.
+  const heroBriefPool = freshHeroBriefs.length > 0 || heroEligibleMatchArticles.length > 0 ? freshHeroBriefs : allBriefArticlesFull;
+  const heroMergedPool = [...heroEligibleMatchArticles, ...heroBriefPool].sort(
     (a, b) => b.trendingScore - a.trendingScore
   );
   const heroCandidates = [...manuallyFeatured, ...heroMergedPool];
