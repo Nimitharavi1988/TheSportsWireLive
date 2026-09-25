@@ -13,7 +13,9 @@
 export const SERIES_SCHEDULE: Record<string, { start: string; end: string }> = {
   // Three ODIs: Sep 27 Thiruvananthapuram, Sep 30 Guwahati, Oct 3 New
   // Chandigarh — per Wisden's series guide and squad coverage (stored
-  // articles, 2026-09-16/24). The following T20I series (5 matches from
-  // Oct 6, Lucknow) has no confirmed end date in coverage yet, so no entry.
+  // articles, 2026-09-16/24).
   "india-vs-west-indies-odi": { start: "2026-09-27", end: "2026-10-03" },
+  // Five T20Is, Oct 6 (Lucknow) to Oct 17 (Bengaluru) — CricketData's own
+  // series data (series_info, 2026-09-25); see scores/trackedCricket.ts.
+  "india-vs-west-indies-t20i": { start: "2026-10-06", end: "2026-10-17" },
 };

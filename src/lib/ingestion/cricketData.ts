@@ -12,6 +12,7 @@ import { eq, and } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import type { RawMatchItem } from "./footballData";
 import { cricketLeagueLabel, cricketTeamScore } from "../scores/cricketLabels";
+import { BUSY_DAY_GENERAL_POLL_MS, budgetAllows, isTrackedMatchDay, trackedInPlay, withHits } from "../scores/trackedCricket";
 import { fetchCommonsFile } from "./wikimediaImages";
 import { matchCountry, isInternationalFormat, type CricketCountry } from "./cricketCountries";
 import { deriveSeriesKey } from "./cricketSeries";
@@ -133,132 +134,177 @@ export async function fetchInternationalFlags(
 // 20-min floor (72 calls/day) to get the freshest possible "live" cricket
 // data the free tier allows, per explicit user request — staying on free
 // rather than paying for CricketData.org's per-minute-capable paid tiers.
-const MIN_POLL_INTERVAL_MS = 15 * 60 * 1000;
+// One CricketData match object (from currentMatches or match_info — same
+// shape) -> RawMatchItem. null for an entry without a name/id.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function cricketItemFrom(match: any): Promise<RawMatchItem | null> {
+  if (!match?.name || !match?.id) return null;
 
-export async function fetchCricketData(): Promise<RawMatchItem[]> {
-  const apiKey = process.env.CRICKETDATA_API_KEY;
-  if (!apiKey) {
-    console.warn("CRICKETDATA_API_KEY not set — skipping cricket ingestion");
-    return [];
+  const title = match.name;
+
+  let scoreText = "";
+  if (Array.isArray(match.score) && match.score.length > 0) {
+    scoreText = match.score
+      .map((s: any) => `${s.inning ?? ""}: ${s.r ?? "?"}/${s.w ?? "?"} (${s.o ?? "?"} ov)`)
+      .join(", ");
   }
 
+  const summary = scoreText
+    ? `${match.status ?? "Match update"}. ${scoreText}`
+    : match.status ?? `${title} — match details.`;
+
+  const inningsLines = Array.isArray(match.score)
+    ? match.score.map((s: any) => `${s.inning ?? "Innings"}: ${s.r ?? "?"}/${s.w ?? "?"} in ${s.o ?? "?"} overs.`)
+    : [];
+  const bodyParts = [
+    `${title}.`,
+    match.status ? `${match.status}.` : null,
+    match.venue ? `Venue: ${match.venue}.` : null,
+    ...inningsLines,
+  ].filter(Boolean);
+  const body = bodyParts.join(" ");
+
+  const crests = extractTeamLogos(match);
+  if (!crests.homeCrestUrl) {
+    Object.assign(crests, await fetchInternationalFlags(title));
+  }
+
+  const teams = extractTeams(title);
+  // Bilateral international series only (Test/ODI/T20I) — franchise
+  // tournaments (IPL etc.) aren't team-pair-shaped, so deriveSeriesKey
+  // returns null for them and the match simply isn't grouped.
+  const series = teams && isInternationalFormat(title) ? deriveSeriesKey(teams[0], teams[1], title) : null;
+  const kickoffAt = match.dateTimeGMT ? new Date(match.dateTimeGMT) : new Date();
+
+  return {
+    title,
+    summary,
+    body,
+    sourceUrl: `https://cricketdata.org/`,
+    sourceName: "CricketData.org",
+    category: "cricket",
+    publishedAt: match.dateTimeGMT ? new Date(match.dateTimeGMT) : new Date(),
+    ...crests,
+    homeTeam: teams?.[0],
+    awayTeam: teams?.[1],
+    seriesKey: series?.key,
+    seriesLabel: series?.label,
+    // No single homeScore/awayScore here — a multi-innings cricket score
+    // doesn't fit two plain integers the way football/NFL's single score
+    // does. homeScoreText/awayScoreText (below) carry a short per-team
+    // score line instead, for a "TeamA score vs TeamB score" scoreboard
+    // display; matchStatus + the existing summary/body text carry the
+    // fuller result/status; see inferCricketMatchStatus above.
+    matchStatus: inferCricketMatchStatus(match.status),
+    kickoffAt: match.dateTimeGMT ? new Date(match.dateTimeGMT) : new Date(),
+    // cricketTeamScore, not extractTeamScoreLine: CricketData labels one
+    // side's innings with both team names, which the old substring
+    // match attributed to both teams (see cricketLabels.ts).
+    homeScoreText: teams ? cricketTeamScore(match.score, teams[0], teams[1]) : undefined,
+    awayScoreText: teams ? cricketTeamScore(match.score, teams[1], teams[0]) : undefined,
+    venue: match.venue || undefined,
+    leagueLabel: cricketLeagueLabel(title) ?? series?.label,
+    // CricketData's own status line ("India need 93 runs in 70 balls",
+    // "India won by 25 runs") once play has started. Before that it's
+    // "Match starts at ..." — not worth a line on a score card.
+    matchNote: kickoffAt.getTime() <= Date.now() && match.status ? String(match.status) : null,
+  };
+}
+
+// General feed cadence. 96 calls/day at 15 min — nearly the whole 100/day
+// free plan — so on a day a tracked international is played it drops to
+// every 2 hours to leave room for that match (see scores/trackedCricket.ts).
+const MIN_POLL_INTERVAL_MS = 15 * 60 * 1000;
+
+async function cricketSource() {
   const [verticalRow] = await db.select().from(vertical).where(eq(vertical.name, "sports")).limit(1);
   const [sourceRow] = verticalRow
     ? await db.select().from(source).where(and(eq(source.verticalId, verticalRow.id), eq(source.name, SOURCE_NAME))).limit(1)
     : [null];
+  return { verticalRow: verticalRow ?? null, sourceRow: sourceRow ?? null };
+}
 
-  if (sourceRow?.lastPolledAt && Date.now() - sourceRow.lastPolledAt.getTime() < MIN_POLL_INTERVAL_MS) {
-    const nextOkAt = new Date(sourceRow.lastPolledAt.getTime() + MIN_POLL_INTERVAL_MS);
-    console.log(
-      `CricketData.org polled recently (last: ${sourceRow.lastPolledAt.toISOString()}) — skipping until ${nextOkAt.toISOString()} to conserve the 100 req/day free-tier limit`
-    );
-    return [];
+// Every CricketData call goes through here: skips once CricketData's own
+// hitsToday (stored on the Source row) reaches the safety limit, and
+// records the new count after each call. Returns the parsed JSON, or null.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function cricketDataCall(path: string, markPolled: boolean): Promise<any | null> {
+  const apiKey = process.env.CRICKETDATA_API_KEY;
+  if (!apiKey) {
+    console.warn("CRICKETDATA_API_KEY not set — skipping CricketData.org");
+    return null;
+  }
+  const now = new Date();
+  const { verticalRow, sourceRow } = await cricketSource();
+  if (sourceRow && !budgetAllows(sourceRow.config, now)) {
+    console.log(`CricketData.org daily budget reached (${JSON.stringify(sourceRow.config)}) — skipping ${path.split("?")[0]}`);
+    return null;
   }
 
   let res: Response;
   try {
-    res = await fetch(`${BASE_URL}/currentMatches?apikey=${apiKey}&offset=0`);
+    res = await fetch(`${BASE_URL}/${path}${path.includes("?") ? "&" : "?"}apikey=${apiKey}`);
   } catch (err) {
     // A network-level failure here (DNS, timeout, connection reset) must
-    // not throw — this call runs inside a Promise.all alongside
-    // football-data.org and RSS ingestion, so an uncaught rejection would
-    // take down the entire ingest run over one flaky source.
-    console.error("CricketData.org fetch failed (network error):", err);
-    return [];
+    // not throw — this runs inside a Promise.all alongside other sources,
+    // so an uncaught rejection would take down the entire ingest run.
+    console.error(`CricketData.org ${path.split("?")[0]} failed (network error):`, err);
+    return null;
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data: any = res.ok ? await res.json().catch(() => null) : null;
 
-  // Record the poll attempt regardless of outcome — a failed request still
+  // Record the attempt regardless of outcome — a failed request still
   // consumes a slot against the daily quota.
   if (verticalRow) {
+    const config = withHits(sourceRow?.config, data?.info, now);
     if (sourceRow) {
-      await db.update(source).set({ lastPolledAt: new Date() }).where(eq(source.id, sourceRow.id));
+      await db.update(source).set({ config, ...(markPolled ? { lastPolledAt: now } : {}) }).where(eq(source.id, sourceRow.id));
     } else {
       await db.insert(source).values({
-        id: createId(), verticalId: verticalRow.id, name: SOURCE_NAME, type: "api", config: {}, lastPolledAt: new Date(),
+        id: createId(), verticalId: verticalRow.id, name: SOURCE_NAME, type: "api", config, lastPolledAt: markPolled ? now : null,
       });
     }
   }
 
   if (!res.ok) {
-    console.error(`CricketData.org fetch failed: ${res.status}`);
-    return [];
+    console.error(`CricketData.org ${path.split("?")[0]} failed: ${res.status}`);
+    return null;
   }
+  return data;
+}
 
-  const data = await res.json();
+// One tracked match by CricketData id (see scores/trackedCricket.ts).
+export async function fetchTrackedCricketMatch(id: string): Promise<RawMatchItem | null> {
+  const data = await cricketDataCall(`match_info?id=${encodeURIComponent(id)}`, false);
+  return data?.data ? cricketItemFrom(data.data) : null;
+}
+
+export async function fetchCricketData(): Promise<RawMatchItem[]> {
+  const now = new Date();
   const items: RawMatchItem[] = [];
 
-  for (const match of data.data ?? []) {
-    if (!match.name || !match.id) continue;
-
-    const title = match.name;
-
-    let scoreText = "";
-    if (Array.isArray(match.score) && match.score.length > 0) {
-      scoreText = match.score
-        .map((s: any) => `${s.inning ?? ""}: ${s.r ?? "?"}/${s.w ?? "?"} (${s.o ?? "?"} ov)`)
-        .join(", ");
+  // General feed (currentMatches), throttled — slower on tracked-match days.
+  const interval = isTrackedMatchDay(now) ? BUSY_DAY_GENERAL_POLL_MS : MIN_POLL_INTERVAL_MS;
+  const { sourceRow } = await cricketSource();
+  if (sourceRow?.lastPolledAt && now.getTime() - sourceRow.lastPolledAt.getTime() < interval) {
+    const nextOkAt = new Date(sourceRow.lastPolledAt.getTime() + interval);
+    console.log(
+      `CricketData.org currentMatches polled recently (last: ${sourceRow.lastPolledAt.toISOString()}) — skipping until ${nextOkAt.toISOString()} to conserve the 100 req/day free-tier limit`
+    );
+  } else {
+    const data = await cricketDataCall("currentMatches?offset=0", true);
+    for (const match of data?.data ?? []) {
+      const item = await cricketItemFrom(match);
+      if (item) items.push(item);
     }
+  }
 
-    const summary = scoreText
-      ? `${match.status ?? "Match update"}. ${scoreText}`
-      : match.status ?? `${title} — match details.`;
-
-    const inningsLines = Array.isArray(match.score)
-      ? match.score.map((s: any) => `${s.inning ?? "Innings"}: ${s.r ?? "?"}/${s.w ?? "?"} in ${s.o ?? "?"} overs.`)
-      : [];
-    const bodyParts = [
-      `${title}.`,
-      match.status ? `${match.status}.` : null,
-      match.venue ? `Venue: ${match.venue}.` : null,
-      ...inningsLines,
-    ].filter(Boolean);
-    const body = bodyParts.join(" ");
-
-    const crests = extractTeamLogos(match);
-    if (!crests.homeCrestUrl) {
-      Object.assign(crests, await fetchInternationalFlags(title));
-    }
-
-    const teams = extractTeams(title);
-    // Bilateral international series only (Test/ODI/T20I) — franchise
-    // tournaments (IPL etc.) aren't team-pair-shaped, so deriveSeriesKey
-    // returns null for them and the match simply isn't grouped.
-    const series = teams && isInternationalFormat(title) ? deriveSeriesKey(teams[0], teams[1], title) : null;
-    const kickoffAt = match.dateTimeGMT ? new Date(match.dateTimeGMT) : new Date();
-
-    items.push({
-      title,
-      summary,
-      body,
-      sourceUrl: `https://cricketdata.org/`,
-      sourceName: "CricketData.org",
-      category: "cricket",
-      publishedAt: match.dateTimeGMT ? new Date(match.dateTimeGMT) : new Date(),
-      ...crests,
-      homeTeam: teams?.[0],
-      awayTeam: teams?.[1],
-      seriesKey: series?.key,
-      seriesLabel: series?.label,
-      // No single homeScore/awayScore here — a multi-innings cricket score
-      // doesn't fit two plain integers the way football/NFL's single score
-      // does. homeScoreText/awayScoreText (below) carry a short per-team
-      // score line instead, for a "TeamA score vs TeamB score" scoreboard
-      // display; matchStatus + the existing summary/body text carry the
-      // fuller result/status; see inferCricketMatchStatus above.
-      matchStatus: inferCricketMatchStatus(match.status),
-      kickoffAt: match.dateTimeGMT ? new Date(match.dateTimeGMT) : new Date(),
-      // cricketTeamScore, not extractTeamScoreLine: CricketData labels one
-      // side's innings with both team names, which the old substring
-      // match attributed to both teams (see cricketLabels.ts).
-      homeScoreText: teams ? cricketTeamScore(match.score, teams[0], teams[1]) : undefined,
-      awayScoreText: teams ? cricketTeamScore(match.score, teams[1], teams[0]) : undefined,
-      venue: match.venue || undefined,
-      leagueLabel: cricketLeagueLabel(title) ?? series?.label,
-      // CricketData's own status line ("India need 93 runs in 70 balls",
-      // "India won by 25 runs") once play has started. Before that it's
-      // "Match starts at ..." — not worth a line on a score card.
-      matchNote: kickoffAt.getTime() <= Date.now() && match.status ? String(match.status) : null,
-    });
+  // Tracked internationals the general feed doesn't carry.
+  for (const tracked of trackedInPlay(now)) {
+    if (items.some((i) => i.title === tracked.name)) continue;
+    const item = await fetchTrackedCricketMatch(tracked.id);
+    if (item) items.push(item);
   }
 
   return items;
