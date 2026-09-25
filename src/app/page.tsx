@@ -51,6 +51,7 @@ import {
 } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
 import { LiveNowCarousel } from "@/components/scores/LiveNowCarousel";
+import { MobileScoresRow } from "@/components/scores/MobileScoresRow";
 import { CollapsibleAdBox } from "@/components/CollapsibleAdBox";
 import { MoreHeadlinesAdTile } from "@/components/MoreHeadlinesAdTile";
 import { HomeBanners } from "@/components/HomeBanners";
@@ -811,6 +812,8 @@ export default async function HomePage(
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      {/* Phones only: scores at the very top (see MobileScoresRow). */}
+      <MobileScoresRow matches={liveMatches.slice(0, 12)} />
       <HomeBanners />
       {!category && <ForYouStrip />}
       {articles.length === 0 && (
@@ -1388,7 +1391,9 @@ export default async function HomePage(
             }}
           >
             {liveMatches.length > 0 && (
-              <Box sx={{ mb: 3 }}>
+              // Hidden on phones, where MobileScoresRow at the top of the
+              // page shows the same games — this box sat far down the page.
+              <Box sx={{ mb: 3, display: { xs: "none", sm: "block" } }}>
                 <LiveNowCarousel matches={liveMatches} />
               </Box>
             )}
