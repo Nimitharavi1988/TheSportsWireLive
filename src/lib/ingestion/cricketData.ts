@@ -11,6 +11,7 @@ import { vertical, source } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import type { RawMatchItem } from "./footballData";
+import { cricketLeagueLabel } from "../scores/cricketLabels";
 import { fetchCommonsFile } from "./wikimediaImages";
 import { matchCountry, isInternationalFormat, type CricketCountry } from "./cricketCountries";
 import { deriveSeriesKey } from "./cricketSeries";
@@ -223,6 +224,7 @@ export async function fetchCricketData(): Promise<RawMatchItem[]> {
     // tournaments (IPL etc.) aren't team-pair-shaped, so deriveSeriesKey
     // returns null for them and the match simply isn't grouped.
     const series = teams && isInternationalFormat(title) ? deriveSeriesKey(teams[0], teams[1], title) : null;
+    const kickoffAt = match.dateTimeGMT ? new Date(match.dateTimeGMT) : new Date();
 
     items.push({
       title,
@@ -248,6 +250,11 @@ export async function fetchCricketData(): Promise<RawMatchItem[]> {
       homeScoreText: teams ? extractTeamScoreLine(match.score, teams[0]) : undefined,
       awayScoreText: teams ? extractTeamScoreLine(match.score, teams[1]) : undefined,
       venue: match.venue || undefined,
+      leagueLabel: cricketLeagueLabel(title) ?? series?.label,
+      // CricketData's own status line ("India need 93 runs in 70 balls",
+      // "India won by 25 runs") once play has started. Before that it's
+      // "Match starts at ..." — not worth a line on a score card.
+      matchNote: kickoffAt.getTime() <= Date.now() && match.status ? String(match.status) : null,
     });
   }
 

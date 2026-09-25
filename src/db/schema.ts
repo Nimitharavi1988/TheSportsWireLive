@@ -72,6 +72,27 @@ export const article = pgTable("Article", {
   seriesKey: text("seriesKey"),
   seriesLabel: text("seriesLabel"),
   venue: text("venue"),
+  // Scoreboard fields (added 2026-09-25 via ALTER TABLE, all nullable, for
+  // the standardized score cards / match header — see src/lib/scores/).
+  // Written by match-data sources only; null for everything else.
+  // "NFL · Week 4", "Premier League", "India v West Indies" — the heading a
+  // game is grouped under on /scores.
+  leagueLabel: text("leagueLabel"),
+  // Live status only ("Q3 · 8:42", "Halftime", "67'"); null before kickoff
+  // and after the final, so a stale clock can never outlive the game.
+  matchClock: text("matchClock"),
+  // One-line situation under the score ("India need 93 runs from 70 balls").
+  matchNote: text("matchNote"),
+  // Team records at the time of the game ("3-0"), when the source has them.
+  homeRecord: text("homeRecord"),
+  awayRecord: text("awayRecord"),
+  // TV/stream channel for upcoming games ("FOX"), when the source has it.
+  broadcast: text("broadcast"),
+  // Provider-independent identity: `${category}:${yyyy-mm-dd}:${home}-v-${away}`
+  // (slugified). dedupeHash stays provider-specific (espn-nfl-<id>); this is
+  // what lets a second provider be compared against, or swapped in for, the
+  // first without creating a duplicate match. See lib/scores/matchKey.ts.
+  matchKey: text("matchKey"),
   // Added 2026-09-24 ahead of a planned (not yet implemented) Spanish-
   // language content pipeline -- default 'en' means every existing row and
   // every current (English-only) ingestion source is unaffected. Drives the
@@ -97,6 +118,7 @@ export const article = pgTable("Article", {
   index("Article_category_idx").on(t.category),
   index("Article_matchStatus_kickoffAt_idx").on(t.matchStatus, t.kickoffAt),
   index("Article_seriesKey_idx").on(t.seriesKey),
+  index("Article_matchKey_idx").on(t.matchKey),
 ]);
 
 export const socialPost = pgTable("SocialPost", {

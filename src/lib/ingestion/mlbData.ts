@@ -127,6 +127,7 @@ export async function fetchMlbData(): Promise<RawMatchItem[]> {
         homeScore: state === "Final" ? home.score : undefined,
         awayScore: state === "Final" ? away.score : undefined,
         matchStatus: state === "Final" ? "finished" : "scheduled",
+        leagueLabel: "MLB",
         kickoffAt: new Date(game.gameDate),
         // gamePk is MLB's own stable game identifier — unlike the title
         // (which embeds a date), it never changes for a given game.

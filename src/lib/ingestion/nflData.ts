@@ -11,6 +11,7 @@
  */
 import { ordinal } from "./standings";
 import type { RawMatchItem } from "./footballData";
+import { espnBroadcast, espnLiveClock, espnRecord, espnScore, type EspnStatus } from "../scores/espnStatus";
 
 const SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
 const STANDINGS_URL = "https://site.api.espn.com/apis/v2/sports/football/nfl/standings";
@@ -25,6 +26,7 @@ interface EspnCompetitor {
   homeAway: "home" | "away";
   score: string;
   team: EspnTeam;
+  records?: { type?: string; summary?: string }[];
 }
 
 interface EspnVenue {
@@ -35,8 +37,8 @@ interface EspnVenue {
 interface EspnEvent {
   id: string;
   date: string;
-  status: { type: { state: string; completed: boolean } };
-  competitions: { competitors: EspnCompetitor[]; venue?: EspnVenue }[];
+  status: EspnStatus;
+  competitions: { competitors: EspnCompetitor[]; venue?: EspnVenue; broadcasts?: { names?: string[] }[] }[];
 }
 
 interface TeamRecord {
@@ -145,10 +147,14 @@ function recordContext(teamName: string, record: TeamRecord | undefined): string
   return ` ${teamName} are ${recordStr}${seedText}.`;
 }
 
-function scoreOf(competitor: { score?: string }): number | undefined {
-  if (competitor.score === undefined || competitor.score.trim() === "") return undefined;
-  const n = Number(competitor.score);
-  return Number.isFinite(n) ? n : undefined;
+// "NFL · Week 3" in the regular season (season.type 2), otherwise the
+// phase — the heading games are grouped under on /scores.
+function nflLeagueLabel(data: { week?: { number?: number }; season?: { type?: number } }): string {
+  const seasonType = data.season?.type;
+  if (seasonType === 1) return "NFL Preseason";
+  if (seasonType === 3) return "NFL Playoffs";
+  const week = data.week?.number;
+  return seasonType === 2 && week ? `NFL · Week ${week}` : "NFL";
 }
 
 export async function fetchNflData(): Promise<RawMatchItem[]> {
@@ -166,6 +172,7 @@ export async function fetchNflData(): Promise<RawMatchItem[]> {
   }
 
   const data = await scoreboardRes.json();
+  const leagueLabel = nflLeagueLabel(data);
   const items: RawMatchItem[] = [];
 
   for (const event of (data.events ?? []) as EspnEvent[]) {
@@ -247,9 +254,15 @@ export async function fetchNflData(): Promise<RawMatchItem[]> {
       awayTeam,
       // Final score, or the running score while live. scoreOf drops a
       // missing/non-numeric value rather than storing 0 or NaN.
-      homeScore: isFinal || isLive ? scoreOf(home) : undefined,
-      awayScore: isFinal || isLive ? scoreOf(away) : undefined,
+      homeScore: isFinal || isLive ? espnScore(home) : undefined,
+      awayScore: isFinal || isLive ? espnScore(away) : undefined,
       matchStatus: isFinal ? "finished" : "scheduled",
+      leagueLabel,
+      // Live clock only while in progress; null clears it at the final.
+      matchClock: espnLiveClock("quarters", event.status),
+      homeRecord: espnRecord(home),
+      awayRecord: espnRecord(away),
+      broadcast: espnBroadcast(event.competitions?.[0]),
       kickoffAt: new Date(event.date),
       // event.id is ESPN's own stable game identifier — unlike the title
       // (which embeds a kickoff date ESPN can revise as broadcast slots get

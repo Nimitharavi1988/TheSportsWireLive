@@ -14,6 +14,7 @@
  * Same RawMatchItem shape as footballData.ts, reused directly.
  */
 import type { RawMatchItem } from "./footballData";
+import { espnBroadcast, espnLiveClock, espnRecord, espnScore, type EspnStatus } from "../scores/espnStatus";
 
 // Indian Super League removed (2026-09-20, explicit request) — confirmed
 // real audience breakdown is mostly USA with Sweden/Ireland second, India
@@ -38,6 +39,7 @@ interface EspnTeam {
 interface EspnCompetitor {
   homeAway: "home" | "away";
   score: string;
+  records?: { type?: string; summary?: string }[];
   team: EspnTeam;
 }
 
@@ -49,8 +51,8 @@ interface EspnVenue {
 interface EspnEvent {
   id: string;
   date: string;
-  status: { type: { state: string } };
-  competitions: { competitors: EspnCompetitor[]; venue?: EspnVenue }[];
+  status: EspnStatus;
+  competitions: { competitors: EspnCompetitor[]; venue?: EspnVenue; broadcasts?: { names?: string[] }[] }[];
 }
 
 async function fetchLeague(league: { code: string; label: string }): Promise<RawMatchItem[]> {
@@ -73,7 +75,11 @@ async function fetchLeague(league: { code: string; label: string }): Promise<Raw
     // (state "in") would be a confusing partial snapshot by the time this
     // article is actually read. Same rule as nflData.ts.
     const state = event.status?.type?.state;
-    if (state !== "post" && state !== "pre") continue;
+    // "in" (live) games are kept with the running score, still matchStatus
+    // "scheduled" — same approach and reasoning as nflData.ts.
+    if (state !== "post" && state !== "pre" && state !== "in") continue;
+    const isFinal = state === "post";
+    const isLive = state === "in";
 
     const competitors = event.competitions?.[0]?.competitors ?? [];
     const home = competitors.find((c) => c.homeAway === "home");
@@ -132,9 +138,14 @@ async function fetchLeague(league: { code: string; label: string }): Promise<Raw
       awayCrestUrl: away.team.logo,
       homeTeam,
       awayTeam,
-      homeScore: state === "post" ? Number(home.score) : undefined,
-      awayScore: state === "post" ? Number(away.score) : undefined,
-      matchStatus: state === "post" ? "finished" : "scheduled",
+      homeScore: isFinal || isLive ? espnScore(home) : undefined,
+      awayScore: isFinal || isLive ? espnScore(away) : undefined,
+      matchStatus: isFinal ? "finished" : "scheduled",
+      leagueLabel: league.label,
+      matchClock: espnLiveClock("soccer", event.status),
+      homeRecord: espnRecord(home),
+      awayRecord: espnRecord(away),
+      broadcast: espnBroadcast(event.competitions?.[0]),
       kickoffAt: new Date(event.date),
       // event.id is ESPN's own stable game identifier — same reasoning as
       // nflData.ts's dedupeKey.
