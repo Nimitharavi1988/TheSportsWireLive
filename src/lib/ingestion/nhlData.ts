@@ -6,6 +6,7 @@
  * Same RawMatchItem shape as footballData.ts, reused directly.
  */
 import type { RawMatchItem } from "./footballData";
+import { espnBroadcast, espnLiveClock, espnRecord, espnScore, type EspnStatus } from "../scores/espnStatus";
 
 const SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard";
 const STANDINGS_URL = "https://site.api.espn.com/apis/v2/sports/hockey/nhl/standings";
@@ -19,6 +20,7 @@ interface EspnTeam {
 interface EspnCompetitor {
   homeAway: "home" | "away";
   score: string;
+  records?: { type?: string; summary?: string }[];
   team: EspnTeam;
 }
 
@@ -30,8 +32,8 @@ interface EspnVenue {
 interface EspnEvent {
   id: string;
   date: string;
-  status: { type: { state: string } };
-  competitions: { competitors: EspnCompetitor[]; venue?: EspnVenue }[];
+  status: EspnStatus;
+  competitions: { competitors: EspnCompetitor[]; venue?: EspnVenue; broadcasts?: { names?: string[] }[] }[];
 }
 
 interface TeamRecord {
@@ -93,7 +95,11 @@ export async function fetchNhlData(): Promise<RawMatchItem[]> {
 
   for (const event of (data.events ?? []) as EspnEvent[]) {
     const state = event.status?.type?.state;
-    if (state !== "post" && state !== "pre") continue;
+    // "in" (live) games are kept with the running score, still matchStatus
+    // "scheduled" — same approach and reasoning as nflData.ts.
+    if (state !== "post" && state !== "pre" && state !== "in") continue;
+    const isFinal = state === "post";
+    const isLive = state === "in";
 
     const competitors = event.competitions?.[0]?.competitors ?? [];
     const home = competitors.find((c) => c.homeAway === "home");
@@ -153,9 +159,14 @@ export async function fetchNhlData(): Promise<RawMatchItem[]> {
       awayCrestUrl: away.team.logo,
       homeTeam,
       awayTeam,
-      homeScore: state === "post" ? Number(home.score) : undefined,
-      awayScore: state === "post" ? Number(away.score) : undefined,
-      matchStatus: state === "post" ? "finished" : "scheduled",
+      homeScore: isFinal || isLive ? espnScore(home) : undefined,
+      awayScore: isFinal || isLive ? espnScore(away) : undefined,
+      matchStatus: isFinal ? "finished" : "scheduled",
+      leagueLabel: "NHL",
+      matchClock: espnLiveClock("hockey", event.status),
+      homeRecord: espnRecord(home),
+      awayRecord: espnRecord(away),
+      broadcast: espnBroadcast(event.competitions?.[0]),
       kickoffAt: new Date(event.date),
       dedupeKey: `espn-nhl-${event.id}`,
       venue,

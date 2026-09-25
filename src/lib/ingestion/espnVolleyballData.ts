@@ -16,6 +16,7 @@
  * Same RawMatchItem shape as footballData.ts, reused directly.
  */
 import type { RawMatchItem } from "./footballData";
+import { espnBroadcast, espnLiveClock, espnRecord, espnScore, type EspnStatus } from "../scores/espnStatus";
 
 const LEAGUES: { code: string; label: string }[] = [
   { code: "mens-college-volleyball", label: "NCAA Men's Volleyball" },
@@ -53,8 +54,8 @@ interface EspnVenue {
 interface EspnEvent {
   id: string;
   date: string;
-  status: { type: { state: string } };
-  competitions: { competitors: EspnCompetitor[]; venue?: EspnVenue }[];
+  status: EspnStatus;
+  competitions: { competitors: EspnCompetitor[]; venue?: EspnVenue; broadcasts?: { names?: string[] }[] }[];
 }
 
 function overallRecord(competitor: EspnCompetitor): string | undefined {
@@ -91,7 +92,11 @@ async function fetchLeague(league: { code: string; label: string }): Promise<Raw
 
   for (const event of (data.events ?? []) as EspnEvent[]) {
     const state = event.status?.type?.state;
-    if (state !== "post" && state !== "pre") continue;
+    // "in" (live) games are kept with the running score, still matchStatus
+    // "scheduled" — same approach and reasoning as nflData.ts.
+    if (state !== "post" && state !== "pre" && state !== "in") continue;
+    const isFinal = state === "post";
+    const isLive = state === "in";
 
     const competitors = event.competitions?.[0]?.competitors ?? [];
     const home = competitors.find((c) => c.homeAway === "home");
@@ -152,9 +157,14 @@ async function fetchLeague(league: { code: string; label: string }): Promise<Raw
       awayCrestUrl: away.team.logo,
       homeTeam,
       awayTeam,
-      homeScore: state === "post" ? Number(home.score) : undefined,
-      awayScore: state === "post" ? Number(away.score) : undefined,
-      matchStatus: state === "post" ? "finished" : "scheduled",
+      homeScore: isFinal || isLive ? espnScore(home) : undefined,
+      awayScore: isFinal || isLive ? espnScore(away) : undefined,
+      matchStatus: isFinal ? "finished" : "scheduled",
+      leagueLabel: league.label,
+      matchClock: espnLiveClock("sets", event.status),
+      homeRecord: espnRecord(home),
+      awayRecord: espnRecord(away),
+      broadcast: espnBroadcast(event.competitions?.[0]),
       kickoffAt: new Date(event.date),
       dedupeKey: `espn-volleyball-${league.code}-${event.id}`,
       venue,

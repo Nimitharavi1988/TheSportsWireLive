@@ -6,7 +6,7 @@
 // News — that badge is for genuinely notable curated stories, not raw
 // scorelines. Living config — add a new structured-data source's exact
 // sourceName here when one's added).
-const MATCH_DATA_SOURCES = new Set([
+export const MATCH_DATA_SOURCE_NAMES = [
   "football-data.org",
   "CricketData.org",
   "ESPN NFL",
@@ -16,7 +16,9 @@ const MATCH_DATA_SOURCES = new Set([
   "ESPN NHL",
   "API-Volleyball",
   "ESPN Volleyball",
-]);
+];
+
+const MATCH_DATA_SOURCES = new Set(MATCH_DATA_SOURCE_NAMES);
 
 export function isMatchDataSource(sourceName: string): boolean {
   return MATCH_DATA_SOURCES.has(sourceName);

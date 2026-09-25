@@ -105,6 +105,16 @@ export interface RawMatchItem {
   // this as a critical missing field, and fabricating a venue isn't an
   // option.
   venue?: string;
+  // Standard scoreboard fields (see Article's schema comments and
+  // src/lib/scores/). All optional: a source sets what it really has and
+  // leaves the rest unset — never a placeholder. matchClock/matchNote use
+  // null (not undefined) to clear a value, e.g. the live clock at the final.
+  leagueLabel?: string;
+  matchClock?: string | null;
+  matchNote?: string | null;
+  homeRecord?: string;
+  awayRecord?: string;
+  broadcast?: string;
 }
 
 function standingsContext(
@@ -196,6 +206,7 @@ async function fetchCompetitionMatches(
       body,
       sourceUrl: `https://www.football-data.org/matches/${match.id}`,
       sourceName: "football-data.org",
+      leagueLabel: match.competition?.name,
       category: categoryFor(competitionCode),
       publishedAt: new Date(match.utcDate),
       homeCrestUrl,

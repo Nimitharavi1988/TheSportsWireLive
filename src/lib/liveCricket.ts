@@ -161,7 +161,7 @@ function relatedNewsFor(home: string, away: string, excludeId: string, pool: New
     .slice(0, take);
 }
 
-function findNewsBasedCricketMatches(
+export function findNewsBasedCricketMatches(
   pool: NewsPoolRow[],
   take: number,
   excludePairs: Set<string>

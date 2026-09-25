@@ -42,11 +42,11 @@ import { ArticleThumb } from "@/components/ArticleThumb";
 import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImages";
 import { isHeroFeatureStale, isHighlightStale, HIGHLIGHT_MAX_AGE_DAYS } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
-import { LiveScoreboardCarousel } from "@/components/LiveScoreboardCarousel";
+import { LiveNowCarousel } from "@/components/scores/LiveNowCarousel";
 import { CollapsibleAdBox } from "@/components/CollapsibleAdBox";
 import { MoreHeadlinesAdTile } from "@/components/MoreHeadlinesAdTile";
 import { HomeBanners } from "@/components/HomeBanners";
-import { fetchLiveMatches } from "@/lib/liveMatches";
+import { fetchLiveNow } from "@/lib/scores/scoreboard";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import StarIcon from "@mui/icons-material/Star";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
@@ -409,8 +409,9 @@ export default async function HomePage(
     // related-news links at all). Scoped to the current category filter —
     // showing NFL scores while browsing a Cricket-only view would read as
     // wrong/out of place, same rule /scores follows for its own in-progress
-    // section — and to "All" when no filter is set.
-    fetchLiveMatches(30, category),
+    // section — and to "All" when no filter is set. Now the standard
+    // scoreboard (src/lib/scores/) — same cards and live rules as /scores.
+    fetchLiveNow({ take: 30, sport: category?.split("/")[0] }),
     // Competitions being played now (competitions.ts isHappeningNow) for the
     // "Happening now" row under the hero. Replaced a single "most recent
     // cricket series" banner that could only show one of several series/
@@ -1357,7 +1358,7 @@ export default async function HomePage(
           >
             {liveMatches.length > 0 && (
               <Box sx={{ mb: 3 }}>
-                <LiveScoreboardCarousel matches={liveMatches} />
+                <LiveNowCarousel matches={liveMatches} />
               </Box>
             )}
 

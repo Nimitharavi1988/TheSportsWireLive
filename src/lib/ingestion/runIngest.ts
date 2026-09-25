@@ -16,6 +16,7 @@ import { fetchCricinfoPlayerNews } from "./cricinfoPlayerFeeds";
 import { fetchAsianGamesNews } from "./asianGamesFeeds";
 import { fetchCricketData } from "./cricketData";
 import { detectSeriesFromTitle } from "./cricketSeries";
+import { buildMatchKey } from "../scores/matchKey";
 import { detectEventSeries, detectEventSeriesNear, detectIplTeamMention } from "./eventTagging";
 import { computeDedupeHash, computeStableDedupeHash } from "./dedupe";
 import { runQualityChecks } from "./qualityCheck";
@@ -390,6 +391,15 @@ export async function runIngest() {
             homeScoreText: item.homeScoreText,
             awayScoreText: item.awayScoreText,
             venue: item.venue,
+            // Standard scoreboard fields (src/lib/scores/). undefined = source
+            // doesn't provide it (Drizzle leaves the column alone); null = clear it.
+            leagueLabel: item.leagueLabel,
+            matchClock: item.matchClock,
+            matchNote: item.matchNote,
+            homeRecord: item.homeRecord,
+            awayRecord: item.awayRecord,
+            broadcast: item.broadcast,
+            matchKey: buildMatchKey(item.category, item.kickoffAt, item.homeTeam, item.awayTeam),
             ...(isCricketData || justFinished ? { summary: item.summary, body: item.body } : {}),
             ...(justFinished && !isCricketData ? { title: item.title } : {}),
             updatedAt: new Date(),
@@ -769,6 +779,15 @@ export async function runIngest() {
         homeScoreText: item.homeScoreText,
         awayScoreText: item.awayScoreText,
         venue,
+        // Standard scoreboard fields (src/lib/scores/). undefined = source
+        // doesn't provide it (Drizzle leaves the column alone); null = clear it.
+        leagueLabel: item.leagueLabel,
+        matchClock: item.matchClock,
+        matchNote: item.matchNote,
+        homeRecord: item.homeRecord,
+        awayRecord: item.awayRecord,
+        broadcast: item.broadcast,
+        matchKey: buildMatchKey(item.category, item.kickoffAt, item.homeTeam, item.awayTeam),
         updatedAt: new Date(),
       }).returning();
     // Registers this hash as no longer "new" — guards against the same
