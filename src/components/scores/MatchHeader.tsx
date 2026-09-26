@@ -4,7 +4,8 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import type { ScoreMatch, ScoreSide } from "@/lib/scores/scoreboardModel";
 import { KickoffTime } from "./KickoffTime";
-import { LiveBadge, PausedBadge, StartedBadge, TeamCrest } from "./ScoreCard";
+import { LiveBadge, PausedBadge, StartedBadge } from "./ScoreCard";
+import { TeamCrest } from "@/components/TeamCrest";
 import { DataSource } from "./DataFreshness";
 import { useLiveScores } from "./useLiveScores";
 
@@ -16,7 +17,7 @@ import { useLiveScores } from "./useLiveScores";
 function Side({ side, isFinal }: { side: ScoreSide; isFinal: boolean }) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.75, minWidth: 0, color: isFinal && !side.winner ? "text.secondary" : "text.primary" }}>
-      <TeamCrest side={side} size={56} />
+      <TeamCrest name={side.name} crestUrl={side.crestUrl} size={56} />
       <Typography sx={{ fontSize: 15, fontWeight: side.winner ? 700 : 600, textAlign: "center", lineHeight: 1.25 }}>{side.name}</Typography>
       {side.record && <Typography sx={{ fontSize: 12, color: "text.secondary" }}>{side.record}</Typography>}
     </Box>

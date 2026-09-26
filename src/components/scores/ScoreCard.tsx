@@ -1,11 +1,10 @@
 import Link from "next/link";
-import Image from "next/image";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import type { ScoreMatch, ScoreSide } from "@/lib/scores/scoreboardModel";
-import { playerInitials } from "@/lib/playerAvatar";
 import { KickoffTime } from "./KickoffTime";
 import { CardSource } from "./DataFreshness";
+import { TeamCrest } from "@/components/TeamCrest";
 
 // Score list, modelled on Google's sports cards: one card per league, one
 // row per match — both teams stacked on the left (crest, name, record),
@@ -59,38 +58,10 @@ export function StartedBadge() {
   );
 }
 
-export function TeamCrest({ side, size }: { side: Pick<ScoreSide, "name" | "crestUrl">; size: number }) {
-  if (side.crestUrl) {
-    // next/image directly, not Box component={Image}: MUI can't receive a
-    // component function from a server component.
-    return <Image src={side.crestUrl} alt="" width={size} height={size} style={{ objectFit: "contain", flexShrink: 0, width: size, height: size }} />;
-  }
-  return (
-    <Box
-      aria-hidden
-      sx={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        flexShrink: 0,
-        bgcolor: "action.hover",
-        color: "text.secondary",
-        fontSize: Math.round(size * 0.4),
-        fontWeight: 700,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      {playerInitials(side.name).slice(0, 2)}
-    </Box>
-  );
-}
-
 function Team({ side, muted, bold }: { side: ScoreSide; muted: boolean; bold: boolean }) {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, minHeight: 28, minWidth: 0, color: muted ? "text.secondary" : "text.primary" }}>
-      <TeamCrest side={side} size={20} />
+      <TeamCrest name={side.name} crestUrl={side.crestUrl} size={20} />
       <Typography component="span" noWrap sx={{ fontSize: 15, fontWeight: bold ? 700 : 400 }}>
         {side.name}
       </Typography>
