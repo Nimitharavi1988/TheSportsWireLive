@@ -13,6 +13,11 @@ export const LIVE_POLL_MS = 60_000;
 // to live promptly (same window as liveRefresh.ts's PRE_KICKOFF_MS).
 const PRE_START_MS = 15 * 60 * 1000;
 export const MAX_LIVE_IDS = 60;
+// Games on the site-wide score strip. Lives here, not in LiveTicker.tsx: a
+// server component importing a value from a "use client" file gets a client
+// reference, not the number — MatchTicker asked for take=<reference> and
+// the strip was silently empty everywhere from 2026-09-25 to 09-27.
+export const TICKER_SIZE = 14;
 
 // Whether this card can still change: in play, or about to start (or past
 // its start but not yet marked live).
