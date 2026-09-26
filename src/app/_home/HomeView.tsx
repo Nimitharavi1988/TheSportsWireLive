@@ -756,9 +756,9 @@ export async function HomeView({ category }: { category?: string }) {
       <MobileScoresRow matches={liveMatches.slice(0, 12)} sport={category?.split("/")[0]} />
       <HomeBanners />
       {!category && <ForYouStrip />}
-      {/* Our writers' latest pieces (nothing until there are some). */}
+      {/* Our writers' latest pieces lead the page once there are several (see AnalysisStrip). */}
       <Suspense fallback={null}>
-        <AnalysisStrip category={category} />
+        <AnalysisStrip category={category} placement="top" />
       </Suspense>
       {articles.length === 0 && (
         <Box sx={{ textAlign: "center", py: 8 }}>
@@ -1423,6 +1423,11 @@ export async function HomeView({ category }: { category?: string }) {
             {briefArticles.length === 0 && PLAYER_QUOTES.length > 0 && (
               <QuotesStrip quotes={PLAYER_QUOTES} />
             )}
+            {/* Our writers' pieces while there are only a few (see
+                AnalysisStrip's placement). */}
+            <Suspense fallback={null}>
+              <AnalysisStrip category={category} placement="side" />
+            </Suspense>
           </Box>
         )}
       </Box>
