@@ -8,6 +8,7 @@ import { TRACKED_CLUBS } from "@/lib/clubs";
 import { TRACKED_COUNTRIES } from "@/lib/countries";
 import { CATEGORY_META } from "@/lib/categoryMeta";
 import { MATCH_DATA_SOURCE_NAMES } from "@/lib/matchDataSources";
+import { VENUES } from "@/lib/venues";
 
 export const revalidate = 3600;
 
@@ -47,6 +48,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
     { url: `${siteUrl}/scores`, changeFrequency: "always", priority: 0.8 },
     { url: `${siteUrl}/analysis`, changeFrequency: "daily", priority: 0.8 },
+    { url: `${siteUrl}/venue`, changeFrequency: "weekly", priority: 0.5 },
+    ...VENUES.map((v) => ({ url: `${siteUrl}/venue/${v.slug}`, changeFrequency: "daily" as const, priority: 0.6 })),
     { url: `${siteUrl}/standings`, changeFrequency: "daily", priority: 0.6 },
     { url: `${siteUrl}/videos`, changeFrequency: "hourly", priority: 0.7 },
     { url: `${siteUrl}/player`, changeFrequency: "weekly", priority: 0.5 },

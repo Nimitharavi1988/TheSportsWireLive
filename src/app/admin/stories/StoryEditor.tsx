@@ -11,6 +11,8 @@ import Alert from "@mui/material/Alert";
 import Typography from "@mui/material/Typography";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
+import Autocomplete from "@mui/material/Autocomplete";
+import { tagGroupLabel, type TagOption } from "@/lib/tags";
 import { saveStory, uploadStoryImage, deleteDraft } from "./actions";
 import { STORY_KINDS, STORY_LIMITS, wordCount } from "@/lib/stories";
 
@@ -30,6 +32,13 @@ export interface StoryEditorValues {
   // false for an ingested story being edited.
   original: boolean;
   hasByline: boolean;
+  seriesKey: string | null;
+  tags: { kind: string; slug: string }[];
+}
+
+export interface SeriesOption {
+  key: string;
+  label: string;
 }
 
 // Photos are resized in the browser before upload (longest side 1600px,
@@ -49,7 +58,12 @@ async function resizeForUpload(file: File): Promise<Blob> {
 // The byline is remembered in this browser so it doesn't need retyping.
 const BYLINE_KEY = "swl:byline";
 
-export function StoryEditor({ initial, categories }: { initial: StoryEditorValues; categories: { value: string; label: string }[] }) {
+export function StoryEditor({ initial, categories, seriesOptions, tagOptions }: {
+  initial: StoryEditorValues;
+  categories: { value: string; label: string }[];
+  seriesOptions: SeriesOption[];
+  tagOptions: TagOption[];
+}) {
   const router = useRouter();
   const [v, setV] = useState(initial);
   const [byline, setByline] = useState(initial.hasByline);
@@ -162,6 +176,29 @@ export function StoryEditor({ initial, categories }: { initial: StoryEditorValue
         </Stack>
         <TextField label="Photo credit" value={v.heroImageCredit ?? ""} onChange={(e) => set("heroImageCredit", e.target.value)} size="small" sx={{ mt: 1.5, maxWidth: 420 }} fullWidth
           helperText="Who took it — use only photos you took or have permission to use." />
+      </Box>
+
+      <Box>
+        <Typography variant="subtitle2" gutterBottom>Tags</Typography>
+        <Stack spacing={2}>
+          <TextField select label="Series or event" value={v.seriesKey ?? ""} onChange={(e) => set("seriesKey", e.target.value || null)} sx={{ maxWidth: 480 }}
+            helperText="The story is listed on that series page, next to its fixtures and scores.">
+            <MenuItem value="">None</MenuItem>
+            {seriesOptions.map((o) => <MenuItem key={o.key} value={o.key}>{o.label}</MenuItem>)}
+          </TextField>
+          <Autocomplete
+            multiple
+            options={tagOptions}
+            groupBy={(o) => tagGroupLabel(o.kind)}
+            getOptionLabel={(o) => o.label}
+            isOptionEqualToValue={(a, b) => a.kind === b.kind && a.slug === b.slug}
+            value={tagOptions.filter((o) => v.tags.some((t) => t.kind === o.kind && t.slug === o.slug))}
+            onChange={(_, chosen) => set("tags", chosen.map((o) => ({ kind: o.kind, slug: o.slug })))}
+            renderInput={(params) => (
+              <TextField {...params} label="Players, teams and venues" placeholder="Type a name" helperText="The story shows on each one's page." />
+            )}
+          />
+        </Stack>
       </Box>
 
       <TextField label="Story" value={v.body} onChange={(e) => set("body", e.target.value)} fullWidth multiline minRows={14}

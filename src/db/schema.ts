@@ -4,7 +4,7 @@
 // the model names as-written and column names are the field names
 // as-written) -- confirmed directly against the real database via a raw
 // SQL query during the migration's own feasibility test.
-import { pgTable, pgEnum, text, boolean, doublePrecision, integer, timestamp, jsonb, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, text, boolean, doublePrecision, integer, timestamp, jsonb, uniqueIndex, index, primaryKey } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const articleStatusEnum = pgEnum("ArticleStatus", [
@@ -198,6 +198,15 @@ export const clientError = pgTable("ClientError", {
   userAgent: text("userAgent"),
   createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
 }, (t) => [index("ClientError_createdAt_idx").on(t.createdAt)]);
+
+// Tags an editor chose for a story (admin story editor): the players,
+// teams, countries and venues it is about — on top of the automatic
+// headline matching (lib/tags.ts). kind: player | club | country | venue.
+export const articleTag = pgTable("ArticleTag", {
+  articleId: text("articleId").notNull().references(() => article.id, { onDelete: "cascade" }),
+  kind: text("kind").notNull(),
+  slug: text("slug").notNull(),
+}, (t) => [primaryKey({ columns: [t.articleId, t.kind, t.slug] }), index("ArticleTag_kind_slug_idx").on(t.kind, t.slug)]);
 
 // People who write for the site — the byline on original and editor-
 // rewritten stories, with their own page (/author/[slug]).

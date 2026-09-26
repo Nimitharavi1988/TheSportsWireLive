@@ -1,8 +1,9 @@
 "use server";
 
 import { db } from "@/db";
-import { article, author, vertical } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { article, articleTag, author, vertical } from "@/db/schema";
+import { and, eq, isNotNull } from "drizzle-orm";
+import { isKnownTag } from "@/lib/tags";
 import { createId } from "@paralleldrive/cuid2";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
@@ -51,6 +52,26 @@ export interface SaveStoryInput {
   // Edits of ingested stories: put the editor's byline on it (only for a
   // substantial rewrite).
   byline: boolean;
+  // The series/event it belongs to (/series/[key]), or none.
+  seriesKey: string | null;
+  // Players, teams, countries and venues it's about (lib/tags.ts).
+  tags: { kind: string; slug: string }[];
+}
+
+// The series/event label for a key, from the stories already filed under it.
+async function seriesLabelFor(key: string): Promise<string | null> {
+  const [row] = await db.select({ label: article.seriesLabel }).from(article)
+    .where(and(eq(article.seriesKey, key), isNotNull(article.seriesLabel))).limit(1);
+  return row?.label ?? null;
+}
+
+// Replaces a story's tags with the chosen set (unknown ones dropped).
+async function saveTags(articleId: string, tags: { kind: string; slug: string }[]) {
+  const valid = tags.filter(isKnownTag);
+  await db.delete(articleTag).where(eq(articleTag.articleId, articleId));
+  if (valid.length > 0) {
+    await db.insert(articleTag).values(valid.map((t) => ({ articleId, kind: t.kind, slug: t.slug }))).onConflictDoNothing();
+  }
 }
 
 async function upsertAuthor(name: string, bio: string): Promise<string | null> {
@@ -92,6 +113,8 @@ export async function saveStory(input: SaveStoryInput): Promise<Result<{ id: str
   }
   if (!input.title.trim()) return { ok: false, error: "Add a headline." };
   const storyKind = input.storyKind in STORY_KINDS ? input.storyKind : "analysis";
+  const seriesLabel = input.seriesKey ? await seriesLabelFor(input.seriesKey) : null;
+  const series = input.seriesKey && seriesLabel ? { seriesKey: input.seriesKey, seriesLabel } : { seriesKey: null, seriesLabel: null };
   if (!original && !input.summary.trim()) return { ok: false, error: "Add a summary." };
   if (!original && input.byline && !input.authorName.trim()) return { ok: false, error: "Add the writer's name for the byline." };
 
@@ -108,6 +131,7 @@ export async function saveStory(input: SaveStoryInput): Promise<Result<{ id: str
       ? { heroImageUrl: input.heroImageUrl, heroImageCredit: input.heroImageUrl ? input.heroImageCredit?.trim() || null : null, heroImageCreditUrl: null }
       : { heroImageCredit: input.heroImageCredit?.trim() || existing!.heroImageCredit }),
     authorSlug: byline,
+    ...series,
     reviewedBy: session.userId,
     reviewedAt: now,
     updatedAt: now,
@@ -132,6 +156,7 @@ export async function saveStory(input: SaveStoryInput): Promise<Result<{ id: str
       publishedAt: input.publish ? now : null,
       createdAt: now,
     });
+    await saveTags(id, input.tags);
     if (input.publish) await submitToIndexNow([articleUrl(slug)]);
     revalidateStory(slug, input.category);
     return { ok: true, id, slug, status: input.publish ? "published" : "draft" };
@@ -145,6 +170,7 @@ export async function saveStory(input: SaveStoryInput): Promise<Result<{ id: str
     ...(original ? { category: input.category, storyKind, status } : {}),
     ...(firstPublish ? { publishedAt: now, createdAt: now } : {}),
   }).where(eq(article.id, existing.id));
+  await saveTags(existing.id, input.tags);
   if (status === "published") await submitToIndexNow([articleUrl(existing.slug)]);
   revalidateStory(existing.slug, original ? input.category : existing.category);
   return { ok: true, id: existing.id, slug: existing.slug, status };

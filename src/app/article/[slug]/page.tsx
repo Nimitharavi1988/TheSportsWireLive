@@ -38,6 +38,9 @@ import { FollowUs } from "@/components/FollowUs";
 import { ShareButtons } from "@/components/ShareButtons";
 import { displaySummary, splitIntoParagraphs } from "@/lib/articleSummary";
 import { isOriginalStory, storyKindLabel, subheading } from "@/lib/stories";
+import { fetchStoryTags } from "@/lib/tags";
+import { matchVenue } from "@/lib/venues";
+import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import { relativeTime } from "@/lib/relativeTime";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import WhatshotIcon from "@mui/icons-material/Whatshot";
@@ -295,12 +298,18 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
   // currently has matching news). An article about Messi that isn't one of
   // those 3 right now had no link to his page anywhere. Same searchTerms
   // matching already used for the homepage's Player News/highlight logic.
-  const taggedPlayers = TRACKED_PLAYERS.filter((player) =>
-    player.searchTerms.some((term) => article.title.toLowerCase().includes(term.toLowerCase()))
-  );
-  const taggedClubs = TRACKED_CLUBS.filter((club) =>
-    club.searchTerms.some((term) => article.title.toLowerCase().includes(term.toLowerCase()))
-  );
+  // Plus the tags an editor chose (admin story editor — lib/tags.ts).
+  const chosenTags = await fetchStoryTags(article.id);
+  const byHeadline = <T extends { searchTerms: string[] }>(list: T[]) =>
+    list.filter((t) => t.searchTerms.some((term) => article.title.toLowerCase().includes(term.toLowerCase())));
+  const withChosen = <T extends { slug: string }>(auto: T[], chosen: T[]) => [...chosen, ...auto.filter((a) => !chosen.some((c) => c.slug === a.slug))];
+  const taggedPlayers = withChosen(byHeadline(TRACKED_PLAYERS), chosenTags.players);
+  const taggedClubs = withChosen(byHeadline(TRACKED_CLUBS), chosenTags.clubs);
+  const taggedCountries = chosenTags.countries;
+  // A match row names its ground (Article.venue); a story is tagged with it.
+  const venueFromMatch = matchVenue(article.venue);
+  const taggedVenues = withChosen(venueFromMatch ? [venueFromMatch] : [], chosenTags.venues);
+  const hasTags = taggedPlayers.length + taggedClubs.length + taggedCountries.length + taggedVenues.length > 0;
 
   // Where the reader goes next: Up next, Related (tagged player/club
   // stories first — a Messi story is more usefully followed by another
@@ -483,7 +492,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           justifyContent: "space-between",
           flexWrap: "wrap",
           rowGap: 0.5,
-          mb: (taggedPlayers.length > 0 || taggedClubs.length > 0) ? 1.5 : 2.5,
+          mb: hasTags ? 1.5 : 2.5,
         }}
       >
         {(writer || article.publishedAt) && (
@@ -504,8 +513,18 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         <ShareButtons url={`${siteUrl}/article/${article.slug}`} title={article.title} />
       </Stack>
 
-      {(taggedPlayers.length > 0 || taggedClubs.length > 0) && (
+      {hasTags && (
         <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1, mb: 2.5 }}>
+          {taggedVenues.map((venue) => (
+            <Link key={venue.slug} href={`/venue/${venue.slug}`} style={{ textDecoration: "none" }}>
+              <Chip icon={<PlaceOutlinedIcon />} label={venue.name} size="small" variant="outlined" clickable />
+            </Link>
+          ))}
+          {taggedCountries.map((country) => (
+            <Link key={country.slug} href={`/country/${country.slug}`} style={{ textDecoration: "none" }}>
+              <Chip label={country.name} size="small" variant="outlined" clickable sx={{ borderColor: "primary.main", color: "primary.main" }} />
+            </Link>
+          ))}
           {taggedClubs.map((club) => (
             <Link key={club.slug} href={`/club/${club.slug}`} style={{ textDecoration: "none" }}>
               <Chip
