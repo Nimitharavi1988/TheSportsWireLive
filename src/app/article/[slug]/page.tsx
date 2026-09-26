@@ -37,7 +37,7 @@ import { FanEngagementHub } from "@/components/FanEngagementHub";
 import { FollowUs } from "@/components/FollowUs";
 import { ShareButtons } from "@/components/ShareButtons";
 import { displaySummary, splitIntoParagraphs } from "@/lib/articleSummary";
-import { isOriginalStory, subheading } from "@/lib/stories";
+import { isOriginalStory, storyKindLabel, subheading } from "@/lib/stories";
 import { relativeTime } from "@/lib/relativeTime";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import WhatshotIcon from "@mui/icons-material/Whatshot";
@@ -467,6 +467,12 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           fontWeight: 600,
           mb: 1.5
         }} />
+      {/* Kind of original piece ("Analysis", "Preview"…) — see lib/stories.ts. */}
+      {isOriginalStory(article) && storyKindLabel(article.storyKind) && (
+        <Link href="/analysis" style={{ textDecoration: "none" }}>
+          <Chip label={storyKindLabel(article.storyKind)} size="small" color="primary" clickable sx={{ fontWeight: 600, ml: 1, mb: 1.5 }} />
+        </Link>
+      )}
       <Typography variant="h4" component="h1" gutterBottom>
         {article.title}
       </Typography>

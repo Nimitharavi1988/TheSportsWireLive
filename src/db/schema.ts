@@ -104,6 +104,8 @@ export const article = pgTable("Article", {
   scoreSource: text("scoreSource"),
   // Byline: set on original stories and on ones an editor rewrote (Author).
   authorSlug: text("authorSlug"),
+  // What kind of original piece it is (lib/stories.ts STORY_KINDS).
+  storyKind: text("storyKind"),
   // Added 2026-09-24 ahead of a planned (not yet implemented) Spanish-
   // language content pipeline -- default 'en' means every existing row and
   // every current (English-only) ingestion source is unaffected. Drives the
