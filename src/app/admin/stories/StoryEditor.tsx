@@ -14,6 +14,8 @@ import Checkbox from "@mui/material/Checkbox";
 import Autocomplete from "@mui/material/Autocomplete";
 import { tagGroupLabel, type TagOption } from "@/lib/tagOptions";
 import { saveStory, uploadStoryImage, deleteDraft } from "./actions";
+import { PhotoFinder } from "./PhotoFinder";
+import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
 import { STORY_KINDS, STORY_LIMITS, wordCount } from "@/lib/stories";
 
 export interface StoryEditorValues {
@@ -25,6 +27,8 @@ export interface StoryEditorValues {
   storyKind: string;
   heroImageUrl: string | null;
   heroImageCredit: string | null;
+  // Source page of a photo from the finder (licence + photographer).
+  heroImageCreditUrl: string | null;
   authorName: string;
   authorBio: string;
   status?: string;
@@ -71,6 +75,7 @@ export function StoryEditor({ initial, categories, seriesOptions, tagOptions }: 
   const [uploading, setUploading] = useState(false);
   const [pending, startTransition] = useTransition();
   const fileInput = useRef<HTMLInputElement | null>(null);
+  const [finderOpen, setFinderOpen] = useState(false);
 
   useEffect(() => {
     if (initial.authorName) return;
@@ -93,7 +98,8 @@ export function StoryEditor({ initial, categories, seriesOptions, tagOptions }: 
       const form = new FormData();
       form.append("file", new File([await resizeForUpload(file)], "photo.jpg", { type: "image/jpeg" }));
       const r = await uploadStoryImage(form);
-      if (r.ok) set("heroImageUrl", r.url);
+      // An uploaded photo is the writer's own: no source link.
+      if (r.ok) setV((cur) => ({ ...cur, heroImageUrl: r.url, heroImageCreditUrl: null }));
       else setMessage({ kind: "error", text: r.error });
     } catch {
       setMessage({ kind: "error", text: "Couldn't read that photo — try a JPEG or PNG." });
@@ -168,14 +174,34 @@ export function StoryEditor({ initial, categories, seriesOptions, tagOptions }: 
           <Box component="img" src={v.heroImageUrl} alt="" sx={{ display: "block", width: "100%", maxWidth: 480, aspectRatio: "16 / 9", objectFit: "cover", borderRadius: 1, mb: 1 }} />
         )}
         <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", gap: 1 }}>
-          <Button variant="outlined" onClick={() => fileInput.current?.click()} disabled={uploading}>
-            {uploading ? "Uploading…" : v.heroImageUrl ? "Replace photo" : "Upload photo"}
+          <Button variant="contained" color="primary" startIcon={<PhotoLibraryOutlinedIcon />} onClick={() => setFinderOpen(true)} disabled={uploading}>
+            Find a photo
           </Button>
-          {v.heroImageUrl && <Button color="inherit" onClick={() => set("heroImageUrl", null)}>Remove</Button>}
+          <Button variant="outlined" onClick={() => fileInput.current?.click()} disabled={uploading}>
+            {uploading ? "Uploading…" : "Upload my own"}
+          </Button>
+          {v.heroImageUrl && <Button color="inherit" onClick={() => setV((cur) => ({ ...cur, heroImageUrl: null, heroImageCredit: "", heroImageCreditUrl: null }))}>Remove</Button>}
           <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => onPhoto(e.target.files?.[0])} />
         </Stack>
-        <TextField label="Photo credit" value={v.heroImageCredit ?? ""} onChange={(e) => set("heroImageCredit", e.target.value)} size="small" sx={{ mt: 1.5, maxWidth: 420 }} fullWidth
-          helperText="Who took it — use only photos you took or have permission to use." />
+        {v.heroImageCreditUrl ? (
+          // Credit from the finder: exactly what the licence asks for.
+          <Box sx={{ mt: 1.5 }}>
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>Photo credit (from the photo&apos;s licence)</Typography>
+            <Typography variant="body2">
+              {v.heroImageCredit} ·{" "}
+              <a href={v.heroImageCreditUrl} target="_blank" rel="noreferrer">source and licence ↗</a>
+            </Typography>
+          </Box>
+        ) : (
+          <TextField label="Photo credit" value={v.heroImageCredit ?? ""} onChange={(e) => set("heroImageCredit", e.target.value)} size="small" sx={{ mt: 1.5, maxWidth: 420 }} fullWidth
+            helperText="Who took it — use only photos you took or have permission to use." />
+        )}
+        <PhotoFinder
+          open={finderOpen}
+          initialQuery={v.title.split(/[:|–—]| - /)[0].trim().slice(0, 60)}
+          onClose={() => setFinderOpen(false)}
+          onPick={(photo) => setV((cur) => ({ ...cur, heroImageUrl: photo.url, heroImageCredit: photo.credit, heroImageCreditUrl: photo.creditUrl }))}
+        />
       </Box>
 
       <Box>

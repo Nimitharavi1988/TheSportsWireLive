@@ -43,6 +43,7 @@ export default async function EditStoryPage(props: { params: Promise<{ id: strin
           storyKind: row.storyKind ?? "analysis",
           heroImageUrl: row.heroImageUrl,
           heroImageCredit: row.heroImageCredit,
+          heroImageCreditUrl: row.heroImageCreditUrl,
           authorName: writer?.name ?? "",
           authorBio: writer?.bio ?? "",
           original,
