@@ -6,6 +6,7 @@ import { eq, and } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { generateSocialCaptions } from "@/lib/ingestion/commentary";
 import { selectFacebookHashtags } from "./hashtagRepertoire";
+import type { FacebookDestination } from "./facebookDestinations";
 
 // A sport emoji at the start of the post text is a small, low-risk
 // engagement lever on Facebook (unlike extra hashtags, which hurt reach —
@@ -53,7 +54,12 @@ export async function resolvePageAccessToken(pageId: string, token: string): Pro
 // (the caller's own already-posted exclusion set was time-windowed, so it
 // kept re-selecting long-since-posted articles as "candidates," which then
 // silently no-op'd here while still being logged as a fresh success).
-export async function postArticleToFacebook(articleId: string): Promise<boolean> {
+//
+// `destination`: a topic Page (facebookDestinations.ts) instead of the main
+// Page. Its own page id/token, and its own history — the guard below is per
+// destination, so posting a story to one Page doesn't block it for another.
+export async function postArticleToFacebook(articleId: string, destination?: FacebookDestination): Promise<boolean> {
+  const destinationKey = destination?.key ?? "main";
   // Idempotency guard: confirmed live that repeated calls for the same
   // article (a manual admin re-click before the page re-rendered the
   // "already posted" state, or any future automated retry) were creating
@@ -61,7 +67,7 @@ export async function postArticleToFacebook(articleId: string): Promise<boolean>
   // article within 16 seconds, observed directly in SocialPost rows.
   // Checking for an existing "posted" row makes every caller safe to retry.
   const [alreadyPosted] = await db.select({ id: socialPostTable.id }).from(socialPostTable)
-    .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.platform, "facebook"), eq(socialPostTable.status, "posted")))
+    .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.platform, "facebook"), eq(socialPostTable.destination, destinationKey), eq(socialPostTable.status, "posted")))
     .limit(1);
   if (alreadyPosted) return false;
 
@@ -73,9 +79,10 @@ export async function postArticleToFacebook(articleId: string): Promise<boolean>
   if (!row) throw new Error(`Article not found: ${articleId}`);
   const article = { ...row.article, vertical: row.vertical };
 
-  const pageId = article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
-  const accessToken =
-    article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+  const pageId = destination ? destination.pageId : article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
+  const accessToken = destination
+    ? process.env[destination.tokenEnv]
+    : article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
 
   if (!pageId || !accessToken) {
     return false;
@@ -108,7 +115,7 @@ export async function postArticleToFacebook(articleId: string): Promise<boolean>
   const message = `${emojiFor(article.category)} ${captionBody}\n\n${hashtags}`;
 
   const [socialPost] = await db.insert(socialPostTable)
-    .values({ id: createId(), articleId, platform: "facebook", status: "queued" })
+    .values({ id: createId(), articleId, platform: "facebook", destination: destinationKey, status: "queued" })
     .returning();
 
   try {
