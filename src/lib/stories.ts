@@ -77,6 +77,8 @@ export function publishProblems(s: StoryInput, categories: string[]): string[] {
   }
   if (!categories.includes(s.category)) problems.push("Choose a sport.");
   if (!s.heroImageUrl) problems.push("Add a photo.");
+  // Notes left for the writer (e.g. by the AI draft: "[ADD: pitch report]").
+  if (/\[(ADD|CHECK)\b/i.test(`${s.title} ${s.summary} ${s.body}`)) problems.push("Replace the [ADD: …] notes with real details first.");
   return problems;
 }
 
