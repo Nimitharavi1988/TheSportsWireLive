@@ -40,6 +40,7 @@
 import Parser from "rss-parser";
 import type { RawMatchItem } from "./footballData";
 import { extractRssImage } from "./rssFeeds";
+import { decodeHtmlEntities } from "../htmlEntities";
 
 const parser = new Parser({
   customFields: {
@@ -81,7 +82,7 @@ export async function fetchAsianGamesNews(): Promise<RawMatchItem[]> {
         const image = extractRssImage(entry);
 
         items.push({
-          title: entry.title,
+          title: decodeHtmlEntities(entry.title),
           summary: `Full coverage from ${feed.sourceName}. Read the original report at the source link below.`,
           sourceSnippet: entry.contentSnippet?.slice(0, 1200),
           sourceUrl: entry.link,

@@ -1,5 +1,6 @@
 import Parser from "rss-parser";
 import type { RawMatchItem } from "./footballData";
+import { decodeHtmlEntities } from "../htmlEntities";
 
 // Each publisher includes a real, story-specific photo directly in their own
 // RSS feed — media:thumbnail (BBC) or media:content, sometimes with a
@@ -268,7 +269,8 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
         const image = extractRssImage(entry);
 
         items.push({
-          title: entry.title,
+          // Decoded: some feeds (Yahoo Sports) encode titles twice — see htmlEntities.ts.
+          title: decodeHtmlEntities(entry.title),
           // Deliberately NOT reusing entry.contentSnippet (the source's own
           // article text) as our summary — that would republish the
           // publisher's copyrighted prose as if it were our own content.
@@ -278,7 +280,7 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
           // Carried through the pipeline only as grounding input for the
           // optional LLM commentary step (commentary.ts) — never stored or
           // displayed as-is, so it never republishes the source's own prose.
-          sourceSnippet: entry.contentSnippet?.slice(0, 1200),
+          sourceSnippet: entry.contentSnippet ? decodeHtmlEntities(entry.contentSnippet).slice(0, 1200) : undefined,
           sourceUrl: entry.link,
           sourceName: feed.sourceName,
           category: feed.category,

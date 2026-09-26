@@ -18,6 +18,7 @@ import Parser from "rss-parser";
 import { TRACKED_PLAYERS } from "../players";
 import type { RawMatchItem } from "./footballData";
 import { extractRssImage } from "./rssFeeds";
+import { decodeHtmlEntities } from "../htmlEntities";
 
 // Same customFields config as rssFeeds.ts — needed for rss-parser to expose
 // media:content/coverImages at all; without it extractRssImage has nothing
@@ -69,7 +70,7 @@ export async function fetchCricinfoPlayerNews(): Promise<RawMatchItem[]> {
         const image = extractRssImage(entry);
 
         items.push({
-          title: entry.title,
+          title: decodeHtmlEntities(entry.title),
           // Same "headline + attribution, no reproduced text" pattern as
           // every other RSS source — entry.contentSnippet is real content
           // here (unlike Google News), but it's still the publisher's own

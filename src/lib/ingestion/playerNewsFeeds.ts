@@ -1,6 +1,7 @@
 import Parser from "rss-parser";
 import { TRACKED_PLAYERS } from "../players";
 import type { RawMatchItem } from "./footballData";
+import { decodeHtmlEntities } from "../htmlEntities";
 
 // Google News' public, no-key RSS search endpoint — returns real headlines
 // from hundreds of publishers matching a query, not just our fixed feed
@@ -141,7 +142,7 @@ export async function fetchPlayerNews(): Promise<RawMatchItem[]> {
 
         const publisher = extractPublisher(entry);
         const sourceName = publisher ?? "Google News";
-        const strippedTitle = stripPublisherSuffix(entry.title, publisher);
+        const strippedTitle = stripPublisherSuffix(decodeHtmlEntities(entry.title), publisher);
 
         if (looksLikeReferencePage(strippedTitle, publisher, player.name)) continue;
         if (isEntertainmentPublisher(publisher)) continue;

@@ -1,3 +1,4 @@
+import { decodeHtmlEntities } from "../htmlEntities";
 /**
  * Pure helpers for official YouTube channel feeds (no DB, unit-tested):
  * parsing the public RSS feed, and deciding which match a highlights video
@@ -15,15 +16,6 @@ export interface FeedVideo {
   isShort: boolean;
 }
 
-function decodeEntities(text: string): string {
-  return text
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&");
-}
-
 export function parseYouTubeFeed(xml: string): FeedVideo[] {
   const entries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map((m) => m[1]);
   return entries.flatMap((e) => {
@@ -35,7 +27,7 @@ export function parseYouTubeFeed(xml: string): FeedVideo[] {
     if (Number.isNaN(publishedAt.getTime())) return [];
     const link = e.match(/<link rel="alternate" href="([^"]+)"/)?.[1] ?? "";
     const thumbnailUrl = e.match(/<media:thumbnail url="([^"]+)"/)?.[1] ?? null;
-    return [{ youtubeId, title: decodeEntities(title).trim(), publishedAt, thumbnailUrl, isShort: link.includes("/shorts/") }];
+    return [{ youtubeId, title: decodeHtmlEntities(title).trim(), publishedAt, thumbnailUrl, isShort: link.includes("/shorts/") }];
   });
 }
 
