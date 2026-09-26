@@ -25,6 +25,7 @@ import SportsCricketIcon from "@mui/icons-material/SportsCricket";
 import SportsFootballIcon from "@mui/icons-material/SportsFootball";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import SportsScoreIcon from "@mui/icons-material/SportsScore";
+import SmartDisplayIcon from "@mui/icons-material/SmartDisplay";
 import SportsBasketballIcon from "@mui/icons-material/SportsBasketball";
 import SportsBaseballIcon from "@mui/icons-material/SportsBaseball";
 import SportsRugbyIcon from "@mui/icons-material/SportsRugby";
@@ -63,6 +64,7 @@ const NAV_LINKS: { href: string; label: string; category: string | null; icon: S
   { href: "/?category=cricket", label: "Cricket", category: "cricket", icon: SportsCricketIcon },
   { href: "/?category=american-football", label: "NFL", category: "american-football", icon: SportsFootballIcon },
   { href: "/scores", label: "Scores", category: null, icon: SportsScoreIcon },
+  { href: "/videos", label: "Videos", category: null, icon: SmartDisplayIcon },
 ];
 
 // Everything else — including sports that used to be top-level

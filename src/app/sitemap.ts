@@ -45,6 +45,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteUrl}/?category=volleyball`, changeFrequency: "hourly", priority: 0.8 },
     { url: `${siteUrl}/?category=formula-1`, changeFrequency: "hourly", priority: 0.8 },
     { url: `${siteUrl}/standings`, changeFrequency: "daily", priority: 0.6 },
+    { url: `${siteUrl}/videos`, changeFrequency: "hourly", priority: 0.7 },
     { url: `${siteUrl}/player`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${siteUrl}/club`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${siteUrl}/series`, changeFrequency: "daily", priority: 0.5 },

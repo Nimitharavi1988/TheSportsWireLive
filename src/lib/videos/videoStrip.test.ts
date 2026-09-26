@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { MAX_PER_CHANNEL, pickVideoStrip } from "./videoStrip";
+import { MAX_PER_CHANNEL, pickVideoStrip, splitLibrary, withAdSlots } from "./videoStrip";
 
 const v = (channelTitle: string, hoursAgo: number, isHighlights = false) => ({
   channelTitle,
@@ -23,5 +23,29 @@ describe("pickVideoStrip", () => {
   it("respects the limit", () => {
     const rows = ["A", "B", "C", "D"].map((c, i) => v(c, i));
     expect(pickVideoStrip(rows, 2)).toHaveLength(2);
+  });
+});
+
+describe("splitLibrary", () => {
+  it("features the newest highlights and splits the rest", () => {
+    const rows = [v("NBA", 1), v("MLB", 2, true), v("NHL", 3, true), v("NFL", 4)];
+    const { featured, highlights, latest } = splitLibrary(rows);
+    expect(featured?.channelTitle).toBe("MLB");
+    expect(highlights.map((r) => r.channelTitle)).toEqual(["NHL"]);
+    expect(latest.map((r) => r.channelTitle)).toEqual(["NBA", "NFL"]);
+  });
+
+  it("features the newest video when there are no highlights", () => {
+    expect(splitLibrary([v("NBA", 1), v("NFL", 2)]).featured?.channelTitle).toBe("NBA");
+    expect(splitLibrary([]).featured).toBeNull();
+  });
+});
+
+describe("withAdSlots", () => {
+  it("puts an ad after every N cards, never last", () => {
+    const kinds = (n: number) => withAdSlots(Array.from({ length: n }, (_, i) => i), 3).map((x) => x.kind[0]).join("");
+    expect(kinds(7)).toBe("vvvavvvav");
+    expect(kinds(6)).toBe("vvvavvv");
+    expect(kinds(2)).toBe("vv");
   });
 });

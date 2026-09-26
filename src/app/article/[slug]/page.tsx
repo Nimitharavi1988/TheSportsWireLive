@@ -27,7 +27,7 @@ import { createEntityLinker } from "@/lib/entityLinks";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import { currentScoreMatch } from "@/lib/scores/scoreboard";
 import { MatchHeader } from "@/components/scores/MatchHeader";
-import { MatchHighlightsForArticle } from "@/components/videos/VideoStrip";
+import { ArticleVideos, MatchHighlightsForArticle, VideoStripSkeleton } from "@/components/videos/VideoStrip";
 import { Suspense } from "react";
 import { FanEngagementHub } from "@/components/FanEngagementHub";
 import { FollowUs } from "@/components/FollowUs";
@@ -494,6 +494,13 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           has actually read the story. */}
       <InFeedAd slot="6766570899" layoutKey="-i7+9-t-18+5h" sx={{ display: { xs: "block", md: "none" }, mb: 3 }} />
       <InFeedAd slot="6355507350" layoutKey="-i7+9-t-18+5h" sx={{ display: { xs: "none", md: "block" }, mb: 3 }} />
+
+      {/* Official videos for the story's sport — most readers land here
+          straight from Facebook, so this is where they find the videos.
+          After the story and its ad, before engagement. */}
+      <Suspense fallback={<VideoStripSkeleton title="Watch" headingSx={{ fontSize: "1.25rem", fontWeight: 700 }} />}>
+        <ArticleVideos articleId={article.id} category={article.category} />
+      </Suspense>
 
       {/* Engagement sits before the outbound source link, not after — a
           reader who clicks through to the source immediately after reading
