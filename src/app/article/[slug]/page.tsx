@@ -431,7 +431,13 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         </Stack>
       ) : article.heroImageUrl ? (
         <Box component="figure" sx={{ m: 0, mb: 2.5 }}>
-          <Box sx={{ position: "relative", width: "100%", height: 460 }}>
+          {/* 16:9, the shape of nearly every news photo, scaled with the
+              column. Was a fixed 460px height: on a phone that's a tall
+              343x460 box, so a normal landscape photo was cut to its middle
+              42% and enlarged ~2.2x — the "zoomed in" look (checked
+              2026-09-27). Portraits (player photos) keep their top — the
+              face — rather than the middle. */}
+          <Box sx={{ position: "relative", width: "100%", aspectRatio: "16 / 9", bgcolor: "action.hover", borderRadius: 1.5, overflow: "hidden" }}>
             <Box
               component={Image}
               src={article.heroImageUrl}
@@ -439,7 +445,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
               fill
               priority
               sizes="(max-width: 900px) 100vw, 700px"
-              sx={{ objectFit: "cover", objectPosition: "top", borderRadius: 1.5 }}
+              sx={{ objectFit: "cover", objectPosition: "center 20%" }}
             />
           </Box>
           {article.heroImageCredit && (
