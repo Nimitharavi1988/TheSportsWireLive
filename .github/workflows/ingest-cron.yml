@@ -22,6 +22,18 @@ on:
 permissions:
   contents: write
 
+# One ingestion run at a time. Runs are dispatched every 15 min and
+# normally take 6-12, but a burst of new items (e.g. the first run after a
+# feed is added: 178 new MLB/NBA/NHL stories on 2026-09-26, each needing
+# page extraction + commentary) can run past the next dispatch. Two runs
+# overlapping would both see the same new items as not-yet-stored and
+# insert them twice. A later dispatch now waits for the running one
+# instead (GitHub keeps at most one pending; newer replaces older, which
+# is fine: every run processes the feeds from scratch).
+concurrency:
+  group: ingestion
+  cancel-in-progress: false
+
 jobs:
   run-ingest:
     runs-on: ubuntu-latest

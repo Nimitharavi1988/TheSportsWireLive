@@ -202,6 +202,31 @@ const FEEDS: { url: string; category: string; sourceName: string }[] = [
   // no confirmed-working free SHL-specific source found). Confirmed live
   // and working directly (2026-09-20).
   { url: "https://www.espn.com/espn/rss/nhl/news", category: "hockey", sourceName: "ESPN" },
+  // MLB/NBA/NHL news that actually publishes (added 2026-09-26). The ESPN
+  // feeds above (and CBS's) were producing zero published stories: their
+  // article pages can't be extracted, so commentary fails and every item
+  // is rejected on its first run (7-day check: MLB 0 published, NBA 0,
+  // NHL 0 — leaving those pages with no news and no hero at all). Yahoo's
+  // NFL feed is the one US source that works end to end, and its MLB/NBA/
+  // NHL feeds have the identical shape: ~50 items a day, short snippets
+  // (<200 chars, so grounding extracts the page — which is where the photo
+  // comes from, since these feeds carry none). Checked live on sampled
+  // items: page text + a hero-quality photo extracted for MLB 3/3, NBA 2/3,
+  // NHL 3/3. MLB.com is the league's own newsroom (~25 a day, no feed
+  // description, page photo 3/3). The Guardian adds low-volume (a few a
+  // week) but well-photographed features, with photos in the feed itself.
+  { url: "https://www.mlb.com/feeds/news/rss.xml", category: "baseball", sourceName: "MLB.com" },
+  { url: "https://sports.yahoo.com/mlb/rss/", category: "baseball", sourceName: "Yahoo Sports" },
+  { url: "https://sports.yahoo.com/nba/rss/", category: "basketball", sourceName: "Yahoo Sports" },
+  { url: "https://sports.yahoo.com/nhl/rss/", category: "hockey", sourceName: "Yahoo Sports" },
+  { url: "https://www.theguardian.com/sport/mlb/rss", category: "baseball", sourceName: "The Guardian" },
+  { url: "https://www.theguardian.com/sport/nba/rss", category: "basketball", sourceName: "The Guardian" },
+  { url: "https://www.theguardian.com/sport/nhl/rss", category: "hockey", sourceName: "The Guardian" },
+  // Volleyball had match results only (espnVolleyballData.ts/
+  // volleyballData.ts), no news. Volleyball Magazine is the one working
+  // free feed found (Volleyball World's feed 404s): low volume, page text
+  // and photo extractable 2/3 on the sampled items.
+  { url: "https://volleyballmag.com/feed/", category: "volleyball", sourceName: "Volleyball Magazine" },
   // Athletics/track and field — news-only section (no structured match-data
   // source exists the way football-data.org/CricketData.org/ESPN NFL do for
   // the others; athletics is start-list/results based, not "matches"), per
