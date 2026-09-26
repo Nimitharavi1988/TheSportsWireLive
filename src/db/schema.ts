@@ -173,6 +173,19 @@ export const dataSnapshot = pgTable("DataSnapshot", {
   fetchedAt: timestamp("fetchedAt", { precision: 3 }).notNull().defaultNow(),
 });
 
+// Errors readers hit in the browser (the "Something went wrong" page),
+// reported by src/app/error.tsx via /api/client-error — the only way to
+// see a crash that happens on a reader's device and not in testing.
+export const clientError = pgTable("ClientError", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  message: text("message").notNull(),
+  stack: text("stack"),
+  digest: text("digest"),
+  url: text("url"),
+  userAgent: text("userAgent"),
+  createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+}, (t) => [index("ClientError_createdAt_idx").on(t.createdAt)]);
+
 export const video = pgTable("Video", {
   id: text("id").primaryKey(),
   youtubeId: text("youtubeId").notNull(),
