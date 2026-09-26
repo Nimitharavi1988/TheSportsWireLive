@@ -52,3 +52,19 @@ export function DataSource({ match }: { match: ScoreMatch }) {
     </span>
   );
 }
+
+const inPlay = (m: ScoreMatch) => m.state === "live" || m.state === "paused" || m.state === "started";
+
+// "Source: ESPN · updated 2 min ago" for a group of matches: every provider
+// in the group, and the latest update among games in play.
+export function CardSource({ matches }: { matches: ScoreMatch[] }) {
+  const nowMs = useNow();
+  const providers = [...new Set(matches.map((m) => m.source))].join(", ");
+  const latest = matches.filter(inPlay).map((m) => m.updatedAt).sort().at(-1);
+  return (
+    <span>
+      Source: {providers}
+      {latest && nowMs !== null ? ` · updated ${updatedAgo(latest, nowMs)}` : ""}
+    </span>
+  );
+}

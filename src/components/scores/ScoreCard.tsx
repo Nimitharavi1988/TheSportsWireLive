@@ -5,13 +5,15 @@ import Typography from "@mui/material/Typography";
 import type { ScoreMatch, ScoreSide } from "@/lib/scores/scoreboardModel";
 import { playerInitials } from "@/lib/playerAvatar";
 import { KickoffTime } from "./KickoffTime";
-import { DataSource } from "./DataFreshness";
+import { CardSource } from "./DataFreshness";
 
-// The standard score card (Google/ESPN pattern): a status line, then one
-// row per team — crest, name, record, score — winner bold, loser muted.
-// Used by /scores; the match header (MatchHeader.tsx) is its large form.
-// A plain <Link> wrapper (not Box component={Link}) so this also renders
-// from server components.
+// Score list, modelled on Google's sports cards: one card per league, one
+// row per match — both teams stacked on the left (crest, name, record),
+// scores right-aligned, and a status column on the far right (LIVE clock in
+// red, break, kick-off time, Final). Winner bold, loser grey. The match
+// header (MatchHeader.tsx) is the large single-match form. Plain <Link>
+// rows (not Box component={Link}) so this also renders from server
+// components.
 
 export const LIVE_RED = "#d32f2f";
 
@@ -85,71 +87,101 @@ export function TeamCrest({ side, size }: { side: Pick<ScoreSide, "name" | "cres
   );
 }
 
-function TeamRow({ side, isFinal }: { side: ScoreSide; isFinal: boolean }) {
-  const muted = isFinal && !side.winner;
+function Team({ side, muted, bold }: { side: ScoreSide; muted: boolean; bold: boolean }) {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, minHeight: 28, color: muted ? "text.secondary" : "text.primary" }}>
-      <TeamCrest side={side} size={22} />
-      <Typography component="span" noWrap sx={{ flex: 1, minWidth: 0, fontSize: 15, fontWeight: side.winner ? 700 : 500 }}>
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1, minHeight: 28, minWidth: 0, color: muted ? "text.secondary" : "text.primary" }}>
+      <TeamCrest side={side} size={20} />
+      <Typography component="span" noWrap sx={{ fontSize: 15, fontWeight: bold ? 700 : 400 }}>
         {side.name}
-        {side.record && (
-          <Box component="span" sx={{ ml: 0.75, fontSize: 12, fontWeight: 400, color: "text.secondary" }}>
-            {side.record}
-          </Box>
-        )}
       </Typography>
-      <Typography
-        component="span"
-        sx={{ fontSize: 15, fontWeight: side.winner ? 700 : 600, fontVariantNumeric: "tabular-nums", textAlign: "right", flexShrink: 0 }}
-      >
-        {side.score ?? ""}
-      </Typography>
+      {side.record && <Typography component="span" sx={{ fontSize: 12, color: "text.secondary", flexShrink: 0 }}>{side.record}</Typography>}
     </Box>
   );
 }
 
-export function ScoreStatus({ match }: { match: ScoreMatch }) {
-  if (match.state === "live") return <LiveBadge label={match.clock} />;
-  if (match.state === "paused") return <PausedBadge label={match.clock} />;
-  if (match.state === "started") return <StartedBadge />;
-  if (match.state === "final") return <span>Final</span>;
-  return match.kickoffAt ? <KickoffTime iso={match.kickoffAt} /> : <span>Upcoming</span>;
+// Right-hand status column.
+function StatusColumn({ match }: { match: ScoreMatch }) {
+  if (match.state === "live") {
+    return (
+      <Box sx={{ color: LIVE_RED, fontWeight: 700 }}>
+        <div>LIVE</div>
+        {match.clock && <Box sx={{ fontWeight: 500 }}>{match.clock}</Box>}
+      </Box>
+    );
+  }
+  if (match.state === "paused") return <span>{match.clock ?? "Break"}</span>;
+  if (match.state === "started") return <span>In progress</span>;
+  if (match.state === "final") return <Box component="span" sx={{ color: "text.primary", fontWeight: 500 }}>Final</Box>;
+  return (
+    <Box>
+      {match.kickoffAt ? <KickoffTime iso={match.kickoffAt} /> : <span>Upcoming</span>}
+      {match.broadcast && <Box sx={{ fontSize: 11, color: "text.disabled" }}>{match.broadcast}</Box>}
+    </Box>
+  );
 }
 
-export function ScoreCard({ match }: { match: ScoreMatch }) {
+export function ScoreRow({ match }: { match: ScoreMatch }) {
   const isFinal = match.state === "final";
+  const hasScores = match.home.score !== null || match.away.score !== null;
+  const score = (side: ScoreSide) => (
+    <Typography component="div" sx={{ fontSize: 15, lineHeight: "28px", fontWeight: isFinal && side.winner ? 700 : 500, color: isFinal && !side.winner ? "text.secondary" : "text.primary", whiteSpace: "nowrap" }}>
+      {side.score ?? ""}
+    </Typography>
+  );
   return (
     <Link href={`/article/${match.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
       <Box
         sx={{
-          height: "100%",
-          px: 1.5,
-          py: 1.25,
-          borderRadius: 2,
-          border: "1px solid",
-          borderColor: match.state === "live" ? "rgba(211, 47, 47, 0.35)" : "divider",
-          bgcolor: "background.paper",
-          transition: "border-color 0.15s, box-shadow 0.15s",
-          "&:hover": { borderColor: "primary.main", boxShadow: "0 2px 10px rgba(0,0,0,0.06)" },
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) auto 84px",
+          columnGap: 1.5,
+          alignItems: "center",
+          px: 2,
+          py: 1,
+          borderTop: "1px solid",
+          borderColor: "divider",
+          transition: "background-color 0.15s",
+          "&:hover": { bgcolor: "action.hover" },
         }}
       >
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5, fontSize: 12, color: "text.secondary" }}>
-          <ScoreStatus match={match} />
-          {match.broadcast && <span>{match.broadcast}</span>}
+        <Box sx={{ minWidth: 0 }}>
+          <Team side={match.home} muted={isFinal && !match.home.winner} bold={isFinal && match.home.winner} />
+          <Team side={match.away} muted={isFinal && !match.away.winner} bold={isFinal && match.away.winner} />
         </Box>
-        <TeamRow side={match.home} isFinal={isFinal} />
-        <TeamRow side={match.away} isFinal={isFinal} />
+        <Box sx={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+          {hasScores && (
+            <>
+              {score(match.home)}
+              {score(match.away)}
+            </>
+          )}
+        </Box>
+        <Box sx={{ alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "flex-end", textAlign: "right", pl: 1.5, borderLeft: "1px solid", borderColor: "divider", fontSize: 12, color: "text.secondary", lineHeight: 1.35 }}>
+          <StatusColumn match={match} />
+        </Box>
         {match.note && (
-          <Typography
-            sx={{ mt: 0.5, fontSize: 12, color: "text.secondary", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
-          >
+          <Typography sx={{ gridColumn: "1 / -1", mt: 0.25, fontSize: 12, color: "text.secondary", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
             {match.note}
           </Typography>
         )}
-        <Typography component="div" sx={{ mt: 0.5, fontSize: 11, color: "text.disabled" }}>
-          <DataSource match={match} />
-        </Typography>
       </Box>
     </Link>
+  );
+}
+
+// One league's matches in a single card, with where the data comes from.
+export function LeagueScoresCard({ league, matches }: { league: string; matches: ScoreMatch[] }) {
+  return (
+    <Box component="section" aria-label={league} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3, bgcolor: "background.paper", overflow: "hidden" }}>
+      <Typography component="h2" sx={{ px: 2, py: 1.25, fontSize: 15, fontWeight: 700 }}>
+        {league}
+      </Typography>
+      {matches.map((m) => (
+        <ScoreRow key={m.id} match={m} />
+      ))}
+      <Typography component="div" sx={{ px: 2, py: 0.75, fontSize: 11, color: "text.disabled", borderTop: "1px solid", borderColor: "divider" }}>
+        <CardSource matches={matches} />
+      </Typography>
+    </Box>
   );
 }

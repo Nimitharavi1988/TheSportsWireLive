@@ -6,6 +6,7 @@ import Typography from "@mui/material/Typography";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import type { StandingsTable as StandingsTableData } from "@/lib/ingestion/standings";
 import { StandingsCard } from "./standings/StandingsCard";
+import { COMPACT_COLUMNS, footballRows, footballZones } from "./StandingsTable";
 
 interface League {
   code: string;
@@ -16,8 +17,6 @@ interface League {
 // standings card. The first league comes from the server; the others load
 // on demand from /api/standings/[code] when the reader switches to them.
 const TOP_ROWS = 6;
-// Champions League places in the leagues listed (top 4).
-const CL_PLACES = 4;
 
 export function StandingsCarousel({
   leagues,
@@ -61,17 +60,10 @@ export function StandingsCarousel({
       onPrev={leagues.length > 1 ? () => go(-1) : undefined}
       onNext={leagues.length > 1 ? () => go(1) : undefined}
       switchLabel="league"
-      columns={[{ label: "P" }, { label: "Pts", strong: true }]}
-      rows={(table?.rows ?? []).slice(0, TOP_ROWS).map((row) => ({
-        id: String(row.teamId),
-        position: row.position,
-        name: row.teamName,
-        logo: row.teamCrest,
-        values: [row.playedGames, row.points],
-        qualified: row.position <= CL_PLACES,
-      }))}
+      columns={COMPACT_COLUMNS}
+      rows={footballRows(current.code, table?.rows ?? [], false).slice(0, TOP_ROWS)}
+      zones={footballZones(current.code)}
       loading={loadingCode === current.code}
-      legend="Champions League places"
       footer={
         <Link href={`/standings/${current.code}`} style={{ textDecoration: "none" }}>
           <Typography component="span" sx={{ fontSize: 13, fontWeight: 600, color: "primary.main", display: "inline-flex", alignItems: "center" }}>

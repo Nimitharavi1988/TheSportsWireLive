@@ -18,7 +18,7 @@ export function NhlStandingsCarousel({ conferences }: { conferences: NhlConferen
         name: row.teamName,
         logo: row.teamLogo,
         values: [row.wins, row.losses, row.otLosses, row.points],
-        qualified: row.playoffSeed > 0 && row.playoffSeed <= PLAYOFF_PLACES,
+        playoff: row.playoffSeed > 0 && row.playoffSeed <= PLAYOFF_PLACES,
       })}
     />
   );

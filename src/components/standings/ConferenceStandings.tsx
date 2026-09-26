@@ -1,30 +1,32 @@
 "use client";
 
 import { useState } from "react";
+import { ZONE_COLORS } from "@/lib/ingestion/standings";
 import { StandingsCard, type StandingsColumn, type StandingsRow } from "./StandingsCard";
 
 // Standings split into conferences/leagues (NFL, NBA, MLB, NHL): one
 // StandingsCard with arrows to switch between them. The league-specific
-// part — which columns, and what counts as a playoff place — is just a
-// config (see the per-league wrappers, e.g. NhlStandingsCarousel.tsx).
+// part — which columns, and how many teams make the playoffs — is config
+// in the per-league wrappers (e.g. NhlStandingsCarousel.tsx).
 export interface ConferenceGroup<T> {
   conferenceName: string;
   rows: T[];
 }
 
+const PLAYOFF_ZONE = { key: "playoff", label: "Playoff place", color: ZONE_COLORS.qualify };
+
 export function ConferenceStandings<T>({
   conferences,
   columns,
   toRow,
-  maxRows = 7,
-  legend = "Playoff seed",
+  maxRows = 8,
   switchLabel = "conference",
 }: {
   conferences: ConferenceGroup<T>[];
   columns: StandingsColumn[];
-  toRow: (row: T) => StandingsRow;
+  // `playoff`: whether this team is currently in a playoff place.
+  toRow: (row: T) => Omit<StandingsRow, "zone"> & { playoff: boolean };
   maxRows?: number;
-  legend?: string;
   switchLabel?: string;
 }) {
   const [index, setIndex] = useState(0);
@@ -41,8 +43,11 @@ export function ConferenceStandings<T>({
       onNext={many ? () => go(1) : undefined}
       switchLabel={switchLabel}
       columns={columns}
-      rows={current.rows.slice(0, maxRows).map(toRow)}
-      legend={legend}
+      rows={current.rows.slice(0, maxRows).map((r) => {
+        const { playoff, ...row } = toRow(r);
+        return { ...row, zone: playoff ? PLAYOFF_ZONE.key : undefined };
+      })}
+      zones={[PLAYOFF_ZONE]}
     />
   );
 }
