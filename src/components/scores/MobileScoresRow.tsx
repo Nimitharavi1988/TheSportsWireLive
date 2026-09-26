@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -5,7 +7,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import type { ScoreMatch } from "@/lib/scores/scoreboardModel";
 import { ScrollRow } from "../ScrollRow";
 import { MiniScoreCard } from "./MiniScoreCard";
-import { LiveRefresher } from "./LiveRefresher";
+import { useLiveScores } from "./useLiveScores";
 import { LIVE_RED } from "./ScoreCard";
 
 // Phone-only score row at the very top of the homepage. The site-wide score
@@ -14,14 +16,16 @@ import { LIVE_RED } from "./ScoreCard";
 // near the top at all (found 2026-09-25: the box sat ~6,900px down). Same
 // cards, data and ordering as the strip: live games first, then the next
 // kickoffs, then recent results. Swipe sideways for more.
-export function MobileScoresRow({ matches }: { matches: ScoreMatch[] }) {
+const ROW_SIZE = 12;
+
+export function MobileScoresRow({ matches: initial, sport }: { matches: ScoreMatch[]; sport?: string }) {
+  // Updates in place while games are live (phones only — hidden from sm up).
+  const matches = useLiveScores(initial, { mode: "list", url: `/api/scores/live?take=${ROW_SIZE}${sport ? `&sport=${sport}` : ""}` }, "xs");
   if (matches.length === 0) return null;
-  const inPlay = matches.some((m) => m.state === "live" || m.state === "paused");
   const liveCount = matches.filter((m) => m.state === "live").length;
 
   return (
     <Box component="section" aria-label="Scores" sx={{ display: { xs: "block", sm: "none" }, mb: 2, mx: -2 }}>
-      <LiveRefresher active={inPlay} />
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, px: 2, mb: 0.5 }}>
         {liveCount > 0 && <Box aria-hidden sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: LIVE_RED }} />}
         <Typography component="h2" sx={{ fontSize: 14, fontWeight: 700, flex: 1 }}>

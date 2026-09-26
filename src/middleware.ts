@@ -13,11 +13,25 @@ import type { NextRequest } from "next/server";
 // anything content-specific. A permanent (308) redirect here, preserving
 // the full path and query string, is the fix a canonical tag alone can't
 // provide.
+// "cricket", "american-football", "football/world-cup".
+const SECTION_PATTERN = /^[a-z0-9-]{1,40}(\/[a-z0-9-]{1,40})?$/;
+
 export function middleware(request: NextRequest) {
   const { hostname } = request.nextUrl;
   if (hostname === "www.sportswirelive.com") {
     const url = request.nextUrl.clone();
     url.hostname = "sportswirelive.com";
+    return NextResponse.redirect(url, 308);
+  }
+  // Sport sections moved from /?category=x to /sport/x (2026-09-26, see
+  // sport/[...category]/page.tsx). Permanent redirect so shared links,
+  // bookmarks and search results keep working; other query params
+  // (utm_source etc.) are kept.
+  const category = request.nextUrl.searchParams.get("category");
+  if (request.nextUrl.pathname === "/" && category && SECTION_PATTERN.test(category)) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/sport/${category}`;
+    url.searchParams.delete("category");
     return NextResponse.redirect(url, 308);
   }
   return NextResponse.next();

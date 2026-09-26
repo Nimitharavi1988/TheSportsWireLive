@@ -31,21 +31,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: siteUrl, changeFrequency: "hourly", priority: 1 },
-    { url: `${siteUrl}/?category=football`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/?category=cricket`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/?category=american-football`, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${siteUrl}/sport/football`, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${siteUrl}/sport/cricket`, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${siteUrl}/sport/american-football`, changeFrequency: "hourly", priority: 0.8 },
     // Was missing these 4 of 7 nav categories entirely — each has a real
     // self-canonicalizing page (CATEGORY_META in page.tsx already covers
     // all 7), just never had a direct sitemap discovery path.
-    { url: `${siteUrl}/?category=basketball`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/?category=college-football`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/?category=wnba`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/?category=baseball`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/?category=rugby`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/?category=athletics`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/?category=hockey`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/?category=volleyball`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/?category=formula-1`, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${siteUrl}/sport/basketball`, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${siteUrl}/sport/college-football`, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${siteUrl}/sport/wnba`, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${siteUrl}/sport/baseball`, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${siteUrl}/sport/rugby`, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${siteUrl}/sport/athletics`, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${siteUrl}/sport/hockey`, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${siteUrl}/sport/volleyball`, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${siteUrl}/sport/formula-1`, changeFrequency: "hourly", priority: 0.8 },
     { url: `${siteUrl}/standings`, changeFrequency: "daily", priority: 0.6 },
     { url: `${siteUrl}/videos`, changeFrequency: "hourly", priority: 0.7 },
     { url: `${siteUrl}/player`, changeFrequency: "weekly", priority: 0.5 },

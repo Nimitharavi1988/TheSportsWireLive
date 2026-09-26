@@ -193,7 +193,7 @@ export interface NhlConferenceStandings {
 }
 
 // Added 2026-09-20 (real gap: no standings widget existed for
-// `?category=hockey`) — same shape as nflData.ts's fetchNflStandingsTable,
+// `/sport/hockey`) — same shape as nflData.ts's fetchNflStandingsTable,
 // but hockey standings are conventionally ranked/displayed by points (not
 // raw win-loss, since an OT/shootout loss still earns a point) — confirmed
 // live the endpoint exposes "otLosses" (not "ties") and "points" alongside

@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
@@ -62,9 +62,9 @@ const NAV_LINKS: { href: string; label: string; category: string | null; icon: S
   { href: "/", label: "All", category: null, icon: ViewListIcon },
   // Personalized feed of followed teams/players/sports (see for-you/page.tsx).
   { href: "/for-you", label: "For You", category: null, icon: StarBorderIcon },
-  { href: "/?category=football", label: "Football", category: "football", icon: SportsSoccerIcon },
-  { href: "/?category=cricket", label: "Cricket", category: "cricket", icon: SportsCricketIcon },
-  { href: "/?category=american-football", label: "NFL", category: "american-football", icon: SportsFootballIcon },
+  { href: "/sport/football", label: "Football", category: "football", icon: SportsSoccerIcon },
+  { href: "/sport/cricket", label: "Cricket", category: "cricket", icon: SportsCricketIcon },
+  { href: "/sport/american-football", label: "NFL", category: "american-football", icon: SportsFootballIcon },
   { href: "/scores", label: "Scores", category: null, icon: SportsScoreIcon },
   { href: "/videos", label: "Videos", category: null, icon: SmartDisplayIcon },
 ];
@@ -85,19 +85,19 @@ const NAV_LINKS: { href: string; label: string; category: string | null; icon: S
 // category: string | null (not just string) to fit Standings, a utility
 // link with no single category of its own.
 const MORE_SPORTS_LINKS: { href: string; label: string; category: string | null; icon: SvgIconComponent }[] = [
-  { href: "/?category=college-football", label: "College Football", category: "college-football", icon: SportsFootballOutlinedIcon },
-  { href: "/?category=basketball", label: "NBA", category: "basketball", icon: SportsBasketballIcon },
-  { href: "/?category=wnba", label: "WNBA", category: "wnba", icon: SportsBasketballOutlinedIcon },
-  { href: "/?category=baseball", label: "MLB", category: "baseball", icon: SportsBaseballIcon },
+  { href: "/sport/college-football", label: "College Football", category: "college-football", icon: SportsFootballOutlinedIcon },
+  { href: "/sport/basketball", label: "NBA", category: "basketball", icon: SportsBasketballIcon },
+  { href: "/sport/wnba", label: "WNBA", category: "wnba", icon: SportsBasketballOutlinedIcon },
+  { href: "/sport/baseball", label: "MLB", category: "baseball", icon: SportsBaseballIcon },
   { href: "/standings", label: "Standings", category: null, icon: EmojiEventsIcon },
   // All series and events (Asian Games, bilateral cricket series, IPL) —
   // was footer-only; the homepage "Happening now" row covers active ones.
   { href: "/series", label: "Series & Events", category: null, icon: EventIcon },
-  { href: "/?category=rugby", label: "Rugby", category: "rugby", icon: SportsRugbyIcon },
-  { href: "/?category=athletics", label: "Athletics", category: "athletics", icon: DirectionsRunIcon },
-  { href: "/?category=hockey", label: "NHL", category: "hockey", icon: SportsHockeyIcon },
-  { href: "/?category=volleyball", label: "Volleyball", category: "volleyball", icon: SportsVolleyballIcon },
-  { href: "/?category=formula-1", label: "Formula 1", category: "formula-1", icon: SportsMotorsportsIcon },
+  { href: "/sport/rugby", label: "Rugby", category: "rugby", icon: SportsRugbyIcon },
+  { href: "/sport/athletics", label: "Athletics", category: "athletics", icon: DirectionsRunIcon },
+  { href: "/sport/hockey", label: "NHL", category: "hockey", icon: SportsHockeyIcon },
+  { href: "/sport/volleyball", label: "Volleyball", category: "volleyball", icon: SportsVolleyballIcon },
+  { href: "/sport/formula-1", label: "Formula 1", category: "formula-1", icon: SportsMotorsportsIcon },
 ];
 
 // Brand green tint for the active-nav pill — deliberately not MUI's default
@@ -123,15 +123,14 @@ const MENU_ICON_SIZE = 18;
 // boundary"). The static wordmark stays outside so it never has to wait.
 function NavLinks() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const activeCategory = searchParams.get("category");
+  const activeCategory = pathname.startsWith("/sport/") ? pathname.slice("/sport/".length) : null;
   const [moreOpen, setMoreOpen] = useState(false);
   // category !== null excludes Standings — a null category would otherwise
   // false-match activeCategory's own null default on the bare homepage
-  // (no ?category= param at all), marking "More Sports" active with
+  // (no /sport/ section), marking "More Sports" active with
   // nothing actually selected from it.
   const isMoreActive =
-    (pathname === "/" && MORE_SPORTS_LINKS.some((l) => l.category !== null && l.category === activeCategory)) ||
+    MORE_SPORTS_LINKS.some((l) => l.category !== null && l.category === activeCategory) ||
     pathname.startsWith("/standings") ||
     pathname.startsWith("/series");
 

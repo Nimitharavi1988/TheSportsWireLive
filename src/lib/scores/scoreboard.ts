@@ -49,6 +49,21 @@ export function currentScoreMatch(row: MatchRow): ScoreMatch | null {
   return toScoreMatch(row, new Date());
 }
 
+// Fresh cards for specific matches (in-place live updates, see
+// liveUpdates.ts). Ids that aren't match rows simply don't come back.
+export async function fetchScoreMatchesByIds(ids: string[]): Promise<ScoreMatch[]> {
+  if (ids.length === 0) return [];
+  const now = new Date();
+  const rows = await db
+    .select(MATCH_COLUMNS)
+    .from(article)
+    .where(and(eq(article.status, "published"), inArray(article.id, ids)));
+  return rows.flatMap((r) => {
+    const m = toScoreMatch(r, now);
+    return m ? [m] : [];
+  });
+}
+
 // Games kicking off within `windowMs` either side of now, plus any cricket match still
 // being updated right now even if it started earlier (a Test runs for days).
 // `sport` is a top-level category ("football" also covers "football/...").

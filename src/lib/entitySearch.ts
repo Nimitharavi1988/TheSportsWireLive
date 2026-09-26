@@ -51,7 +51,7 @@ const CATALOG: CatalogEntry[] = [
       slug: sport,
       name: label,
       subtitle: "Sport",
-      href: `/?category=${sport}`,
+      href: `/sport/${sport}`,
       initials: label.slice(0, 2).toUpperCase(),
       color,
       haystack: [normalizeForSearch(label), normalizeForSearch(sport.replace(/-/g, " "))],

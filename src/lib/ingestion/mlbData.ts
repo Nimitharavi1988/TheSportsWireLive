@@ -6,7 +6,7 @@
  * request cap to self-throttle against.
  *
  * Standings table added 2026-09-20 (real gap: no standings widget existed
- * for `?category=baseball`) — uses ESPN's standings endpoint instead of the
+ * for `/sport/baseball`) — uses ESPN's standings endpoint instead of the
  * MLB Stats API above, same `site.api.espn.com/apis/v2/sports/.../standings`
  * family already used for NFL/NBA, confirmed live with the same stat names
  * plus `ties`.
