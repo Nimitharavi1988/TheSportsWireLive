@@ -2,6 +2,7 @@ import { Poppins, Inter } from "next/font/google";
 import ThemeRegistry from "@/components/ThemeRegistry";
 import SiteHeader from "@/components/SiteHeader";
 import { MobileSectionNav } from "@/components/MobileSectionNav";
+import { NavigationProgress } from "@/components/NavigationProgress";
 import MatchTicker from "@/components/MatchTicker";
 import SiteFooter from "@/components/SiteFooter";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
@@ -100,6 +101,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <GoogleAdSense />
         <ServiceWorkerRegister />
         <ThemeRegistry>
+          <NavigationProgress />
           <SiteHeader />
           <MobileSectionNav />
           <MatchTicker />
