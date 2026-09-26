@@ -39,6 +39,11 @@ export interface EspnCricketEvent {
 // A result line means the match is over even when ESPN still lists it as
 // "in" for a while (seen live: "No result" on an "in" event).
 const RESULT = /\b(won by|won the match|match drawn|drawn|tied|no result|abandoned|cancelled)\b/i;
+// ESPN flips an event to "in" at its scheduled start even when play hasn't
+// begun ("Match scheduled to begin at 10:00 local time", seen 2026-09-26).
+const NOT_BEGUN = /\b(scheduled to begin|yet to begin|start delayed)\b/i;
+// Placeholder for a knockout slot not decided yet — not a real fixture.
+const TBA = /^(tba|tbc|tbd)$/i;
 
 function isMultiDay(event: EspnCricketEvent): boolean {
   return Boolean(event.endDate) && Date.parse(event.endDate!) - Date.parse(event.date) > 24 * 60 * 60 * 1000;
@@ -49,17 +54,20 @@ export function espnCricketEventToItem(event: EspnCricketEvent, leagueName: stri
   const home = event.competitors.find((c) => c.homeAway === "home") ?? event.competitors[0];
   const away = event.competitors.find((c) => c.homeAway === "away") ?? event.competitors[1];
   if (!home || !away || home === away) return null;
+  if (TBA.test(home.displayName.trim()) || TBA.test(away.displayName.trim())) return null;
   if (event.status !== "pre" && event.status !== "in" && event.status !== "post") return null;
 
   const statusLine = (event.fullStatus?.longSummary || event.summary || "").trim();
   const finished = event.status === "post" || RESULT.test(statusLine);
-  const started = event.status !== "pre";
+  const noScores = !home.score?.trim() && !away.score?.trim();
+  const started = event.status !== "pre" && !(NOT_BEGUN.test(statusLine) && noScores);
   // "Day 2: Stumps" for a multi-day match, matching CricketData's status
   // lines, so the scoreboard's stumps/day handling reads both the same way.
   const day = event.fullStatus?.dayNumber;
   // Day prefix only where it means something: day 2 onwards, or stumps.
   const showDay = isMultiDay(event) && day && (day >= 2 || /stumps/i.test(statusLine)) && !/^day \d/i.test(statusLine);
-  const note = started && statusLine ? (showDay ? `Day ${day}: ${statusLine}` : statusLine) : undefined;
+  // Kept for a delayed start too, so readers see why nothing's happening.
+  const note = event.status !== "pre" && statusLine ? (showDay ? `Day ${day}: ${statusLine}` : statusLine) : undefined;
   const start = new Date(event.date);
   const dateLabel = start.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
   const homeTeam = home.displayName;
@@ -80,8 +88,9 @@ export function espnCricketEventToItem(event: EspnCricketEvent, leagueName: stri
     sourceName: "ESPN Cricket",
     category: "cricket",
     publishedAt: start,
-    homeCrestUrl: home.logo,
-    awayCrestUrl: away.logo,
+    // "" when ESPN has no logo for the team.
+    homeCrestUrl: home.logo || undefined,
+    awayCrestUrl: away.logo || undefined,
     homeTeam,
     awayTeam,
     homeScoreText: started ? scoreText(home) : undefined,

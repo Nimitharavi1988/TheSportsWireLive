@@ -264,6 +264,9 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   // pacing logic below actually has enough real candidates to hit its
   // per-run target most runs. Runs even when toApprove is empty.
   type SocialCandidate = { id: string; slug: string; title: string; trendingScore: number; category: string; sourceName: string };
+  // A post needs a real picture; match rows can publish without one (see
+  // isAutoApprovable), so the image bar is applied here for social.
+  const postable = (a: { heroImageUrl: string | null; homeCrestUrl: string | null }) => hasRealImage(a);
   const backlogCutoff = new Date(Date.now() - SOCIAL_BACKLOG_WINDOW_MS);
   // Separate, much shorter window than the already-posted exclusion above —
   // "don't post the same real-world event twice" is a same-day problem (a
@@ -276,6 +279,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     db.select({
       id: article.id, slug: article.slug, title: article.title,
       trendingScore: article.trendingScore, category: article.category, sourceName: article.sourceName,
+      heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
     }).from(article)
       .where(and(eq(article.status, "published"), gte(article.publishedAt, backlogCutoff)))
       .orderBy(desc(article.trendingScore))
@@ -310,11 +314,11 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   const fbRecentTitles = fbRecentTitleRows.map((r) => r.title);
   const igRecentTitles = igRecentTitleRows.map((r) => r.title);
 
-  const freshCandidates: SocialCandidate[] = toApprove.map((a) => ({
+  const freshCandidates: SocialCandidate[] = toApprove.filter(postable).map((a) => ({
     id: a.id, slug: a.slug, title: a.title, trendingScore: a.trendingScore, category: a.category, sourceName: a.sourceName,
   }));
   const freshIds = new Set(freshCandidates.map((a) => a.id));
-  const backlogExcludingFresh = backlogPool.filter((a) => !freshIds.has(a.id));
+  const backlogExcludingFresh = backlogPool.filter((a) => !freshIds.has(a.id) && postable(a));
 
   // Picks the top N respecting RESERVED_CATEGORIES, same ranking both
   // platforms use. Takes its candidate pool as a parameter (not closed

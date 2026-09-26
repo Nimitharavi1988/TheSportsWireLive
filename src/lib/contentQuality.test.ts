@@ -91,3 +91,9 @@ describe("isAutoApprovable", () => {
     expect(isAutoApprovable({ body: thinBody, ...realImage, playerNewsSourced: false, sourceName: "MLB Stats API" })).toBe(false);
   });
 });
+
+describe("isAutoApprovable for match rows", () => {
+  it("approves a match row with no real image (a missing logo falls back to initials)", () => {
+    expect(isAutoApprovable({ body: "Markhor IT Solutions face Sui Northern Gas Pipelines Limited in the President's Trophy.", heroImageUrl: "https://images.pexels.com/photos/1/stock.jpeg", homeCrestUrl: null, playerNewsSourced: false, sourceName: "ESPN Cricket" })).toBe(true);
+  });
+});
