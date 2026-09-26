@@ -10,7 +10,7 @@ type Source =
   | { mode: "merge" }
   // Re-fetch a whole "live now" list, whose membership changes too
   // (ticker, phone score row).
-  | { mode: "list"; url: string };
+  | { mode: "list"; url: string; fetchOnStart?: boolean };
 
 // Which viewport a widget is visible at — a widget hidden by CSS at the
 // current width doesn't poll (the ticker is sm+, the phone row xs only).
@@ -41,15 +41,22 @@ export function useLiveScores(initial: ScoreMatch[], source: Source, viewport?: 
 
   const mode = source.mode;
   const listUrl = source.mode === "list" ? source.url : null;
+  // A list whose server-rendered copy doesn't match it (the ticker narrowed
+  // to a section's sport) is fetched straight away, not only once something
+  // on it is live.
+  const fetchOnStart = source.mode === "list" && Boolean(source.fetchOnStart);
 
   useEffect(() => {
     let cancelled = false;
     let lastRun = Date.now();
-    const tick = async () => {
+    // fetchOnStart: until the first successful load (a tab opened in the
+    // background can't fetch until it's shown).
+    let loaded = !fetchOnStart;
+    const tick = async (force = false) => {
       if (document.visibilityState !== "visible" || !visibleAt(viewport)) return;
       const now = Date.now();
       const active = latest.current.filter((m) => needsLiveUpdate(m, now));
-      if (active.length === 0) return;
+      if (active.length === 0 && !force) return;
       lastRun = now;
       const url = listUrl ?? `/api/scores/live?ids=${active.slice(0, MAX_LIVE_IDS).map((m) => encodeURIComponent(m.id)).join(",")}`;
       try {
@@ -57,14 +64,18 @@ export function useLiveScores(initial: ScoreMatch[], source: Source, viewport?: 
         if (!res.ok || cancelled) return;
         const data = (await res.json()) as { matches: ScoreMatch[] };
         if (cancelled) return;
+        loaded = true;
         setMatches(mode === "list" ? (data.matches.length > 0 ? data.matches : latest.current) : mergeMatches(latest.current, data.matches));
       } catch {
         // Offline or a blip — keep showing the last known scores.
       }
     };
+    if (fetchOnStart) void tick(true);
     const timer = setInterval(tick, LIVE_POLL_MS);
     const onVisible = () => {
-      if (document.visibilityState === "visible" && Date.now() - lastRun > LIVE_POLL_MS / 2) void tick();
+      if (document.visibilityState !== "visible") return;
+      if (!loaded) void tick(true);
+      else if (Date.now() - lastRun > LIVE_POLL_MS / 2) void tick();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
@@ -72,7 +83,7 @@ export function useLiveScores(initial: ScoreMatch[], source: Source, viewport?: 
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [mode, listUrl, viewport]);
+  }, [mode, listUrl, viewport, fetchOnStart]);
 
   // Cricket in play also gets the real-time layer: ESPN's ball-by-ball
   // scores every 15s, fetched by the browser (see cricketRealtime.ts), laid
