@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ScoreMatch } from "@/lib/scores/scoreboardModel";
-import { LIVE_POLL_MS, MAX_LIVE_IDS, mergeMatches, needsLiveUpdate } from "@/lib/scores/liveUpdates";
+import { LIVE_POLL_MS, MAX_LIVE_IDS, mergeMatches, needsLiveUpdate, sameMatches } from "@/lib/scores/liveUpdates";
 import { CRICKET_REALTIME_MS, ESPN_CRICKET_LIVE_URL, applyLiveCricket, hasCricketInPlay, liveCricketFromEspn } from "@/lib/scores/cricketRealtime";
 
 type Source =
@@ -30,7 +30,7 @@ export function useLiveScores(initial: ScoreMatch[], source: Source, viewport?: 
   const [matches, setMatches] = useState(initial);
   const [prevInitial, setPrevInitial] = useState(initial);
   // New server data (navigation, revalidated page) replaces local state.
-  if (initial !== prevInitial) {
+  if (!sameMatches(initial, prevInitial)) {
     setPrevInitial(initial);
     setMatches(initial);
   }
