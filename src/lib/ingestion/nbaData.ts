@@ -5,7 +5,7 @@
  * score/logo fields, identical shape to the NFL endpoint.
  *
  * Standings table added 2026-09-20 (real gap found: the homepage sidebar
- * had no standings widget at all for `?category=basketball`, unlike
+ * had no standings widget at all for `/sport/basketball`, unlike
  * football/NFL) — same `site.api.espn.com/apis/v2/sports/.../standings`
  * endpoint family and same stat names (wins/losses/playoffSeed) as NFL's,
  * confirmed live.

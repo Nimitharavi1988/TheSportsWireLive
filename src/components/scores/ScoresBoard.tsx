@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import type { ScoreMatch } from "@/lib/scores/scoreboardModel";
 import { ScoreCard } from "./ScoreCard";
-import { LiveRefresher } from "./LiveRefresher";
+import { useLiveScores } from "./useLiveScores";
 import { dayKey, useViewerTimeZone } from "./useViewerTimeZone";
 
 const DAY_MS = 86_400_000;
@@ -46,11 +46,11 @@ function groupByLeague(matches: ScoreMatch[]): LeagueGroup[] {
     });
 }
 
-export function ScoresBoard({ matches, emptyLabel }: { matches: ScoreMatch[]; emptyLabel: string }) {
+export function ScoresBoard({ matches: initial, emptyLabel }: { matches: ScoreMatch[]; emptyLabel: string }) {
+  // Scores move in place while anything is live (see useLiveScores).
+  const matches = useLiveScores(initial, { mode: "merge" });
   const timeZone = useViewerTimeZone();
   const [picked, setPicked] = useState<string | null>(null);
-  // Paused games (cricket stumps/tea) can resume, so they keep refreshing too.
-  const hasLive = matches.some(inPlay);
 
   const { todayKey, byDay, days } = useMemo(() => {
     const todayKey = dayKey(new Date(), timeZone);
@@ -86,8 +86,6 @@ export function ScoresBoard({ matches, emptyLabel }: { matches: ScoreMatch[]; em
 
   return (
     <Box>
-      {/* Scores move without a reload while anything is live. */}
-      <LiveRefresher active={hasLive} />
       <Box
         role="tablist"
         aria-label="Choose a day"

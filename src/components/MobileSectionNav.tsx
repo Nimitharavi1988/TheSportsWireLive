@@ -3,7 +3,7 @@
 import { Suspense, useEffect } from "react";
 import Link from "next/link";
 import Box from "@mui/material/Box";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { ScrollRow } from "@/components/ScrollRow";
 
 // Phone-only row of the site's sections under the header. Below sm the
@@ -16,14 +16,14 @@ const SECTIONS: { href: string; label: string; category: string | null }[] = [
   { href: "/", label: "Top Stories", category: null },
   { href: "/scores", label: "Scores", category: null },
   { href: "/videos", label: "Videos", category: null },
-  { href: "/?category=football", label: "Football", category: "football" },
-  { href: "/?category=cricket", label: "Cricket", category: "cricket" },
-  { href: "/?category=american-football", label: "NFL", category: "american-football" },
-  { href: "/?category=college-football", label: "College Football", category: "college-football" },
-  { href: "/?category=basketball", label: "NBA", category: "basketball" },
-  { href: "/?category=wnba", label: "WNBA", category: "wnba" },
-  { href: "/?category=baseball", label: "MLB", category: "baseball" },
-  { href: "/?category=hockey", label: "NHL", category: "hockey" },
+  { href: "/sport/football", label: "Football", category: "football" },
+  { href: "/sport/cricket", label: "Cricket", category: "cricket" },
+  { href: "/sport/american-football", label: "NFL", category: "american-football" },
+  { href: "/sport/college-football", label: "College Football", category: "college-football" },
+  { href: "/sport/basketball", label: "NBA", category: "basketball" },
+  { href: "/sport/wnba", label: "WNBA", category: "wnba" },
+  { href: "/sport/baseball", label: "MLB", category: "baseball" },
+  { href: "/sport/hockey", label: "NHL", category: "hockey" },
   { href: "/for-you", label: "For You", category: null },
 ];
 
@@ -70,7 +70,6 @@ function Row({ isActive }: { isActive: (s: (typeof SECTIONS)[number]) => boolean
 
 function ActiveRow() {
   const pathname = usePathname();
-  const category = useSearchParams().get("category");
   // Bring the current section into view when it sits past the first
   // screenful (NHL, For You). Sets the row's own scrollLeft, so the page
   // itself never scrolls.
@@ -78,13 +77,11 @@ function ActiveRow() {
     const active = document.querySelector<HTMLElement>('nav[aria-label="Sections"] a[aria-current="page"]');
     const row = active?.parentElement;
     if (active && row) row.scrollLeft += active.getBoundingClientRect().left - row.getBoundingClientRect().left - (row.clientWidth - active.offsetWidth) / 2;
-  }, [pathname, category]);
+  }, [pathname]);
   return (
     <Row
       isActive={(s) =>
-        s.href === "/" ? pathname === "/" && !category
-        : s.category ? pathname === "/" && category === s.category
-        : pathname.startsWith(s.href)
+        s.href === "/" ? pathname === "/" : pathname === s.href || pathname.startsWith(`${s.href}/`)
       }
     />
   );

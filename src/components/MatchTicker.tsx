@@ -1,99 +1,10 @@
-import Link from "next/link";
-import Box from "@mui/material/Box";
 import { fetchLiveNow } from "@/lib/scores/scoreboard";
-import { MiniScoreCard } from "./scores/MiniScoreCard";
+import { LiveTicker, TICKER_SIZE } from "./LiveTicker";
 
-// Site-wide score strip under the header. Mini versions of the standard
-// score card (src/components/scores/ScoreCard.tsx) from the same data and
-// live/final/upcoming rules as /scores (fetchLiveNow): live games first,
-// then the next kickoffs, then recent results. Was its own query and card
-// style, with "LIVE" guessed from kickoff time and no clock.
-const TICKER_SIZE = 14;
-const STRIP_BG = "#e9f1ec";
-
+// Site-wide score strip under the header (see LiveTicker): loads the first
+// list on the server; the strip keeps itself current in the browser.
 export default async function MatchTicker() {
-  const matches = await fetchLiveNow({ take: TICKER_SIZE });
+  const matches = await fetchLiveNow({ take: TICKER_SIZE }).catch(() => []);
   if (matches.length === 0) return null;
-  // Doubled so the -50% scroll loops seamlessly.
-  const doubled = [...matches, ...matches];
-
-  return (
-    <Box
-      sx={{
-        display: { xs: "none", sm: "block" },
-        bgcolor: STRIP_BG,
-        borderBottom: "1px solid",
-        borderColor: "divider",
-        overflow: "hidden",
-        position: "relative",
-      }}
-    >
-      <style>{`
-        @keyframes sw-ticker-scroll {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .sw-ticker-track { animation: none !important; }
-        }
-      `}</style>
-      {/* Right-edge fade so cards scroll out smoothly instead of being
-          hard-clipped by the container edge. */}
-      <Box
-        sx={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          right: 0,
-          width: 48,
-          zIndex: 2,
-          pointerEvents: "none",
-          background: `linear-gradient(to right, rgba(233,241,236,0), ${STRIP_BG})`,
-        }}
-      />
-      {/* Plain <Link> wrapper: this is a server component, and MUI Box
-          can't take component={Link} across the server/client boundary. */}
-      <Link href="/scores" aria-label="All scores" style={{ position: "absolute", top: 0, bottom: 0, left: 0, zIndex: 3, display: "flex", textDecoration: "none" }}>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          pl: 2,
-          pr: 1.5,
-          background: "linear-gradient(135deg, #2f8a5c 0%, #17512f 100%)",
-        }}
-      >
-        <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#fff", mr: 1 }} />
-        <Box
-          component="span"
-          sx={{
-            fontFamily: "var(--font-heading)",
-            fontWeight: 700,
-            fontSize: 11.5,
-            letterSpacing: "0.07em",
-            textTransform: "uppercase",
-            color: "primary.contrastText",
-            whiteSpace: "nowrap",
-          }}
-        >
-          Scores
-        </Box>
-      </Box>
-      </Link>
-      <Box
-        className="sw-ticker-track"
-        sx={{
-          display: "flex",
-          width: "max-content",
-          animation: "sw-ticker-scroll 90s linear infinite",
-          pl: "120px",
-          "&:hover": { animationPlayState: "paused" },
-        }}
-      >
-        {doubled.map((match, i) => (
-          <MiniScoreCard key={`${match.id}-${i}`} match={match} />
-        ))}
-      </Box>
-    </Box>
-  );
+  return <LiveTicker initial={matches} />;
 }

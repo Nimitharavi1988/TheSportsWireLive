@@ -31,7 +31,7 @@ export const metadata = {
     // flagged this as a moderate "title too short" warning (2026-09-24),
     // since this exact string is also what the homepage itself falls back
     // to (page.tsx's generateMetadata only overrides title/description
-    // when a ?category= param is present — see its own comment). Real
+    // on a /sport/<category> section — see its own comment). Real
     // recommended range is ~50-60 characters; this is 54, still accurate
     // to what the homepage actually is, no invented claims.
     default: "Sports Wire Live — Live Football, Cricket & NFL News",

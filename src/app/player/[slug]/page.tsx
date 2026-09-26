@@ -36,6 +36,14 @@ import Chip from "@mui/material/Chip";
 // cheap/unrated-limited anyway (unlike football-data.org's own free tier).
 export const revalidate = 300;
 
+// Declaring this (even empty) is what makes Next cache this route: each
+// page renders on its first visit, then is served from cache and
+// re-rendered in the background every `revalidate` seconds. Without it,
+// every visit rendered from scratch (measured 2026-09-26: up to 2.2s).
+export async function generateStaticParams() {
+  return [];
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const player = TRACKED_PLAYERS.find((p) => p.slug === slug);

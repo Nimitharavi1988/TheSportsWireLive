@@ -30,7 +30,7 @@ import { currentScoreMatch } from "@/lib/scores/scoreboard";
 import { MatchHeader } from "@/components/scores/MatchHeader";
 import { ArticleVideos, MatchHighlightsForArticle, VideoStripSkeleton } from "@/components/videos/VideoStrip";
 import { Suspense } from "react";
-import { UpNextCard } from "@/components/UpNextCard";
+import { UpNext } from "@/components/UpNext";
 import { pickOnward, RELATED_COUNT, trendingSince } from "@/lib/articleOnward";
 import { FanEngagementHub } from "@/components/FanEngagementHub";
 import { FollowUs } from "@/components/FollowUs";
@@ -41,6 +41,14 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import WhatshotIcon from "@mui/icons-material/Whatshot";
 
 export const revalidate = 60;
+
+// Declaring this (even empty) is what makes Next cache this route: each
+// page renders on its first visit, then is served from cache and
+// re-rendered in the background every `revalidate` seconds. Without it,
+// every visit rendered from scratch (measured 2026-09-26: up to 2.2s).
+export async function generateStaticParams() {
+  return [];
+}
 
 // generateMetadata and the page both need the article row — cache() makes
 // that one database round trip per request instead of two.
@@ -183,7 +191,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
   const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
   const breadcrumbSteps: { name: string; href: string }[] = [
     { name: "Home", href: "/" },
-    { name: categoryChipStyle(article.category).label, href: `/?category=${article.category}` },
+    { name: categoryChipStyle(article.category).label, href: `/sport/${article.category}` },
     ...(article.seriesKey && article.seriesLabel ? [{ name: article.seriesLabel, href: `/series/${article.seriesKey}` }] : []),
   ];
   const breadcrumbJsonLd = buildBreadcrumbJsonLd(
@@ -249,7 +257,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
             // Real, accurate URL — our own category listing for this
             // sport — rather than inventing a link to an external
             // governing body we don't actually represent.
-            url: `${siteUrl}/?category=${article.category}`,
+            url: `${siteUrl}/sport/${article.category}`,
           },
           ...(article.venue
             ? { location: { "@type": "Place", name: article.venue } }
@@ -309,7 +317,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
       .orderBy(desc(articleTable.publishedAt))
       .limit(16),
   ]);
-  const { upNext, related, relatedIsTagged, trendingNow, justIn } = pickOnward({
+  const { upNextCandidates, related, relatedIsTagged, trendingNow, justIn } = pickOnward({
     tagged: taggedCandidates,
     sameCategory: sameCategoryCandidates,
     trending: trendingCandidates,
@@ -497,8 +505,8 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         ));
       })()}
 
-      {/* The next story, straight after this one — see UpNextCard. */}
-      {upNext && <UpNextCard article={upNext} />}
+      {/* The next story, straight after this one — see UpNext. */}
+      {upNextCandidates.length > 0 && <UpNext currentSlug={article.slug} candidates={upNextCandidates} />}
 
       {/* In-feed native ad, styled in AdSense to match the site's own
           look (white background, light border, sans-serif) so it reads

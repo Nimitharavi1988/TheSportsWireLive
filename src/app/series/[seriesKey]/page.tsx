@@ -20,6 +20,14 @@ import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 
 export const revalidate = 300;
 
+// Declaring this (even empty) is what makes Next cache this route: each
+// page renders on its first visit, then is served from cache and
+// re-rendered in the background every `revalidate` seconds. Without it,
+// every visit rendered from scratch (measured 2026-09-26: up to 2.2s).
+export async function generateStaticParams() {
+  return [];
+}
+
 async function findSeries(seriesKey: string) {
   const rows = await db.select({ seriesLabel: article.seriesLabel }).from(article)
     .where(eq(article.seriesKey, seriesKey)).limit(1);

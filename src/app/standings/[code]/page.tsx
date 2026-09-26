@@ -11,6 +11,14 @@ import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 
 export const revalidate = 300;
 
+// Declaring this (even empty) is what makes Next cache this route: each
+// page renders on its first visit, then is served from cache and
+// re-rendered in the background every `revalidate` seconds. Without it,
+// every visit rendered from scratch (measured 2026-09-26: up to 2.2s).
+export async function generateStaticParams() {
+  return [];
+}
+
 export async function generateMetadata(props: { params: Promise<{ code: string }> }) {
   const params = await props.params;
   const apiKey = process.env.FOOTBALL_DATA_API_KEY;

@@ -1,14 +1,16 @@
+"use client";
+
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import type { ScoreMatch, ScoreSide } from "@/lib/scores/scoreboardModel";
 import { KickoffTime } from "./KickoffTime";
 import { LiveBadge, PausedBadge, TeamCrest } from "./ScoreCard";
-import { LiveRefresher } from "./LiveRefresher";
+import { useLiveScores } from "./useLiveScores";
 
 // Large form of the score card, shown at the top of a match story (the
 // "match page"): league and status, big crests, score, records, the
-// situation line, venue and TV. Server-rendered; only the kickoff time and
-// the live auto-refresh run in the browser.
+// situation line, venue and TV. Updates itself in place while the game is
+// live (useLiveScores), so the story page is never reloaded for a score.
 
 function Side({ side, isFinal }: { side: ScoreSide; isFinal: boolean }) {
   return (
@@ -20,7 +22,8 @@ function Side({ side, isFinal }: { side: ScoreSide; isFinal: boolean }) {
   );
 }
 
-export function MatchHeader({ match }: { match: ScoreMatch }) {
+export function MatchHeader({ match: initial }: { match: ScoreMatch }) {
+  const [match] = useLiveScores([initial], { mode: "merge" }).concat(initial);
   const isFinal = match.state === "final";
   const hasScores = match.home.score !== null || match.away.score !== null;
   // Cricket scores are text ("287/6 (48.2)") — too long for one big line.
@@ -32,7 +35,6 @@ export function MatchHeader({ match }: { match: ScoreMatch }) {
       aria-label="Match score"
       sx={{ border: "1px solid", borderColor: match.state === "live" ? "rgba(211, 47, 47, 0.35)" : "divider", borderRadius: 2, p: { xs: 2, sm: 2.5 }, mb: 2.5, bgcolor: "background.paper" }}
     >
-      <LiveRefresher active={match.state === "live" || match.state === "paused"} />
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 1, flexWrap: "wrap", fontSize: 13, color: "text.secondary", mb: 2 }}>
         <span>{match.leagueLabel}</span>
         <span aria-hidden>·</span>

@@ -31,6 +31,14 @@ import Chip from "@mui/material/Chip";
 // (CLAUDE.md: never fabricate a field).
 export const revalidate = 300;
 
+// Declaring this (even empty) is what makes Next cache this route: each
+// page renders on its first visit, then is served from cache and
+// re-rendered in the background every `revalidate` seconds. Without it,
+// every visit rendered from scratch (measured 2026-09-26: up to 2.2s).
+export async function generateStaticParams() {
+  return [];
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const country = TRACKED_COUNTRIES.find((c) => c.slug === slug);
