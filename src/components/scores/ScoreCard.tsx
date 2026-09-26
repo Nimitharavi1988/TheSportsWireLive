@@ -5,6 +5,7 @@ import Typography from "@mui/material/Typography";
 import type { ScoreMatch, ScoreSide } from "@/lib/scores/scoreboardModel";
 import { playerInitials } from "@/lib/playerAvatar";
 import { KickoffTime } from "./KickoffTime";
+import { DataSource } from "./DataFreshness";
 
 // The standard score card (Google/ESPN pattern): a status line, then one
 // row per team — crest, name, record, score — winner bold, loser muted.
@@ -42,6 +43,16 @@ export function PausedBadge({ label }: { label: string | null }) {
     <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, color: "text.secondary", fontWeight: 700 }}>
       <Box component="span" aria-hidden sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "text.disabled" }} />
       <span>{label ?? "Paused"}</span>
+    </Box>
+  );
+}
+
+// Past its start with no live data to show (see ScoreState "started").
+export function StartedBadge() {
+  return (
+    <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, color: "text.secondary", fontWeight: 700 }}>
+      <Box component="span" aria-hidden sx={{ width: 7, height: 7, borderRadius: "50%", border: "1.5px solid", borderColor: "text.disabled" }} />
+      <span>In progress</span>
     </Box>
   );
 }
@@ -100,6 +111,7 @@ function TeamRow({ side, isFinal }: { side: ScoreSide; isFinal: boolean }) {
 export function ScoreStatus({ match }: { match: ScoreMatch }) {
   if (match.state === "live") return <LiveBadge label={match.clock} />;
   if (match.state === "paused") return <PausedBadge label={match.clock} />;
+  if (match.state === "started") return <StartedBadge />;
   if (match.state === "final") return <span>Final</span>;
   return match.kickoffAt ? <KickoffTime iso={match.kickoffAt} /> : <span>Upcoming</span>;
 }
@@ -134,6 +146,9 @@ export function ScoreCard({ match }: { match: ScoreMatch }) {
             {match.note}
           </Typography>
         )}
+        <Typography component="div" sx={{ mt: 0.5, fontSize: 11, color: "text.disabled" }}>
+          <DataSource match={match} />
+        </Typography>
       </Box>
     </Link>
   );

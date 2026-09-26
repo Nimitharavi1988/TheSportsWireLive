@@ -19,34 +19,39 @@
  */
 import { db } from "@/db";
 import { article } from "@/db/schema";
-import { and, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, eq, gte, inArray, like, lte, or } from "drizzle-orm";
 import type { RawMatchItem } from "../ingestion/footballData";
 import { computeDedupeHash, computeStableDedupeHash } from "../ingestion/dedupe";
 import { fetchTrackedCricketMatch } from "../ingestion/cricketData";
 import { TRACKED_REFRESH_MS, trackedInPlay } from "./trackedCricket";
 import { matchRefreshValues } from "../ingestion/matchRefresh";
 import { fetchNflData } from "../ingestion/nflData";
+import { fetchMlbData } from "../ingestion/mlbData";
 import { fetchNbaData } from "../ingestion/nbaData";
 import { fetchNhlData } from "../ingestion/nhlData";
 import { fetchDomesticFootballData } from "../ingestion/domesticFootballData";
 import { fetchEspnVolleyballData } from "../ingestion/espnVolleyballData";
 import { fetchCollegeFootballData, fetchWnbaData } from "../ingestion/espnLeagueData";
+import { fetchEspnCricketData } from "../ingestion/espnCricketData";
 
 // sourceName (as stored on Article) -> the fetcher that produces it.
 const LIVE_SOURCES: Record<string, () => Promise<RawMatchItem[]>> = {
   "ESPN NFL": fetchNflData,
+  "MLB Stats API": fetchMlbData,
   "ESPN NBA": fetchNbaData,
   "ESPN NHL": fetchNhlData,
   "ESPN Football": fetchDomesticFootballData,
   "ESPN Volleyball": fetchEspnVolleyballData,
   "ESPN College Football": fetchCollegeFootballData,
   "ESPN WNBA": fetchWnbaData,
+  "ESPN Cricket": fetchEspnCricketData,
 };
 
 // A game is worth refreshing from shortly before kickoff (so it flips to
 // live promptly) until it's final or clearly over.
 export const PRE_KICKOFF_MS = 15 * 60 * 1000;
 export const MAX_GAME_MS = 5 * 60 * 60 * 1000;
+export const MAX_CRICKET_MS = 5 * 24 * 60 * 60 * 1000;
 
 export interface LiveRefreshResult {
   sources: string[];
@@ -80,7 +85,11 @@ export async function runLiveRefresh(now: Date = new Date()): Promise<LiveRefres
     .where(and(
       inArray(article.sourceName, Object.keys(LIVE_SOURCES)),
       eq(article.matchStatus, "scheduled"),
-      gte(article.kickoffAt, new Date(now.getTime() - MAX_GAME_MS)),
+      // Cricket runs for days (Tests, first-class); other games within hours.
+      or(
+        gte(article.kickoffAt, new Date(now.getTime() - MAX_GAME_MS)),
+        and(like(article.category, "cricket%"), gte(article.kickoffAt, new Date(now.getTime() - MAX_CRICKET_MS)))
+      ),
       lte(article.kickoffAt, new Date(now.getTime() + PRE_KICKOFF_MS))
     ));
   const sources = active.map((r) => r.sourceName);

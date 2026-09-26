@@ -10,8 +10,8 @@ import { dayKey, useViewerTimeZone } from "./useViewerTimeZone";
 
 const DAY_MS = 86_400_000;
 
-const STATE_ORDER = { live: 0, paused: 1, upcoming: 2, final: 3 } as const;
-const inPlay = (m: ScoreMatch) => m.state === "live" || m.state === "paused";
+const STATE_ORDER = { live: 0, paused: 1, started: 2, upcoming: 3, final: 4 } as const;
+const inPlay = (m: ScoreMatch) => m.state === "live" || m.state === "paused" || m.state === "started";
 
 function dayLabel(key: string, todayKey: string): string {
   const offsetDays = Math.round((Date.parse(`${key}T12:00:00Z`) - Date.parse(`${todayKey}T12:00:00Z`)) / DAY_MS);

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Box from "@mui/material/Box";
 import type { ScoreMatch, ScoreSide } from "@/lib/scores/scoreboardModel";
-import { LiveBadge, PausedBadge, TeamCrest } from "./ScoreCard";
+import { LiveBadge, PausedBadge, StartedBadge, TeamCrest } from "./ScoreCard";
 import { KickoffTime } from "./KickoffTime";
 
 // Small form of the standard score card — status on top, one row per team.
@@ -50,6 +50,8 @@ export function MiniScoreCard({ match }: { match: ScoreMatch }) {
           <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis" }}>
             {match.state === "live" ? (
               <LiveBadge label={match.clock} />
+            ) : match.state === "started" ? (
+              <StartedBadge />
             ) : match.state === "paused" ? (
               <PausedBadge label={match.clock} />
             ) : isFinal ? (

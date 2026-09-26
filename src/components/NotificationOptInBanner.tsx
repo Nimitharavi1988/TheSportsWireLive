@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { dismissNotify, useAppPrompts } from "./appPrompts";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
@@ -9,7 +10,6 @@ import IconButton from "@mui/material/IconButton";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import CloseIcon from "@mui/icons-material/Close";
 
-const DISMISSED_KEY = "sw-notif-banner-dismissed";
 
 function urlBase64ToUint8Array(base64: string): BufferSource {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -26,28 +26,15 @@ function urlBase64ToUint8Array(base64: string): BufferSource {
 // renders at all once there's something to ask for (permission not already
 // granted/denied, and the VAPID public key is actually configured).
 export function NotificationOptInBanner() {
-  const [dismissed, setDismissed] = useState(true);
+  const { notify } = useAppPrompts();
   const [subscribing, setSubscribing] = useState(false);
-
-  useEffect(() => {
-    if (localStorage.getItem(DISMISSED_KEY)) return;
-    if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) return;
-    if (Notification.permission !== "default") return; // already granted or denied — nothing to ask
-    if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return;
-    setDismissed(false);
-  }, []);
-
-  function dismiss() {
-    localStorage.setItem(DISMISSED_KEY, "1");
-    setDismissed(true);
-  }
 
   async function subscribe() {
     setSubscribing(true);
     try {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        dismiss();
+        dismissNotify();
         return;
       }
       const registration = await navigator.serviceWorker.ready;
@@ -64,12 +51,12 @@ export function NotificationOptInBanner() {
       // Best-effort — a failed subscribe just means no notifications for
       // this visitor, not a broken page.
     } finally {
-      dismiss();
+      dismissNotify();
       setSubscribing(false);
     }
   }
 
-  if (dismissed) return null;
+  if (!notify) return null;
 
   return (
     <Paper
@@ -86,7 +73,7 @@ export function NotificationOptInBanner() {
       <Button variant="contained" size="small" onClick={subscribe} disabled={subscribing} sx={{ flexShrink: 0 }}>
         Enable
       </Button>
-      <IconButton size="small" onClick={dismiss} aria-label="Dismiss">
+      <IconButton size="small" onClick={dismissNotify} aria-label="Dismiss">
         <CloseIcon fontSize="small" />
       </IconButton>
     </Paper>

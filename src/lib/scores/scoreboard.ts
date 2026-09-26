@@ -141,13 +141,15 @@ async function newsDerivedCricket(existing: ScoreMatch[], now: Date): Promise<Sc
       kickoffAt: null,
       venue: null,
       broadcast: null,
+      source: "News reports",
+      updatedAt: (createdAt.get(m.id) ?? now).toISOString(),
       home: { name: m.homeTeam, crestUrl: null, score: null, record: null, winner: false },
       away: { name: m.awayTeam, crestUrl: null, score: null, record: null, winner: false },
     }));
 }
 
 const LIVE_NOW_WINDOW_MS = 36 * 60 * 60 * 1000;
-const STATE_RANK = { live: 0, paused: 1, upcoming: 2, final: 3 } as const;
+const STATE_RANK = { live: 0, paused: 1, started: 2, upcoming: 3, final: 4 } as const;
 
 // Homepage "Live now" box and the site-wide score strip: live games first,
 // then the soonest kickoffs, then the most recent results — the same cards

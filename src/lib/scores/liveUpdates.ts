@@ -17,7 +17,7 @@ export const MAX_LIVE_IDS = 60;
 // Whether this card can still change: in play, or about to start (or past
 // its start but not yet marked live).
 export function needsLiveUpdate(m: ScoreMatch, now: number): boolean {
-  if (m.state === "live" || m.state === "paused") return true;
+  if (m.state === "live" || m.state === "paused" || m.state === "started") return true;
   return m.state === "upcoming" && m.kickoffAt !== null && Date.parse(m.kickoffAt) <= now + PRE_START_MS;
 }
 

@@ -41,16 +41,32 @@ describe("deriveState", () => {
     expect(deriveState(row({ kickoffAt: hours(3) }), now)).toBe("upcoming");
   });
 
-  it("treats a started game as live inside the window, unknown after it", () => {
-    expect(deriveState(row({ kickoffAt: hours(-2) }), now)).toBe("live");
-    expect(deriveState(row({ kickoffAt: hours(-6) }), now)).toBeNull();
+  it("is LIVE only with recent in-game data", () => {
+    expect(deriveState(row({ kickoffAt: hours(-2), homeScore: 3, awayScore: 0 }), now)).toBe("live");
     expect(deriveState(row({ kickoffAt: hours(-6), matchClock: "OT · 2:00" }), now)).toBe("live");
   });
 
+  it("shows a started game without live data as in progress, unknown after the window", () => {
+    // e.g. a source with no in-game feed: no clock, no score.
+    expect(deriveState(row({ kickoffAt: hours(-2) }), now)).toBe("started");
+    expect(deriveState(row({ kickoffAt: hours(-6) }), now)).toBeNull();
+  });
+
+  it("stops calling a game LIVE when its feed goes quiet", () => {
+    const stale = { kickoffAt: hours(-2), homeScore: 3, awayScore: 0, matchClock: "Top 5th", updatedAt: hours(-1) };
+    expect(deriveState(row(stale), now)).toBe("started");
+    const m = toScoreMatch(row(stale), now)!;
+    // Last known score stays visible, with its time, but not as LIVE.
+    expect(m).toMatchObject({ state: "started", clock: null, source: "ESPN", updatedAt: hours(-1).toISOString() });
+    expect(m.home.score).toBe("3");
+  });
+
   it("keeps cricket live only while its source keeps updating it", () => {
-    const test = { category: "cricket", sourceName: "CricketData.org", kickoffAt: hours(-50) };
+    const test = { category: "cricket", sourceName: "CricketData.org", kickoffAt: hours(-50), homeScoreText: "287/6 (48.2)" };
     expect(deriveState(row({ ...test, updatedAt: hours(-0.5) }), now)).toBe("live");
     expect(deriveState(row({ ...test, updatedAt: hours(-3) }), now)).toBeNull();
+    // Toss done / start delayed, no scores yet: in progress, not LIVE.
+    expect(deriveState(row({ ...test, homeScoreText: null, updatedAt: hours(-0.5) }), now)).toBe("started");
   });
 });
 

@@ -6,12 +6,17 @@
  */
 
 import { categoryChipStyle } from "../categoryDisplay";
+import { matchDataProvider } from "../matchDataSources";
 import { cricketLeagueLabel } from "./cricketLabels";
 
 // "paused": a started match in a scheduled break — cricket stumps, lunch,
 // tea, innings break, rain. Not shown as LIVE (nothing is happening), but
 // still today's game and not over.
-export type ScoreState = "live" | "paused" | "final" | "upcoming";
+// "started": past its start time with no final, but no live data to show —
+// the source hasn't sent in-game scores, or its updates have stopped. Shown
+// as "In progress" (with the last known score and when it was updated),
+// never as LIVE: LIVE is only ever backed by real, recent data.
+export type ScoreState = "live" | "paused" | "started" | "final" | "upcoming";
 
 export interface ScoreSide {
   name: string;
@@ -38,6 +43,10 @@ export interface ScoreMatch {
   broadcast: string | null;
   home: ScoreSide;
   away: ScoreSide;
+  // Where the data comes from ("ESPN", "MLB") and when this match was last
+  // updated from it (ISO) — shown so readers can judge how current it is.
+  source: string;
+  updatedAt: string;
 }
 
 export interface MatchRow {
@@ -76,6 +85,11 @@ export const LIVE_WINDOW_MS = 5 * 60 * 60 * 1000;
 // ...except cricket, which can run for days (Tests): live only while the
 // match is still being updated by its source.
 export const CRICKET_STALE_MS = 90 * 60 * 1000;
+// Other sports: in-game data older than this no longer counts as LIVE.
+// In-play rows are rewritten by the live refresh (every few minutes) and
+// by every ingestion run (~15 min, a run taking up to ~12), so a gap past
+// 30 minutes means the feed for that game has stopped.
+export const LIVE_DATA_STALE_MS = 30 * 60 * 1000;
 
 // A started, unfinished game past these windows has gone quiet without a
 // final result — shown as neither live nor final (its state is unknown), so
@@ -84,11 +98,20 @@ export function deriveState(row: MatchRow, now: Date): ScoreState | null {
   if (row.matchStatus === "finished") return "final";
   if (!row.kickoffAt) return null;
   if (row.kickoffAt.getTime() > now.getTime()) return "upcoming";
+  // LIVE needs real in-game data (a clock or a score) that is recent.
+  // Until 2026-09-26 any started game without a final counted as live by
+  // the clock alone — MLB (no in-game feed then) showed "LIVE" with no score.
+  const hasLiveData =
+    Boolean(row.matchClock) || row.homeScore !== null || row.awayScore !== null || Boolean(row.homeScoreText?.trim() || row.awayScoreText?.trim());
   if (row.category.startsWith("cricket")) {
-    return now.getTime() - row.updatedAt.getTime() <= CRICKET_STALE_MS ? "live" : null;
+    // A cricket match runs for days: it stays current only while its source
+    // keeps updating it, and is LIVE once there are scores (before the
+    // first ball — toss, delayed start — it's "In progress").
+    if (now.getTime() - row.updatedAt.getTime() > CRICKET_STALE_MS) return null;
+    return hasLiveData ? "live" : "started";
   }
-  if (row.matchClock) return "live";
-  return now.getTime() - row.kickoffAt.getTime() <= LIVE_WINDOW_MS ? "live" : null;
+  if (hasLiveData && now.getTime() - row.updatedAt.getTime() <= LIVE_DATA_STALE_MS) return "live";
+  return now.getTime() - row.kickoffAt.getTime() <= LIVE_WINDOW_MS ? "started" : null;
 }
 
 // Cricket breaks, read from CricketData's own status line (matchNote), e.g.
@@ -175,6 +198,8 @@ export function toScoreMatch(rawRow: MatchRow, now: Date): ScoreMatch | null {
     kickoffAt: row.kickoffAt ? row.kickoffAt.toISOString() : null,
     venue: row.venue,
     broadcast: state === "upcoming" ? row.broadcast : null,
+    source: matchDataProvider(row.sourceName),
+    updatedAt: row.updatedAt.toISOString(),
     home: {
       name: row.homeTeam,
       crestUrl: row.homeCrestUrl,

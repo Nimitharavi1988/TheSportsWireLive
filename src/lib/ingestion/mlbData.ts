@@ -30,12 +30,34 @@ interface MlbTeamRef {
   leagueRecord?: { wins: number; losses: number };
 }
 
-interface MlbGame {
+interface MlbLinescore {
+  currentInningOrdinal?: string;
+  inningState?: string; // "Top" | "Middle" | "Bottom" | "End"
+  outs?: number;
+}
+
+export interface MlbGame {
   gamePk: number;
   gameDate: string;
-  status: { abstractGameState: string };
+  status: { abstractGameState: string; detailedState?: string };
+  linescore?: MlbLinescore;
   teams: { home: MlbTeamRef; away: MlbTeamRef };
   venue?: { name: string };
+}
+
+// Live game clock from the linescore: "Top 8th", "Mid 7th", "End 7th",
+// "Bot 9th · 2 out"; "Delayed" for a weather/other delay. null when the
+// game isn't in progress or the linescore hasn't started (warmup).
+export function mlbLiveClock(game: Pick<MlbGame, "status" | "linescore">): string | null {
+  if (game.status?.abstractGameState !== "Live") return null;
+  if (/delay|suspend/i.test(game.status.detailedState ?? "")) return "Delayed";
+  const inning = game.linescore?.currentInningOrdinal;
+  const half = game.linescore?.inningState;
+  if (!inning || !half) return null;
+  const label = { Top: "Top", Bottom: "Bot", Middle: "Mid", End: "End" }[half] ?? half;
+  const outs = game.linescore?.outs;
+  const inPlay = half === "Top" || half === "Bottom";
+  return inPlay && outs !== undefined && outs < 3 ? `${label} ${inning} · ${outs} out` : `${label} ${inning}`;
 }
 
 function recordContext(teamName: string, record: MlbTeamRef["leagueRecord"]): string {
@@ -54,7 +76,8 @@ export async function fetchMlbData(): Promise<RawMatchItem[]> {
 
   let res: Response;
   try {
-    res = await fetch(`${SCHEDULE_URL}?sportId=1&startDate=${startDate}&endDate=${endDate}`);
+    // hydrate=linescore adds live innings/outs for in-progress games.
+    res = await fetch(`${SCHEDULE_URL}?sportId=1&startDate=${startDate}&endDate=${endDate}&hydrate=linescore`);
   } catch (err) {
     console.error("MLB Stats API fetch failed (network error):", err);
     return [];
@@ -73,7 +96,11 @@ export async function fetchMlbData(): Promise<RawMatchItem[]> {
       // would just be a confusing partial snapshot by the time this
       // article is actually read (same reasoning as nflData.ts).
       const state = game.status?.abstractGameState;
-      if (state !== "Final" && state !== "Preview") continue;
+      // "Live" games were skipped until 2026-09-26, so a game in progress
+      // had no score at all. Kept now with the running score and inning
+      // (matchStatus stays "scheduled", same as the ESPN sources).
+      if (state !== "Final" && state !== "Preview" && state !== "Live") continue;
+      const isLive = state === "Live";
 
       const { home, away } = game.teams;
       const homeTeam = home.team.name;
@@ -124,10 +151,14 @@ export async function fetchMlbData(): Promise<RawMatchItem[]> {
         awayCrestUrl: teamLogo(away.team.id),
         homeTeam,
         awayTeam,
-        homeScore: state === "Final" ? home.score : undefined,
-        awayScore: state === "Final" ? away.score : undefined,
+        homeScore: state === "Final" || isLive ? home.score : undefined,
+        awayScore: state === "Final" || isLive ? away.score : undefined,
         matchStatus: state === "Final" ? "finished" : "scheduled",
         leagueLabel: "MLB",
+        matchClock: mlbLiveClock(game),
+        homeRecord: home.leagueRecord ? `${home.leagueRecord.wins}-${home.leagueRecord.losses}` : undefined,
+        awayRecord: away.leagueRecord ? `${away.leagueRecord.wins}-${away.leagueRecord.losses}` : undefined,
+        venue: game.venue?.name,
         kickoffAt: new Date(game.gameDate),
         // gamePk is MLB's own stable game identifier — unlike the title
         // (which embeds a date), it never changes for a given game.

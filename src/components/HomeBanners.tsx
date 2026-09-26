@@ -1,26 +1,21 @@
 "use client";
 
-import { useCallback, useState } from "react";
 import { InstallAppBanner } from "./InstallAppBanner";
 import { NotificationOptInBanner } from "./NotificationOptInBanner";
+import { useAppPrompts } from "./appPrompts";
 
 // Shows at most one banner at a time -- stacking "install the app" and
 // "enable notifications" asks back-to-back before a first-time visitor
 // even reaches real content read as naggy. Install takes priority (the
 // more valuable ask); the notification banner only appears once install
-// has definitively decided it has nothing to show (see
-// InstallAppBanner.tsx's onVisibilityChange comment).
+// has definitively nothing to show (appPrompts.ts decides both, once per
+// visit, so switching pages never re-shows or flickers them).
 export function HomeBanners() {
-  const [installShowing, setInstallShowing] = useState<boolean | null>(null); // null = not yet determined
-
-  const handleInstallVisibility = useCallback((visible: boolean) => {
-    setInstallShowing(visible);
-  }, []);
-
+  const { install } = useAppPrompts();
   return (
     <>
-      <InstallAppBanner onVisibilityChange={handleInstallVisibility} />
-      {installShowing === false && <NotificationOptInBanner />}
+      <InstallAppBanner />
+      {install === "none" && <NotificationOptInBanner />}
     </>
   );
 }

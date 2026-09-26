@@ -9,6 +9,7 @@ import { fetchNbaData } from "./nbaData";
 import { fetchDomesticFootballData } from "./domesticFootballData";
 import { fetchNhlData } from "./nhlData";
 import { fetchCollegeFootballData, fetchWnbaData } from "./espnLeagueData";
+import { fetchEspnCricketData } from "./espnCricketData";
 import { fetchVolleyballData } from "./volleyballData";
 import { fetchEspnVolleyballData } from "./espnVolleyballData";
 import { fetchRssNews } from "./rssFeeds";
@@ -17,7 +18,7 @@ import { fetchCricinfoPlayerNews } from "./cricinfoPlayerFeeds";
 import { fetchAsianGamesNews } from "./asianGamesFeeds";
 import { fetchCricketData } from "./cricketData";
 import { detectSeriesFromTitle } from "./cricketSeries";
-import { buildMatchKey } from "../scores/matchKey";
+import { buildMatchKey, matchKeyVariants } from "../scores/matchKey";
 import { matchRefreshValues } from "./matchRefresh";
 import { detectEventSeries, detectEventSeriesNear, detectIplTeamMention } from "./eventTagging";
 import { computeDedupeHash, computeStableDedupeHash } from "./dedupe";
@@ -203,7 +204,7 @@ export async function runIngest() {
     [verticalRow] = await db.insert(vertical).values({ id: createId(), name: "sports" }).returning();
   }
 
-  const [scoreItems, nflItems, mlbItems, nbaItems, domesticFootballItems, nhlItems, volleyballItems, espnVolleyballItems, collegeFootballItems, wnbaItems, newsItems, playerNewsItems, cricinfoPlayerItems, asianGamesItems, cricketItems, trendingKeywords, stockImagePools] =
+  const [scoreItems, nflItems, mlbItems, nbaItems, domesticFootballItems, nhlItems, volleyballItems, espnVolleyballItems, collegeFootballItems, wnbaItems, espnCricketItems, newsItems, playerNewsItems, cricinfoPlayerItems, asianGamesItems, cricketItems, trendingKeywords, stockImagePools] =
     await Promise.all([
       fetchFootballData(),
       fetchNflData(),
@@ -224,6 +225,9 @@ export async function runIngest() {
       // config-driven ESPN fetcher, see espnLeagueData.ts.
       fetchCollegeFootballData(),
       fetchWnbaData(),
+      // Second cricket source (internationals CricketData's free tier
+      // misses) — see espnCricketData.ts.
+      fetchEspnCricketData(),
       fetchRssNews(),
       // Actively searches Google News per tracked player (players.ts) —
       // unlike the fixed feeds above, which only ever surface whatever a
@@ -266,7 +270,7 @@ export async function runIngest() {
       computeTrendingScore(b.title, trendingKeywords, undefined, b.category) -
       computeTrendingScore(a.title, trendingKeywords, undefined, a.category)
   );
-  const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...mlbItems, ...nbaItems, ...domesticFootballItems, ...nhlItems, ...volleyballItems, ...espnVolleyballItems, ...collegeFootballItems, ...wnbaItems, ...sortedNewsItems, ...cricketItems]
+  const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...mlbItems, ...nbaItems, ...domesticFootballItems, ...nhlItems, ...volleyballItems, ...espnVolleyballItems, ...collegeFootballItems, ...wnbaItems, ...sortedNewsItems, ...cricketItems, ...espnCricketItems]
     // Checked against every source regardless of which fetcher it came
     // through (most reach here via the per-player Google News search,
     // playerNewsFeeds.ts, not a fixed feed) — see excludedSources.ts for
@@ -302,6 +306,22 @@ export async function runIngest() {
           }).from(article).where(inArray(article.dedupeHash, allHashes))
     ).map((a) => [a.dedupeHash, a])
   );
+
+  // The same real match from two providers (CricketData and ESPN for a
+  // cricket match, say) has different dedupeHashes, so it would be stored
+  // — and shown — twice. matchKey (scores/matchKey.ts) is what providers
+  // agree on: whichever source stored the match first owns it, and other
+  // providers' copies of it are skipped. Loaded once, like the hashes.
+  const keysFor = (item: RawMatchItem) =>
+    isMatchDataSource(item.sourceName) ? matchKeyVariants(item.category, item.kickoffAt, item.homeTeam, item.awayTeam) : [];
+  const allMatchKeys = [...new Set(rawItems.flatMap(keysFor))];
+  const matchOwners = new Map<string, string>(
+    (allMatchKeys.length === 0
+      ? []
+      : await db.select({ matchKey: article.matchKey, sourceName: article.sourceName }).from(article).where(inArray(article.matchKey, allMatchKeys))
+    ).flatMap((r) => (r.matchKey ? [[r.matchKey, r.sourceName] as [string, string]] : []))
+  );
+  let crossProviderSkipped = 0;
 
   let ingested = 0;
   let duplicates = 0;
@@ -513,6 +533,12 @@ export async function runIngest() {
     // ESPN NFL) already have their own intentional date-range windows
     // (e.g. football-data.org's ±14 days for finished/scheduled matches),
     // which this would otherwise incorrectly clip.
+    const owner = keysFor(item).map((k) => matchOwners.get(k)).find(Boolean);
+    if (owner && owner !== item.sourceName) {
+      crossProviderSkipped++;
+      continue;
+    }
+
     if (item.sourceSnippet && !isMatchDataSource(item.sourceName) && Date.now() - item.publishedAt.getTime() > MAX_RSS_ITEM_AGE_MS) {
       staleSkipped++;
       continue;
@@ -778,6 +804,7 @@ export async function runIngest() {
     // Registers this hash as no longer "new" — guards against the same
     // story appearing twice in one run (two sources reporting it) trying
     // to create it a second time.
+    for (const k of keysFor(item)) matchOwners.set(k, item.sourceName);
     existingArticles.set(dedupeHash, { id: created.id, dedupeHash, body: created.body, heroImageUrl: created.heroImageUrl, matchStatus: created.matchStatus, status: created.status, slug: created.slug });
 
     ingested++;
@@ -785,7 +812,7 @@ export async function runIngest() {
   }
 
   console.log(
-    `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${staleSkipped} stale RSS items skipped (older than ${MAX_RSS_ITEM_AGE_MS / 86400000}d), ` +
+    `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${staleSkipped} stale RSS items skipped (older than ${MAX_RSS_ITEM_AGE_MS / 86400000}d), ${crossProviderSkipped} matches already stored from another provider, ` +
     `${duplicates} duplicates skipped (${backfilled} of those backfilled with a body they missed on a previous run), ` +
     `${cricketCommentaryCalls + otherCommentaryCalls} RSS commentary calls (${cricketCommentaryCalls} cricket, ${otherCommentaryCalls} other), ${matchRecapCalls} match recap calls. ` +
     `(${scoreItems.length} from football-data.org, ${nflItems.length} from ESPN NFL, ${newsItems.length} from RSS, ${playerNewsItems.length} from per-player Google News search, ${cricketItems.length} from CricketData.org, ${trendingKeywords.length} trending keywords checked)`

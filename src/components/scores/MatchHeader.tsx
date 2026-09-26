@@ -4,7 +4,8 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import type { ScoreMatch, ScoreSide } from "@/lib/scores/scoreboardModel";
 import { KickoffTime } from "./KickoffTime";
-import { LiveBadge, PausedBadge, TeamCrest } from "./ScoreCard";
+import { LiveBadge, PausedBadge, StartedBadge, TeamCrest } from "./ScoreCard";
+import { DataSource } from "./DataFreshness";
 import { useLiveScores } from "./useLiveScores";
 
 // Large form of the score card, shown at the top of a match story (the
@@ -42,6 +43,8 @@ export function MatchHeader({ match: initial }: { match: ScoreMatch }) {
           <LiveBadge label={match.clock} />
         ) : match.state === "paused" ? (
           <PausedBadge label={match.clock} />
+        ) : match.state === "started" ? (
+          <StartedBadge />
         ) : isFinal ? (
           <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>Final</Box>
         ) : match.kickoffAt ? (
@@ -81,6 +84,9 @@ export function MatchHeader({ match: initial }: { match: ScoreMatch }) {
           {[match.venue, match.broadcast ? `TV: ${match.broadcast}` : null].filter(Boolean).join(" · ")}
         </Typography>
       )}
+      <Typography component="div" sx={{ mt: 1, fontSize: 11, textAlign: "center", color: "text.disabled" }}>
+        Source: <DataSource match={match} />
+      </Typography>
     </Box>
   );
 }

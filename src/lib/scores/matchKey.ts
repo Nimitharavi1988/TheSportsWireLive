@@ -36,3 +36,15 @@ export function buildMatchKey(
   if (!home || !away) return undefined;
   return `${category.split("/")[0]}:${kickoffAt.toISOString().slice(0, 10)}:${home}-v-${away}`;
 }
+
+// Both orderings of a match's key. Providers can disagree on which team is
+// "home" (cricket especially), so cross-provider comparison checks both.
+export function matchKeyVariants(
+  category: string,
+  kickoffAt: Date | undefined | null,
+  homeTeam: string | undefined | null,
+  awayTeam: string | undefined | null
+): string[] {
+  const keys = [buildMatchKey(category, kickoffAt, homeTeam, awayTeam), buildMatchKey(category, kickoffAt, awayTeam, homeTeam)];
+  return [...new Set(keys.filter((k): k is string => Boolean(k)))];
+}
