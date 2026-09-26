@@ -526,9 +526,14 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           its own breakpoint rather than trying to force one unit to be
           responsive across both. Sits after the body, before engagement —
           same placement logic as FanEngagementHub below: after the reader
-          has actually read the story. */}
-      <InFeedAd slot="6766570899" layoutKey="-i7+9-t-18+5h" sx={{ display: { xs: "block", md: "none" }, mb: 3 }} />
-      <InFeedAd slot="6355507350" layoutKey="-i7+9-t-18+5h" sx={{ display: { xs: "none", md: "block" }, mb: 3 }} />
+          has actually read the story. Not on match rows: a templated score
+          card isn't content an ad should sit beside (AdSense policy). */}
+      {!isMatchDataSource(article.sourceName) && (
+        <>
+          <InFeedAd slot="6766570899" layoutKey="-i7+9-t-18+5h" sx={{ display: { xs: "block", md: "none" }, mb: 3 }} />
+          <InFeedAd slot="6355507350" layoutKey="-i7+9-t-18+5h" sx={{ display: { xs: "none", md: "block" }, mb: 3 }} />
+        </>
+      )}
 
       {/* Official videos for the story's sport — most readers land here
           straight from Facebook, so this is where they find the videos.

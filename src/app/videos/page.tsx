@@ -9,10 +9,9 @@ import { Fragment } from "react";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { relativeTime } from "@/lib/relativeTime";
 import { fetchVideoLibrary, fetchVideoSports, type VideoItem } from "@/lib/videos/queries";
-import { splitLibrary, withAdSlots } from "@/lib/videos/videoStrip";
+import { splitLibrary } from "@/lib/videos/videoStrip";
 import { VideoCard } from "@/components/videos/VideoStrip";
 import { VideoPlayer } from "@/components/videos/VideoPlayer";
-import { InFeedAd } from "@/components/InFeedAd";
 
 // Official league and broadcaster videos (src/lib/videos/): the library
 // behind the Videos/Watch strips. New uploads arrive every ~15 minutes with
@@ -42,9 +41,10 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   };
 }
 
-// Grid of cards with the site's in-feed ad units between rows (see
-// withAdSlots) — one unit per breakpoint, same pair as article pages.
-function VideoGrid({ videos, label }: { videos: VideoItem[]; label: string }) {
+// Grid of video cards. No ads here: the videos are other channels' content
+// (embedded YouTube), and ads beside content that isn't ours are a common
+// reason for AdSense rejecting a site — ads run beside our own stories.
+function VideoGrid({ videos }: { videos: VideoItem[] }) {
   return (
     <Box
       sx={{
@@ -53,16 +53,9 @@ function VideoGrid({ videos, label }: { videos: VideoItem[]; label: string }) {
         gap: 2,
       }}
     >
-      {withAdSlots(videos).map((slot) =>
-        slot.kind === "video" ? (
-          <VideoCard key={slot.item.youtubeId} video={slot.item} sizes="(max-width: 600px) 100vw, (max-width: 900px) 50vw, 380px" />
-        ) : (
-          <Box key={`${label}-ad-${slot.index}`} sx={{ gridColumn: "1 / -1" }}>
-            <InFeedAd slot="6766570899" layoutKey="-i7+9-t-18+5h" sx={{ display: { xs: "block", md: "none" } }} />
-            <InFeedAd slot="6355507350" layoutKey="-i7+9-t-18+5h" sx={{ display: { xs: "none", md: "block" } }} />
-          </Box>
-        )
-      )}
+      {videos.map((video) => (
+        <VideoCard key={video.youtubeId} video={video} sizes="(max-width: 600px) 100vw, (max-width: 900px) 50vw, 380px" />
+      ))}
     </Box>
   );
 }
@@ -179,7 +172,7 @@ export default async function VideosPage(props: Props) {
               section.items.length > 0 && (
                 <Fragment key={section.title}>
                   <SectionHeading>{section.title}</SectionHeading>
-                  <VideoGrid videos={section.items} label={section.title} />
+                  <VideoGrid videos={section.items} />
                 </Fragment>
               )
           )}
