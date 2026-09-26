@@ -8,6 +8,7 @@ export const SNAPSHOT_KEYS = {
   mlbStandings: "standings:mlb",
   nhlStandings: "standings:nhl",
   cricketStandings: (espnLeagueId: string) => `cricket-standings:${espnLeagueId}`,
+  venue: (slug: string) => `venue:${slug}`,
 };
 
 // Third-party data the site shows but doesn't fetch while rendering pages

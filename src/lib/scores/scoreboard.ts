@@ -6,7 +6,7 @@
  */
 import { db } from "@/db";
 import { article } from "@/db/schema";
-import { and, asc, desc, eq, gt, gte, inArray, isNotNull, like, lte, ne, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, like, lte, ne, or, sql } from "drizzle-orm";
 import { MATCH_DATA_SOURCE_NAMES } from "../matchDataSources";
 import { findNewsBasedCricketMatches } from "../liveCricket";
 import { CRICKET_STALE_MS, toScoreMatch, type MatchRow, type ScoreMatch } from "./scoreboardModel";
@@ -174,4 +174,29 @@ export async function fetchLiveNow(opts: { take: number; sport?: string }): Prom
       return a.state === "final" ? kickoff(b) - kickoff(a) : kickoff(a) - kickoff(b);
     })
     .slice(0, opts.take);
+}
+
+// Matches at one ground (lib/venues.ts matchTerms against Article.venue,
+// whole words, not its secondary "B Ground"): the next fixtures and the
+// latest results, for the venue page.
+export async function fetchVenueMatches(matchTerms: string[], limit = 8): Promise<{ upcoming: ScoreMatch[]; recent: ScoreMatch[] }> {
+  const now = new Date();
+  // Postgres regex: \y is a word boundary.
+  const pattern = "\\y(" + matchTerms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")\\y";
+  const atVenue = and(
+    eq(article.status, "published"),
+    inArray(article.sourceName, MATCH_DATA_SOURCE_NAMES),
+    isNotNull(article.kickoffAt),
+    sql`${article.venue} ~* ${pattern}`,
+    sql`${article.venue} !~* ${"\\yB Ground\\y"}`
+  );
+  const [upcomingRows, recentRows] = await Promise.all([
+    db.select(MATCH_COLUMNS).from(article).where(and(atVenue, gte(article.kickoffAt, now))).orderBy(asc(article.kickoffAt)).limit(limit),
+    db.select(MATCH_COLUMNS).from(article).where(and(atVenue, lte(article.kickoffAt, now))).orderBy(desc(article.kickoffAt)).limit(limit),
+  ]);
+  const cards = (rows: typeof upcomingRows) => rows.flatMap((r) => {
+    const m = toScoreMatch(r, now);
+    return m ? [m] : [];
+  });
+  return { upcoming: cards(upcomingRows), recent: cards(recentRows) };
 }

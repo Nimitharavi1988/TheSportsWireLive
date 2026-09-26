@@ -16,6 +16,7 @@ const SECTIONS: { href: string; label: string; category: string | null }[] = [
   { href: "/", label: "Top Stories", category: null },
   { href: "/scores", label: "Scores", category: null },
   { href: "/videos", label: "Videos", category: null },
+  { href: "/analysis", label: "Analysis", category: null },
   { href: "/sport/football", label: "Football", category: "football" },
   { href: "/sport/cricket", label: "Cricket", category: "cricket" },
   { href: "/sport/american-football", label: "NFL", category: "american-football" },

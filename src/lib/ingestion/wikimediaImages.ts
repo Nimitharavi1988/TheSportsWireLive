@@ -215,6 +215,13 @@ async function fetchPersonPhotoVariants(title: string): Promise<StockImage[]> {
 }
 
 async function fetchCanonicalPersonPhoto(title: string): Promise<StockImage | null> {
+  return fetchWikipediaPageImage(title, 300);
+}
+
+// A Wikipedia page's lead image at `width`, only when its Commons licence
+// is free (with the credit to show). Used for player photos (300px, above)
+// and venue pages (lib/venueDetails.ts).
+export async function fetchWikipediaPageImage(title: string, width: number): Promise<StockImage | null> {
   // Wikipedia's own "page image" — a properly-sized thumbnail, not the
   // full original. Confirmed directly this was the site's single biggest
   // performance problem: original source files for these photos run 1-22MB
@@ -225,7 +232,7 @@ async function fetchCanonicalPersonPhoto(title: string): Promise<StockImage | nu
   // displays.
   const imageUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(
     title
-  )}&prop=pageimages&piprop=thumbnail&pithumbsize=300&format=json`;
+  )}&prop=pageimages&piprop=thumbnail&pithumbsize=${width}&format=json`;
   const imageData = await wikiFetch(imageUrl);
   const page: any = imageData?.query?.pages ? Object.values(imageData.query.pages)[0] : null;
   const thumbnailUrl: string | undefined = page?.thumbnail?.source;

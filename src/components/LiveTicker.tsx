@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { categoryChipStyle } from "@/lib/categoryDisplay";
 import Box from "@mui/material/Box";
 import type { ScoreMatch } from "@/lib/scores/scoreboardModel";
 import { useLiveScores } from "./scores/useLiveScores";
+import { TICKER_SIZE } from "@/lib/scores/liveUpdates";
 import { MiniScoreCard } from "./scores/MiniScoreCard";
 
 // Site-wide score strip under the header. Mini versions of the standard
@@ -11,13 +14,28 @@ import { MiniScoreCard } from "./scores/MiniScoreCard";
 // live/final/upcoming rules as /scores (fetchLiveNow): live games first,
 // then the next kickoffs, then recent results. Was its own query and card
 // style, with "LIVE" guessed from kickoff time and no clock.
-export const TICKER_SIZE = 14;
 const STRIP_BG = "#e9f1ec";
 
+// The sport of a section page (/sport/cricket, /sport/football/world-cup),
+// or null elsewhere.
+export function sectionSport(pathname: string | null): string | null {
+  const m = pathname?.match(/^\/sport\/([a-z0-9-]+)/);
+  return m ? m[1] : null;
+}
+
 export function LiveTicker({ initial }: { initial: ScoreMatch[] }) {
-  // Updates in place while games are live; the strip is hidden on phones
-  // (xs), so it only polls from sm up.
-  const matches = useLiveScores(initial, { mode: "list", url: `/api/scores/live?take=${TICKER_SIZE}` }, "sm-up");
+  // On a sport's section the strip shows that sport's games (live first) —
+  // the server-rendered list is every sport's, so it's narrowed here and
+  // fetched for the section straight away. Updates in place while games are
+  // live; the strip is hidden on phones (xs, which have their own section
+  // score row), so it only polls from sm up.
+  const sport = sectionSport(usePathname());
+  const start = sport ? initial.filter((m) => m.sport === sport) : initial;
+  const matches = useLiveScores(
+    start,
+    { mode: "list", url: `/api/scores/live?take=${TICKER_SIZE}${sport ? `&sport=${sport}` : ""}`, fetchOnStart: Boolean(sport) },
+    "sm-up"
+  );
   if (matches.length === 0) return null;
   // Doubled so the -50% scroll loops seamlessly.
   const doubled = [...matches, ...matches];
@@ -56,7 +74,7 @@ export function LiveTicker({ initial }: { initial: ScoreMatch[] }) {
           background: `linear-gradient(to right, rgba(233,241,236,0), ${STRIP_BG})`,
         }}
       />
-      <Link href="/scores" aria-label="All scores" style={{ position: "absolute", top: 0, bottom: 0, left: 0, zIndex: 3, display: "flex", textDecoration: "none" }}>
+      <Link href={sport ? `/scores?category=${sport}` : "/scores"} aria-label={sport ? `${categoryChipStyle(sport).label} scores` : "All scores"} style={{ position: "absolute", top: 0, bottom: 0, left: 0, zIndex: 3, display: "flex", textDecoration: "none" }}>
       <Box
         sx={{
           display: "flex",
@@ -79,7 +97,7 @@ export function LiveTicker({ initial }: { initial: ScoreMatch[] }) {
             whiteSpace: "nowrap",
           }}
         >
-          Scores
+          {sport ? categoryChipStyle(sport).label : "Scores"}
         </Box>
       </Box>
       </Link>

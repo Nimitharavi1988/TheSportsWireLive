@@ -3,9 +3,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { db } from "@/db";
 import { article } from "@/db/schema";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, or } from "drizzle-orm";
 import { TRACKED_COUNTRIES } from "@/lib/countries";
 import { titleMatchesAnyTerm } from "@/lib/titleMatch";
+import { taggedWith } from "@/lib/tags";
 import { findClubCrest } from "@/lib/teamNames";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
@@ -64,7 +65,7 @@ export default async function CountryPage({ params }: { params: Promise<{ slug: 
   const articles = await db.select().from(article)
     .where(and(
       eq(article.status, "published"),
-      titleMatchesAnyTerm(country.searchTerms)
+      or(titleMatchesAnyTerm(country.searchTerms), taggedWith("country", country.slug))
     ))
     .orderBy(desc(article.publishedAt))
     .limit(30);

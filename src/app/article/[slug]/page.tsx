@@ -1,7 +1,7 @@
 import GoogleAdSense from "@/components/GoogleAdSense";
 import { TeamCrest } from "@/components/TeamCrest";
 import { db } from "@/db";
-import { article as articleTable } from "@/db/schema";
+import { article as articleTable, author as authorTable } from "@/db/schema";
 import { and, eq, gte, ne, or, ilike, isNull, desc } from "drizzle-orm";
 import { cache } from "react";
 import { notFound } from "next/navigation";
@@ -38,6 +38,10 @@ import { FanEngagementHub } from "@/components/FanEngagementHub";
 import { FollowUs } from "@/components/FollowUs";
 import { ShareButtons } from "@/components/ShareButtons";
 import { displaySummary, splitIntoParagraphs } from "@/lib/articleSummary";
+import { isOriginalStory, storyKindLabel, subheading } from "@/lib/stories";
+import { fetchStoryTags } from "@/lib/tags";
+import { matchVenue } from "@/lib/venues";
+import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import { relativeTime } from "@/lib/relativeTime";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import WhatshotIcon from "@mui/icons-material/Whatshot";
@@ -56,6 +60,13 @@ export async function generateStaticParams() {
 // that one database round trip per request instead of two.
 const getArticle = cache(async (slug: string) => {
   const rows = await db.select().from(articleTable).where(eq(articleTable.slug, slug)).limit(1);
+  return rows[0] ?? null;
+});
+
+// The byline (original stories, editor rewrites) — see lib/stories.ts.
+const getAuthor = cache(async (slug: string | null) => {
+  if (!slug) return null;
+  const rows = await db.select().from(authorTable).where(eq(authorTable.slug, slug)).limit(1);
   return rows[0] ?? null;
 });
 
@@ -126,9 +137,11 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
   // Slack, WhatsApp, Facebook, iMessage) showed a bare text card instead of
   // the actual article image, a real hit to click-through on shared links.
   const shareImage = article.heroImageUrl ?? article.homeCrestUrl ?? undefined;
+  const writer = await getAuthor(article.authorSlug);
   return {
     title: article.title,
     description,
+    ...(writer ? { authors: [{ name: writer.name, url: `/author/${writer.slug}` }] } : {}),
     alternates: { canonical: `/article/${article.slug}` },
     // Match rows are templated score cards (a couple of hundred characters
     // each, ~2,100 of them) — kept for readers, but not offered to search
@@ -155,6 +168,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
   const params = await props.params;
   const article = await getArticle(params.slug);
   if (!article || article.status !== "published") notFound();
+  const writer = await getAuthor(article.authorSlug);
   // Match stories get the standard scoreboard header (src/lib/scores/)
   // instead of the plain crest-vs-crest row.
   const scoreMatch = isMatchDataSource(article.sourceName) ? currentScoreMatch(article) : null;
@@ -178,7 +192,9 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
     articleSection: article.category,
     description: displaySummary(article, 160),
     ...(article.heroImageUrl ? { image: [article.heroImageUrl] } : {}),
-    author: { "@type": "Organization", name: "Sports Wire Live" },
+    author: writer
+      ? { "@type": "Person", name: writer.name, url: `${process.env.SITE_URL ?? "http://localhost:3000"}/author/${writer.slug}` }
+      : { "@type": "Organization", name: "Sports Wire Live" },
     publisher: {
       "@type": "Organization",
       name: "Sports Wire Live",
@@ -283,12 +299,18 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
   // currently has matching news). An article about Messi that isn't one of
   // those 3 right now had no link to his page anywhere. Same searchTerms
   // matching already used for the homepage's Player News/highlight logic.
-  const taggedPlayers = TRACKED_PLAYERS.filter((player) =>
-    player.searchTerms.some((term) => article.title.toLowerCase().includes(term.toLowerCase()))
-  );
-  const taggedClubs = TRACKED_CLUBS.filter((club) =>
-    club.searchTerms.some((term) => article.title.toLowerCase().includes(term.toLowerCase()))
-  );
+  // Plus the tags an editor chose (admin story editor — lib/tags.ts).
+  const chosenTags = await fetchStoryTags(article.id);
+  const byHeadline = <T extends { searchTerms: string[] }>(list: T[]) =>
+    list.filter((t) => t.searchTerms.some((term) => article.title.toLowerCase().includes(term.toLowerCase())));
+  const withChosen = <T extends { slug: string }>(auto: T[], chosen: T[]) => [...chosen, ...auto.filter((a) => !chosen.some((c) => c.slug === a.slug))];
+  const taggedPlayers = withChosen(byHeadline(TRACKED_PLAYERS), chosenTags.players);
+  const taggedClubs = withChosen(byHeadline(TRACKED_CLUBS), chosenTags.clubs);
+  const taggedCountries = chosenTags.countries;
+  // A match row names its ground (Article.venue); a story is tagged with it.
+  const venueFromMatch = matchVenue(article.venue);
+  const taggedVenues = withChosen(venueFromMatch ? [venueFromMatch] : [], chosenTags.venues);
+  const hasTags = taggedPlayers.length + taggedClubs.length + taggedCountries.length + taggedVenues.length > 0;
 
   // Where the reader goes next: Up next, Related (tagged player/club
   // stories first — a Messi story is more usefully followed by another
@@ -413,7 +435,13 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         </Stack>
       ) : article.heroImageUrl ? (
         <Box component="figure" sx={{ m: 0, mb: 2.5 }}>
-          <Box sx={{ position: "relative", width: "100%", height: 460 }}>
+          {/* 16:9, the shape of nearly every news photo, scaled with the
+              column. Was a fixed 460px height: on a phone that's a tall
+              343x460 box, so a normal landscape photo was cut to its middle
+              42% and enlarged ~2.2x — the "zoomed in" look (checked
+              2026-09-27). Portraits (player photos) keep their top — the
+              face — rather than the middle. */}
+          <Box sx={{ position: "relative", width: "100%", aspectRatio: "16 / 9", bgcolor: "action.hover", borderRadius: 1.5, overflow: "hidden" }}>
             <Box
               component={Image}
               src={article.heroImageUrl}
@@ -421,7 +449,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
               fill
               priority
               sizes="(max-width: 900px) 100vw, 700px"
-              sx={{ objectFit: "cover", objectPosition: "top", borderRadius: 1.5 }}
+              sx={{ objectFit: "cover", objectPosition: "center 20%" }}
             />
           </Box>
           {article.heroImageCredit && (
@@ -458,6 +486,12 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           fontWeight: 600,
           mb: 1.5
         }} />
+      {/* Kind of original piece ("Analysis", "Preview"…) — see lib/stories.ts. */}
+      {isOriginalStory(article) && storyKindLabel(article.storyKind) && (
+        <Link href="/analysis" style={{ textDecoration: "none" }}>
+          <Chip label={storyKindLabel(article.storyKind)} size="small" color="primary" clickable sx={{ fontWeight: 600, ml: 1, mb: 1.5 }} />
+        </Link>
+      )}
       <Typography variant="h4" component="h1" gutterBottom>
         {article.title}
       </Typography>
@@ -468,12 +502,19 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           justifyContent: "space-between",
           flexWrap: "wrap",
           rowGap: 0.5,
-          mb: (taggedPlayers.length > 0 || taggedClubs.length > 0) ? 1.5 : 2.5,
+          mb: hasTags ? 1.5 : 2.5,
         }}
       >
-        {article.publishedAt && (
+        {(writer || article.publishedAt) && (
           <Typography variant="body2" sx={{ color: "text.secondary" }}>
-            {article.publishedAt.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+            {writer && (
+              <>
+                By{" "}
+                <Link href={`/author/${writer.slug}`} style={{ color: "inherit", fontWeight: 600 }}>{writer.name}</Link>
+                {article.publishedAt ? " · " : ""}
+              </>
+            )}
+            {article.publishedAt?.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
           </Typography>
         )}
         {/* No way to share an article previously existed except copying
@@ -482,8 +523,18 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         <ShareButtons url={`${siteUrl}/article/${article.slug}`} title={article.title} />
       </Stack>
 
-      {(taggedPlayers.length > 0 || taggedClubs.length > 0) && (
+      {hasTags && (
         <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1, mb: 2.5 }}>
+          {taggedVenues.map((venue) => (
+            <Link key={venue.slug} href={`/venue/${venue.slug}`} style={{ textDecoration: "none" }}>
+              <Chip icon={<PlaceOutlinedIcon />} label={venue.name} size="small" variant="outlined" clickable />
+            </Link>
+          ))}
+          {taggedCountries.map((country) => (
+            <Link key={country.slug} href={`/country/${country.slug}`} style={{ textDecoration: "none" }}>
+              <Chip label={country.name} size="small" variant="outlined" clickable sx={{ borderColor: "primary.main", color: "primary.main" }} />
+            </Link>
+          ))}
           {taggedClubs.map((club) => (
             <Link key={club.slug} href={`/club/${club.slug}`} style={{ textDecoration: "none" }}>
               <Chip
@@ -512,11 +563,19 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         // sized chunks even when the source text comes back as one long
         // unbroken block — confirmed live: a dense 4-6 sentence wall of
         // text with no paragraph breaks at all was the actual complaint.
-        return splitIntoParagraphs(article.body ?? article.summary).map((paragraph, i) => (
-          <Typography key={i} variant="body1" sx={{ mb: 2.25, lineHeight: 1.7 }}>
-            {linkifyEntities(paragraph)}
-          </Typography>
-        ));
+        return splitIntoParagraphs(article.body ?? article.summary).map((paragraph, i) => {
+          // "## Team news" — a subheading in a story written in admin.
+          const heading = subheading(paragraph);
+          return heading ? (
+            <Typography key={i} variant="h5" component="h2" sx={{ fontWeight: 700, mt: 3.5, mb: 1.5 }}>
+              {heading}
+            </Typography>
+          ) : (
+            <Typography key={i} variant="body1" sx={{ mb: 2.25, lineHeight: 1.7 }}>
+              {linkifyEntities(paragraph)}
+            </Typography>
+          );
+        });
       })()}
 
       {/* The next story, straight after this one — see UpNext. */}
@@ -553,6 +612,8 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
 
       <FollowUs />
 
+      {/* No source line on the site's own stories — there's nothing to credit. */}
+      {!isOriginalStory(article) && (
       <Box sx={{ mt: 3, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
         {/* Attribution requirement, not a call to action — kept deliberately
             quiet (caption size, text.disabled, no underline) so it doesn't
@@ -566,6 +627,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           </Typography>
         </a>
       </Box>
+      )}
 
       </Box>
 

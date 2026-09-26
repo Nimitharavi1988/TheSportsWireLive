@@ -1,4 +1,6 @@
 import GoogleAdSense from "@/components/GoogleAdSense";
+import { StoryCard } from "@/components/StoryCard";
+import { AnalysisStrip } from "@/components/AnalysisStrip";
 import { TeamCrest } from "@/components/TeamCrest";
 import { CATEGORY_META } from "@/lib/categoryMeta";
 import { Suspense } from "react";
@@ -759,6 +761,10 @@ export async function HomeView({ category }: { category?: string }) {
       <MobileScoresRow matches={liveMatches.slice(0, 12)} sport={category?.split("/")[0]} />
       <HomeBanners />
       {!category && <ForYouStrip />}
+      {/* Our writers' latest pieces lead the page once there are several (see AnalysisStrip). */}
+      <Suspense fallback={null}>
+        <AnalysisStrip category={category} placement="top" />
+      </Suspense>
       {articles.length === 0 && (
         <Box sx={{ textAlign: "center", py: 8 }}>
           <Typography variant="h6" gutterBottom>
@@ -1101,78 +1107,7 @@ export async function HomeView({ category }: { category?: string }) {
               </Stack>
               <Stack spacing={2}>
                 {highlightArticles.map((article) => (
-                  // Whole card is now clickable (previously only the title
-                  // text was, with no hover feedback anywhere on the rest of
-                  // the card) — safe now that ArticleThumb's credit badge is
-                  // plain text, not a nested <a> (see the hydration-crash
-                  // fix earlier). Hover lift is the same "attract users"
-                  // affordance the player/club/series pages already use.
-                  <Link
-                    key={article.id}
-                    href={`/article/${article.slug}`}
-                    style={{ textDecoration: "none", color: "inherit" }}
-                  >
-                    <Card
-                      variant="outlined"
-                      sx={{
-                        borderColor: "warning.main",
-                        transition: "box-shadow 0.15s, transform 0.15s",
-                        "&:hover": { boxShadow: "0 4px 14px rgba(0,0,0,0.1)", transform: "translateY(-2px)" },
-                      }}
-                    >
-                      <CardContent>
-                        {/* alignItems: "center" -- without it, Stack's row
-                            layout leaves this fixed-height thumbnail
-                            top-aligned against the taller title+summary
-                            text block beside it, a visible empty gap under
-                            the image whenever the text runs longer than the
-                            thumbnail (confirmed live 2026-09-24, real user
-                            report: same root cause found in 8 places
-                            site-wide, all fixed together). */}
-                        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-                          <ArticleThumb article={article} size={84} fallbackColor="#f59e0b" />
-                          <Box sx={{ minWidth: 0, flex: 1 }}>
-                            {/* Sport/category badge at the top, same spot and
-                                style "Match Results & Previews" etc. already use
-                                — this is our own taxonomy, not third-party
-                                attribution, so it's fine (good, even) for
-                                scanning to keep it prominent up here. Date
-                                moved inline here too (2026-09-24, explicit
-                                request) — was its own line below the title;
-                                now on the top line alongside the category
-                                chip, matching "Match Results & Previews" and
-                                "NFL Scores & Previews" exactly instead of
-                                being the one section styled differently. */}
-                            <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
-                              <Chip
-                                label={categoryChipStyle(article.category).label}
-                                size="small"
-                                variant="outlined"
-                                sx={{
-                                  color: categoryChipStyle(article.category).color,
-                                  borderColor: categoryChipStyle(article.category).color,
-                                  fontWeight: 600,
-                                }}
-                              />
-                              {article.highlighted && (
-                                <Chip label="📌 Editor's pick" size="small" sx={{
-                                  color: "warning.contrastText", bgcolor: "warning.main"
-                                }} />
-                              )}
-                              {article.publishedAt && (
-                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                                  {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                                </Typography>
-                              )}
-                            </Stack>
-                            <Typography variant="h6" component="h2" gutterBottom>
-                              {article.title}
-                            </Typography>
-                          </Box>
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                  </Link>
+                  <StoryCard key={article.id} article={article} accent="warning.main" />
                 ))}
               </Stack>
             </Box>
@@ -1186,58 +1121,7 @@ export async function HomeView({ category }: { category?: string }) {
               </Stack>
               <Stack spacing={2}>
                 {matchArticles.map((article) => (
-                  <Link
-                    key={article.id}
-                    href={`/article/${article.slug}`}
-                    style={{ textDecoration: "none", color: "inherit" }}
-                  >
-                    <Card
-                      variant="outlined"
-                      sx={{
-                        transition: "box-shadow 0.15s, border-color 0.15s, transform 0.15s",
-                        "&:hover": {
-                          borderColor: "primary.main",
-                          boxShadow: "0 4px 14px rgba(0,0,0,0.1)",
-                          transform: "translateY(-2px)",
-                        },
-                      }}
-                    >
-                      <CardContent>
-                        {/* alignItems: "center" -- see the Transfers & Big
-                            News section above for why. */}
-                        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-                          <ArticleThumb article={article} size={84} fallbackColor={categoryChipStyle(article.category).color} />
-                          <Box sx={{ minWidth: 0, flex: 1 }}>
-                            <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
-                              <Chip
-                                label={categoryChipStyle(article.category).label}
-                                size="small"
-                                variant="outlined"
-                                sx={{
-                                  color: categoryChipStyle(article.category).color,
-                                  borderColor: categoryChipStyle(article.category).color,
-                                  fontWeight: 600,
-                                }}
-                              />
-                              {article.publishedAt && (
-                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                                  {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                                </Typography>
-                              )}
-                            </Stack>
-                            <Typography variant="h6" component="h2" gutterBottom>
-                              {article.title}
-                            </Typography>
-                            <Typography variant="body2" sx={{
-                              color: "text.secondary"
-                            }}>
-                              {displaySummary(article)}
-                            </Typography>
-                          </Box>
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                  </Link>
+                  <StoryCard key={article.id} article={article} showSummary />
                 ))}
               </Stack>
             </Box>
@@ -1251,58 +1135,7 @@ export async function HomeView({ category }: { category?: string }) {
               </Stack>
               <Stack spacing={2}>
                 {nflArticles.map((article) => (
-                  <Link
-                    key={article.id}
-                    href={`/article/${article.slug}`}
-                    style={{ textDecoration: "none", color: "inherit" }}
-                  >
-                    <Card
-                      variant="outlined"
-                      sx={{
-                        transition: "box-shadow 0.15s, border-color 0.15s, transform 0.15s",
-                        "&:hover": {
-                          borderColor: "primary.main",
-                          boxShadow: "0 4px 14px rgba(0,0,0,0.1)",
-                          transform: "translateY(-2px)",
-                        },
-                      }}
-                    >
-                      <CardContent>
-                        {/* alignItems: "center" -- see the Transfers & Big
-                            News section above for why. */}
-                        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-                          <ArticleThumb article={article} size={84} fallbackColor={categoryChipStyle(article.category).color} />
-                          <Box sx={{ minWidth: 0, flex: 1 }}>
-                            <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1, flexWrap: "wrap" }}>
-                              <Chip
-                                label={categoryChipStyle(article.category).label}
-                                size="small"
-                                variant="outlined"
-                                sx={{
-                                  color: categoryChipStyle(article.category).color,
-                                  borderColor: categoryChipStyle(article.category).color,
-                                  fontWeight: 600,
-                                }}
-                              />
-                              {article.publishedAt && (
-                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                                  {article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                                </Typography>
-                              )}
-                            </Stack>
-                            <Typography variant="h6" component="h2" gutterBottom>
-                              {article.title}
-                            </Typography>
-                            <Typography variant="body2" sx={{
-                              color: "text.secondary"
-                            }}>
-                              {displaySummary(article)}
-                            </Typography>
-                          </Box>
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                  </Link>
+                  <StoryCard key={article.id} article={article} showSummary />
                 ))}
               </Stack>
             </Box>
@@ -1422,6 +1255,11 @@ export async function HomeView({ category }: { category?: string }) {
             {briefArticles.length === 0 && PLAYER_QUOTES.length > 0 && (
               <QuotesStrip quotes={PLAYER_QUOTES} />
             )}
+            {/* Our writers' pieces while there are only a few (see
+                AnalysisStrip's placement). */}
+            <Suspense fallback={null}>
+              <AnalysisStrip category={category} placement="side" />
+            </Suspense>
           </Box>
         )}
       </Box>

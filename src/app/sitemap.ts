@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/db";
-import { article as articleTable } from "@/db/schema";
+import { article as articleTable, author as authorTable } from "@/db/schema";
 import { and, eq, isNotNull, desc, notInArray } from "drizzle-orm";
 import { STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 import { TRACKED_PLAYERS } from "@/lib/players";
@@ -8,6 +8,7 @@ import { TRACKED_CLUBS } from "@/lib/clubs";
 import { TRACKED_COUNTRIES } from "@/lib/countries";
 import { CATEGORY_META } from "@/lib/categoryMeta";
 import { MATCH_DATA_SOURCE_NAMES } from "@/lib/matchDataSources";
+import { VENUES } from "@/lib/venues";
 
 export const revalidate = 3600;
 
@@ -35,6 +36,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .from(articleTable)
     .where(and(isNotNull(articleTable.seriesKey), eq(articleTable.status, "published")));
 
+  const authors = await db.select({ slug: authorTable.slug }).from(authorTable);
+
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: siteUrl, changeFrequency: "hourly", priority: 1 },
     // Every sport section, from the same list the site uses for them.
@@ -44,6 +47,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     })),
     { url: `${siteUrl}/scores`, changeFrequency: "always", priority: 0.8 },
+    { url: `${siteUrl}/analysis`, changeFrequency: "daily", priority: 0.8 },
+    { url: `${siteUrl}/venue`, changeFrequency: "weekly", priority: 0.5 },
+    ...VENUES.map((v) => ({ url: `${siteUrl}/venue/${v.slug}`, changeFrequency: "daily" as const, priority: 0.6 })),
     { url: `${siteUrl}/standings`, changeFrequency: "daily", priority: 0.6 },
     { url: `${siteUrl}/videos`, changeFrequency: "hourly", priority: 0.7 },
     { url: `${siteUrl}/player`, changeFrequency: "weekly", priority: 0.5 },
@@ -62,6 +68,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${siteUrl}/player/${player.slug}`,
       changeFrequency: "daily" as const,
       priority: 0.6,
+    })),
+    ...authors.map((a) => ({
+      url: `${siteUrl}/author/${a.slug}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.5,
     })),
     ...TRACKED_COUNTRIES.map((country) => ({
       url: `${siteUrl}/country/${country.slug}`,
