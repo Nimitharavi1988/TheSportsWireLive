@@ -96,6 +96,10 @@ export const article = pgTable("Article", {
   // what lets a second provider be compared against, or swapped in for, the
   // first without creating a duplicate match. See lib/scores/matchKey.ts.
   matchKey: text("matchKey"),
+  // The source whose scores are on this row when it isn't the row's own
+  // (sourceName): a higher-priority provider for the same match takes over
+  // its live score — see matchDataSources.ts `supersedes`. null = sourceName.
+  scoreSource: text("scoreSource"),
   // Added 2026-09-24 ahead of a planned (not yet implemented) Spanish-
   // language content pipeline -- default 'en' means every existing row and
   // every current (English-only) ingestion source is unaffected. Drives the
