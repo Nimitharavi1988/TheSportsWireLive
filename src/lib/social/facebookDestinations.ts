@@ -22,6 +22,9 @@ export interface FacebookDestination {
   perRunCap: number;
   // Posts are spread over these local hours (the Page's audience's day).
   activeHours: { timeZone: string; start: number; end: number };
+  // The sport this Page covers (category prefix) — candidates are chosen
+  // within it, so busier sports can't crowd its stories out.
+  sport: string;
   matches: (a: DestinationCandidate) => boolean;
 }
 
@@ -59,6 +62,7 @@ export const INDIA_CRICKET_PAGE: FacebookDestination = {
   dailyCap: 15,
   perRunCap: 2,
   activeHours: { timeZone: "Asia/Kolkata", start: 7, end: 23 },
+  sport: "cricket",
   matches: isIndiaCricket,
 };
 

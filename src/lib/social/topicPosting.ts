@@ -9,7 +9,7 @@
  */
 import { db } from "@/db";
 import { article, socialPost } from "@/db/schema";
-import { and, count, desc, eq, gte, inArray } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, like } from "drizzle-orm";
 import { isMatchDataSource } from "../matchDataSources";
 import { hasRealImage } from "../contentQuality";
 import { isSimilarToAny } from "../titleSimilarity";
@@ -19,10 +19,11 @@ import { TOPIC_DESTINATIONS, destinationRunCap, localDayStart, type FacebookDest
 const POOL_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 const SIMILARITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-async function postToDestination(d: FacebookDestination, now: Date): Promise<void> {
-  if (!process.env[d.tokenEnv]) {
+// dryRun: select and report only — no token needed, nothing is posted.
+async function postToDestination(d: FacebookDestination, now: Date, dryRun: boolean): Promise<{ id: string; title: string }[]> {
+  if (!dryRun && !process.env[d.tokenEnv]) {
     console.log(`[facebook:${d.key}] skipped — ${d.tokenEnv} not set`);
-    return;
+    return [];
   }
   const dayStart = localDayStart(now, d.activeHours.timeZone);
   const [{ value: postedToday }] = await db.select({ value: count() }).from(socialPost)
@@ -30,7 +31,7 @@ async function postToDestination(d: FacebookDestination, now: Date): Promise<voi
   const runCap = destinationRunCap(d, postedToday, now);
   if (runCap === 0) {
     console.log(`[facebook:${d.key}] postedToday=${postedToday} runCap=0`);
-    return;
+    return [];
   }
 
   const [pool, postedRows, recentTitleRows] = await Promise.all([
@@ -40,7 +41,7 @@ async function postToDestination(d: FacebookDestination, now: Date): Promise<voi
       venue: article.venue, matchStatus: article.matchStatus, heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
       trendingScore: article.trendingScore,
     }).from(article)
-      .where(and(eq(article.status, "published"), gte(article.publishedAt, new Date(now.getTime() - POOL_WINDOW_MS))))
+      .where(and(eq(article.status, "published"), like(article.category, `${d.sport}%`), gte(article.publishedAt, new Date(now.getTime() - POOL_WINDOW_MS))))
       .orderBy(desc(article.trendingScore), desc(article.publishedAt))
       .limit(500),
     db.select({ articleId: socialPost.articleId }).from(socialPost)
@@ -53,8 +54,9 @@ async function postToDestination(d: FacebookDestination, now: Date): Promise<voi
   const chosenTitles = recentTitleRows.map((r) => r.title);
 
   const toPost: { id: string; title: string }[] = [];
+  const limit = dryRun ? d.dailyCap : runCap;
   for (const a of pool) {
-    if (toPost.length >= runCap) break;
+    if (toPost.length >= limit) break;
     if (posted.has(a.id) || !d.matches(a)) continue;
     const matchData = isMatchDataSource(a.sourceName);
     // News needs a real photo; match data only once there's a result
@@ -62,12 +64,17 @@ async function postToDestination(d: FacebookDestination, now: Date): Promise<voi
     if (matchData ? a.matchStatus !== "finished" : !hasRealImage(a)) continue;
     // Same-story protection, as on the main Page (not for match data: each
     // match row is already the one canonical story for that game).
+    // Exact same headline too — the overlap check needs a few words, so a
+    // one-word title ("Stumped") from two outlets would slip past it.
+    const norm = a.title.trim().toLowerCase();
+    if (chosenTitles.some((t) => t.trim().toLowerCase() === norm)) continue;
     if (!matchData && isSimilarToAny(a.title, chosenTitles)) continue;
     toPost.push(a);
     chosenTitles.push(a.title);
   }
   console.log(`[facebook:${d.key}] postedToday=${postedToday} runCap=${runCap} toPost=${toPost.length}`);
 
+  if (dryRun) return toPost;
   for (const a of toPost) {
     try {
       const ok = await postArticleToFacebook(a.id, d);
@@ -78,15 +85,18 @@ async function postToDestination(d: FacebookDestination, now: Date): Promise<voi
       break;
     }
   }
+  return toPost;
 }
 
-export async function postToTopicPages(now: Date = new Date()): Promise<void> {
+export async function postToTopicPages(now: Date = new Date(), opts: { dryRun?: boolean } = {}): Promise<Record<string, { id: string; title: string }[]>> {
+  const picked: Record<string, { id: string; title: string }[]> = {};
   for (const d of TOPIC_DESTINATIONS) {
     try {
-      await postToDestination(d, now);
+      picked[d.key] = await postToDestination(d, now, Boolean(opts.dryRun));
     } catch (err) {
       // One Page's failure never affects the others (or the main Page).
       console.error(`[facebook:${d.key}] failed:`, err);
     }
   }
+  return picked;
 }
