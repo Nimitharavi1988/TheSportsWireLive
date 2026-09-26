@@ -1,3 +1,4 @@
+import { TeamCrest } from "@/components/TeamCrest";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Image from "next/image";
@@ -37,6 +38,8 @@ export function ArticleThumb({
     heroImageUrl: string | null;
     homeCrestUrl: string | null;
     awayCrestUrl: string | null;
+    homeTeam?: string | null;
+    awayTeam?: string | null;
     heroImageCredit?: string | null;
     heroImageCreditUrl?: string | null;
   };
@@ -106,8 +109,8 @@ export function ArticleThumb({
           gap: 0.25,
         }}
       >
-        <Image src={article.homeCrestUrl} alt="" width={size * 0.38} height={size * 0.38} />
-        <Image src={article.awayCrestUrl} alt="" width={size * 0.38} height={size * 0.38} />
+        <TeamCrest name={article.homeTeam} crestUrl={article.homeCrestUrl} size={Math.round(size * 0.38)} />
+        <TeamCrest name={article.awayTeam} crestUrl={article.awayCrestUrl} size={Math.round(size * 0.38)} />
       </Box>
     );
   }

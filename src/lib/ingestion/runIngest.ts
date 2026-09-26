@@ -9,7 +9,7 @@ import { fetchNbaData } from "./nbaData";
 import { fetchDomesticFootballData } from "./domesticFootballData";
 import { fetchNhlData } from "./nhlData";
 import { fetchCollegeFootballData, fetchWnbaData } from "./espnLeagueData";
-import { fetchEspnCricketData } from "./espnCricketData";
+import { fetchEspnCricketData, UPCOMING_DAYS } from "./espnCricketData";
 import { fetchVolleyballData } from "./volleyballData";
 import { fetchEspnVolleyballData } from "./espnVolleyballData";
 import { fetchRssNews } from "./rssFeeds";
@@ -19,18 +19,18 @@ import { fetchAsianGamesNews } from "./asianGamesFeeds";
 import { fetchCricketData } from "./cricketData";
 import { detectSeriesFromTitle } from "./cricketSeries";
 import { buildMatchKey, matchKeyVariants } from "../scores/matchKey";
-import { matchRefreshValues } from "./matchRefresh";
+import { matchRefreshValues, supersedingRefreshValues } from "./matchRefresh";
 import { detectEventSeries, detectEventSeriesNear, detectIplTeamMention } from "./eventTagging";
 import { computeDedupeHash, computeStableDedupeHash } from "./dedupe";
 import { runQualityChecks } from "./qualityCheck";
 import { fetchTrendingKeywords, computeTrendingScore } from "./trending";
 import { fetchStockImagePools, createStockImagePicker } from "./stockImages";
-import { generateCommentary, generateMatchRecap, verifyCommentaryHasSubstance } from "./commentary";
-import { extractArticleContent } from "./articleTextExtractor";
+import { aiUnavailableReason, generateCommentary, generateMatchRecap, verifyCommentaryHasSubstance } from "./commentary";
+import { extractArticleContent, extractArticleContentDetailed } from "./articleTextExtractor";
 import { fetchPersonPhoto, sportSearchHint } from "./wikimediaImages";
 import { isExcludedSource } from "../excludedSources";
 import { competitionFromSummary } from "../teamNames";
-import { isMatchDataSource } from "../matchDataSources";
+import { isMatchDataSource, supersedes } from "../matchDataSources";
 import { resolvePrimaryPlayerName } from "../players";
 
 // Prefers a source-provided stable id (see RawMatchItem.dedupeKey) over the
@@ -39,6 +39,12 @@ import { resolvePrimaryPlayerName } from "../players";
 // that date changes, defeating dedup for the same underlying event.
 function dedupeHashFor(item: RawMatchItem): string {
   return item.dedupeKey ? computeStableDedupeHash(item.dedupeKey) : computeDedupeHash(item.title, item.publishedAt);
+}
+
+// Why an AI write-up attempt produced nothing usable (Article.rejectionReason).
+function commentaryFailureReason(rawCommentary: string | null | undefined, groundingChars: number): string {
+  const basis = ` (source text ${groundingChars} chars${groundingChars < THIN_SNIPPET_THRESHOLD ? ", too thin" : ""})`;
+  return rawCommentary ? `AI write-up failed the substance check${basis}` : `AI returned no write-up${basis}`;
 }
 
 function sleep(ms: number) {
@@ -172,7 +178,11 @@ interface Grounding {
 // too AND a real snippet, so it should use that directly rather than making
 // an unnecessary extra fetch. Every other feed's own snippet is used when
 // substantive, and only falls back to page extraction when it's too thin.
+// Why grounding found nothing, for Article.rejectionReason.
+let lastGroundingFailure = "";
+
 async function resolveGrounding(item: RawMatchItem): Promise<Grounding | null> {
+  lastGroundingFailure = "";
   const snippet = item.sourceSnippet?.trim();
   if (snippet && snippet.length >= THIN_SNIPPET_THRESHOLD) {
     // The snippet is enough to write from, but a feed without images
@@ -196,9 +206,13 @@ async function resolveGrounding(item: RawMatchItem): Promise<Grounding | null> {
   // (see commentary.ts's own instruction). Every other source still gets
   // the full extraction attempt below -- this only short-circuits the one
   // case already known to be a dead end before spending anything on it.
-  if (isGoogleNewsRedirect(item.sourceUrl)) return null;
-  const extracted = await extractArticleContent(item.sourceUrl);
-  if (extracted) return { text: extracted.text, imageUrl: extracted.imageUrl };
+  if (isGoogleNewsRedirect(item.sourceUrl)) {
+    lastGroundingFailure = "Google News link (unreadable) and feed summary too short";
+    return null;
+  }
+  const extracted = await extractArticleContentDetailed(item.sourceUrl);
+  if (!("failure" in extracted)) return { text: extracted.text, imageUrl: extracted.imageUrl };
+  lastGroundingFailure = `source page unreadable (${extracted.failure})${snippet ? "; used short feed summary" : ""}`;
   return snippet ? { text: snippet } : null;
 }
 
@@ -236,7 +250,7 @@ export async function runIngest() {
       fetchWnbaData(),
       // Second cricket source (internationals CricketData's free tier
       // misses) — see espnCricketData.ts.
-      fetchEspnCricketData(),
+      fetchEspnCricketData(UPCOMING_DAYS),
       fetchRssNews(),
       // Actively searches Google News per tracked player (players.ts) —
       // unlike the fixed feeds above, which only ever surface whatever a
@@ -311,7 +325,7 @@ export async function runIngest() {
         ? []
         : await db.select({
             id: article.id, dedupeHash: article.dedupeHash, body: article.body, heroImageUrl: article.heroImageUrl,
-            matchStatus: article.matchStatus, status: article.status, slug: article.slug,
+            matchStatus: article.matchStatus, status: article.status, slug: article.slug, scoreSource: article.scoreSource,
           }).from(article).where(inArray(article.dedupeHash, allHashes))
     ).map((a) => [a.dedupeHash, a])
   );
@@ -320,17 +334,22 @@ export async function runIngest() {
   // cricket match, say) has different dedupeHashes, so it would be stored
   // — and shown — twice. matchKey (scores/matchKey.ts) is what providers
   // agree on: whichever source stored the match first owns it, and other
-  // providers' copies of it are skipped. Loaded once, like the hashes.
+  // providers' copies of it are skipped — except a provider that supersedes
+  // the owner (matchDataSources.ts), which updates the owner's row with its
+  // score instead. Loaded once, like the hashes.
   const keysFor = (item: RawMatchItem) =>
     isMatchDataSource(item.sourceName) ? matchKeyVariants(item.category, item.kickoffAt, item.homeTeam, item.awayTeam) : [];
   const allMatchKeys = [...new Set(rawItems.flatMap(keysFor))];
-  const matchOwners = new Map<string, string>(
+  type MatchOwner = { id: string; sourceName: string; homeTeam: string | null; matchStatus: string | null };
+  const matchOwners = new Map<string, MatchOwner>(
     (allMatchKeys.length === 0
       ? []
-      : await db.select({ matchKey: article.matchKey, sourceName: article.sourceName }).from(article).where(inArray(article.matchKey, allMatchKeys))
-    ).flatMap((r) => (r.matchKey ? [[r.matchKey, r.sourceName] as [string, string]] : []))
+      : await db.select({ id: article.id, matchKey: article.matchKey, sourceName: article.sourceName, homeTeam: article.homeTeam, matchStatus: article.matchStatus })
+          .from(article).where(inArray(article.matchKey, allMatchKeys))
+    ).flatMap((r) => (r.matchKey ? [[r.matchKey, r] as [string, MatchOwner]] : []))
   );
   let crossProviderSkipped = 0;
+  let crossProviderRefreshed = 0;
 
   let ingested = 0;
   let duplicates = 0;
@@ -414,7 +433,10 @@ export async function runIngest() {
       // games (ESPN "in" state, kept since 2026-09-25) carry their running
       // score and clock in the score fields, not the text, so the text still
       // only has one real transition to catch. See matchRefresh.ts.
-      if (isMatchDataSource(item.sourceName)) {
+      // Not when a superseding provider has taken over this row's score —
+      // its fresher numbers must not be overwritten by this source's.
+      const superseded = existing.scoreSource && existing.scoreSource !== item.sourceName && supersedes(existing.scoreSource, item.sourceName);
+      if (isMatchDataSource(item.sourceName) && !superseded) {
         // Shared with the fast live refresh (scores/liveRefresh.ts).
         await db.update(article)
           .set(matchRefreshValues(item, existing.matchStatus))
@@ -451,6 +473,7 @@ export async function runIngest() {
           // as pure headline-paraphrase is treated the same as an empty one
           // below, not silently accepted.
           const commentary = rawCommentary && (await verifyCommentaryHasSubstance(item.title, rawCommentary)) ? rawCommentary : null;
+          const retryReason = commentaryFailureReason(rawCommentary, grounding.text.length);
           await sleep(COMMENTARY_DELAY_MS);
 
           // A real generation attempt just failed on retry — same rule the
@@ -469,8 +492,9 @@ export async function runIngest() {
           // reachable by a bulk-approve or a reviewer skimming past it.
           // Only touches still-pending items — an already-published
           // article isn't silently pulled by a later failed retry.
-          if (!commentary && existing.status === "pending_review") {
-            await db.update(article).set({ status: "rejected", updatedAt: new Date() }).where(eq(article.id, existing.id));
+          // Not when the AI itself was unavailable — that's no verdict on the story.
+          if (!commentary && existing.status === "pending_review" && !aiUnavailableReason()) {
+            await db.update(article).set({ status: "rejected", rejectionReason: retryReason, updatedAt: new Date() }).where(eq(article.id, existing.id));
             existing.status = "rejected";
           }
 
@@ -510,7 +534,7 @@ export async function runIngest() {
           // (extraction blocked, RSS snippet too thin/missing) — same
           // "real attempt failed" rejection as the commentary-came-back-
           // empty case above.
-          await db.update(article).set({ status: "rejected", updatedAt: new Date() }).where(eq(article.id, existing.id));
+          await db.update(article).set({ status: "rejected", rejectionReason: lastGroundingFailure || "nothing to write from", updatedAt: new Date() }).where(eq(article.id, existing.id));
           existing.status = "rejected";
         }
       }
@@ -543,8 +567,14 @@ export async function runIngest() {
     // (e.g. football-data.org's ±14 days for finished/scheduled matches),
     // which this would otherwise incorrectly clip.
     const owner = keysFor(item).map((k) => matchOwners.get(k)).find(Boolean);
-    if (owner && owner !== item.sourceName) {
-      crossProviderSkipped++;
+    if (owner && owner.sourceName !== item.sourceName) {
+      if (supersedes(item.sourceName, owner.sourceName) && owner.matchStatus !== "finished") {
+        await db.update(article).set(supersedingRefreshValues(item, owner)).where(eq(article.id, owner.id));
+        owner.matchStatus = item.matchStatus ?? null;
+        crossProviderRefreshed++;
+      } else {
+        crossProviderSkipped++;
+      }
       continue;
     }
 
@@ -553,7 +583,14 @@ export async function runIngest() {
       continue;
     }
 
-    const quality = runQualityChecks(item.title, item.summary);
+    // The editorial gate (profanity, broken-scrape, filler/spam checks) is
+    // for scraped articles. Structured match data from a provider is
+    // generated from official scores, and the gate misfires on it: five
+    // County Championship matches were flagged as "broken" and an MLS
+    // "D.C. United" preview as profanity (2026-09-26), hiding live games.
+    const quality = isMatchDataSource(item.sourceName)
+      ? { ...runQualityChecks(item.title, item.summary), passed: true, profanityFlag: false, profanityDetail: null }
+      : runQualityChecks(item.title, item.summary);
     const trendingScore = computeTrendingScore(item.title, trendingKeywords, undefined, item.category);
     const slug = `${item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
 
@@ -613,6 +650,7 @@ export async function runIngest() {
     // a human to even read. Catching this at ingestion time instead of
     // waiting for a separate cleanup pass.
     let commentaryAttemptFailed = false;
+    let rejectionReason: string | undefined;
     if (!body && quality.passed && canAffordCommentary(item.category)) {
       // knownPersonName (player-news) items used to be excluded here
       // outright — see resolveGrounding's comment for why they're now
@@ -626,7 +664,12 @@ export async function runIngest() {
         // just be folded into generateCommentary's own response.
         const commentary = rawCommentary && (await verifyCommentaryHasSubstance(item.title, rawCommentary)) ? rawCommentary : null;
         if (commentary) body = commentary;
-        else commentaryAttemptFailed = true;
+        else if (!aiUnavailableReason()) {
+          commentaryAttemptFailed = true;
+          rejectionReason = commentaryFailureReason(rawCommentary, grounding.text.length);
+        }
+        // AI unavailable (out of credits, rate-limited, down): not a verdict
+        // on the story — it stays pending and is written on a later run.
         if (extractedVenue) venue = extractedVenue;
         await sleep(COMMENTARY_DELAY_MS);
 
@@ -665,6 +708,7 @@ export async function runIngest() {
         // blocked, RSS snippet too thin) — a real attempt that failed, same
         // as commentary generation coming back empty above.
         commentaryAttemptFailed = true;
+        rejectionReason = lastGroundingFailure || "nothing to write from";
       }
     }
 
@@ -733,9 +777,13 @@ export async function runIngest() {
     const iplTeamSeries = item.category === "cricket"
       ? (detectIplTeamMention(item.title) ?? (body ? detectIplTeamMention(body) : null))
       : null;
+    // A source label that names a known event ("Asian Games Women") files
+    // the story under that event with the event's own name, so the event
+    // page and tile read "Asian Games 2026", not the source's wording.
+    const labelEvent = item.seriesLabel && !item.seriesKey ? detectEventSeries(item.seriesLabel) : null;
     const series =
       item.seriesLabel
-        ? { key: item.seriesKey ?? detectEventSeries(item.seriesLabel)?.key, label: item.seriesLabel }
+        ? { key: item.seriesKey ?? labelEvent?.key, label: labelEvent?.label ?? item.seriesLabel }
         : (detectEventSeries(item.title) ??
           (body ? detectEventSeriesNear(body, EVENT_LEAD_CHARS) : null) ??
           iplTeamSeries ??
@@ -783,6 +831,7 @@ export async function runIngest() {
           : commentaryAttemptFailed && !body
             ? "rejected"
             : "pending_review",
+        rejectionReason: commentaryAttemptFailed && !body ? rejectionReason : undefined,
         // Marks this as a player-news item so autoApprove.ts knows a null
         // body here is the finished state (summary + real photo + source
         // link), not "not yet enriched" — see the field's schema comment.
@@ -813,15 +862,16 @@ export async function runIngest() {
     // Registers this hash as no longer "new" — guards against the same
     // story appearing twice in one run (two sources reporting it) trying
     // to create it a second time.
-    for (const k of keysFor(item)) matchOwners.set(k, item.sourceName);
-    existingArticles.set(dedupeHash, { id: created.id, dedupeHash, body: created.body, heroImageUrl: created.heroImageUrl, matchStatus: created.matchStatus, status: created.status, slug: created.slug });
+    for (const k of keysFor(item)) matchOwners.set(k, { id: created.id, sourceName: item.sourceName, homeTeam: created.homeTeam, matchStatus: created.matchStatus });
+    existingArticles.set(dedupeHash, { id: created.id, dedupeHash, body: created.body, heroImageUrl: created.heroImageUrl, matchStatus: created.matchStatus, status: created.status, slug: created.slug, scoreSource: created.scoreSource });
 
     ingested++;
     if (!quality.passed) flagged++;
   }
 
+  if (aiUnavailableReason()) console.warn(`[ingest] ${aiUnavailableReason()} — stories were left pending, not rejected; they will be written once the AI is back.`);
   console.log(
-    `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${staleSkipped} stale RSS items skipped (older than ${MAX_RSS_ITEM_AGE_MS / 86400000}d), ${crossProviderSkipped} matches already stored from another provider, ` +
+    `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${staleSkipped} stale RSS items skipped (older than ${MAX_RSS_ITEM_AGE_MS / 86400000}d), ${crossProviderSkipped} matches already stored from another provider (${crossProviderRefreshed} scored from a superseding one), ` +
     `${duplicates} duplicates skipped (${backfilled} of those backfilled with a body they missed on a previous run), ` +
     `${cricketCommentaryCalls + otherCommentaryCalls} RSS commentary calls (${cricketCommentaryCalls} cricket, ${otherCommentaryCalls} other), ${matchRecapCalls} match recap calls. ` +
     `(${scoreItems.length} from football-data.org, ${nflItems.length} from ESPN NFL, ${newsItems.length} from RSS, ${playerNewsItems.length} from per-player Google News search, ${cricketItems.length} from CricketData.org, ${trendingKeywords.length} trending keywords checked)`

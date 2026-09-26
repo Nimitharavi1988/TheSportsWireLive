@@ -65,6 +65,18 @@ jobs:
         run: npx tsx src/lib/videos/youtubeSync.ts
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Games medal tables (src/lib/events/syncEventData.ts): Wikipedia,
+      # checked before it's stored; own step so it never affects ingestion.
+      # Stored standings tables (src/lib/snapshots/sync.ts) — pages read
+      # these instead of calling ESPN while rendering.
+      - if: ${{ !cancelled() }}
+        run: npx tsx src/lib/snapshots/sync.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - if: ${{ !cancelled() }}
+        run: npx tsx src/lib/events/syncEventData.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
       # Auto-approves only the pending articles that clear a real bar on top
       # of every automated quality gate already passed to reach
       # pending_review: substantive real body content (not the generic

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mergeMatches, needsLiveUpdate } from "./liveUpdates";
+import { mergeMatches, needsLiveUpdate, sameMatches } from "./liveUpdates";
 import type { ScoreMatch } from "./scoreboardModel";
 
 const NOW = Date.parse("2026-09-26T18:00:00Z");
@@ -28,5 +28,19 @@ describe("mergeMatches", () => {
   it("replaces updated cards and keeps the rest in order", () => {
     const merged = mergeMatches([m("a", "live"), m("b", "upcoming")], [m("a", "final")]);
     expect(merged.map((x) => `${x.id}:${x.state}`)).toEqual(["a:final", "b:upcoming"]);
+  });
+});
+
+describe("sameMatches", () => {
+  it("treats a new array of the same cards as unchanged (inline [initial])", () => {
+    const a = m("a", "live");
+    expect(sameMatches([a], [a])).toBe(true);
+  });
+  it("sees new server data: a different card object, length or order", () => {
+    const a = m("a", "live");
+    const b = m("b", "live");
+    expect(sameMatches([a], [m("a", "final")])).toBe(false);
+    expect(sameMatches([a], [a, b])).toBe(false);
+    expect(sameMatches([a, b], [b, a])).toBe(false);
   });
 });

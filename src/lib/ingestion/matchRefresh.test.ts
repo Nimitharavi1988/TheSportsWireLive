@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { matchRefreshValues } from "./matchRefresh";
+import { matchRefreshValues, supersedingRefreshValues } from "./matchRefresh";
 import type { RawMatchItem } from "./footballData";
 
 const now = new Date("2026-09-27T19:00:00Z");
@@ -41,5 +41,28 @@ describe("matchRefreshValues", () => {
     const v = matchRefreshValues(item({ sourceName: "CricketData.org", category: "cricket", summary: "Day 2: India lead by 40 runs." }), "scheduled", now);
     expect(v).toMatchObject({ summary: "Day 2: India lead by 40 runs." });
     expect(v).not.toHaveProperty("title");
+  });
+});
+
+describe("supersedingRefreshValues", () => {
+  const espn = item({
+    sourceName: "ESPN Cricket", category: "cricket", homeTeam: "Glamorgan", awayTeam: "Essex",
+    homeScoreText: "505", awayScoreText: "129 & 116/1 (35 ov) (f/o)", matchStatus: "scheduled",
+    matchNote: "Day 3: Essex trail by 260 runs", summary: "Glamorgan face Essex.", body: "Scores: ...",
+  });
+
+  it("writes the score, status and live text, and records where the score came from", () => {
+    const v = supersedingRefreshValues(espn, { homeTeam: "Glamorgan" }, now);
+    expect(v).toMatchObject({ homeScoreText: "505", awayScoreText: "129 & 116/1 (35 ov) (f/o)", matchNote: "Day 3: Essex trail by 260 runs", scoreSource: "ESPN Cricket", updatedAt: now });
+    // The owner keeps its identity.
+    expect(v).not.toHaveProperty("title");
+    expect(v).not.toHaveProperty("matchKey");
+    expect(v).not.toHaveProperty("leagueLabel");
+  });
+
+  it("maps scores by team when the owner lists the teams the other way round", () => {
+    const v = supersedingRefreshValues(espn, { homeTeam: "Essex" }, now);
+    expect(v.homeScoreText).toBe("129 & 116/1 (35 ov) (f/o)");
+    expect(v.awayScoreText).toBe("505");
   });
 });

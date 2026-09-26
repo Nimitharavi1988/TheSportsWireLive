@@ -69,6 +69,9 @@ export const article = pgTable("Article", {
   kickoffAt: timestamp("kickoffAt", { precision: 3 }),
   homeScoreText: text("homeScoreText"),
   awayScoreText: text("awayScoreText"),
+  // Why ingestion/auto-approval rejected it ("source page unreadable (http
+  // 403)", "AI returned no write-up", ...), for diagnosing sources.
+  rejectionReason: text("rejectionReason"),
   seriesKey: text("seriesKey"),
   seriesLabel: text("seriesLabel"),
   venue: text("venue"),
@@ -93,6 +96,10 @@ export const article = pgTable("Article", {
   // what lets a second provider be compared against, or swapped in for, the
   // first without creating a duplicate match. See lib/scores/matchKey.ts.
   matchKey: text("matchKey"),
+  // The source whose scores are on this row when it isn't the row's own
+  // (sourceName): a higher-priority provider for the same match takes over
+  // its live score — see matchDataSources.ts `supersedes`. null = sourceName.
+  scoreSource: text("scoreSource"),
   // Added 2026-09-24 ahead of a planned (not yet implemented) Spanish-
   // language content pipeline -- default 'en' means every existing row and
   // every current (English-only) ingestion source is unaffected. Drives the
@@ -152,6 +159,40 @@ export const source = pgTable("Source", {
 // embedded; played through YouTube's own player, never re-hosted.
 // isHighlights + matchArticleId link a highlights video to the match story
 // it's about, for the video on that match page.
+// Per-event data kept outside articles (events/eventHubs.ts), e.g. a
+// Games' medal table — one row per key ("asian-games-2026:medals"), holding
+// the last snapshot that passed its checks.
+export const eventData = pgTable("EventData", {
+  key: text("key").primaryKey(),
+  eventKey: text("eventKey").notNull(),
+  kind: text("kind").notNull(),
+  data: jsonb("data").notNull(),
+  sourceUrl: text("sourceUrl").notNull(),
+  fetchedAt: timestamp("fetchedAt", { precision: 3 }).notNull().defaultNow(),
+}, (t) => [index("EventData_eventKey_idx").on(t.eventKey)]);
+
+// Stored copies of third-party tables shown on the site (standings) —
+// written by the ingestion job, read by pages (snapshots/read.ts).
+export const dataSnapshot = pgTable("DataSnapshot", {
+  key: text("key").primaryKey(),
+  data: jsonb("data").notNull(),
+  sourceUrl: text("sourceUrl").notNull(),
+  fetchedAt: timestamp("fetchedAt", { precision: 3 }).notNull().defaultNow(),
+});
+
+// Errors readers hit in the browser (the "Something went wrong" page),
+// reported by src/app/error.tsx via /api/client-error — the only way to
+// see a crash that happens on a reader's device and not in testing.
+export const clientError = pgTable("ClientError", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  message: text("message").notNull(),
+  stack: text("stack"),
+  digest: text("digest"),
+  url: text("url"),
+  userAgent: text("userAgent"),
+  createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+}, (t) => [index("ClientError_createdAt_idx").on(t.createdAt)]);
+
 export const video = pgTable("Video", {
   id: text("id").primaryKey(),
   youtubeId: text("youtubeId").notNull(),

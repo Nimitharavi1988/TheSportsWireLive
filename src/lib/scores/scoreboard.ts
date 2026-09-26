@@ -23,6 +23,7 @@ const MATCH_COLUMNS = {
   summary: article.summary,
   category: article.category,
   sourceName: article.sourceName,
+  scoreSource: article.scoreSource,
   homeTeam: article.homeTeam,
   awayTeam: article.awayTeam,
   homeCrestUrl: article.homeCrestUrl,

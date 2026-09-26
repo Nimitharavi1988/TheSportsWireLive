@@ -58,6 +58,8 @@ export interface MatchRow {
   summary: string;
   category: string;
   sourceName: string;
+  /** Set when a superseding provider supplies the score (Article.scoreSource). */
+  scoreSource?: string | null;
   homeTeam: string | null;
   awayTeam: string | null;
   homeCrestUrl: string | null;
@@ -202,7 +204,7 @@ export function toScoreMatch(rawRow: MatchRow, now: Date): ScoreMatch | null {
     venue: row.venue,
     broadcast: state === "upcoming" ? row.broadcast : null,
     matchKey: row.matchKey ?? null,
-    source: matchDataProvider(row.sourceName),
+    source: matchDataProvider(row.scoreSource ?? row.sourceName),
     updatedAt: row.updatedAt.toISOString(),
     home: {
       name: row.homeTeam,

@@ -13,6 +13,7 @@
  * dayNumber}, competitors[].{homeAway, displayName, score, logo}.
  */
 import type { RawMatchItem } from "./footballData";
+import { espnFetch } from "../espnFetch";
 
 const HEADER_URL = "https://site.api.espn.com/apis/personalized/v2/scoreboard/header?sport=cricket&region=us&lang=en";
 
@@ -38,6 +39,11 @@ export interface EspnCricketEvent {
 // A result line means the match is over even when ESPN still lists it as
 // "in" for a while (seen live: "No result" on an "in" event).
 const RESULT = /\b(won by|won the match|match drawn|drawn|tied|no result|abandoned|cancelled)\b/i;
+// ESPN flips an event to "in" at its scheduled start even when play hasn't
+// begun ("Match scheduled to begin at 10:00 local time", seen 2026-09-26).
+const NOT_BEGUN = /\b(scheduled to begin|yet to begin|start delayed)\b/i;
+// Placeholder for a knockout slot not decided yet — not a real fixture.
+const TBA = /^(tba|tbc|tbd)$/i;
 
 function isMultiDay(event: EspnCricketEvent): boolean {
   return Boolean(event.endDate) && Date.parse(event.endDate!) - Date.parse(event.date) > 24 * 60 * 60 * 1000;
@@ -48,17 +54,20 @@ export function espnCricketEventToItem(event: EspnCricketEvent, leagueName: stri
   const home = event.competitors.find((c) => c.homeAway === "home") ?? event.competitors[0];
   const away = event.competitors.find((c) => c.homeAway === "away") ?? event.competitors[1];
   if (!home || !away || home === away) return null;
+  if (TBA.test(home.displayName.trim()) || TBA.test(away.displayName.trim())) return null;
   if (event.status !== "pre" && event.status !== "in" && event.status !== "post") return null;
 
   const statusLine = (event.fullStatus?.longSummary || event.summary || "").trim();
   const finished = event.status === "post" || RESULT.test(statusLine);
-  const started = event.status !== "pre";
+  const noScores = !home.score?.trim() && !away.score?.trim();
+  const started = event.status !== "pre" && !(NOT_BEGUN.test(statusLine) && noScores);
   // "Day 2: Stumps" for a multi-day match, matching CricketData's status
   // lines, so the scoreboard's stumps/day handling reads both the same way.
   const day = event.fullStatus?.dayNumber;
   // Day prefix only where it means something: day 2 onwards, or stumps.
   const showDay = isMultiDay(event) && day && (day >= 2 || /stumps/i.test(statusLine)) && !/^day \d/i.test(statusLine);
-  const note = started && statusLine ? (showDay ? `Day ${day}: ${statusLine}` : statusLine) : undefined;
+  // Kept for a delayed start too, so readers see why nothing's happening.
+  const note = event.status !== "pre" && statusLine ? (showDay ? `Day ${day}: ${statusLine}` : statusLine) : undefined;
   const start = new Date(event.date);
   const dateLabel = start.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
   const homeTeam = home.displayName;
@@ -79,8 +88,9 @@ export function espnCricketEventToItem(event: EspnCricketEvent, leagueName: stri
     sourceName: "ESPN Cricket",
     category: "cricket",
     publishedAt: start,
-    homeCrestUrl: home.logo,
-    awayCrestUrl: away.logo,
+    // "" when ESPN has no logo for the team.
+    homeCrestUrl: home.logo || undefined,
+    awayCrestUrl: away.logo || undefined,
     homeTeam,
     awayTeam,
     homeScoreText: started ? scoreText(home) : undefined,
@@ -94,26 +104,49 @@ export function espnCricketEventToItem(event: EspnCricketEvent, leagueName: stri
   };
 }
 
-export async function fetchEspnCricketData(): Promise<RawMatchItem[]> {
-  try {
-    const res = await fetch(HEADER_URL);
-    if (!res.ok) {
-      console.error(`ESPN cricket scoreboard fetch failed: ${res.status}`);
-      return [];
+// The undated header lists only what's in progress or about to start, so a
+// series starting in a few days (e.g. India v West Indies ODIs, 2026-09-26)
+// never reached the site. Ingestion also asks for each of the next
+// `daysAhead` days (`dates=YYYYMMDD`, checked live) to store upcoming
+// fixtures; the live refresh only needs the undated list. Multi-day matches
+// appear under every day they span, so events are kept once by id — the
+// undated response first, as it carries the freshest live state.
+export const UPCOMING_DAYS = 7;
+
+function dayParam(d: Date): string {
+  return d.toISOString().slice(0, 10).replace(/-/g, "");
+}
+
+async function fetchHeaderEvents(url: string): Promise<{ event: EspnCricketEvent; leagueName: string }[]> {
+  const res = await espnFetch(url);
+  if (!res.ok) throw new Error(`ESPN cricket scoreboard fetch failed: ${res.status} (${url})`);
+  const data = await res.json();
+  const out: { event: EspnCricketEvent; leagueName: string }[] = [];
+  for (const sport of data.sports ?? []) {
+    for (const league of sport.leagues ?? []) {
+      for (const event of (league.events ?? []) as EspnCricketEvent[]) out.push({ event, leagueName: league.name ?? "Cricket" });
     }
-    const data = await res.json();
-    const items: RawMatchItem[] = [];
-    for (const sport of data.sports ?? []) {
-      for (const league of sport.leagues ?? []) {
-        for (const event of (league.events ?? []) as EspnCricketEvent[]) {
-          const item = espnCricketEventToItem(event, league.name ?? "Cricket");
-          if (item) items.push(item);
-        }
-      }
-    }
-    return items;
-  } catch (err) {
-    console.error("ESPN cricket scoreboard fetch failed:", err);
-    return [];
   }
+  return out;
+}
+
+export async function fetchEspnCricketData(daysAhead = 0, now: Date = new Date()): Promise<RawMatchItem[]> {
+  const urls = [HEADER_URL];
+  for (let d = 1; d <= daysAhead; d++) urls.push(`${HEADER_URL}&dates=${dayParam(new Date(now.getTime() + d * 24 * 60 * 60 * 1000))}`);
+  const results = await Promise.allSettled(urls.map(fetchHeaderEvents));
+  const seen = new Set<string>();
+  const items: RawMatchItem[] = [];
+  for (const r of results) {
+    if (r.status === "rejected") {
+      console.error(r.reason instanceof Error ? r.reason.message : r.reason);
+      continue;
+    }
+    for (const { event, leagueName } of r.value) {
+      if (seen.has(event.id)) continue;
+      seen.add(event.id);
+      const item = espnCricketEventToItem(event, leagueName);
+      if (item) items.push(item);
+    }
+  }
+  return items;
 }

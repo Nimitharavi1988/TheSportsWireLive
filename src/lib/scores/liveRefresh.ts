@@ -11,7 +11,8 @@
  * - ESPN sources (no API key, no quota), plus tracked international
  *   cricket matches (scores/trackedCricket.ts) every ~7 min within
  *   CricketData's 100-calls/day budget. The general CricketData feed stays
- *   with full ingestion.
+ *   with full ingestion, but its matches that ESPN also has get ESPN's
+ *   score here (matchDataSources.ts `supersedes`).
  *
  * Runs on GitHub Actions (.github/workflows/live-refresh.yml), not the
  * site's Worker: the Workers free plan's 10ms CPU limit per request can't
@@ -19,12 +20,14 @@
  */
 import { db } from "@/db";
 import { article } from "@/db/schema";
-import { and, eq, gte, inArray, like, lte, or } from "drizzle-orm";
+import { and, eq, gte, inArray, like, lte, ne, or } from "drizzle-orm";
 import type { RawMatchItem } from "../ingestion/footballData";
 import { computeDedupeHash, computeStableDedupeHash } from "../ingestion/dedupe";
 import { fetchTrackedCricketMatch } from "../ingestion/cricketData";
 import { TRACKED_REFRESH_MS, trackedInPlay } from "./trackedCricket";
-import { matchRefreshValues } from "../ingestion/matchRefresh";
+import { matchRefreshValues, supersedingRefreshValues } from "../ingestion/matchRefresh";
+import { supersededBy, supersedes, supersedingSources } from "../matchDataSources";
+import { matchKeyVariants } from "./matchKey";
 import { fetchNflData } from "../ingestion/nflData";
 import { fetchMlbData } from "../ingestion/mlbData";
 import { fetchNbaData } from "../ingestion/nbaData";
@@ -44,8 +47,11 @@ const LIVE_SOURCES: Record<string, () => Promise<RawMatchItem[]>> = {
   "ESPN Volleyball": fetchEspnVolleyballData,
   "ESPN College Football": fetchCollegeFootballData,
   "ESPN WNBA": fetchWnbaData,
-  "ESPN Cricket": fetchEspnCricketData,
+  "ESPN Cricket": () => fetchEspnCricketData(),
 };
+
+// Sources with a fast fetcher, plus the sources they supersede.
+const WATCHED_SOURCES = [...new Set(Object.keys(LIVE_SOURCES).flatMap((s) => [s, ...supersededBy(s)]))];
 
 // A game is worth refreshing from shortly before kickoff (so it flips to
 // live promptly) until it's final or clearly over.
@@ -77,13 +83,34 @@ export function itemsToRefresh(
   });
 }
 
+// Rows another provider stored that this source supersedes (see
+// matchDataSources.ts): each paired with this source's item for the same
+// match (by matchKey, either team order), same kickoff cutoff as
+// itemsToRefresh. Pure, so it's unit-tested.
+export function supersededToRefresh(
+  items: RawMatchItem[],
+  rows: { id: string; matchKey: string | null; homeTeam: string | null }[],
+  now: Date
+): { item: RawMatchItem; row: { id: string; homeTeam: string | null } }[] {
+  const cutoff = now.getTime() + PRE_KICKOFF_MS;
+  const byKey = new Map<string, RawMatchItem>();
+  for (const item of items) {
+    if (!item.kickoffAt || item.kickoffAt.getTime() > cutoff) continue;
+    for (const k of matchKeyVariants(item.category, item.kickoffAt, item.homeTeam, item.awayTeam)) byKey.set(k, item);
+  }
+  return rows.flatMap((row) => {
+    const item = row.matchKey ? byKey.get(row.matchKey) : undefined;
+    return item ? [{ item, row }] : [];
+  });
+}
+
 export async function runLiveRefresh(now: Date = new Date()): Promise<LiveRefreshResult> {
   // Which providers have a game in play or about to start right now.
   const active = await db
     .selectDistinct({ sourceName: article.sourceName })
     .from(article)
     .where(and(
-      inArray(article.sourceName, Object.keys(LIVE_SOURCES)),
+      inArray(article.sourceName, WATCHED_SOURCES),
       eq(article.matchStatus, "scheduled"),
       // Cricket runs for days (Tests, first-class); other games within hours.
       or(
@@ -92,7 +119,9 @@ export async function runLiveRefresh(now: Date = new Date()): Promise<LiveRefres
       ),
       lte(article.kickoffAt, new Date(now.getTime() + PRE_KICKOFF_MS))
     ));
-  const sources = active.map((r) => r.sourceName);
+  // A superseded source (CricketData) has no fast fetcher of its own —
+  // its in-play matches bring in the source that supersedes it.
+  const sources = [...new Set(active.flatMap((r) => (r.sourceName in LIVE_SOURCES ? [r.sourceName] : supersedingSources(r.sourceName).filter((s) => s in LIVE_SOURCES))))];
   const tracked = trackedInPlay(now);
   const result: LiveRefreshResult = { sources: [...sources], fetched: 0, updated: 0, finished: 0 };
   if (sources.length === 0 && tracked.length === 0) return result;
@@ -121,6 +150,19 @@ export async function runLiveRefresh(now: Date = new Date()): Promise<LiveRefres
       result.updated++;
       if (item.matchStatus === "finished") result.finished++;
     }
+
+    const others = supersededBy(sourceName);
+    const keys = [...new Set(items.flatMap((i) => matchKeyVariants(i.category, i.kickoffAt, i.homeTeam, i.awayTeam)))];
+    if (others.length === 0 || keys.length === 0) continue;
+    const supersededRows = await db
+      .select({ id: article.id, matchKey: article.matchKey, homeTeam: article.homeTeam })
+      .from(article)
+      .where(and(inArray(article.sourceName, others), inArray(article.matchKey, keys), ne(article.matchStatus, "finished")));
+    for (const { item, row } of supersededToRefresh(items, supersededRows, now)) {
+      await db.update(article).set(supersedingRefreshValues(item, row, now)).where(eq(article.id, row.id));
+      result.updated++;
+      if (item.matchStatus === "finished") result.finished++;
+    }
   }
   if (tracked.length > 0) {
     result.sources.push("CricketData.org (tracked)");
@@ -142,11 +184,13 @@ async function refreshTrackedCricket(
     // Same identity full ingestion gives it: title + kickoff day.
     const hash = computeDedupeHash(match.name, new Date(match.startGmt));
     const [row] = await db
-      .select({ id: article.id, matchStatus: article.matchStatus, updatedAt: article.updatedAt })
+      .select({ id: article.id, matchStatus: article.matchStatus, updatedAt: article.updatedAt, scoreSource: article.scoreSource })
       .from(article)
       .where(eq(article.dedupeHash, hash))
       .limit(1);
     if (!row || row.matchStatus === "finished") continue;
+    // A superseding provider (ESPN) already keeps this one current.
+    if (row.scoreSource && supersedes(row.scoreSource, "CricketData.org")) continue;
     if (now.getTime() - row.updatedAt.getTime() < TRACKED_REFRESH_MS) continue;
 
     const item = await fetchTrackedCricketMatch(match.id);

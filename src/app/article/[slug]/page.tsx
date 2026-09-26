@@ -1,3 +1,4 @@
+import { TeamCrest } from "@/components/TeamCrest";
 import { db } from "@/db";
 import { article as articleTable } from "@/db/schema";
 import { and, eq, gte, ne, or, ilike, isNull, desc } from "drizzle-orm";
@@ -386,7 +387,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
             alignItems: "center",
             mb: 2.5
           }}>
-          <Image src={article.homeCrestUrl} alt={crestAltText(article.summary).home} width={64} height={64} />
+          <TeamCrest name={article.homeTeam} crestUrl={article.homeCrestUrl} alt={crestAltText(article.summary).home} size={64} />
           <Typography
             variant="body1"
             sx={{
@@ -395,7 +396,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
             }}>
             vs
           </Typography>
-          <Image src={article.awayCrestUrl} alt={crestAltText(article.summary).away} width={64} height={64} />
+          <TeamCrest name={article.awayTeam} crestUrl={article.awayCrestUrl} alt={crestAltText(article.summary).away} size={64} />
         </Stack>
       ) : article.heroImageUrl ? (
         <Box component="figure" sx={{ m: 0, mb: 2.5 }}>

@@ -60,7 +60,13 @@ export function isAutoApprovable(article: {
   playerNewsSourced: boolean;
   sourceName: string;
 }): boolean {
-  if (!hasRealImage(article)) return false;
+  // Match rows are structured scores, not stories: they don't need a photo
+  // to be worth showing (a missing or broken team logo falls back to the
+  // team's initials — components/TeamCrest.tsx). Requiring one held back
+  // real fixtures whose provider has no logo for a team (e.g. ESPN's
+  // Markhor v Sui Northern, 2026-09-26). Social posts still need a real
+  // image — see autoApprove.ts.
+  if (!isMatchDataSource(article.sourceName) && !hasRealImage(article)) return false;
   // Player-news items (playerNewsFeeds.ts) used to be judged on image alone,
   // since a body was structurally impossible for them — Google News' own
   // RSS snippet for these is just the headline repeated. That's no longer

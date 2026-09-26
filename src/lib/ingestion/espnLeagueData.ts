@@ -15,6 +15,7 @@
  */
 import type { RawMatchItem } from "./footballData";
 import { espnBroadcast, espnLiveClock, espnRecord, espnScore, type EspnClockStyle, type EspnStatus } from "../scores/espnStatus";
+import { espnFetch } from "../espnFetch";
 
 interface EspnCompetitor {
   homeAway: "home" | "away";
@@ -198,7 +199,7 @@ export function espnEventToItem(event: EspnLeagueEvent, config: EspnLeagueConfig
 
 export async function fetchEspnLeague(config: EspnLeagueConfig): Promise<RawMatchItem[]> {
   try {
-    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${config.path}/scoreboard`);
+    const res = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/${config.path}/scoreboard`);
     if (!res.ok) {
       console.error(`${config.sourceName} scoreboard fetch failed: ${res.status}`);
       return [];

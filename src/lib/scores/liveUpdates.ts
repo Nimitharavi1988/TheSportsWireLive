@@ -28,3 +28,13 @@ export function mergeMatches(current: ScoreMatch[], updates: ScoreMatch[]): Scor
   const byId = new Map(updates.map((m) => [m.id, m]));
   return current.map((m) => byId.get(m.id) ?? m);
 }
+
+// Whether a widget's server-provided list is the same data it already has:
+// same card objects in the same order. Compared by content, not array
+// identity — a caller building the list inline (MatchHeader's [initial])
+// hands over a new array every render, and treating that as new server
+// data reset state during render in a loop (React error #301, seen live
+// 2026-09-26 on every cricket match opened from /scores).
+export function sameMatches(a: ScoreMatch[], b: ScoreMatch[]): boolean {
+  return a === b || (a.length === b.length && a.every((m, i) => m === b[i]));
+}

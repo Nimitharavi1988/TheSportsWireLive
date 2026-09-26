@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from "vitest";
 // just to load; the planner under test doesn't touch it.
 vi.mock("@/db", () => ({ db: {} }));
 
-import { itemsToRefresh } from "./liveRefresh";
+import { itemsToRefresh, supersededToRefresh } from "./liveRefresh";
 import { computeStableDedupeHash } from "../ingestion/dedupe";
 import type { RawMatchItem } from "../ingestion/footballData";
 
@@ -47,5 +47,28 @@ describe("itemsToRefresh", () => {
   it("passes the stored status through so the final-whistle text change happens once", () => {
     const [p] = itemsToRefresh([game("live", "2026-09-27T17:00:00Z", { matchStatus: "finished" })], existing([["live", "scheduled"]]), now);
     expect(p.existingMatchStatus).toBe("scheduled");
+  });
+});
+
+describe("supersededToRefresh", () => {
+  const espn = (home: string, away: string, kickoff: string): RawMatchItem => ({
+    title: `${home} vs ${away}`, summary: "", body: "", sourceUrl: "", sourceName: "ESPN Cricket", category: "cricket",
+    publishedAt: now, homeTeam: home, awayTeam: away, kickoffAt: new Date(kickoff), dedupeKey: `espn-cricket-${home}`,
+  });
+
+  it("pairs another provider's row with the item for the same match, in either team order", () => {
+    const items = [espn("Glamorgan", "Essex", "2026-09-24T09:30:00Z"), espn("Kent", "Gloucestershire", "2026-09-24T09:30:00Z")];
+    const rows = [
+      { id: "a", matchKey: "cricket:2026-09-24:glamorgan-v-essex", homeTeam: "Glamorgan" },
+      { id: "b", matchKey: "cricket:2026-09-24:gloucestershire-v-kent", homeTeam: "Gloucestershire" },
+      { id: "c", matchKey: "cricket:2026-09-24:lancashire-v-durham", homeTeam: "Lancashire" },
+    ];
+    const out = supersededToRefresh(items, rows, now);
+    expect(out.map((o) => [o.row.id, o.item.homeTeam])).toEqual([["a", "Glamorgan"], ["b", "Kent"]]);
+  });
+
+  it("ignores a match that hasn't reached its pre-start window", () => {
+    const rows = [{ id: "a", matchKey: "cricket:2026-09-30:india-v-west-indies", homeTeam: "India" }];
+    expect(supersededToRefresh([espn("India", "West Indies", "2026-09-30T08:30:00Z")], rows, now)).toEqual([]);
   });
 });

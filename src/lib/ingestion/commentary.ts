@@ -71,9 +71,27 @@ interface GeminiCallOptions {
   responseSchema: object;
 }
 
+// Set when Gemini says it can't serve requests at all (out of credits,
+// rate-limited, auth or server errors) — as opposed to answering and
+// producing nothing usable. Callers use it to leave stories waiting
+// instead of rejecting them (confirmed 2026-09-26: prepaid credits ran out,
+// every call returned 402, and every story was rejected as if the model
+// had declined it). Once set, further calls in this run are skipped.
+let unavailable: string | null = null;
+
+export function aiUnavailableReason(): string | null {
+  return unavailable;
+}
+
+const UNAVAILABLE_STATUSES = new Set([401, 402, 403, 429, 500, 502, 503, 504]);
+
 async function callGemini(prompt: string, options: GeminiCallOptions): Promise<any | null> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) {
+    unavailable = "AI not configured (GEMINI_API_KEY unset)";
+    return null;
+  }
+  if (unavailable) return null;
 
   try {
     const res = await fetch(
@@ -109,7 +127,11 @@ async function callGemini(prompt: string, options: GeminiCallOptions): Promise<a
     );
 
     if (!res.ok) {
-      console.error(`Gemini generation failed: ${res.status}`);
+      const detail = await res.text().catch(() => "");
+      console.error(`Gemini generation failed: ${res.status} ${detail.slice(0, 200)}`);
+      if (UNAVAILABLE_STATUSES.has(res.status)) {
+        unavailable = res.status === 402 ? "AI unavailable (402: credits depleted)" : `AI unavailable (HTTP ${res.status})`;
+      }
       return null;
     }
 

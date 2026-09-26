@@ -1,5 +1,5 @@
 import type { RawMatchItem } from "./footballData";
-import { buildMatchKey } from "../scores/matchKey";
+import { buildMatchKey, slugifyTeam } from "../scores/matchKey";
 
 // The column values written when a match-data source reports on a game we
 // already have a row for. Shared by full ingestion (runIngest.ts) and the
@@ -31,6 +31,32 @@ export function matchRefreshValues(item: RawMatchItem, existingMatchStatus: stri
     matchKey: buildMatchKey(item.category, item.kickoffAt, item.homeTeam, item.awayTeam),
     ...(isCricketData || justFinished ? { summary: item.summary, body: item.body } : {}),
     ...(justFinished && !isCricketData ? { title: item.title } : {}),
+    updatedAt: now,
+  };
+}
+
+// The values written when a higher-priority provider (matchDataSources.ts
+// `supersedes`) reports on a match another provider stored: its score,
+// status and live text, with the row's identity (title, teams, league,
+// matchKey) left to the owner. Scores are mapped by team, since providers
+// can list home/away the other way round.
+export function supersedingRefreshValues(
+  item: RawMatchItem,
+  row: { homeTeam: string | null },
+  now: Date = new Date()
+) {
+  const sameOrder = !row.homeTeam || !item.homeTeam || slugifyTeam(row.homeTeam) === slugifyTeam(item.homeTeam);
+  return {
+    matchStatus: item.matchStatus,
+    homeScore: sameOrder ? item.homeScore : item.awayScore,
+    awayScore: sameOrder ? item.awayScore : item.homeScore,
+    homeScoreText: (sameOrder ? item.homeScoreText : item.awayScoreText) ?? null,
+    awayScoreText: (sameOrder ? item.awayScoreText : item.homeScoreText) ?? null,
+    matchClock: item.matchClock,
+    matchNote: item.matchNote,
+    summary: item.summary,
+    body: item.body,
+    scoreSource: item.sourceName,
     updatedAt: now,
   };
 }

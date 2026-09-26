@@ -1,3 +1,4 @@
+import { TeamCrest } from "@/components/TeamCrest";
 import { Suspense } from "react";
 import { db } from "@/db";
 import { article as articleTable } from "@/db/schema";
@@ -6,6 +7,7 @@ import { ForYouStrip } from "@/components/ForYouStrip";
 import { HappeningNow } from "@/components/HappeningNow";
 import { LatestVideos, VideoStripSkeleton } from "@/components/videos/VideoStrip";
 import { happeningNowEntities } from "@/lib/competitions";
+import { getMedalLeaderLines } from "@/lib/events/queries";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import { hasRealImage } from "@/lib/contentQuality";
 import { isHeroQualityImage } from "@/lib/imageQuality";
@@ -23,13 +25,14 @@ import Stack from "@mui/material/Stack";
 import Divider from "@mui/material/Divider";
 import { fetchOneStockImage } from "@/lib/ingestion/stockImages";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
-import { fetchNflStandingsTable } from "@/lib/ingestion/nflData";
+import type { NflConferenceStandings } from "@/lib/ingestion/nflData";
+import { SNAPSHOT_KEYS, readSnapshot } from "@/lib/snapshots/read";
 import { NflStandingsCarousel } from "@/components/NflStandingsCarousel";
-import { fetchNbaStandingsTable } from "@/lib/ingestion/nbaData";
+import type { NbaConferenceStandings } from "@/lib/ingestion/nbaData";
 import { NbaStandingsCarousel } from "@/components/NbaStandingsCarousel";
-import { fetchMlbStandingsTable } from "@/lib/ingestion/mlbData";
+import type { MlbConferenceStandings } from "@/lib/ingestion/mlbData";
 import { MlbStandingsCarousel } from "@/components/MlbStandingsCarousel";
-import { fetchNhlStandingsTable } from "@/lib/ingestion/nhlData";
+import type { NhlConferenceStandings } from "@/lib/ingestion/nhlData";
 import { NhlStandingsCarousel } from "@/components/NhlStandingsCarousel";
 import { crestAltText, competitionFromSummary } from "@/lib/teamNames";
 import { displaySummary } from "@/lib/articleSummary";
@@ -341,7 +344,7 @@ async function FootballStandingsWidget({ apiKey }: { apiKey: string }) {
 // Streamed independently (see Suspense boundary in HomePage) — same
 // reasoning as FootballStandingsWidget, ESPN instead of football-data.org.
 async function NflStandingsWidget() {
-  const nflStandings = await fetchNflStandingsTable();
+  const nflStandings = await readSnapshot<NflConferenceStandings[]>(SNAPSHOT_KEYS.nflStandings);
   if (!nflStandings || nflStandings.length === 0) return null;
   return (
     <Box sx={{ mb: 3 }}>
@@ -355,7 +358,7 @@ async function NflStandingsWidget() {
 // hockey category views previously had (only football and NFL had a
 // standings widget before this).
 async function NbaStandingsWidget() {
-  const nbaStandings = await fetchNbaStandingsTable();
+  const nbaStandings = await readSnapshot<NbaConferenceStandings[]>(SNAPSHOT_KEYS.nbaStandings);
   if (!nbaStandings || nbaStandings.length === 0) return null;
   return (
     <Box sx={{ mb: 3 }}>
@@ -365,7 +368,7 @@ async function NbaStandingsWidget() {
 }
 
 async function MlbStandingsWidget() {
-  const mlbStandings = await fetchMlbStandingsTable();
+  const mlbStandings = await readSnapshot<MlbConferenceStandings[]>(SNAPSHOT_KEYS.mlbStandings);
   if (!mlbStandings || mlbStandings.length === 0) return null;
   return (
     <Box sx={{ mb: 3 }}>
@@ -375,7 +378,7 @@ async function MlbStandingsWidget() {
 }
 
 async function NhlStandingsWidget() {
-  const nhlStandings = await fetchNhlStandingsTable();
+  const nhlStandings = await readSnapshot<NhlConferenceStandings[]>(SNAPSHOT_KEYS.nhlStandings);
   if (!nhlStandings || nhlStandings.length === 0) return null;
   return (
     <Box sx={{ mb: 3 }}>
@@ -423,7 +426,7 @@ export async function HomeView({ category }: { category?: string }) {
   // decision was silently getting overridden by a score cutoff instead of
   // actually taking priority. Capped at 5 (the same cap `featureArticle`
   // itself enforces), so this can never balloon the query.
-  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeCompetitions, justInRaw, highlightCandidatesRaw, matchCandidatesRaw] = await Promise.all([
+  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeCompetitions, medalLines, justInRaw, highlightCandidatesRaw, matchCandidatesRaw] = await Promise.all([
     // Main trending list, limited to fresh stories — see heroConfig.ts's
     // FRESH_NEWS_* for why (trendingScore never decays: on 2026-09-25 an
     // 11-day-old story with score 175 was still leading the hero).
@@ -449,6 +452,7 @@ export async function HomeView({ category }: { category?: string }) {
     // "All"). No permanent nav item per competition: each runs for a couple
     // of weeks then goes quiet; /series lists them all.
     happeningNowEntities(8, category),
+    getMedalLeaderLines().catch(() => ({})),
     // Independent pure-recency query for "Just In" below — deriving this
     // from `articlesRanked` (trending-sorted, LIMIT 80) instead used to
     // silently cap "newest" at whatever happened to also be inside that
@@ -1144,7 +1148,7 @@ export async function HomeView({ category }: { category?: string }) {
         )}
 
         <Box component="main" sx={{ minWidth: 0 }}>
-          <HappeningNow competitions={activeCompetitions} />
+          <HappeningNow competitions={activeCompetitions} medalLines={medalLines} />
 
           {playerNewsMatches.length > 0 && (
             <Suspense fallback={<PlayerNewsSkeleton />}>
@@ -1525,7 +1529,7 @@ export async function HomeView({ category }: { category?: string }) {
                         alignItems: "center",
                         mb: 1
                       }}>
-                      <Image src={article.homeCrestUrl} alt={crestAltText(article.summary).home} width={32} height={32} />
+                      <TeamCrest name={article.homeTeam} crestUrl={article.homeCrestUrl} alt={crestAltText(article.summary).home} size={32} />
                       <Typography
                         variant="caption"
                         sx={{
@@ -1534,7 +1538,7 @@ export async function HomeView({ category }: { category?: string }) {
                         }}>
                         vs
                       </Typography>
-                      <Image src={article.awayCrestUrl} alt={crestAltText(article.summary).away} width={32} height={32} />
+                      <TeamCrest name={article.awayTeam} crestUrl={article.awayCrestUrl} alt={crestAltText(article.summary).away} size={32} />
                     </Stack>
                   ) : article.heroImageUrl ? (
                     // height:110 on a 260-wide card was a 2.36:1 crop —

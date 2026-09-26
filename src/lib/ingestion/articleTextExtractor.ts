@@ -143,25 +143,34 @@ function extractOgImage(doc: Document): string | undefined {
 }
 
 export async function extractArticleContent(url: string): Promise<ArticleExtraction | null> {
+  const result = await extractArticleContentDetailed(url);
+  return "failure" in result ? null : result;
+}
+
+// Same, but says why it failed ("http 403", "timeout or network error",
+// "robots.txt disallows", ...) — stored as an article's rejectionReason,
+// so a blocked source shows up as blocked instead of a silent rejection.
+export async function extractArticleContentDetailed(url: string): Promise<ArticleExtraction | { failure: string }> {
   try {
-    if (!(await robotsAllows(url))) return null;
+    if (!(await robotsAllows(url))) return { failure: "robots.txt disallows" };
 
     const res = await fetchWithTimeout(url, FETCH_TIMEOUT_MS);
-    if (!res || !res.ok) return null;
+    if (!res) return { failure: "timeout or network error" };
+    if (!res.ok) return { failure: `http ${res.status}` };
 
     const contentType = res.headers.get("content-type") ?? "";
-    if (!contentType.includes("html")) return null;
+    if (!contentType.includes("html")) return { failure: `not html (${contentType || "no content-type"})` };
 
     const html = await res.text();
     const dom = new JSDOM(html, { url });
     const document = dom.window.document;
     const article = new Readability(document).parse();
     const text = article?.textContent?.trim();
-    if (!text || text.length < 100) return null;
+    if (!text || text.length < 100) return { failure: "no article text found on page" };
 
     return { text: text.slice(0, MAX_EXTRACT_CHARS), imageUrl: extractOgImage(document) };
   } catch (err) {
     console.error(`Article content extraction failed for "${url}":`, err);
-    return null;
+    return { failure: `extraction error: ${err instanceof Error ? err.message.slice(0, 80) : "unknown"}` };
   }
 }

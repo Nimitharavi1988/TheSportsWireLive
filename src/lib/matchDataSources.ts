@@ -10,12 +10,20 @@ export interface MatchDataSource {
   name: string;
   /** Who the data comes from, as shown to readers ("Source: ESPN"). */
   provider: string;
+  /** Sources whose matches this one supplies the live score for when it
+   *  has the same match (by matchKey) — the row keeps its owner, only the
+   *  score comes from here. For a provider that is clearly fresher and more
+   *  accurate for the same games. */
+  supersedes?: string[];
 }
 
 export const MATCH_DATA_SOURCES: MatchDataSource[] = [
   { name: "football-data.org", provider: "football-data.org" },
   { name: "CricketData.org", provider: "CricketData.org" },
-  { name: "ESPN Cricket", provider: "ESPN" },
+  // CricketData's free tier lags ESPN by 10-45 min on county games and
+  // credits a follow-on to the wrong team (checked side by side 2026-09-26:
+  // Middlesex shown 66/2 while ESPN had them winning by 7 wickets).
+  { name: "ESPN Cricket", provider: "ESPN", supersedes: ["CricketData.org"] },
   { name: "ESPN NFL", provider: "ESPN" },
   { name: "MLB Stats API", provider: "MLB" },
   { name: "ESPN NBA", provider: "ESPN" },
@@ -39,4 +47,19 @@ export function isMatchDataSource(sourceName: string): boolean {
 // name when unregistered.
 export function matchDataProvider(sourceName: string): string {
   return BY_NAME.get(sourceName)?.provider ?? sourceName;
+}
+
+// Whether `source`'s scores replace `other`'s for the same match.
+export function supersedes(source: string, other: string): boolean {
+  return BY_NAME.get(source)?.supersedes?.includes(other) ?? false;
+}
+
+// Every source that supplies scores for `source`'s matches.
+export function supersedingSources(source: string): string[] {
+  return MATCH_DATA_SOURCES.filter((s) => s.supersedes?.includes(source)).map((s) => s.name);
+}
+
+// The sources `source` supplies scores for (its `supersedes` list).
+export function supersededBy(source: string): string[] {
+  return BY_NAME.get(source)?.supersedes ?? [];
 }

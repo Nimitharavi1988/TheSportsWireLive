@@ -7,6 +7,7 @@
  */
 import type { RawMatchItem } from "./footballData";
 import { espnBroadcast, espnLiveClock, espnRecord, espnScore, type EspnStatus } from "../scores/espnStatus";
+import { espnFetch } from "../espnFetch";
 
 const SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard";
 const STANDINGS_URL = "https://site.api.espn.com/apis/v2/sports/hockey/nhl/standings";
@@ -46,7 +47,7 @@ interface TeamRecord {
 // instead of just restating the score.
 async function fetchTeamRecords(): Promise<Map<string, TeamRecord>> {
   try {
-    const res = await fetch(`${STANDINGS_URL}?season=${new Date().getFullYear()}`);
+    const res = await espnFetch(`${STANDINGS_URL}?season=${new Date().getFullYear()}`);
     if (!res.ok) {
       console.error(`ESPN NHL standings fetch failed: ${res.status}`);
       return new Map();
@@ -78,7 +79,7 @@ function recordContext(teamName: string, record: TeamRecord | undefined): string
 
 export async function fetchNhlData(): Promise<RawMatchItem[]> {
   const [scoreboardRes, teamRecords] = await Promise.all([
-    fetch(SCOREBOARD_URL).catch((err) => {
+    espnFetch(SCOREBOARD_URL).catch((err) => {
       console.error("ESPN NHL scoreboard fetch failed:", err);
       return null;
     }),
@@ -200,7 +201,7 @@ export interface NhlConferenceStandings {
 // the usual wins/losses/playoffSeed.
 export async function fetchNhlStandingsTable(): Promise<NhlConferenceStandings[] | null> {
   try {
-    const res = await fetch(`${STANDINGS_URL}?season=${new Date().getFullYear()}`, { next: { revalidate: 300 } });
+    const res = await espnFetch(`${STANDINGS_URL}?season=${new Date().getFullYear()}`, { next: { revalidate: 300 } });
     if (!res.ok) return null;
 
     const data = await res.json();

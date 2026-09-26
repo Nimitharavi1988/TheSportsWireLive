@@ -50,3 +50,31 @@ describe("espnCricketEventToItem", () => {
     expect(item.matchNote).toBeNull();
   });
 });
+
+describe("espnCricketEventToItem edge cases (seen live 2026-09-26)", () => {
+  it("skips a knockout slot whose teams are still TBA", () => {
+    const tba = { ...asianGames, competitors: asianGames.competitors.map((c) => ({ ...c, displayName: "TBA" })) };
+    expect(espnCricketEventToItem(tba, "Asian Games")).toBeNull();
+  });
+
+  it("treats an empty logo as no logo", () => {
+    const noLogo = { ...asianGames, competitors: asianGames.competitors.map((c) => ({ ...c, logo: "" })) };
+    const item = espnCricketEventToItem(noLogo, "Asian Games")!;
+    expect(item.homeCrestUrl).toBeUndefined();
+    expect(item.awayCrestUrl).toBeUndefined();
+  });
+
+  it("an 'in' event that hasn't begun has no scores but keeps its status line", () => {
+    const delayed = {
+      ...asianGames,
+      status: "in",
+      summary: "Match scheduled to begin at 14:00 local time (13:00 GMT)",
+      fullStatus: { longSummary: "Match scheduled to begin at 14:00 local time (13:00 GMT)", dayNumber: 1 },
+      competitors: asianGames.competitors.map((c) => ({ ...c, score: "" })),
+    };
+    const item = espnCricketEventToItem(delayed, "Asian Games")!;
+    expect(item.homeScoreText).toBeUndefined();
+    expect(item.matchStatus).toBe("scheduled");
+    expect(item.matchNote).toBe("Match scheduled to begin at 14:00 local time (13:00 GMT)");
+  });
+});
