@@ -22,9 +22,12 @@ export type UpNextArticle = {
 
 // One large "Up next" story straight after the article body — the point
 // where a reader decides to stay or leave (BBC Sport/ESPN/The Athletic all
-// put their next-story prompt here, not at the page bottom). Full-width
-// photo when the story has a proper one (same bar as the hero), otherwise
-// a compact row with the usual thumbnail. The whole card is the link.
+// put their next-story prompt here, not at the page bottom). When the story
+// has a proper photo (same bar as the hero) it shows beside the headline on
+// wider screens and as a short banner above it on phones — deliberately
+// smaller than the article's own hero, so it doesn't read as the start of
+// another article. Otherwise a compact row with the usual thumbnail. The
+// whole card is the link.
 export function UpNextCard({ article }: { article: UpNextArticle }) {
   const chip = categoryChipStyle(article.category);
   const bigImage = isHeroQualityImage(article.heroImageUrl);
@@ -41,12 +44,13 @@ export function UpNextCard({ article }: { article: UpNextArticle }) {
             "&:hover .up-next-title": { color: "primary.main" },
           }}
         >
+          <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" } }}>
           {bigImage && article.heroImageUrl && (
-            <Box sx={{ position: "relative", aspectRatio: "16 / 9", bgcolor: "action.hover" }}>
-              <Image src={article.heroImageUrl} alt="" fill sizes="(max-width: 900px) 100vw, 720px" style={{ objectFit: "cover" }} />
+            <Box sx={{ position: "relative", flexShrink: 0, width: { xs: "100%", sm: 240 }, aspectRatio: { xs: "3 / 1", sm: "16 / 9" }, bgcolor: "action.hover" }}>
+              <Image src={article.heroImageUrl} alt="" fill sizes="(max-width: 600px) 100vw, 240px" style={{ objectFit: "cover" }} />
             </Box>
           )}
-          <Stack direction="row" spacing={1.5} sx={{ p: 2, alignItems: "center" }}>
+          <Stack direction="row" spacing={1.5} sx={{ p: 2, alignItems: "center", flex: 1, minWidth: 0 }}>
             {!bigImage && <ArticleThumb article={article} size={64} fallbackColor={chip.color} />}
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5 }}>
@@ -68,6 +72,7 @@ export function UpNextCard({ article }: { article: UpNextArticle }) {
             </Box>
             <ArrowForwardIcon sx={{ color: "primary.main", flexShrink: 0 }} />
           </Stack>
+          </Box>
         </Paper>
       </Link>
     </Box>
