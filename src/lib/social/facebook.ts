@@ -1,3 +1,4 @@
+import { categoryEmoji } from "@/lib/categoryDisplay";
 import { socialArticleUrl } from "./trackedLink";
 import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
@@ -10,22 +11,8 @@ import { selectFacebookHashtags } from "./hashtagRepertoire";
 // engagement lever on Facebook (unlike extra hashtags, which hurt reach —
 // see below, this has no such downside since it's not a discoverability
 // mechanism, just visual attention in the feed).
-const CATEGORY_EMOJI: Record<string, string> = {
-  cricket: "🏏",
-  football: "⚽",
-  "american-football": "🏈",
-  basketball: "🏀",
-  baseball: "⚾",
-  rugby: "🏉",
-  athletics: "🏃",
-  hockey: "🏒",
-  volleyball: "🏐",
-  "formula-1": "🏎️",
-};
-
-function emojiFor(category: string): string {
-  return CATEGORY_EMOJI[category] ?? "🏆";
-}
+// (Per-sport emoji now live in categoryDisplay.ts's shared registry.)
+const emojiFor = categoryEmoji;
 
 // A Business System User's own token (what FACEBOOK_PAGE_ACCESS_TOKEN
 // actually is, per the Meta setup this uses) is NOT directly valid for

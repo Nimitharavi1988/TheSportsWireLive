@@ -64,6 +64,20 @@ const SPORT_TAGS: Partial<Record<string, SportTags>> = {
       ["#CaitlinClark", "Caitlin Clark"],
     ],
   },
+  "college-football": {
+    base: ["#CollegeFootball", "#CFB", "#NCAAF", "#Gridiron"],
+    conditional: [["#HeismanTrophy", /\bHeisman\b/i], ["#CFBPlayoff", /\bplayoff\b/i]],
+    players: [],
+  },
+  wnba: {
+    base: ["#WNBA", "#WNBAPlayoffs", "#Hoops"],
+    conditional: [],
+    players: [
+      ["#CaitlinClark", "Caitlin Clark"],
+      ["#AjaWilson", "Wilson"],
+      ["#BreannaStewart", "Breanna Stewart"],
+    ],
+  },
   "american-football": {
     base: ["#NFL", "#AmericanFootball", "#Gridiron", "#Touchdown"],
     conditional: [["#FantasyFootball", /\bfantasy\b/i]],

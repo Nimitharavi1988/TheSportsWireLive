@@ -65,7 +65,9 @@ const EXTRA_ALIASES: Record<string, string[]> = {
   "Atlético Madrid": ["Atletico Madrid", "Atlético", "Atletico"],
 };
 
-const US_LEAGUES = new Set(["american-football", "basketball", "baseball", "hockey"]);
+// Not college-football: college nicknames repeat across schools (Wildcats,
+// Tigers, Bulldogs), so college teams match on their full names only.
+const US_LEAGUES = new Set(["american-football", "basketball", "wnba", "baseball", "hockey"]);
 
 // How a team can appear in a video title. US leagues' team nicknames are
 // unique ("Orioles", "Chargers") and broadcasters use them alone

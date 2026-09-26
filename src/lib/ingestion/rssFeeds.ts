@@ -227,6 +227,13 @@ const FEEDS: { url: string; category: string; sourceName: string }[] = [
   // free feed found (Volleyball World's feed 404s): low volume, page text
   // and photo extractable 2/3 on the sampled items.
   { url: "https://volleyballmag.com/feed/", category: "volleyball", sourceName: "Volleyball Magazine" },
+  // College football and WNBA news (added 2026-09-26 with the sections
+  // themselves) — same Yahoo feed shape as NFL/MLB/NBA/NHL above. Checked
+  // live: 50 items in the last 24h each; sampled pages readable 3/3, with a
+  // hero-quality photo on WNBA 3/3 and college football 1/3 (the rest keep
+  // the team-crest/stock fallback like any photo-less item).
+  { url: "https://sports.yahoo.com/college-football/rss/", category: "college-football", sourceName: "Yahoo Sports" },
+  { url: "https://sports.yahoo.com/wnba/rss/", category: "wnba", sourceName: "Yahoo Sports" },
   // Athletics/track and field — news-only section (no structured match-data
   // source exists the way football-data.org/CricketData.org/ESPN NFL do for
   // the others; athletics is start-list/results based, not "matches"), per

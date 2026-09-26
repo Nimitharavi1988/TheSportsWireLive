@@ -31,6 +31,8 @@ import SportsBaseballIcon from "@mui/icons-material/SportsBaseball";
 import SportsRugbyIcon from "@mui/icons-material/SportsRugby";
 import DirectionsRunIcon from "@mui/icons-material/DirectionsRun";
 import SportsHockeyIcon from "@mui/icons-material/SportsHockey";
+import SportsFootballOutlinedIcon from "@mui/icons-material/SportsFootballOutlined";
+import SportsBasketballOutlinedIcon from "@mui/icons-material/SportsBasketballOutlined";
 import SportsVolleyballIcon from "@mui/icons-material/SportsVolleyball";
 import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -83,7 +85,9 @@ const NAV_LINKS: { href: string; label: string; category: string | null; icon: S
 // category: string | null (not just string) to fit Standings, a utility
 // link with no single category of its own.
 const MORE_SPORTS_LINKS: { href: string; label: string; category: string | null; icon: SvgIconComponent }[] = [
+  { href: "/?category=college-football", label: "College Football", category: "college-football", icon: SportsFootballOutlinedIcon },
   { href: "/?category=basketball", label: "NBA", category: "basketball", icon: SportsBasketballIcon },
+  { href: "/?category=wnba", label: "WNBA", category: "wnba", icon: SportsBasketballOutlinedIcon },
   { href: "/?category=baseball", label: "MLB", category: "baseball", icon: SportsBaseballIcon },
   { href: "/standings", label: "Standings", category: null, icon: EmojiEventsIcon },
   // All series and events (Asian Games, bilateral cricket series, IPL) —

@@ -74,7 +74,8 @@ export async function fetchTrendingKeywords(): Promise<string[]> {
 // the superstar-name boost below) nudges close calls in the ranking toward
 // what this audience actually reads, without letting it override a
 // genuinely bigger story in another category.
-const AUDIENCE_MATCH_CATEGORIES = new Set(["american-football", "basketball", "baseball", "hockey"]);
+// college-football/wnba added 2026-09-26 with their sections (US audience).
+const AUDIENCE_MATCH_CATEGORIES = new Set(["american-football", "college-football", "basketball", "wnba", "baseball", "hockey"]);
 const AUDIENCE_MATCH_BOOST = 5;
 
 export function computeTrendingScore(

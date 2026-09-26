@@ -21,6 +21,8 @@ const CATEGORY_QUERIES: Record<string, string> = {
   "american-football": "american football stadium",
   baseball: "baseball stadium",
   basketball: "basketball arena",
+  "college-football": "college football stadium",
+  wnba: "basketball arena",
   // hockey/volleyball/formula-1 articles almost always already carry a real
   // image (team crests for hockey/volleyball, RSS-embedded photos for F1 —
   // see nhlData.ts/volleyballData.ts/rssFeeds.ts), so this is a safety net

@@ -1,3 +1,4 @@
+import { categoryEmoji } from "@/lib/categoryDisplay";
 import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -6,18 +7,7 @@ import { generateSocialCaptions } from "@/lib/ingestion/commentary";
 import { selectInstagramHashtags } from "./hashtagRepertoire";
 import { resolvePageAccessToken } from "./facebook";
 
-const CATEGORY_EMOJI: Record<string, string> = {
-  cricket: "🏏",
-  football: "⚽",
-  "american-football": "🏈",
-  basketball: "🏀",
-  baseball: "⚾",
-  rugby: "🏉",
-  athletics: "🏃",
-  hockey: "🏒",
-  volleyball: "🏐",
-  "formula-1": "🏎️",
-};
+
 
 // Isolated social publisher, same shape as facebook.ts's postArticleToFacebook
 // (per-vertical config with an env-var fallback, best-effort with its own
@@ -61,7 +51,7 @@ export async function postArticleToInstagram(articleId: string): Promise<boolean
   // directly, IG included. Reuses the exact same exchange call.
   const accessToken = await resolvePageAccessToken(pageId, rawToken);
 
-  const emoji = CATEGORY_EMOJI[article.category] ?? "🏆";
+  const emoji = categoryEmoji(article.category);
   // Full caption upgrade (explicit request, 2026-09-22) — same
   // generateSocialCaptions call facebook.ts now uses (one Gemini call
   // writes both platform captions together), asked specifically for a

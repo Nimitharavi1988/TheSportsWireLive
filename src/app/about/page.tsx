@@ -36,8 +36,8 @@ export default function AboutPage() {
       <Section title="Who we are">
         <p>
           Sports Wire Live is operated by HyperianAI LLC, a limited liability company registered
-          in Arkansas, USA. We publish continuously updated football, cricket, NFL, NBA, MLB,
-          NHL, rugby, athletics, volleyball, and Formula 1 coverage — live scores, match previews
+          in Arkansas, USA. We publish continuously updated football, cricket, NFL, college football, NBA,
+          WNBA, MLB, NHL, rugby, athletics, volleyball, and Formula 1 coverage — live scores, match previews
           and results, transfer news, and player-specific stories.
         </p>
       </Section>

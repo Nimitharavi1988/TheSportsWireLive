@@ -38,6 +38,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // self-canonicalizing page (CATEGORY_META in page.tsx already covers
     // all 7), just never had a direct sitemap discovery path.
     { url: `${siteUrl}/?category=basketball`, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${siteUrl}/?category=college-football`, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${siteUrl}/?category=wnba`, changeFrequency: "hourly", priority: 0.8 },
     { url: `${siteUrl}/?category=baseball`, changeFrequency: "hourly", priority: 0.8 },
     { url: `${siteUrl}/?category=rugby`, changeFrequency: "hourly", priority: 0.8 },
     { url: `${siteUrl}/?category=athletics`, changeFrequency: "hourly", priority: 0.8 },

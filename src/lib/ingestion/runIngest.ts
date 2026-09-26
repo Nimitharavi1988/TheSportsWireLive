@@ -8,6 +8,7 @@ import { fetchMlbData } from "./mlbData";
 import { fetchNbaData } from "./nbaData";
 import { fetchDomesticFootballData } from "./domesticFootballData";
 import { fetchNhlData } from "./nhlData";
+import { fetchCollegeFootballData, fetchWnbaData } from "./espnLeagueData";
 import { fetchVolleyballData } from "./volleyballData";
 import { fetchEspnVolleyballData } from "./espnVolleyballData";
 import { fetchRssNews } from "./rssFeeds";
@@ -202,7 +203,7 @@ export async function runIngest() {
     [verticalRow] = await db.insert(vertical).values({ id: createId(), name: "sports" }).returning();
   }
 
-  const [scoreItems, nflItems, mlbItems, nbaItems, domesticFootballItems, nhlItems, volleyballItems, espnVolleyballItems, newsItems, playerNewsItems, cricinfoPlayerItems, asianGamesItems, cricketItems, trendingKeywords, stockImagePools] =
+  const [scoreItems, nflItems, mlbItems, nbaItems, domesticFootballItems, nhlItems, volleyballItems, espnVolleyballItems, collegeFootballItems, wnbaItems, newsItems, playerNewsItems, cricinfoPlayerItems, asianGamesItems, cricketItems, trendingKeywords, stockImagePools] =
     await Promise.all([
       fetchFootballData(),
       fetchNflData(),
@@ -219,6 +220,10 @@ export async function runIngest() {
       // suspended, so real volleyball coverage keeps flowing regardless of
       // that account's status. See espnVolleyballData.ts.
       fetchEspnVolleyballData(),
+      // College football (this week's Top-25 games) and the WNBA — the
+      // config-driven ESPN fetcher, see espnLeagueData.ts.
+      fetchCollegeFootballData(),
+      fetchWnbaData(),
       fetchRssNews(),
       // Actively searches Google News per tracked player (players.ts) —
       // unlike the fixed feeds above, which only ever surface whatever a
@@ -261,7 +266,7 @@ export async function runIngest() {
       computeTrendingScore(b.title, trendingKeywords, undefined, b.category) -
       computeTrendingScore(a.title, trendingKeywords, undefined, a.category)
   );
-  const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...mlbItems, ...nbaItems, ...domesticFootballItems, ...nhlItems, ...volleyballItems, ...espnVolleyballItems, ...sortedNewsItems, ...cricketItems]
+  const rawItems: RawMatchItem[] = [...scoreItems, ...nflItems, ...mlbItems, ...nbaItems, ...domesticFootballItems, ...nhlItems, ...volleyballItems, ...espnVolleyballItems, ...collegeFootballItems, ...wnbaItems, ...sortedNewsItems, ...cricketItems]
     // Checked against every source regardless of which fetcher it came
     // through (most reach here via the per-player Google News search,
     // playerNewsFeeds.ts, not a fixed feed) — see excludedSources.ts for

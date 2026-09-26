@@ -16,6 +16,8 @@ export const MATCH_DATA_SOURCE_NAMES = [
   "ESPN NHL",
   "API-Volleyball",
   "ESPN Volleyball",
+  "ESPN College Football",
+  "ESPN WNBA",
 ];
 
 const MATCH_DATA_SOURCES = new Set(MATCH_DATA_SOURCE_NAMES);

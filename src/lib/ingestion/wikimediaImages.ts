@@ -118,7 +118,8 @@ export function sportSearchHint(sport: "football" | "cricket" | "american-footba
   // stock photo instead of a real Wikipedia photo, which blocks
   // auto-approval regardless of having a real body (see autoApprove.ts's
   // hasRealImage bar).
-  if (sport.startsWith("basketball")) return "basketball player";
+  if (sport.startsWith("basketball") || sport.startsWith("wnba")) return "basketball player";
+  if (sport.startsWith("college-football")) return "American football player";
   if (sport.startsWith("baseball")) return "baseball player";
   return "";
 }

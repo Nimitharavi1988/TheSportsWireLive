@@ -30,6 +30,7 @@ import { fetchNbaData } from "../ingestion/nbaData";
 import { fetchNhlData } from "../ingestion/nhlData";
 import { fetchDomesticFootballData } from "../ingestion/domesticFootballData";
 import { fetchEspnVolleyballData } from "../ingestion/espnVolleyballData";
+import { fetchCollegeFootballData, fetchWnbaData } from "../ingestion/espnLeagueData";
 
 // sourceName (as stored on Article) -> the fetcher that produces it.
 const LIVE_SOURCES: Record<string, () => Promise<RawMatchItem[]>> = {
@@ -38,6 +39,8 @@ const LIVE_SOURCES: Record<string, () => Promise<RawMatchItem[]>> = {
   "ESPN NHL": fetchNhlData,
   "ESPN Football": fetchDomesticFootballData,
   "ESPN Volleyball": fetchEspnVolleyballData,
+  "ESPN College Football": fetchCollegeFootballData,
+  "ESPN WNBA": fetchWnbaData,
 };
 
 // A game is worth refreshing from shortly before kickoff (so it flips to

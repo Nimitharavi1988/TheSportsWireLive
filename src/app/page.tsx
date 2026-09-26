@@ -123,6 +123,16 @@ const CATEGORY_META: Record<string, { title: string; description: string }> = {
     description:
       "Breaking NFL news, live game scores, injury updates, and up-to-date standings covering every team in the league, updated automatically throughout the season.",
   },
+  "college-football": {
+    title: "College Football News, Scores & Top 25 Results",
+    description:
+      "College football news, live scores and results for every game involving a Top 25 team, with rankings, records, and previews updated throughout the season.",
+  },
+  wnba: {
+    title: "WNBA News, Live Scores & Playoff Results",
+    description:
+      "Breaking WNBA news, live game scores, playoff series updates, and results from across the league, with coverage updated automatically all season.",
+  },
   athletics: {
     title: "Athletics News, Results & Track and Field Updates",
     description:

@@ -22,7 +22,7 @@ export const revalidate = 300;
 // Sports with an official channel (youtubeChannels.ts), in the site's nav
 // order. A chip only shows while its sport has videos in the window — a
 // chip that opens an empty page is a dead end.
-const SPORT_ORDER = ["football", "cricket", "american-football", "basketball", "baseball", "hockey"];
+const SPORT_ORDER = ["football", "cricket", "american-football", "college-football", "basketball", "wnba", "baseball", "hockey"];
 
 type Props = { searchParams: Promise<{ category?: string }> };
 

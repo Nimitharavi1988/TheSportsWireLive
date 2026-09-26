@@ -1,3 +1,4 @@
+import { categoryEmoji } from "@/lib/categoryDisplay";
 import { socialArticleUrl } from "./trackedLink";
 import { execFileSync } from "node:child_process";
 import { writeFile, unlink, mkdir } from "node:fs/promises";
@@ -24,11 +25,7 @@ import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepert
 // then deleted in a follow-up commit once both are done — the repo doesn't
 // grow over time from this.
 
-const CATEGORY_EMOJI: Record<string, string> = {
-  cricket: "🏏", football: "⚽", "american-football": "🏈",
-  basketball: "🏀", baseball: "⚾", rugby: "🏉", athletics: "🏃",
-  hockey: "🏒", volleyball: "🏐", "formula-1": "🏎️",
-};
+
 
 function git(...args: string[]) {
   execFileSync("git", args, { stdio: "inherit" });
@@ -71,7 +68,7 @@ async function postToInstagram(article: ArticleWithVertical, publicUrl: string, 
   if (!igUserId || !pageId || !rawToken) return false;
   const accessToken = await resolvePageAccessToken(pageId, rawToken);
 
-  const emoji = CATEGORY_EMOJI[article.category] ?? "🏆";
+  const emoji = categoryEmoji(article.category);
   const creditLine = article.heroImageCredit ? `\n\n📷 ${article.heroImageCredit}` : "";
   // Full caption upgrade (explicit request, 2026-09-22) — same
   // generateSocialCaptions call as the plain-image Instagram/Facebook paths
@@ -142,7 +139,7 @@ async function postToFacebook(article: ArticleWithVertical, publicUrl: string, c
   if (!pageId || !rawToken) return false;
   const accessToken = await resolvePageAccessToken(pageId, rawToken);
 
-  const emoji = CATEGORY_EMOJI[article.category] ?? "🏆";
+  const emoji = categoryEmoji(article.category);
   const creditLine = article.heroImageCredit ? `\n\n📷 ${article.heroImageCredit}` : "";
   // Full caption upgrade (explicit request, 2026-09-22), same as
   // postToInstagram above — kept in sync even though this function is
