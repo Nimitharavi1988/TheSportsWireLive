@@ -42,6 +42,7 @@ const MATCH_COLUMNS = {
   homeRecord: article.homeRecord,
   awayRecord: article.awayRecord,
   broadcast: article.broadcast,
+  matchKey: article.matchKey,
 };
 
 // The match header on a story page: the same card data, as of now.
@@ -141,6 +142,7 @@ async function newsDerivedCricket(existing: ScoreMatch[], now: Date): Promise<Sc
       kickoffAt: null,
       venue: null,
       broadcast: null,
+      matchKey: null,
       source: "News reports",
       updatedAt: (createdAt.get(m.id) ?? now).toISOString(),
       home: { name: m.homeTeam, crestUrl: null, score: null, record: null, winner: false },

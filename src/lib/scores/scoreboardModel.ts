@@ -43,6 +43,8 @@ export interface ScoreMatch {
   broadcast: string | null;
   home: ScoreSide;
   away: ScoreSide;
+  // Provider-independent match identity (matchKey.ts), for live overlays.
+  matchKey: string | null;
   // Where the data comes from ("ESPN", "MLB") and when this match was last
   // updated from it (ISO) — shown so readers can judge how current it is.
   source: string;
@@ -75,6 +77,7 @@ export interface MatchRow {
   homeRecord: string | null;
   awayRecord: string | null;
   broadcast: string | null;
+  matchKey?: string | null;
 }
 
 // Same windows the existing live displays use (liveMatches.ts,
@@ -198,6 +201,7 @@ export function toScoreMatch(rawRow: MatchRow, now: Date): ScoreMatch | null {
     kickoffAt: row.kickoffAt ? row.kickoffAt.toISOString() : null,
     venue: row.venue,
     broadcast: state === "upcoming" ? row.broadcast : null,
+    matchKey: row.matchKey ?? null,
     source: matchDataProvider(row.sourceName),
     updatedAt: row.updatedAt.toISOString(),
     home: {
