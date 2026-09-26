@@ -12,6 +12,11 @@
 // not Next's transformed/optimized equivalent. A plain JSX <script> tag
 // renders byte-for-byte what Google asked for, no framework-level
 // transformation in the way.
+// Rendered by the pages that carry the site's own writing — the home page,
+// sport sections and news articles — not site-wide from the root layout.
+// AdSense policy: no ad code on auto-generated pages or pages with little
+// original content (match score cards, /scores, embedded videos, player/
+// club/country aggregations). React hoists the tag into <head>.
 export default function GoogleAdSense() {
   const clientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
   if (!clientId) return null;

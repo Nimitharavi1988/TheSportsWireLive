@@ -1,3 +1,4 @@
+import GoogleAdSense from "@/components/GoogleAdSense";
 import { StoryCard } from "@/components/StoryCard";
 import { AnalysisStrip } from "@/components/AnalysisStrip";
 import { TeamCrest } from "@/components/TeamCrest";
@@ -753,6 +754,9 @@ export async function HomeView({ category }: { category?: string }) {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      {/* AdSense loads only on pages of the site's own stories (home, sport
+          sections, news articles) — see GoogleAdSense.tsx. */}
+      <GoogleAdSense />
       {/* Phones only: scores at the very top (see MobileScoresRow). */}
       <MobileScoresRow matches={liveMatches.slice(0, 12)} sport={category?.split("/")[0]} />
       <HomeBanners />
