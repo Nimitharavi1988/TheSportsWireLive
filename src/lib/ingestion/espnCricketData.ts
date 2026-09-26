@@ -95,26 +95,49 @@ export function espnCricketEventToItem(event: EspnCricketEvent, leagueName: stri
   };
 }
 
-export async function fetchEspnCricketData(): Promise<RawMatchItem[]> {
-  try {
-    const res = await espnFetch(HEADER_URL);
-    if (!res.ok) {
-      console.error(`ESPN cricket scoreboard fetch failed: ${res.status}`);
-      return [];
+// The undated header lists only what's in progress or about to start, so a
+// series starting in a few days (e.g. India v West Indies ODIs, 2026-09-26)
+// never reached the site. Ingestion also asks for each of the next
+// `daysAhead` days (`dates=YYYYMMDD`, checked live) to store upcoming
+// fixtures; the live refresh only needs the undated list. Multi-day matches
+// appear under every day they span, so events are kept once by id — the
+// undated response first, as it carries the freshest live state.
+export const UPCOMING_DAYS = 7;
+
+function dayParam(d: Date): string {
+  return d.toISOString().slice(0, 10).replace(/-/g, "");
+}
+
+async function fetchHeaderEvents(url: string): Promise<{ event: EspnCricketEvent; leagueName: string }[]> {
+  const res = await espnFetch(url);
+  if (!res.ok) throw new Error(`ESPN cricket scoreboard fetch failed: ${res.status} (${url})`);
+  const data = await res.json();
+  const out: { event: EspnCricketEvent; leagueName: string }[] = [];
+  for (const sport of data.sports ?? []) {
+    for (const league of sport.leagues ?? []) {
+      for (const event of (league.events ?? []) as EspnCricketEvent[]) out.push({ event, leagueName: league.name ?? "Cricket" });
     }
-    const data = await res.json();
-    const items: RawMatchItem[] = [];
-    for (const sport of data.sports ?? []) {
-      for (const league of sport.leagues ?? []) {
-        for (const event of (league.events ?? []) as EspnCricketEvent[]) {
-          const item = espnCricketEventToItem(event, league.name ?? "Cricket");
-          if (item) items.push(item);
-        }
-      }
-    }
-    return items;
-  } catch (err) {
-    console.error("ESPN cricket scoreboard fetch failed:", err);
-    return [];
   }
+  return out;
+}
+
+export async function fetchEspnCricketData(daysAhead = 0, now: Date = new Date()): Promise<RawMatchItem[]> {
+  const urls = [HEADER_URL];
+  for (let d = 1; d <= daysAhead; d++) urls.push(`${HEADER_URL}&dates=${dayParam(new Date(now.getTime() + d * 24 * 60 * 60 * 1000))}`);
+  const results = await Promise.allSettled(urls.map(fetchHeaderEvents));
+  const seen = new Set<string>();
+  const items: RawMatchItem[] = [];
+  for (const r of results) {
+    if (r.status === "rejected") {
+      console.error(r.reason instanceof Error ? r.reason.message : r.reason);
+      continue;
+    }
+    for (const { event, leagueName } of r.value) {
+      if (seen.has(event.id)) continue;
+      seen.add(event.id);
+      const item = espnCricketEventToItem(event, leagueName);
+      if (item) items.push(item);
+    }
+  }
+  return items;
 }

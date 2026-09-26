@@ -44,7 +44,7 @@ const LIVE_SOURCES: Record<string, () => Promise<RawMatchItem[]>> = {
   "ESPN Volleyball": fetchEspnVolleyballData,
   "ESPN College Football": fetchCollegeFootballData,
   "ESPN WNBA": fetchWnbaData,
-  "ESPN Cricket": fetchEspnCricketData,
+  "ESPN Cricket": () => fetchEspnCricketData(),
 };
 
 // A game is worth refreshing from shortly before kickoff (so it flips to

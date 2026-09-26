@@ -9,7 +9,7 @@ import { fetchNbaData } from "./nbaData";
 import { fetchDomesticFootballData } from "./domesticFootballData";
 import { fetchNhlData } from "./nhlData";
 import { fetchCollegeFootballData, fetchWnbaData } from "./espnLeagueData";
-import { fetchEspnCricketData } from "./espnCricketData";
+import { fetchEspnCricketData, UPCOMING_DAYS } from "./espnCricketData";
 import { fetchVolleyballData } from "./volleyballData";
 import { fetchEspnVolleyballData } from "./espnVolleyballData";
 import { fetchRssNews } from "./rssFeeds";
@@ -250,7 +250,7 @@ export async function runIngest() {
       fetchWnbaData(),
       // Second cricket source (internationals CricketData's free tier
       // misses) — see espnCricketData.ts.
-      fetchEspnCricketData(),
+      fetchEspnCricketData(UPCOMING_DAYS),
       fetchRssNews(),
       // Actively searches Google News per tracked player (players.ts) —
       // unlike the fixed feeds above, which only ever surface whatever a
