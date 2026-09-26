@@ -12,6 +12,7 @@
 import { ordinal } from "./standings";
 import type { RawMatchItem } from "./footballData";
 import { espnBroadcast, espnLiveClock, espnRecord, espnScore, type EspnStatus } from "../scores/espnStatus";
+import { espnFetch } from "../espnFetch";
 
 const SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
 const STANDINGS_URL = "https://site.api.espn.com/apis/v2/sports/football/nfl/standings";
@@ -56,7 +57,7 @@ interface TeamRecord {
 // nesting in this endpoint), so no recursion needed.
 async function fetchTeamRecords(): Promise<Map<string, TeamRecord>> {
   try {
-    const res = await fetch(`${STANDINGS_URL}?season=${new Date().getFullYear()}`);
+    const res = await espnFetch(`${STANDINGS_URL}?season=${new Date().getFullYear()}`);
     if (!res.ok) {
       console.error(`ESPN NFL standings fetch failed: ${res.status}`);
       return new Map();
@@ -109,7 +110,7 @@ export interface NflConferenceStandings {
 // without one rather than breaking.
 export async function fetchNflStandingsTable(): Promise<NflConferenceStandings[] | null> {
   try {
-    const res = await fetch(`${STANDINGS_URL}?season=${new Date().getFullYear()}`, { next: { revalidate: 300 } });
+    const res = await espnFetch(`${STANDINGS_URL}?season=${new Date().getFullYear()}`, { next: { revalidate: 300 } });
     if (!res.ok) return null;
 
     const data = await res.json();
@@ -159,7 +160,7 @@ function nflLeagueLabel(data: { week?: { number?: number }; season?: { type?: nu
 
 export async function fetchNflData(): Promise<RawMatchItem[]> {
   const [scoreboardRes, teamRecords] = await Promise.all([
-    fetch(SCOREBOARD_URL).catch((err) => {
+    espnFetch(SCOREBOARD_URL).catch((err) => {
       console.error("ESPN NFL scoreboard fetch failed:", err);
       return null;
     }),

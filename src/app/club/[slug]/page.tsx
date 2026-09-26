@@ -9,13 +9,14 @@ import { titleMatchesAnyTerm } from "@/lib/titleMatch";
 import { findClubCrest } from "@/lib/teamNames";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 import { StandingsCarousel } from "@/components/StandingsCarousel";
-import { fetchNflStandingsTable } from "@/lib/ingestion/nflData";
+import type { NflConferenceStandings } from "@/lib/ingestion/nflData";
+import { SNAPSHOT_KEYS, readSnapshot } from "@/lib/snapshots/read";
 import { NflStandingsCarousel } from "@/components/NflStandingsCarousel";
-import { fetchNbaStandingsTable } from "@/lib/ingestion/nbaData";
+import type { NbaConferenceStandings } from "@/lib/ingestion/nbaData";
 import { NbaStandingsCarousel } from "@/components/NbaStandingsCarousel";
-import { fetchMlbStandingsTable } from "@/lib/ingestion/mlbData";
+import type { MlbConferenceStandings } from "@/lib/ingestion/mlbData";
 import { MlbStandingsCarousel } from "@/components/MlbStandingsCarousel";
-import { fetchNhlStandingsTable } from "@/lib/ingestion/nhlData";
+import type { NhlConferenceStandings } from "@/lib/ingestion/nhlData";
 import { NhlStandingsCarousel } from "@/components/NhlStandingsCarousel";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
@@ -86,10 +87,11 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
   const clubSport = club.sport ?? "football";
   const standingsApiKey = process.env.FOOTBALL_DATA_API_KEY;
   const footballStandings = clubSport === "football" && standingsApiKey ? await fetchStandingsTable(standingsApiKey, "PL") : null;
-  const nflStandings = clubSport === "american-football" ? await fetchNflStandingsTable() : null;
-  const nbaStandings = clubSport === "basketball" ? await fetchNbaStandingsTable() : null;
-  const mlbStandings = clubSport === "baseball" ? await fetchMlbStandingsTable() : null;
-  const nhlStandings = clubSport === "hockey" ? await fetchNhlStandingsTable() : null;
+  // Stored copies written by the ingestion job (snapshots/read.ts).
+  const nflStandings = clubSport === "american-football" ? await readSnapshot<NflConferenceStandings[]>(SNAPSHOT_KEYS.nflStandings) : null;
+  const nbaStandings = clubSport === "basketball" ? await readSnapshot<NbaConferenceStandings[]>(SNAPSHOT_KEYS.nbaStandings) : null;
+  const mlbStandings = clubSport === "baseball" ? await readSnapshot<MlbConferenceStandings[]>(SNAPSHOT_KEYS.mlbStandings) : null;
+  const nhlStandings = clubSport === "hockey" ? await readSnapshot<NhlConferenceStandings[]>(SNAPSHOT_KEYS.nhlStandings) : null;
 
   const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
   const breadcrumbSteps = [

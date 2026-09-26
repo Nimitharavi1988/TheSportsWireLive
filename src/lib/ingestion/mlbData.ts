@@ -14,6 +14,7 @@
  * Same RawMatchItem shape as footballData.ts/nflData.ts, reused directly.
  */
 import type { RawMatchItem } from "./footballData";
+import { espnFetch } from "../espnFetch";
 
 const SCHEDULE_URL = "https://statsapi.mlb.com/api/v1/schedule";
 const ESPN_STANDINGS_URL = "https://site.api.espn.com/apis/v2/sports/baseball/mlb/standings";
@@ -190,7 +191,7 @@ export interface MlbConferenceStandings {
 // the same stat names as NFL's, plus "ties").
 export async function fetchMlbStandingsTable(): Promise<MlbConferenceStandings[] | null> {
   try {
-    const res = await fetch(`${ESPN_STANDINGS_URL}?season=${new Date().getFullYear()}`, { next: { revalidate: 300 } });
+    const res = await espnFetch(`${ESPN_STANDINGS_URL}?season=${new Date().getFullYear()}`, { next: { revalidate: 300 } });
     if (!res.ok) return null;
 
     const data = await res.json();

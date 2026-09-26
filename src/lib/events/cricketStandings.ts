@@ -1,3 +1,4 @@
+import { espnFetch } from "../espnFetch";
 /**
  * Cricket group tables from ESPN's standings API (free, no key), e.g. the
  * Asian Games men's competition. Fetched at render time with a 10-minute
@@ -49,7 +50,7 @@ export function parseCricketStandings(data: { children?: { name?: string; standi
 
 export async function fetchCricketStandings(espnLeagueId: string): Promise<CricketGroup[]> {
   try {
-    const res = await fetch(`https://site.api.espn.com/apis/v2/sports/cricket/${espnLeagueId}/standings`, { next: { revalidate: 600 } });
+    const res = await espnFetch(`https://site.api.espn.com/apis/v2/sports/cricket/${espnLeagueId}/standings`, { next: { revalidate: 600 } });
     if (!res.ok) return [];
     return parseCricketStandings(await res.json());
   } catch {

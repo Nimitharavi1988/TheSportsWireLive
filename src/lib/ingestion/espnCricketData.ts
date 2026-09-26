@@ -13,6 +13,7 @@
  * dayNumber}, competitors[].{homeAway, displayName, score, logo}.
  */
 import type { RawMatchItem } from "./footballData";
+import { espnFetch } from "../espnFetch";
 
 const HEADER_URL = "https://site.api.espn.com/apis/personalized/v2/scoreboard/header?sport=cricket&region=us&lang=en";
 
@@ -96,7 +97,7 @@ export function espnCricketEventToItem(event: EspnCricketEvent, leagueName: stri
 
 export async function fetchEspnCricketData(): Promise<RawMatchItem[]> {
   try {
-    const res = await fetch(HEADER_URL);
+    const res = await espnFetch(HEADER_URL);
     if (!res.ok) {
       console.error(`ESPN cricket scoreboard fetch failed: ${res.status}`);
       return [];

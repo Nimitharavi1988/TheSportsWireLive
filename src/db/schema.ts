@@ -164,6 +164,15 @@ export const eventData = pgTable("EventData", {
   fetchedAt: timestamp("fetchedAt", { precision: 3 }).notNull().defaultNow(),
 }, (t) => [index("EventData_eventKey_idx").on(t.eventKey)]);
 
+// Stored copies of third-party tables shown on the site (standings) —
+// written by the ingestion job, read by pages (snapshots/read.ts).
+export const dataSnapshot = pgTable("DataSnapshot", {
+  key: text("key").primaryKey(),
+  data: jsonb("data").notNull(),
+  sourceUrl: text("sourceUrl").notNull(),
+  fetchedAt: timestamp("fetchedAt", { precision: 3 }).notNull().defaultNow(),
+});
+
 export const video = pgTable("Video", {
   id: text("id").primaryKey(),
   youtubeId: text("youtubeId").notNull(),

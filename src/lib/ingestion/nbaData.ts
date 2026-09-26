@@ -14,6 +14,7 @@
  */
 import type { RawMatchItem } from "./footballData";
 import { espnBroadcast, espnLiveClock, espnRecord, espnScore, type EspnStatus } from "../scores/espnStatus";
+import { espnFetch } from "../espnFetch";
 
 const SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard";
 const STANDINGS_URL = "https://site.api.espn.com/apis/v2/sports/basketball/nba/standings";
@@ -41,7 +42,7 @@ interface EspnEvent {
 export async function fetchNbaData(): Promise<RawMatchItem[]> {
   let res: Response;
   try {
-    res = await fetch(SCOREBOARD_URL);
+    res = await espnFetch(SCOREBOARD_URL);
   } catch (err) {
     console.error("ESPN NBA scoreboard fetch failed (network error):", err);
     return [];
@@ -154,7 +155,7 @@ export interface NbaConferenceStandings {
 // entries expose "wins"/"losses"/"playoffSeed" identically to NFL's).
 export async function fetchNbaStandingsTable(): Promise<NbaConferenceStandings[] | null> {
   try {
-    const res = await fetch(`${STANDINGS_URL}?season=${new Date().getFullYear()}`, { next: { revalidate: 300 } });
+    const res = await espnFetch(`${STANDINGS_URL}?season=${new Date().getFullYear()}`, { next: { revalidate: 300 } });
     if (!res.ok) return null;
 
     const data = await res.json();

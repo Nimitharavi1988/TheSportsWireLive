@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ScoreMatch } from "@/lib/scores/scoreboardModel";
 import { LIVE_POLL_MS, MAX_LIVE_IDS, mergeMatches, needsLiveUpdate } from "@/lib/scores/liveUpdates";
-import { CRICKET_REALTIME_MS, applyLiveCricket, hasCricketInPlay, type LiveCricketScore } from "@/lib/scores/cricketRealtime";
+import { CRICKET_REALTIME_MS, ESPN_CRICKET_LIVE_URL, applyLiveCricket, hasCricketInPlay, liveCricketFromEspn } from "@/lib/scores/cricketRealtime";
 
 type Source =
   // Refresh just the cards that can still change (match header, /scores).
@@ -75,18 +75,19 @@ export function useLiveScores(initial: ScoreMatch[], source: Source, viewport?: 
   }, [mode, listUrl, viewport]);
 
   // Cricket in play also gets the real-time layer: ESPN's ball-by-ball
-  // scores every 15s (a shared cached snapshot, see cricketRealtime.ts),
-  // laid over the stored cards between the slower database refreshes.
+  // scores every 15s, fetched by the browser (see cricketRealtime.ts), laid
+  // over the stored cards between the slower database refreshes.
   useEffect(() => {
     let cancelled = false;
     const tick = async () => {
       if (document.visibilityState !== "visible" || !visibleAt(viewport) || !hasCricketInPlay(latest.current)) return;
       try {
-        const res = await fetch("/api/scores/cricket-live");
+        const res = await fetch(ESPN_CRICKET_LIVE_URL);
         if (!res.ok || cancelled) return;
-        const data = (await res.json()) as { scores: LiveCricketScore[]; fetchedAt: string };
-        if (cancelled || data.scores.length === 0) return;
-        setMatches(latest.current.map((m) => applyLiveCricket(m, data.scores, data.fetchedAt)));
+        const scores = liveCricketFromEspn(await res.json());
+        if (cancelled || scores.length === 0) return;
+        const nowIso = new Date().toISOString();
+        setMatches(latest.current.map((m) => applyLiveCricket(m, scores, nowIso)));
       } catch {
         // Keep the last known scores.
       }

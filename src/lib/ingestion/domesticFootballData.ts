@@ -15,6 +15,7 @@
  */
 import type { RawMatchItem } from "./footballData";
 import { espnBroadcast, espnLiveClock, espnRecord, espnScore, type EspnStatus } from "../scores/espnStatus";
+import { espnFetch } from "../espnFetch";
 
 // Indian Super League removed (2026-09-20, explicit request) — confirmed
 // real audience breakdown is mostly USA with Sweden/Ireland second, India
@@ -56,7 +57,7 @@ interface EspnEvent {
 }
 
 async function fetchLeague(league: { code: string; label: string }): Promise<RawMatchItem[]> {
-  const res = await fetch(
+  const res = await espnFetch(
     `https://site.api.espn.com/apis/site/v2/sports/soccer/${league.code}/scoreboard`
   ).catch((err) => {
     console.error(`ESPN ${league.label} scoreboard fetch failed:`, err);

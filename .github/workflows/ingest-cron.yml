@@ -67,6 +67,12 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
       # Games medal tables (src/lib/events/syncEventData.ts): Wikipedia,
       # checked before it's stored; own step so it never affects ingestion.
+      # Stored standings tables (src/lib/snapshots/sync.ts) — pages read
+      # these instead of calling ESPN while rendering.
+      - if: ${{ !cancelled() }}
+        run: npx tsx src/lib/snapshots/sync.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
       - if: ${{ !cancelled() }}
         run: npx tsx src/lib/events/syncEventData.ts
         env:

@@ -1,7 +1,8 @@
 import { EVENT_HUBS } from "@/lib/events/eventHubs";
 import { eventLabel } from "@/lib/ingestion/eventTagging";
 import { getMedalTable } from "@/lib/events/queries";
-import { fetchCricketStandings } from "@/lib/events/cricketStandings";
+import type { CricketGroup } from "@/lib/events/cricketStandings";
+import { SNAPSHOT_KEYS, readSnapshot } from "@/lib/snapshots/read";
 import { MedalTableCard } from "@/components/events/MedalTableCard";
 import { CricketGroupTables } from "@/components/events/CricketGroupTables";
 import { notFound } from "next/navigation";
@@ -63,7 +64,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
   const hub = EVENT_HUBS[seriesKey];
   const [medals, cricketGroups] = await Promise.all([
     hub?.medalTable ? getMedalTable(seriesKey).catch(() => null) : Promise.resolve(null),
-    Promise.all((hub?.cricketStandings ?? []).map(async (s) => ({ label: s.label, groups: await fetchCricketStandings(s.espnLeagueId) }))),
+    Promise.all((hub?.cricketStandings ?? []).map(async (s) => ({ label: s.label, groups: (await readSnapshot<CricketGroup[]>(SNAPSHOT_KEYS.cricketStandings(s.espnLeagueId))) ?? [] }))),
   ]);
 
   const [series, articles] = await Promise.all([

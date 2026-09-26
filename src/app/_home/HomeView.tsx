@@ -24,13 +24,14 @@ import Stack from "@mui/material/Stack";
 import Divider from "@mui/material/Divider";
 import { fetchOneStockImage } from "@/lib/ingestion/stockImages";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
-import { fetchNflStandingsTable } from "@/lib/ingestion/nflData";
+import type { NflConferenceStandings } from "@/lib/ingestion/nflData";
+import { SNAPSHOT_KEYS, readSnapshot } from "@/lib/snapshots/read";
 import { NflStandingsCarousel } from "@/components/NflStandingsCarousel";
-import { fetchNbaStandingsTable } from "@/lib/ingestion/nbaData";
+import type { NbaConferenceStandings } from "@/lib/ingestion/nbaData";
 import { NbaStandingsCarousel } from "@/components/NbaStandingsCarousel";
-import { fetchMlbStandingsTable } from "@/lib/ingestion/mlbData";
+import type { MlbConferenceStandings } from "@/lib/ingestion/mlbData";
 import { MlbStandingsCarousel } from "@/components/MlbStandingsCarousel";
-import { fetchNhlStandingsTable } from "@/lib/ingestion/nhlData";
+import type { NhlConferenceStandings } from "@/lib/ingestion/nhlData";
 import { NhlStandingsCarousel } from "@/components/NhlStandingsCarousel";
 import { crestAltText, competitionFromSummary } from "@/lib/teamNames";
 import { displaySummary } from "@/lib/articleSummary";
@@ -342,7 +343,7 @@ async function FootballStandingsWidget({ apiKey }: { apiKey: string }) {
 // Streamed independently (see Suspense boundary in HomePage) — same
 // reasoning as FootballStandingsWidget, ESPN instead of football-data.org.
 async function NflStandingsWidget() {
-  const nflStandings = await fetchNflStandingsTable();
+  const nflStandings = await readSnapshot<NflConferenceStandings[]>(SNAPSHOT_KEYS.nflStandings);
   if (!nflStandings || nflStandings.length === 0) return null;
   return (
     <Box sx={{ mb: 3 }}>
@@ -356,7 +357,7 @@ async function NflStandingsWidget() {
 // hockey category views previously had (only football and NFL had a
 // standings widget before this).
 async function NbaStandingsWidget() {
-  const nbaStandings = await fetchNbaStandingsTable();
+  const nbaStandings = await readSnapshot<NbaConferenceStandings[]>(SNAPSHOT_KEYS.nbaStandings);
   if (!nbaStandings || nbaStandings.length === 0) return null;
   return (
     <Box sx={{ mb: 3 }}>
@@ -366,7 +367,7 @@ async function NbaStandingsWidget() {
 }
 
 async function MlbStandingsWidget() {
-  const mlbStandings = await fetchMlbStandingsTable();
+  const mlbStandings = await readSnapshot<MlbConferenceStandings[]>(SNAPSHOT_KEYS.mlbStandings);
   if (!mlbStandings || mlbStandings.length === 0) return null;
   return (
     <Box sx={{ mb: 3 }}>
@@ -376,7 +377,7 @@ async function MlbStandingsWidget() {
 }
 
 async function NhlStandingsWidget() {
-  const nhlStandings = await fetchNhlStandingsTable();
+  const nhlStandings = await readSnapshot<NhlConferenceStandings[]>(SNAPSHOT_KEYS.nhlStandings);
   if (!nhlStandings || nhlStandings.length === 0) return null;
   return (
     <Box sx={{ mb: 3 }}>

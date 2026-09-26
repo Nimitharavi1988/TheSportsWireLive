@@ -568,7 +568,14 @@ export async function runIngest() {
       continue;
     }
 
-    const quality = runQualityChecks(item.title, item.summary);
+    // The editorial gate (profanity, broken-scrape, filler/spam checks) is
+    // for scraped articles. Structured match data from a provider is
+    // generated from official scores, and the gate misfires on it: five
+    // County Championship matches were flagged as "broken" and an MLS
+    // "D.C. United" preview as profanity (2026-09-26), hiding live games.
+    const quality = isMatchDataSource(item.sourceName)
+      ? { ...runQualityChecks(item.title, item.summary), passed: true, profanityFlag: false, profanityDetail: null }
+      : runQualityChecks(item.title, item.summary);
     const trendingScore = computeTrendingScore(item.title, trendingKeywords, undefined, item.category);
     const slug = `${item.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
 

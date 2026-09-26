@@ -17,6 +17,7 @@
  */
 import type { RawMatchItem } from "./footballData";
 import { espnBroadcast, espnLiveClock, espnRecord, espnScore, type EspnStatus } from "../scores/espnStatus";
+import { espnFetch } from "../espnFetch";
 
 const LEAGUES: { code: string; label: string }[] = [
   { code: "mens-college-volleyball", label: "NCAA Men's Volleyball" },
@@ -76,7 +77,7 @@ function setScoreLine(competitors: EspnCompetitor[]): string | undefined {
 }
 
 async function fetchLeague(league: { code: string; label: string }): Promise<RawMatchItem[]> {
-  const res = await fetch(
+  const res = await espnFetch(
     `https://site.api.espn.com/apis/site/v2/sports/volleyball/${league.code}/scoreboard`
   ).catch((err) => {
     console.error(`ESPN ${league.label} scoreboard fetch failed:`, err);

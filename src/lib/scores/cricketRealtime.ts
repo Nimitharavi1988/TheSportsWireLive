@@ -1,9 +1,10 @@
 /**
  * Real-time cricket layer (pure, unit-tested). Stored match rows are
  * refreshed every few minutes (ingestion + liveRefresh.ts); this reads
- * ESPN's live cricket scoreboard — updated ball by ball — through a
- * 15-second shared cache (/api/scores/cricket-live) and lays the latest
- * scores over any cricket card on screen. Matched by matchKey (both team
+ * ESPN's live cricket scoreboard — updated ball by ball — straight from the
+ * reader's browser every 15 seconds (ESPN serves it with CORS open; asking
+ * from our Cloudflare Worker instead was refused, 2026-09-26) and lays the
+ * latest scores over any cricket card on screen. Matched by matchKey (both team
  * orders), so it works whichever provider stored the match (CricketData
  * or ESPN).
  */
@@ -12,6 +13,7 @@ import { matchKeyVariants, slugifyTeam } from "./matchKey";
 import { cricketDayLabel, cricketPauseLabel, type ScoreMatch } from "./scoreboardModel";
 
 export const CRICKET_REALTIME_MS = 15_000;
+export const ESPN_CRICKET_LIVE_URL = "https://site.api.espn.com/apis/personalized/v2/scoreboard/header?sport=cricket&region=us&lang=en";
 
 export interface LiveCricketScore {
   keys: string[];
