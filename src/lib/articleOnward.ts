@@ -9,6 +9,7 @@ import { isHeroQualityImage } from "./imageQuality";
 
 export const RELATED_COUNT = 3;
 export const SIDE_LIST_COUNT = 5;
+export const UP_NEXT_CANDIDATES = 4;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Trending Now only ranks recent stories — trendingScore never decays, so
@@ -46,13 +47,25 @@ export function pickOnward<T extends Candidate>(
 
   // Tagged player/club stories first, same-category stories filling in.
   const relatedPool = [...lists.tagged, ...lists.sameCategory];
-  const upNext = relatedPool.find(promotable) ?? lists.trending.find(promotable) ?? relatedPool[0] ?? null;
-  if (upNext) seen.add(upNext.id);
+  // Several Up next candidates, not one: the reader's browser shows the
+  // first they haven't opened this session (UpNext.tsx). With a single
+  // pick, two stories that are each other's newest related story sent
+  // readers back and forth between just those two (reported 2026-09-26).
+  const promotableIds = new Set<string>();
+  const upNextCandidates = [...relatedPool, ...lists.trending].filter((a) => {
+    if (!promotable(a) || promotableIds.has(a.id)) return false;
+    promotableIds.add(a.id);
+    return true;
+  }).slice(0, UP_NEXT_CANDIDATES);
+  if (upNextCandidates.length === 0 && relatedPool[0]) upNextCandidates.push(relatedPool[0]);
+  for (const c of upNextCandidates) seen.add(c.id);
+  const upNext = upNextCandidates[0] ?? null;
 
   const related = take(relatedPool, RELATED_COUNT);
   const taggedIds = new Set(lists.tagged.map((a) => a.id));
   return {
     upNext,
+    upNextCandidates,
     related,
     relatedIsTagged: related.some((a) => taggedIds.has(a.id)),
     trendingNow: take(lists.trending, SIDE_LIST_COUNT),

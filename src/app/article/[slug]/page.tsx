@@ -30,7 +30,7 @@ import { currentScoreMatch } from "@/lib/scores/scoreboard";
 import { MatchHeader } from "@/components/scores/MatchHeader";
 import { ArticleVideos, MatchHighlightsForArticle, VideoStripSkeleton } from "@/components/videos/VideoStrip";
 import { Suspense } from "react";
-import { UpNextCard } from "@/components/UpNextCard";
+import { UpNext } from "@/components/UpNext";
 import { pickOnward, RELATED_COUNT, trendingSince } from "@/lib/articleOnward";
 import { FanEngagementHub } from "@/components/FanEngagementHub";
 import { FollowUs } from "@/components/FollowUs";
@@ -309,7 +309,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
       .orderBy(desc(articleTable.publishedAt))
       .limit(16),
   ]);
-  const { upNext, related, relatedIsTagged, trendingNow, justIn } = pickOnward({
+  const { upNextCandidates, related, relatedIsTagged, trendingNow, justIn } = pickOnward({
     tagged: taggedCandidates,
     sameCategory: sameCategoryCandidates,
     trending: trendingCandidates,
@@ -497,8 +497,8 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         ));
       })()}
 
-      {/* The next story, straight after this one — see UpNextCard. */}
-      {upNext && <UpNextCard article={upNext} />}
+      {/* The next story, straight after this one — see UpNext. */}
+      {upNextCandidates.length > 0 && <UpNext currentSlug={article.slug} candidates={upNextCandidates} />}
 
       {/* In-feed native ad, styled in AdSense to match the site's own
           look (white background, light border, sans-serif) so it reads

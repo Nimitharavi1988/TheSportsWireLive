@@ -11,7 +11,9 @@ describe("pickOnward", () => {
   it("picks the first related story with a proper photo as Up next", () => {
     const r = pickOnward({ tagged: [noPhoto("t1"), photo("t2")], sameCategory: [photo("c1")], trending: [], justIn: [] }, NOW);
     expect(r.upNext?.id).toBe("t2");
-    expect(r.related.map((a) => a.id)).toEqual(["t1", "c1"]);
+    expect(r.upNextCandidates.map((a) => a.id)).toEqual(["t2", "c1"]);
+    // Candidates are kept out of Related, so nothing shows twice.
+    expect(r.related.map((a) => a.id)).toEqual(["t1"]);
     expect(r.relatedIsTagged).toBe(true);
   });
 

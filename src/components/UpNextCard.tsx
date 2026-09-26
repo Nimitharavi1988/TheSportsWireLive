@@ -10,7 +10,7 @@ import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { isHeroQualityImage } from "@/lib/imageQuality";
 import { relativeTime } from "@/lib/relativeTime";
 
-type UpNextArticle = {
+export type UpNextArticle = {
   slug: string;
   title: string;
   category: string;
