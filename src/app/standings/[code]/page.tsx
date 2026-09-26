@@ -58,7 +58,7 @@ export default async function StandingsPage(props: { params: Promise<{ code: str
           </Link>
         ))}
       </Box>
-      <FullStandingsTable rows={table.rows} />
+      <FullStandingsTable code={params.code.toUpperCase()} title={table.competitionName} rows={table.rows} />
     </Container>
   );
 }

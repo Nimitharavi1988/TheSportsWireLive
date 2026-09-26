@@ -18,7 +18,7 @@ export function MlbStandingsCarousel({ conferences }: { conferences: MlbConferen
         name: row.teamName,
         logo: row.teamLogo,
         values: [row.wins, row.losses],
-        qualified: row.playoffSeed > 0 && row.playoffSeed <= PLAYOFF_PLACES,
+        playoff: row.playoffSeed > 0 && row.playoffSeed <= PLAYOFF_PLACES,
       })}
       switchLabel="league"
     />

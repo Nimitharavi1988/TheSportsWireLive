@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import type { ScoreMatch } from "@/lib/scores/scoreboardModel";
-import { ScoreCard } from "./ScoreCard";
+import { LeagueScoresCard } from "./ScoreCard";
 import { useLiveScores } from "./useLiveScores";
 import { dayKey, useViewerTimeZone } from "./useViewerTimeZone";
 
@@ -133,18 +133,12 @@ export function ScoresBoard({ matches: initial, emptyLabel }: { matches: ScoreMa
       {groups.length === 0 ? (
         <Typography sx={{ color: "text.secondary", py: 5, textAlign: "center" }}>{emptyLabel}</Typography>
       ) : (
-        groups.map((g) => (
-          <Box key={g.league} component="section" aria-label={g.league} sx={{ mb: 3 }}>
-            <Typography component="h2" sx={{ fontSize: 13, fontWeight: 700, color: "text.secondary", mb: 1, letterSpacing: 0.2 }}>
-              {g.league}
-            </Typography>
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "1fr 1fr 1fr" }, gap: 1.25 }}>
-              {g.matches.map((m) => (
-                <ScoreCard key={m.id} match={m} />
-              ))}
-            </Box>
-          </Box>
-        ))
+        // One card per league (Google-style); two columns on wide screens.
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "repeat(2, minmax(0, 1fr))" }, gap: 2, alignItems: "start" }}>
+          {groups.map((g) => (
+            <LeagueScoresCard key={g.league} league={g.league} matches={g.matches} />
+          ))}
+        </Box>
       )}
     </Box>
   );

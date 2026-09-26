@@ -7,6 +7,53 @@
 
 const BASE_URL = "https://api.football-data.org/v4";
 
+// Table zones (the colored bars + legend on standings), per league. Only
+// places fixed by the league's own rules are marked; European places that
+// depend on cup winners or coefficients (Portugal, Netherlands, Brazil's
+// continental spots) are deliberately left out rather than guessed.
+// `from`/`to` count from the top; `fromBottom`/`toBottom` from last place,
+// so one rule fits 18-, 20- and 24-team leagues.
+export interface StandingsZone {
+  key: string;
+  label: string;
+  color: string;
+  from?: number;
+  to?: number;
+  fromBottom?: number;
+  toBottom?: number;
+}
+
+export const ZONE_COLORS = { qualify: "#1a73e8", promote: "#188038", playoff: "#f29900", relegate: "#d93025" } as const;
+const CL = { key: "cl", label: "Champions League", color: ZONE_COLORS.qualify };
+const RELEGATION = { key: "rel", label: "Relegation", color: ZONE_COLORS.relegate };
+const REL_PLAYOFF = { key: "relpo", label: "Relegation play-off", color: ZONE_COLORS.playoff };
+
+export const LEAGUE_ZONES: Record<string, StandingsZone[]> = {
+  PL: [{ ...CL, from: 1, to: 4 }, { ...RELEGATION, fromBottom: 1, toBottom: 3 }],
+  ELC: [
+    { key: "promo", label: "Promotion", color: ZONE_COLORS.promote, from: 1, to: 2 },
+    { key: "promopo", label: "Promotion play-offs", color: ZONE_COLORS.qualify, from: 3, to: 6 },
+    { ...RELEGATION, fromBottom: 1, toBottom: 3 },
+  ],
+  PD: [{ ...CL, from: 1, to: 4 }, { ...RELEGATION, fromBottom: 1, toBottom: 3 }],
+  SA: [{ ...CL, from: 1, to: 4 }, { ...RELEGATION, fromBottom: 1, toBottom: 3 }],
+  BL1: [{ ...CL, from: 1, to: 4 }, { ...REL_PLAYOFF, fromBottom: 3, toBottom: 3 }, { ...RELEGATION, fromBottom: 1, toBottom: 2 }],
+  FL1: [{ ...CL, from: 1, to: 3 }, { ...REL_PLAYOFF, fromBottom: 3, toBottom: 3 }, { ...RELEGATION, fromBottom: 1, toBottom: 2 }],
+  PPL: [{ ...REL_PLAYOFF, fromBottom: 3, toBottom: 3 }, { ...RELEGATION, fromBottom: 1, toBottom: 2 }],
+  DED: [{ ...REL_PLAYOFF, fromBottom: 3, toBottom: 3 }, { ...RELEGATION, fromBottom: 1, toBottom: 2 }],
+  BSA: [{ ...RELEGATION, fromBottom: 1, toBottom: 4 }],
+};
+
+// The zone a table position falls in, if any (pure, unit-tested).
+export function zoneFor(code: string, position: number, teams: number): StandingsZone | undefined {
+  const fromBottom = teams - position + 1;
+  return (LEAGUE_ZONES[code] ?? []).find((z) =>
+    z.from !== undefined
+      ? position >= z.from && position <= (z.to ?? z.from)
+      : z.fromBottom !== undefined && fromBottom >= z.fromBottom && fromBottom <= (z.toBottom ?? z.fromBottom)
+  );
+}
+
 // The domestic leagues covered by football-data.org's free tier that actually
 // have a league table (knockout-only competitions like the Champions League,
 // World Cup, and Euros don't — confirmed via direct API testing).

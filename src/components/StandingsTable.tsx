@@ -1,121 +1,51 @@
 "use client";
 
-// Extracted into its own Client Component as a workaround for a real bug hit
-// during the Next.js 16 upgrade: MUI's Table/TableHead/TableBody/TableRow/
-// TableCell family renders fine in Client Components but throws "Element
-// type is invalid" when rendered directly inside a Server Component under
-// Turbopack (matches a known Next.js RSC + Turbopack module-resolution bug
-// class — vercel/next.js#75192/#84961: works in Client Components, breaks in
-// Server Components). Every other MUI component (Stack, Typography, Card,
-// Chip, etc.) rendered fine directly in Server Components in this app — this
-// bug is specific to the Table family.
-import Image from "next/image";
-import Table from "@mui/material/Table";
-import TableHead from "@mui/material/TableHead";
-import TableBody from "@mui/material/TableBody";
-import TableRow from "@mui/material/TableRow";
-import TableCell from "@mui/material/TableCell";
-import Paper from "@mui/material/Paper";
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
 import type { StandingsTableRow } from "@/lib/ingestion/standings";
+import { LEAGUE_ZONES, zoneFor } from "@/lib/ingestion/standings";
+import { StandingsCard, type StandingsColumn } from "./standings/StandingsCard";
 
-export function CompactStandingsTable({ rows }: { rows: StandingsTableRow[] }) {
-  return (
-    <Paper variant="outlined" sx={{ overflowX: "auto" }}>
-      <Table size="small" sx={{ "& th, & td": denseCellSx }}>
-        <TableHead>
-          <TableRow>
-            <TableCell>#</TableCell>
-            <TableCell>Team</TableCell>
-            <TableCell align="right">P</TableCell>
-            <TableCell align="right">Pts</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.teamId}>
-              <TableCell>{row.position}</TableCell>
-              <TableCell sx={{ maxWidth: 140 }}>
-                <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", flexWrap: "nowrap" }}>
-                  {row.teamCrest && (
-                    <Image src={row.teamCrest} alt={`${row.teamName} crest`} width={16} height={16} style={{ flexShrink: 0 }} />
-                  )}
-                  <Typography variant="body2" noWrap sx={{ fontSize: 12 }}>
-                    {row.teamName}
-                  </Typography>
-                </Stack>
-              </TableCell>
-              <TableCell align="right">{row.playedGames}</TableCell>
-              <TableCell align="right">
-                <strong>{row.points}</strong>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </Paper>
-  );
+// Football league table rows -> StandingsCard, with the league's own zones
+// (standings.ts LEAGUE_ZONES). Shared by the sidebar widget (compact: the
+// top of the table) and the full /standings/[code] page.
+
+export const COMPACT_COLUMNS: StandingsColumn[] = [
+  { label: "MP" }, { label: "W" }, { label: "D" }, { label: "L" }, { label: "GD" }, { label: "Pts", strong: true },
+];
+const FULL_COLUMNS: StandingsColumn[] = [
+  { label: "MP" }, { label: "W" }, { label: "D" }, { label: "L" }, { label: "GF" }, { label: "GA" }, { label: "GD" }, { label: "Pts", strong: true },
+];
+
+const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
+
+// Zones are worked out against the whole table (relegation counts from the
+// last place), so map every row first and slice afterwards.
+export function footballRows(code: string, rows: StandingsTableRow[], full: boolean) {
+  return rows.map((row) => ({
+    id: String(row.teamId),
+    position: row.position,
+    name: row.teamName,
+    logo: row.teamCrest,
+    values: full
+      ? [row.playedGames, row.won, row.draw, row.lost, row.goalsFor, row.goalsAgainst, signed(row.goalDifference), row.points]
+      : [row.playedGames, row.won, row.draw, row.lost, signed(row.goalDifference), row.points],
+    zone: zoneFor(code, row.position, rows.length)?.key,
+  }));
 }
 
-// Team (and its position number) stays pinned while the stat columns scroll
-// horizontally — on a narrow screen you'd otherwise lose track of which row
-// you're reading the moment you scroll right to see W/D/L/GF/GA/GD/Pts.
-const stickyCellSx = {
-  position: "sticky" as const,
-  left: 0,
-  zIndex: 1,
-  bgcolor: "background.paper",
-};
+export function footballZones(code: string) {
+  return (LEAGUE_ZONES[code] ?? []).map(({ key, label, color }) => ({ key, label, color }));
+}
 
-const denseCellSx = { fontSize: 12, px: 1, py: 0.75 };
-
-export function FullStandingsTable({ rows }: { rows: StandingsTableRow[] }) {
+// The whole table, for /standings/[code].
+export function FullStandingsTable({ code, title, rows }: { code: string; title: string; rows: StandingsTableRow[] }) {
   return (
-    <Paper variant="outlined" sx={{ overflowX: "auto" }}>
-      <Table size="small" sx={{ "& th, & td": denseCellSx }}>
-        <TableHead>
-          <TableRow>
-            <TableCell sx={{ ...stickyCellSx, left: 0 }}>#</TableCell>
-            <TableCell sx={{ ...stickyCellSx, left: 28 }}>Team</TableCell>
-            <TableCell align="right">P</TableCell>
-            <TableCell align="right">W</TableCell>
-            <TableCell align="right">D</TableCell>
-            <TableCell align="right">L</TableCell>
-            <TableCell align="right">GF</TableCell>
-            <TableCell align="right">GA</TableCell>
-            <TableCell align="right">GD</TableCell>
-            <TableCell align="right">Pts</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.teamId}>
-              <TableCell sx={stickyCellSx}>{row.position}</TableCell>
-              <TableCell sx={{ ...stickyCellSx, left: 28, maxWidth: 130 }}>
-                <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", flexWrap: "nowrap" }}>
-                  {row.teamCrest && (
-                    <Image src={row.teamCrest} alt={`${row.teamName} crest`} width={16} height={16} style={{ flexShrink: 0 }} />
-                  )}
-                  <Typography variant="body2" noWrap sx={{ fontSize: 12 }}>
-                    {row.teamName}
-                  </Typography>
-                </Stack>
-              </TableCell>
-              <TableCell align="right">{row.playedGames}</TableCell>
-              <TableCell align="right">{row.won}</TableCell>
-              <TableCell align="right">{row.draw}</TableCell>
-              <TableCell align="right">{row.lost}</TableCell>
-              <TableCell align="right">{row.goalsFor}</TableCell>
-              <TableCell align="right">{row.goalsAgainst}</TableCell>
-              <TableCell align="right">{row.goalDifference}</TableCell>
-              <TableCell align="right">
-                <strong>{row.points}</strong>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </Paper>
+    <StandingsCard
+      title={title}
+      switchLabel="league"
+      columns={FULL_COLUMNS}
+      rows={footballRows(code, rows, true)}
+      zones={footballZones(code)}
+      full
+    />
   );
 }

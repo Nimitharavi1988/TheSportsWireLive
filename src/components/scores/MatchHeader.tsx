@@ -36,23 +36,7 @@ export function MatchHeader({ match: initial }: { match: ScoreMatch }) {
       aria-label="Match score"
       sx={{ border: "1px solid", borderColor: match.state === "live" ? "rgba(211, 47, 47, 0.35)" : "divider", borderRadius: 2, p: { xs: 2, sm: 2.5 }, mb: 2.5, bgcolor: "background.paper" }}
     >
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 1, flexWrap: "wrap", fontSize: 13, color: "text.secondary", mb: 2 }}>
-        <span>{match.leagueLabel}</span>
-        <span aria-hidden>·</span>
-        {match.state === "live" ? (
-          <LiveBadge label={match.clock} />
-        ) : match.state === "paused" ? (
-          <PausedBadge label={match.clock} />
-        ) : match.state === "started" ? (
-          <StartedBadge />
-        ) : isFinal ? (
-          <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>Final</Box>
-        ) : match.kickoffAt ? (
-          <KickoffTime iso={match.kickoffAt} withDate />
-        ) : (
-          <span>Upcoming</span>
-        )}
-      </Box>
+      <Typography sx={{ textAlign: "center", fontSize: 13, color: "text.secondary", mb: 2 }}>{match.leagueLabel}</Typography>
 
       <Box sx={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: { xs: 1.5, sm: 3 } }}>
         <Side side={match.home} isFinal={isFinal} />
@@ -74,6 +58,22 @@ export function MatchHeader({ match: initial }: { match: ScoreMatch }) {
           ) : (
             <Typography sx={{ fontSize: 18, fontWeight: 600, color: "text.secondary" }}>vs</Typography>
           )}
+          {/* Status under the score, as on Google's match cards. */}
+          <Box sx={{ mt: 1, fontSize: 13, color: "text.secondary", display: "flex", justifyContent: "center" }}>
+        {match.state === "live" ? (
+          <LiveBadge label={match.clock} />
+        ) : match.state === "paused" ? (
+          <PausedBadge label={match.clock} />
+        ) : match.state === "started" ? (
+          <StartedBadge />
+        ) : isFinal ? (
+          <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>Final</Box>
+        ) : match.kickoffAt ? (
+          <KickoffTime iso={match.kickoffAt} withDate />
+        ) : (
+          <span>Upcoming</span>
+        )}
+          </Box>
         </Box>
         <Side side={match.away} isFinal={isFinal} />
       </Box>
