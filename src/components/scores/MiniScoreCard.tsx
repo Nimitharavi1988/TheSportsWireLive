@@ -1,7 +1,8 @@
 import Link from "next/link";
 import Box from "@mui/material/Box";
 import type { ScoreMatch, ScoreSide } from "@/lib/scores/scoreboardModel";
-import { LiveBadge, PausedBadge, StartedBadge, TeamCrest } from "./ScoreCard";
+import { LiveBadge, PausedBadge, StartedBadge } from "./ScoreCard";
+import { TeamCrest } from "@/components/TeamCrest";
 import { KickoffTime } from "./KickoffTime";
 
 // Small form of the standard score card — status on top, one row per team.
@@ -11,7 +12,7 @@ import { KickoffTime } from "./KickoffTime";
 function MiniTeam({ side, muted }: { side: ScoreSide; muted: boolean }) {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, color: muted ? "text.secondary" : "text.primary" }}>
-      <TeamCrest side={side} size={16} />
+      <TeamCrest name={side.name} crestUrl={side.crestUrl} size={16} />
       <Box component="span" sx={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", fontWeight: side.winner ? 700 : 500 }}>
         {side.name}
       </Box>

@@ -1,3 +1,4 @@
+import { TeamCrest } from "@/components/TeamCrest";
 import { Suspense } from "react";
 import { db } from "@/db";
 import { article as articleTable } from "@/db/schema";
@@ -1528,7 +1529,7 @@ export async function HomeView({ category }: { category?: string }) {
                         alignItems: "center",
                         mb: 1
                       }}>
-                      <Image src={article.homeCrestUrl} alt={crestAltText(article.summary).home} width={32} height={32} />
+                      <TeamCrest name={article.homeTeam} crestUrl={article.homeCrestUrl} alt={crestAltText(article.summary).home} size={32} />
                       <Typography
                         variant="caption"
                         sx={{
@@ -1537,7 +1538,7 @@ export async function HomeView({ category }: { category?: string }) {
                         }}>
                         vs
                       </Typography>
-                      <Image src={article.awayCrestUrl} alt={crestAltText(article.summary).away} width={32} height={32} />
+                      <TeamCrest name={article.awayTeam} crestUrl={article.awayCrestUrl} alt={crestAltText(article.summary).away} size={32} />
                     </Stack>
                   ) : article.heroImageUrl ? (
                     // height:110 on a 260-wide card was a 2.36:1 crop —
