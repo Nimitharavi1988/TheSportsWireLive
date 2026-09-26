@@ -1,3 +1,4 @@
+import GoogleAdSense from "@/components/GoogleAdSense";
 import { TeamCrest } from "@/components/TeamCrest";
 import { db } from "@/db";
 import { article as articleTable } from "@/db/schema";
@@ -342,6 +343,9 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      {/* News stories only — match rows are templated score cards (see
+          GoogleAdSense.tsx). */}
+      {!isMatchDataSource(article.sourceName) && <GoogleAdSense />}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
