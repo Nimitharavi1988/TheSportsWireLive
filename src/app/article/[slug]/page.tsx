@@ -1,6 +1,6 @@
 import { TeamCrest } from "@/components/TeamCrest";
 import { db } from "@/db";
-import { article as articleTable } from "@/db/schema";
+import { article as articleTable, author as authorTable } from "@/db/schema";
 import { and, eq, gte, ne, or, ilike, isNull, desc } from "drizzle-orm";
 import { cache } from "react";
 import { notFound } from "next/navigation";
@@ -37,6 +37,7 @@ import { FanEngagementHub } from "@/components/FanEngagementHub";
 import { FollowUs } from "@/components/FollowUs";
 import { ShareButtons } from "@/components/ShareButtons";
 import { displaySummary, splitIntoParagraphs } from "@/lib/articleSummary";
+import { isOriginalStory, subheading } from "@/lib/stories";
 import { relativeTime } from "@/lib/relativeTime";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import WhatshotIcon from "@mui/icons-material/Whatshot";
@@ -55,6 +56,13 @@ export async function generateStaticParams() {
 // that one database round trip per request instead of two.
 const getArticle = cache(async (slug: string) => {
   const rows = await db.select().from(articleTable).where(eq(articleTable.slug, slug)).limit(1);
+  return rows[0] ?? null;
+});
+
+// The byline (original stories, editor rewrites) — see lib/stories.ts.
+const getAuthor = cache(async (slug: string | null) => {
+  if (!slug) return null;
+  const rows = await db.select().from(authorTable).where(eq(authorTable.slug, slug)).limit(1);
   return rows[0] ?? null;
 });
 
@@ -125,9 +133,11 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
   // Slack, WhatsApp, Facebook, iMessage) showed a bare text card instead of
   // the actual article image, a real hit to click-through on shared links.
   const shareImage = article.heroImageUrl ?? article.homeCrestUrl ?? undefined;
+  const writer = await getAuthor(article.authorSlug);
   return {
     title: article.title,
     description,
+    ...(writer ? { authors: [{ name: writer.name, url: `/author/${writer.slug}` }] } : {}),
     alternates: { canonical: `/article/${article.slug}` },
     // Match rows are templated score cards (a couple of hundred characters
     // each, ~2,100 of them) — kept for readers, but not offered to search
@@ -154,6 +164,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
   const params = await props.params;
   const article = await getArticle(params.slug);
   if (!article || article.status !== "published") notFound();
+  const writer = await getAuthor(article.authorSlug);
   // Match stories get the standard scoreboard header (src/lib/scores/)
   // instead of the plain crest-vs-crest row.
   const scoreMatch = isMatchDataSource(article.sourceName) ? currentScoreMatch(article) : null;
@@ -177,7 +188,9 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
     articleSection: article.category,
     description: displaySummary(article, 160),
     ...(article.heroImageUrl ? { image: [article.heroImageUrl] } : {}),
-    author: { "@type": "Organization", name: "Sports Wire Live" },
+    author: writer
+      ? { "@type": "Person", name: writer.name, url: `${process.env.SITE_URL ?? "http://localhost:3000"}/author/${writer.slug}` }
+      : { "@type": "Organization", name: "Sports Wire Live" },
     publisher: {
       "@type": "Organization",
       name: "Sports Wire Live",
@@ -467,9 +480,16 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           mb: (taggedPlayers.length > 0 || taggedClubs.length > 0) ? 1.5 : 2.5,
         }}
       >
-        {article.publishedAt && (
+        {(writer || article.publishedAt) && (
           <Typography variant="body2" sx={{ color: "text.secondary" }}>
-            {article.publishedAt.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+            {writer && (
+              <>
+                By{" "}
+                <Link href={`/author/${writer.slug}`} style={{ color: "inherit", fontWeight: 600 }}>{writer.name}</Link>
+                {article.publishedAt ? " · " : ""}
+              </>
+            )}
+            {article.publishedAt?.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
           </Typography>
         )}
         {/* No way to share an article previously existed except copying
@@ -508,11 +528,19 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         // sized chunks even when the source text comes back as one long
         // unbroken block — confirmed live: a dense 4-6 sentence wall of
         // text with no paragraph breaks at all was the actual complaint.
-        return splitIntoParagraphs(article.body ?? article.summary).map((paragraph, i) => (
-          <Typography key={i} variant="body1" sx={{ mb: 2.25, lineHeight: 1.7 }}>
-            {linkifyEntities(paragraph)}
-          </Typography>
-        ));
+        return splitIntoParagraphs(article.body ?? article.summary).map((paragraph, i) => {
+          // "## Team news" — a subheading in a story written in admin.
+          const heading = subheading(paragraph);
+          return heading ? (
+            <Typography key={i} variant="h5" component="h2" sx={{ fontWeight: 700, mt: 3.5, mb: 1.5 }}>
+              {heading}
+            </Typography>
+          ) : (
+            <Typography key={i} variant="body1" sx={{ mb: 2.25, lineHeight: 1.7 }}>
+              {linkifyEntities(paragraph)}
+            </Typography>
+          );
+        });
       })()}
 
       {/* The next story, straight after this one — see UpNext. */}
@@ -549,6 +577,8 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
 
       <FollowUs />
 
+      {/* No source line on the site's own stories — there's nothing to credit. */}
+      {!isOriginalStory(article) && (
       <Box sx={{ mt: 3, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
         {/* Attribution requirement, not a call to action — kept deliberately
             quiet (caption size, text.disabled, no underline) so it doesn't
@@ -562,6 +592,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           </Typography>
         </a>
       </Box>
+      )}
 
       </Box>
 

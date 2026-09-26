@@ -9,6 +9,8 @@ import { relations } from "drizzle-orm";
 
 export const articleStatusEnum = pgEnum("ArticleStatus", [
   "ingested", "auto_checked", "flagged", "pending_review", "approved", "published", "rejected",
+  // An original story being written in admin (Write a story), not yet live.
+  "draft",
 ]);
 // "push" added 2026-09-24 for automated breaking-news push notifications
 // (see autoApprove.ts's sendAutomatedPushNotifications) -- reuses this
@@ -100,6 +102,8 @@ export const article = pgTable("Article", {
   // (sourceName): a higher-priority provider for the same match takes over
   // its live score — see matchDataSources.ts `supersedes`. null = sourceName.
   scoreSource: text("scoreSource"),
+  // Byline: set on original stories and on ones an editor rewrote (Author).
+  authorSlug: text("authorSlug"),
   // Added 2026-09-24 ahead of a planned (not yet implemented) Spanish-
   // language content pipeline -- default 'en' means every existing row and
   // every current (English-only) ingestion source is unaffected. Drives the
@@ -192,6 +196,15 @@ export const clientError = pgTable("ClientError", {
   userAgent: text("userAgent"),
   createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
 }, (t) => [index("ClientError_createdAt_idx").on(t.createdAt)]);
+
+// People who write for the site — the byline on original and editor-
+// rewritten stories, with their own page (/author/[slug]).
+export const author = pgTable("Author", {
+  slug: text("slug").primaryKey(),
+  name: text("name").notNull(),
+  bio: text("bio"),
+  createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+});
 
 export const video = pgTable("Video", {
   id: text("id").primaryKey(),
