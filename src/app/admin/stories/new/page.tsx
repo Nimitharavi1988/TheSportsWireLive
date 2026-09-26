@@ -19,7 +19,7 @@ export default async function NewStoryPage() {
         categories={storyCategories()}
         seriesOptions={await storySeriesOptions()}
         tagOptions={tagOptions()}
-        initial={{ title: "", summary: "", body: "", category: "cricket", storyKind: "analysis", heroImageUrl: null, heroImageCredit: "", authorName: "", authorBio: "", original: true, hasByline: true, seriesKey: null, tags: [] }}
+        initial={{ title: "", summary: "", body: "", category: "cricket", storyKind: "analysis", heroImageUrl: null, heroImageCredit: "", heroImageCreditUrl: null, authorName: "", authorBio: "", original: true, hasByline: true, seriesKey: null, tags: [] }}
       />
     </Container>
   );

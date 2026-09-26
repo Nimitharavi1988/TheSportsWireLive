@@ -11,6 +11,7 @@ import { CATEGORY_META } from "@/lib/categoryMeta";
 import { MAX_UPLOAD_BYTES, UPLOAD_TYPES, mediaBucket, mediaKey, mediaUrl } from "@/lib/media";
 import { ORIGINAL_SOURCE, ORIGINAL_TRENDING_SCORE, STORY_KINDS, authorSlug, isOriginalStory, publishProblems, storySlug } from "@/lib/stories";
 import { articleUrl, submitToIndexNow } from "@/lib/indexNow";
+import { searchPhotos, type PhotoResult } from "@/lib/photoSearch";
 
 // Write a story / Edit (src/app/admin/stories). Every action checks the
 // admin session and returns a result rather than throwing, so the editor
@@ -44,6 +45,8 @@ export interface SaveStoryInput {
   storyKind: string;
   heroImageUrl: string | null;
   heroImageCredit: string | null;
+  // The photo's source page (licence + author), for photos from the finder.
+  heroImageCreditUrl: string | null;
   authorName: string;
   authorBio: string;
   // Original stories: publish (or save as a draft). Edits of ingested
@@ -128,7 +131,11 @@ export async function saveStory(input: SaveStoryInput): Promise<Result<{ id: str
     summary: input.summary.trim(),
     body: input.body.trim(),
     ...(photoChanged
-      ? { heroImageUrl: input.heroImageUrl, heroImageCredit: input.heroImageUrl ? input.heroImageCredit?.trim() || null : null, heroImageCreditUrl: null }
+      ? {
+          heroImageUrl: input.heroImageUrl,
+          heroImageCredit: input.heroImageUrl ? input.heroImageCredit?.trim() || null : null,
+          heroImageCreditUrl: input.heroImageUrl ? input.heroImageCreditUrl : null,
+        }
       : { heroImageCredit: input.heroImageCredit?.trim() || existing!.heroImageCredit }),
     authorSlug: byline,
     ...series,
@@ -183,4 +190,48 @@ export async function deleteDraft(id: string): Promise<Result<object>> {
   await db.delete(article).where(eq(article.id, id));
   revalidatePath("/admin/stories");
   return { ok: true };
+}
+
+// ---- Photo finder (lib/photoSearch.ts) ------------------------------------
+
+export async function searchStoryPhotos(query: string): Promise<Result<{ results: PhotoResult[]; failed: string[] }>> {
+  if (!(await getSession())) return { ok: false, error: "Not signed in." };
+  const q = query.trim().slice(0, 100);
+  if (q.length < 2) return { ok: false, error: "Type at least two letters." };
+  try {
+    return { ok: true, ...(await searchPhotos(q)) };
+  } catch (err) {
+    console.error("Photo search failed:", err);
+    return { ok: false, error: "Search failed — try again." };
+  }
+}
+
+// Hosts the two sources serve images from; nothing else is fetched.
+const PHOTO_HOSTS = /^(upload|thumb)\.wikimedia\.org$|^(live|farm\d+)\.staticflickr\.com$/;
+const MAX_IMPORT_BYTES = 12 * 1024 * 1024;
+
+// Copies a chosen photo into our storage (lib/media.ts) and returns it with
+// the credit its licence requires.
+export async function importStoryPhoto(photo: Pick<PhotoResult, "importUrl" | "credit" | "landingUrl">): Promise<Result<{ url: string; credit: string; creditUrl: string }>> {
+  if (!(await getSession())) return { ok: false, error: "Not signed in." };
+  let source: URL;
+  try {
+    source = new URL(photo.importUrl);
+  } catch {
+    return { ok: false, error: "That photo can't be used." };
+  }
+  if (source.protocol !== "https:" || !PHOTO_HOSTS.test(source.hostname)) return { ok: false, error: "That photo's host isn't allowed." };
+  try {
+    const res = await fetch(source, { headers: { "User-Agent": "SportsWireLive/1.0 (https://sportswirelive.com; contact@hyperianai.com)" } });
+    const type = (res.headers.get("content-type") ?? "").split(";")[0].trim();
+    if (!res.ok || !UPLOAD_TYPES[type]) return { ok: false, error: "Couldn't download that photo — pick another." };
+    const bytes = await res.arrayBuffer();
+    if (bytes.byteLength > MAX_IMPORT_BYTES) return { ok: false, error: "That photo is too large — pick another." };
+    const key = mediaKey(createId(), type);
+    await (await mediaBucket()).put(key, bytes, { httpMetadata: { contentType: type } });
+    return { ok: true, url: mediaUrl(key), credit: photo.credit, creditUrl: photo.landingUrl };
+  } catch (err) {
+    console.error("Photo import failed:", err);
+    return { ok: false, error: "Couldn't save that photo — try again." };
+  }
 }
