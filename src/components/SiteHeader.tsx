@@ -224,7 +224,7 @@ function NavLinks() {
                   bgcolor: isActive ? ACTIVE_TINT : "transparent",
                   textDecoration: "none",
                   ...MENU_TEXT_SX,
-                  px: 1.5,
+                  px: 1.25,
                   py: 0.75,
                   borderRadius: 5,
                   transition: "background-color 0.15s, color 0.15s",
@@ -265,7 +265,7 @@ function NavLinks() {
                 font: "inherit",
                 cursor: "pointer",
                 ...MENU_TEXT_SX,
-                px: 1.5,
+                px: 1.25,
                 py: 0.75,
                 borderRadius: 5,
                 transition: "background-color 0.15s, color 0.15s",
@@ -430,7 +430,7 @@ function NavLinksFallback() {
                   textDecoration: "none",
                   fontWeight: 600,
                   fontSize: 14,
-                  px: 1.5,
+                  px: 1.25,
                   py: 0.75,
                   borderRadius: 5,
                 }}
@@ -450,7 +450,7 @@ function NavLinksFallback() {
               color: "text.secondary",
               fontWeight: 600,
               fontSize: 14,
-              px: 1.5,
+              px: 1.25,
               py: 0.75,
               borderRadius: 5,
             }}
@@ -499,12 +499,17 @@ export default function SiteHeader() {
         >
           Sports Wire <Box component="span" sx={{ color: "primary.main" }}>Live</Box>
         </Typography>
-        <Suspense fallback={<NavLinksFallback />}>
-          <NavLinks />
-        </Suspense>
-        {/* Search icon: popover on desktop, full-screen on phones — see
-            HeaderSearch.tsx. */}
-        <HeaderSearch />
+        {/* Menu and search wrap as one group: when they don't fit beside the
+            logo they move to the second row together, so the search icon is
+            never left alone on a row of its own. */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+          <Suspense fallback={<NavLinksFallback />}>
+            <NavLinks />
+          </Suspense>
+          {/* Search icon: popover on desktop, full-screen on phones — see
+              HeaderSearch.tsx. */}
+          <HeaderSearch />
+        </Box>
       </Toolbar>
     </AppBar>
   );
