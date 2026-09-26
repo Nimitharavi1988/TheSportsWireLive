@@ -59,9 +59,10 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
     if (toPost.length >= limit) break;
     if (posted.has(a.id) || !d.matches(a)) continue;
     const matchData = isMatchDataSource(a.sourceName);
-    // News needs a real photo; match data only once there's a result
-    // (not "Preview: ..." cards for games that haven't happened).
-    if (matchData ? a.matchStatus !== "finished" : !hasRealImage(a)) continue;
+    // Every post needs a real picture (match rows can publish without one —
+    // see isAutoApprovable); match data only once there's a result (not
+    // "Preview: ..." cards for games that haven't happened).
+    if (!hasRealImage(a) || (matchData && a.matchStatus !== "finished")) continue;
     // Same-story protection, as on the main Page (not for match data: each
     // match row is already the one canonical story for that game).
     // Exact same headline too — the overlap check needs a few words, so a
