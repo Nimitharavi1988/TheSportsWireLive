@@ -252,7 +252,8 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
 
     // Best-effort, same isolation principle as the Facebook post below —
     // a failed ping here should never affect publishing.
-    await submitToIndexNow(toApprove.map((a) => articleUrl(a.slug)));
+    // Match rows are noindex (article page metadata) — nothing to submit.
+    await submitToIndexNow(toApprove.filter((a) => !isMatchDataSource(a.sourceName)).map((a) => articleUrl(a.slug)));
   }
 
   // Social-posting candidate pool: NOT scoped to just-approved toApprove

@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { article } from "@/db/schema";
 import { and, eq, isNotNull, desc } from "drizzle-orm";
+import { escapeXml } from "@/lib/xml";
 
 export const revalidate = 900; // matches the ingest cron cadence — no point refreshing more often than new content can actually land
 
@@ -20,15 +21,6 @@ export const revalidate = 900; // matches the ingest cron cadence — no point r
 // NewsArticle JSON-LD -- accurate, since the body is Gemini commentary
 // over real facts attributed to the org, not a byline for a human writer.
 const MAX_ITEMS = 50;
-
-function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
 
 export async function GET() {
   const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
