@@ -6,6 +6,7 @@ import { ForYouStrip } from "@/components/ForYouStrip";
 import { HappeningNow } from "@/components/HappeningNow";
 import { LatestVideos, VideoStripSkeleton } from "@/components/videos/VideoStrip";
 import { happeningNowEntities } from "@/lib/competitions";
+import { getMedalLeaderLines } from "@/lib/events/queries";
 import { isMatchDataSource } from "@/lib/matchDataSources";
 import { hasRealImage } from "@/lib/contentQuality";
 import { isHeroQualityImage } from "@/lib/imageQuality";
@@ -423,7 +424,7 @@ export async function HomeView({ category }: { category?: string }) {
   // decision was silently getting overridden by a score cutoff instead of
   // actually taking priority. Capped at 5 (the same cap `featureArticle`
   // itself enforces), so this can never balloon the query.
-  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeCompetitions, justInRaw, highlightCandidatesRaw, matchCandidatesRaw] = await Promise.all([
+  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeCompetitions, medalLines, justInRaw, highlightCandidatesRaw, matchCandidatesRaw] = await Promise.all([
     // Main trending list, limited to fresh stories — see heroConfig.ts's
     // FRESH_NEWS_* for why (trendingScore never decays: on 2026-09-25 an
     // 11-day-old story with score 175 was still leading the hero).
@@ -449,6 +450,7 @@ export async function HomeView({ category }: { category?: string }) {
     // "All"). No permanent nav item per competition: each runs for a couple
     // of weeks then goes quiet; /series lists them all.
     happeningNowEntities(8, category),
+    getMedalLeaderLines().catch(() => ({})),
     // Independent pure-recency query for "Just In" below — deriving this
     // from `articlesRanked` (trending-sorted, LIMIT 80) instead used to
     // silently cap "newest" at whatever happened to also be inside that
@@ -1144,7 +1146,7 @@ export async function HomeView({ category }: { category?: string }) {
         )}
 
         <Box component="main" sx={{ minWidth: 0 }}>
-          <HappeningNow competitions={activeCompetitions} />
+          <HappeningNow competitions={activeCompetitions} medalLines={medalLines} />
 
           {playerNewsMatches.length > 0 && (
             <Suspense fallback={<PlayerNewsSkeleton />}>

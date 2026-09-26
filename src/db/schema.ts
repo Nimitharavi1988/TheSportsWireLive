@@ -149,6 +149,18 @@ export const source = pgTable("Source", {
 // embedded; played through YouTube's own player, never re-hosted.
 // isHighlights + matchArticleId link a highlights video to the match story
 // it's about, for the video on that match page.
+// Per-event data kept outside articles (events/eventHubs.ts), e.g. a
+// Games' medal table — one row per key ("asian-games-2026:medals"), holding
+// the last snapshot that passed its checks.
+export const eventData = pgTable("EventData", {
+  key: text("key").primaryKey(),
+  eventKey: text("eventKey").notNull(),
+  kind: text("kind").notNull(),
+  data: jsonb("data").notNull(),
+  sourceUrl: text("sourceUrl").notNull(),
+  fetchedAt: timestamp("fetchedAt", { precision: 3 }).notNull().defaultNow(),
+}, (t) => [index("EventData_eventKey_idx").on(t.eventKey)]);
+
 export const video = pgTable("Video", {
   id: text("id").primaryKey(),
   youtubeId: text("youtubeId").notNull(),

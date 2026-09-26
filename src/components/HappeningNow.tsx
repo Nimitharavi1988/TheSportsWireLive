@@ -13,7 +13,9 @@ import { ScrollRow } from "./ScrollRow";
 // bilateral series we only know it's busy in the news (squads, previews,
 // matches), not whether a ball has been bowled yet.
 // Plain <Link> wrappers: this renders inside a server component.
-export function HappeningNow({ competitions }: { competitions: EntityResult[] }) {
+// `medalLines`: per event key, the top 3 of its medal table (events/
+// queries.ts) — shown instead of the generic subtitle while it's running.
+export function HappeningNow({ competitions, medalLines = {} }: { competitions: EntityResult[]; medalLines?: Record<string, string> }) {
   if (competitions.length === 0) return null;
   return (
     <Box component="section" aria-label="Series and events" sx={{ mb: 3 }}>
@@ -50,7 +52,7 @@ export function HappeningNow({ competitions }: { competitions: EntityResult[] })
               <EntityAvatar initials={c.initials} color={c.color} size={28} />
               <Box>
                 <Typography sx={{ fontSize: 14, fontWeight: 600, lineHeight: 1.2 }}>{c.name}</Typography>
-                <Typography sx={{ fontSize: 11, color: "text.secondary", lineHeight: 1.2 }}>{c.subtitle}</Typography>
+                <Typography sx={{ fontSize: 11, color: "text.secondary", lineHeight: 1.2 }}>{medalLines[c.slug] ?? c.subtitle}</Typography>
               </Box>
             </Box>
           </Link>

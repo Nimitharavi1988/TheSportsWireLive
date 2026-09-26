@@ -733,9 +733,13 @@ export async function runIngest() {
     const iplTeamSeries = item.category === "cricket"
       ? (detectIplTeamMention(item.title) ?? (body ? detectIplTeamMention(body) : null))
       : null;
+    // A source label that names a known event ("Asian Games Women") files
+    // the story under that event with the event's own name, so the event
+    // page and tile read "Asian Games 2026", not the source's wording.
+    const labelEvent = item.seriesLabel && !item.seriesKey ? detectEventSeries(item.seriesLabel) : null;
     const series =
       item.seriesLabel
-        ? { key: item.seriesKey ?? detectEventSeries(item.seriesLabel)?.key, label: item.seriesLabel }
+        ? { key: item.seriesKey ?? labelEvent?.key, label: labelEvent?.label ?? item.seriesLabel }
         : (detectEventSeries(item.title) ??
           (body ? detectEventSeriesNear(body, EVENT_LEAD_CHARS) : null) ??
           iplTeamSeries ??

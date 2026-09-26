@@ -50,6 +50,11 @@ const EVENTS: { match: RegExp; key: string; label: string; season?: { start: str
   { match: /\bIPL\b/i, key: "ipl", label: "IPL" },
 ];
 
+// The event's own name ("Asian Games 2026"), or null if not an event key.
+export function eventLabel(key: string): string | null {
+  return EVENTS.find((e) => e.key === key)?.label ?? null;
+}
+
 // null = not an EVENTS key (e.g. a bilateral cricket series from
 // cricketSeries.ts); otherwise the event's season, if one is set.
 export function eventSeason(key: string): { season?: { start: string; end: string } } | null {

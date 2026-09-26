@@ -1,3 +1,9 @@
+import { EVENT_HUBS } from "@/lib/events/eventHubs";
+import { eventLabel } from "@/lib/ingestion/eventTagging";
+import { getMedalTable } from "@/lib/events/queries";
+import { fetchCricketStandings } from "@/lib/events/cricketStandings";
+import { MedalTableCard } from "@/components/events/MedalTableCard";
+import { CricketGroupTables } from "@/components/events/CricketGroupTables";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/db";
@@ -28,10 +34,13 @@ export async function generateStaticParams() {
   return [];
 }
 
+// A known event always uses its own name (eventTagging.ts); stories can
+// carry a source's variant ("Asian Games Women") of the same event.
 async function findSeries(seriesKey: string) {
   const rows = await db.select({ seriesLabel: article.seriesLabel }).from(article)
     .where(eq(article.seriesKey, seriesKey)).limit(1);
-  return rows[0] ?? null;
+  if (!rows[0]) return null;
+  return { seriesLabel: eventLabel(seriesKey) ?? rows[0].seriesLabel };
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ seriesKey: string }> }) {
@@ -50,6 +59,12 @@ export async function generateMetadata({ params }: { params: Promise<{ seriesKey
 
 export default async function SeriesPage({ params }: { params: Promise<{ seriesKey: string }> }) {
   const { seriesKey } = await params;
+  // Games hub data (events/eventHubs.ts): medal table + standings.
+  const hub = EVENT_HUBS[seriesKey];
+  const [medals, cricketGroups] = await Promise.all([
+    hub?.medalTable ? getMedalTable(seriesKey).catch(() => null) : Promise.resolve(null),
+    Promise.all((hub?.cricketStandings ?? []).map(async (s) => ({ label: s.label, groups: await fetchCricketStandings(s.espnLeagueId) }))),
+  ]);
 
   const [series, articles] = await Promise.all([
     findSeries(seriesKey),
@@ -95,6 +110,14 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
       <Typography variant="body2" sx={{ color: "text.secondary", mb: 1.5 }}>
         {articles.length} {articles.length === 1 ? "story" : "stories"} · every match, preview, and player story from this series
       </Typography>
+      {(medals || cricketGroups.some((c) => c.groups.length > 0)) && (
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" }, gap: 2, alignItems: "start", mb: 3 }}>
+          {medals && <MedalTableCard title="Medal table" medals={medals} />}
+          <Box sx={{ display: "grid", gap: 2 }}>
+            {cricketGroups.map((c) => <CricketGroupTables key={c.label} label={c.label} groups={c.groups} />)}
+          </Box>
+        </Box>
+      )}
       <Box sx={{ mb: 3 }}>
         <FollowButton kind="series" slug={seriesKey} name={series.seriesLabel ?? "this series"} size="medium" />
       </Box>

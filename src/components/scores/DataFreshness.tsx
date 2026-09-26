@@ -40,6 +40,12 @@ export function updatedAgo(iso: string, nowMs: number): string {
   return hours < 24 ? `${hours} h ago` : `${Math.round(hours / 24)} d ago`;
 }
 
+// "updated 3 min ago" for any timestamp (browser-only, see useNow).
+export function UpdatedAgo({ iso }: { iso: string }) {
+  const nowMs = useNow();
+  return <span>{nowMs === null ? "" : `updated ${updatedAgo(iso, nowMs)}`}</span>;
+}
+
 // "ESPN · updated 2 min ago" — where a score comes from and, for a game in
 // play, how current it is. Finals and upcoming games show the source only.
 export function DataSource({ match }: { match: ScoreMatch }) {
