@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { article as articleTable } from "@/db/schema";
-import { and, eq, ne, or, ilike, notInArray, desc } from "drizzle-orm";
+import { and, eq, gte, ne, or, ilike, isNull, desc } from "drizzle-orm";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -29,6 +30,8 @@ import { currentScoreMatch } from "@/lib/scores/scoreboard";
 import { MatchHeader } from "@/components/scores/MatchHeader";
 import { ArticleVideos, MatchHighlightsForArticle, VideoStripSkeleton } from "@/components/videos/VideoStrip";
 import { Suspense } from "react";
+import { UpNextCard } from "@/components/UpNextCard";
+import { pickOnward, RELATED_COUNT, trendingSince } from "@/lib/articleOnward";
 import { FanEngagementHub } from "@/components/FanEngagementHub";
 import { FollowUs } from "@/components/FollowUs";
 import { ShareButtons } from "@/components/ShareButtons";
@@ -39,10 +42,72 @@ import WhatshotIcon from "@mui/icons-material/Whatshot";
 
 export const revalidate = 60;
 
+// generateMetadata and the page both need the article row — cache() makes
+// that one database round trip per request instead of two.
+const getArticle = cache(async (slug: string) => {
+  const rows = await db.select().from(articleTable).where(eq(articleTable.slug, slug)).limit(1);
+  return rows[0] ?? null;
+});
+
+// Streamed separately (see standingsApiKey in the page).
+async function ArticleStandings({ apiKey }: { apiKey: string }) {
+  const standings = await fetchStandingsTable(apiKey, "PL").catch(() => null);
+  if (!standings || standings.rows.length === 0) return null;
+  return (
+    <Box sx={{ mb: 3 }}>
+      <StandingsCarousel leagues={STANDINGS_LEAGUES} initialCode="PL" initialTable={standings} />
+    </Box>
+  );
+}
+
+// Just In list — the left rail on wide screens, and under Trending Now in
+// the right column below lg (it used to be desktop-only, leaving phones,
+// where most visitors are, without it).
+function JustInList({ items }: { items: { id: string; slug: string; title: string; publishedAt: Date | null }[] }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 1.5 }}>
+        <AccessTimeIcon sx={{ fontSize: 15, color: "primary.main" }} />
+        <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, lineHeight: 1 }}>
+          Just In
+        </Typography>
+      </Stack>
+      <Stack spacing={1.25}>
+        {items.map((a, i) => (
+          <Box key={a.id}>
+            {i > 0 && <Divider sx={{ mb: 1.25 }} />}
+            <Link href={`/article/${a.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontSize: { xs: 13.5, lg: 12.5 },
+                  fontWeight: 500,
+                  lineHeight: 1.35,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  "&:hover": { color: "primary.main" },
+                }}
+              >
+                {a.title}
+              </Typography>
+              {a.publishedAt && (
+                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  {relativeTime(a.publishedAt)}
+                </Typography>
+              )}
+            </Link>
+          </Box>
+        ))}
+      </Stack>
+    </Paper>
+  );
+}
+
 export async function generateMetadata(props: { params: Promise<{ slug: string }> }) {
   const params = await props.params;
-  const articleRows = await db.select().from(articleTable).where(eq(articleTable.slug, params.slug)).limit(1);
-  const article = articleRows[0] ?? null;
+  const article = await getArticle(params.slug);
   if (!article) return {};
   // 160 chars — the length search engines actually display before truncating.
   const description = displaySummary(article, 160);
@@ -73,8 +138,7 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
 
 export default async function ArticlePage(props: { params: Promise<{ slug: string }> }) {
   const params = await props.params;
-  const articleRows = await db.select().from(articleTable).where(eq(articleTable.slug, params.slug)).limit(1);
-  const article = articleRows[0] ?? null;
+  const article = await getArticle(params.slug);
   if (!article || article.status !== "published") notFound();
   // Match stories get the standard scoreboard header (src/lib/scores/)
   // instead of the plain crest-vs-crest row.
@@ -207,70 +271,56 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
     club.searchTerms.some((term) => article.title.toLowerCase().includes(term.toLowerCase()))
   );
 
-  // Related stories for the sidebar — prioritizes the same tagged player/
-  // club over a generic "same category" match (a Messi story is more
-  // usefully followed by another Messi/Inter Miami story than an unrelated
-  // football headline), falling back to same-category-recent to fill any
-  // remaining slots. Was previously a "More in {Category}" block at the
-  // bottom of the main column, purely category-based — moved into the
-  // sidebar (where readers actually look for "what's next") and sharpened
-  // to use the tagging already computed above for the player/club chips.
+  // Where the reader goes next: Up next, Related (tagged player/club
+  // stories first — a Messi story is more usefully followed by another
+  // Messi/Inter Miami story than an unrelated football headline — then
+  // same-category), Trending Now and Just In. Articles are where most
+  // traffic lands (search, Facebook), so none of this may be a dead end.
+  // All four candidate lists load in ONE parallel round trip — this used
+  // to be five sequential queries plus the football-data.org standings
+  // call before anything rendered, the slowest part of the page on a
+  // phone network. Over-fetched so pickOnward (lib/articleOnward.ts) can
+  // de-duplicate across the lists in memory.
   const relatedSearchTerms = [...taggedPlayers, ...taggedClubs].flatMap((t) => t.searchTerms);
-  const taggedRelated =
+  const published = eq(articleTable.status, "published");
+  const notThis = ne(articleTable.id, article.id);
+  // Scheduled previews are dated at their future kickoff, so any list
+  // sorted by date or trend put not-yet-played games at the top (same
+  // rule as the homepage's Just In). Tagged player/club stories keep them —
+  // a player's next game is relevant there.
+  const notScheduled = or(isNull(articleTable.matchStatus), ne(articleTable.matchStatus, "scheduled"));
+  const [taggedCandidates, sameCategoryCandidates, trendingCandidates, justInCandidates] = await Promise.all([
     relatedSearchTerms.length > 0
-      ? await db.select().from(articleTable)
-          .where(and(
-            eq(articleTable.status, "published"),
-            ne(articleTable.id, article.id),
-            or(...relatedSearchTerms.map((term) => ilike(articleTable.title, `%${term}%`)))
-          ))
+      ? db.select().from(articleTable)
+          .where(and(published, notThis, or(...relatedSearchTerms.map((term) => ilike(articleTable.title, `%${term}%`)))))
           .orderBy(desc(articleTable.publishedAt))
-          .limit(3)
-      : [];
-  const related =
-    taggedRelated.length < 3
-      ? [
-          ...taggedRelated,
-          ...(await db.select().from(articleTable)
-            .where(and(
-              eq(articleTable.status, "published"),
-              eq(articleTable.category, article.category),
-              notInArray(articleTable.id, [article.id, ...taggedRelated.map((r) => r.id)])
-            ))
-            .orderBy(desc(articleTable.publishedAt))
-            .limit(3 - taggedRelated.length)),
-        ]
-      : taggedRelated;
+          .limit(RELATED_COUNT + 1)
+      : Promise.resolve([]),
+    db.select().from(articleTable)
+      .where(and(published, notThis, notScheduled, eq(articleTable.category, article.category)))
+      .orderBy(desc(articleTable.publishedAt))
+      .limit(8),
+    db.select().from(articleTable)
+      .where(and(published, notThis, notScheduled, gte(articleTable.publishedAt, trendingSince())))
+      .orderBy(desc(articleTable.trendingScore), desc(articleTable.publishedAt))
+      .limit(14),
+    db.select().from(articleTable)
+      .where(and(published, notThis, notScheduled))
+      .orderBy(desc(articleTable.publishedAt))
+      .limit(16),
+  ]);
+  const { upNext, related, relatedIsTagged, trendingNow, justIn } = pickOnward({
+    tagged: taggedCandidates,
+    sameCategory: sameCategoryCandidates,
+    trending: trendingCandidates,
+    justIn: justInCandidates,
+  });
 
-  // "Trending Now" (right) and "Just In" (left) — an article page was
-  // otherwise a dead end beyond its own Related Stories: no way to
-  // discover what's hot sitewide right now, or what just came in, without
-  // going back to the homepage. Same trendingScore/publishedAt ordering
-  // the homepage itself uses, just sitewide rather than same-topic.
-  const excludeIds = [article.id, ...related.map((r) => r.id)];
-  const trendingNow = await db.select().from(articleTable)
-    .where(and(eq(articleTable.status, "published"), notInArray(articleTable.id, excludeIds)))
-    .orderBy(desc(articleTable.trendingScore), desc(articleTable.publishedAt))
-    .limit(5);
-  const justIn = await db.select().from(articleTable)
-    .where(and(
-      eq(articleTable.status, "published"),
-      notInArray(articleTable.id, [...excludeIds, ...trendingNow.map((t) => t.id)])
-    ))
-    .orderBy(desc(articleTable.publishedAt))
-    .limit(5);
-
-  // Same sidebar content as the homepage rail (Standings, Quotes) — article
-  // pages are where most real traffic actually lands (search, social
-  // shares), so they shouldn't be a dead end with zero discovery content
-  // just because they're not the homepage. Football-only, matching how the
-  // homepage's Standings widget is already scoped (no standings data exists
-  // for cricket on this API tier).
-  const standingsApiKey = process.env.FOOTBALL_DATA_API_KEY;
-  const standings =
-    article.category.startsWith("football") && standingsApiKey
-      ? await fetchStandingsTable(standingsApiKey, "PL")
-      : null;
+  // Same sidebar content as the homepage rail (Standings, Quotes) —
+  // football only, matching the homepage's Standings widget. Streamed in
+  // its own Suspense boundary (ArticleStandings below): an external API
+  // call must never hold up the story itself.
+  const standingsApiKey = article.category.startsWith("football") ? process.env.FOOTBALL_DATA_API_KEY : undefined;
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -305,43 +355,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
             top: 84,
           }}
         >
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 1.5 }}>
-              <AccessTimeIcon sx={{ fontSize: 15, color: "primary.main" }} />
-              <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, lineHeight: 1 }}>
-                Just In
-              </Typography>
-            </Stack>
-            <Stack spacing={1.25}>
-              {justIn.map((a, i) => (
-                <Box key={a.id}>
-                  {i > 0 && <Divider sx={{ mb: 1.25 }} />}
-                  <Link href={`/article/${a.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontSize: 12.5,
-                        fontWeight: 500,
-                        lineHeight: 1.35,
-                        display: "-webkit-box",
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                        "&:hover": { color: "primary.main" },
-                      }}
-                    >
-                      {a.title}
-                    </Typography>
-                    {a.publishedAt && (
-                      <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                        {relativeTime(a.publishedAt)}
-                      </Typography>
-                    )}
-                  </Link>
-                </Box>
-              ))}
-            </Stack>
-          </Paper>
+          <JustInList items={justIn} />
         </Box>
       )}
 
@@ -483,6 +497,9 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         ));
       })()}
 
+      {/* The next story, straight after this one — see UpNextCard. */}
+      {upNext && <UpNextCard article={upNext} />}
+
       {/* In-feed native ad, styled in AdSense to match the site's own
           look (white background, light border, sans-serif) so it reads
           as part of the content flow. Two ad units sharing one visual
@@ -529,7 +546,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         {related.length > 0 && (
           <Paper variant="outlined" sx={{ p: 2.5, mb: 3 }}>
             <Typography variant="overline" sx={{ color: "text.secondary" }}>
-              {taggedRelated.length > 0 ? "Related Stories" : `More in ${categoryChipStyle(article.category).label}`}
+              {relatedIsTagged ? "Related Stories" : `More in ${categoryChipStyle(article.category).label}`}
             </Typography>
             <Stack sx={{ mt: 1 }}>
               {related.map((r, index) => (
@@ -587,10 +604,15 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
             </Stack>
           </Paper>
         )}
-        {standings && standings.rows.length > 0 && (
-          <Box sx={{ mb: 3 }}>
-            <StandingsCarousel leagues={STANDINGS_LEAGUES} initialCode="PL" initialTable={standings} />
+        {justIn.length > 0 && (
+          <Box sx={{ display: { xs: "block", lg: "none" }, mb: 3 }}>
+            <JustInList items={justIn} />
           </Box>
+        )}
+        {standingsApiKey && (
+          <Suspense fallback={null}>
+            <ArticleStandings apiKey={standingsApiKey} />
+          </Suspense>
         )}
         {PLAYER_QUOTES.length > 0 && <QuotesStrip quotes={PLAYER_QUOTES} />}
       </Box>

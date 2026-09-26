@@ -1,3 +1,4 @@
+import { socialArticleUrl } from "./trackedLink";
 import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -94,7 +95,7 @@ export async function postArticleToFacebook(articleId: string): Promise<boolean>
   }
 
   const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
-  const link = `${siteUrl}/article/${article.slug}`;
+  const link = socialArticleUrl(siteUrl, article.slug, "facebook");
   // The link itself is passed as its own `link` field, not pasted into the
   // message text — Facebook auto-generates a proper preview card (image,
   // title, domain) from it, which gets meaningfully more reach than a raw

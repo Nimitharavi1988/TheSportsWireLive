@@ -1,3 +1,4 @@
+import { socialArticleUrl } from "./trackedLink";
 import { execFileSync } from "node:child_process";
 import { writeFile, unlink, mkdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -261,7 +262,8 @@ export async function postSocialPoster(
 
   const siteUrl = process.env.SITE_URL ?? "https://sportswirelive.com";
   const publicUrl = `${siteUrl}/social-posters/${article.slug}.png`;
-  const articleUrl = `${siteUrl}/article/${article.slug}`;
+  // Only Facebook carries the link (Instagram captions can't link out).
+  const articleUrl = socialArticleUrl(siteUrl, article.slug, "facebook");
 
   console.log("Committing poster to the repo...");
   git("config", "user.name", "sports-wire-live-bot");

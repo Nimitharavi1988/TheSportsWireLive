@@ -53,13 +53,17 @@ export function sectionOf(category: string): string {
   return category.split("/")[0];
 }
 
-// Homepage news freshness (2026-09-25). trendingScore never decays, so the
-// homepage's main list — the one most sections are built from (hero,
-// Player News, Also in the News, category tiles, ...) — is limited to
-// stories published in the last FRESH_NEWS_MAX_AGE_DAYS. A quiet sport page
-// with fewer than FRESH_NEWS_MIN_RESULTS such stories widens to
-// FRESH_NEWS_FALLBACK_DAYS instead of rendering empty sections; nothing
-// older than that is ever shown.
-export const FRESH_NEWS_MAX_AGE_DAYS = 2;
-export const FRESH_NEWS_FALLBACK_DAYS = 7;
+// Homepage news freshness. trendingScore never decays, so the homepage's
+// main list — the one most sections are built from (hero, Player News,
+// Also in the News, category tiles, ...) — is limited to recent stories:
+// the last 24 hours (2026-09-26, was 2 days: a daily visitor should find
+// new headlines every day). A page with fewer than FRESH_NEWS_MIN_RESULTS
+// such stories widens one step at a time through FRESH_NEWS_WINDOWS_DAYS
+// instead of rendering empty sections — measured 2026-09-26: All, NFL,
+// Football, Cricket, Volleyball, F1 and Athletics fill from 24h; MLB and
+// Rugby need 2 days; NHL and NBA 7. Nothing older than the last window is
+// ever shown.
+export const FRESH_NEWS_WINDOWS_DAYS = [1, 2, 7] as const;
+export const FRESH_NEWS_MAX_AGE_DAYS = FRESH_NEWS_WINDOWS_DAYS[0];
+export const FRESH_NEWS_FALLBACK_DAYS = FRESH_NEWS_WINDOWS_DAYS[FRESH_NEWS_WINDOWS_DAYS.length - 1];
 export const FRESH_NEWS_MIN_RESULTS = 25;

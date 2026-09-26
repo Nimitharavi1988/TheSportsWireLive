@@ -47,8 +47,7 @@ import {
   isHeroFeatureStale,
   isHighlightStale,
   HIGHLIGHT_MAX_AGE_DAYS,
-  FRESH_NEWS_MAX_AGE_DAYS,
-  FRESH_NEWS_FALLBACK_DAYS,
+  FRESH_NEWS_WINDOWS_DAYS,
   FRESH_NEWS_MIN_RESULTS,
 } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
@@ -385,17 +384,21 @@ async function NhlStandingsWidget() {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // The homepage's main trending list (top 80 by trendingScore), limited to
-// stories published in the last FRESH_NEWS_MAX_AGE_DAYS — widened once to
-// FRESH_NEWS_FALLBACK_DAYS when that leaves a quiet sport page with too few
-// stories. Every section built from `articles` inherits the limit.
+// recent stories: the first window in FRESH_NEWS_WINDOWS_DAYS (24h) that
+// yields enough stories, widening step by step on a quiet sport page (see
+// heroConfig.ts). Every section built from `articles` inherits the limit.
 async function fetchFreshRanked(baseConditions: SQL[]) {
   const query = (days: number) =>
     db.select().from(articleTable)
       .where(and(...baseConditions, gte(articleTable.publishedAt, new Date(Date.now() - days * DAY_MS))))
       .orderBy(desc(articleTable.trendingScore), desc(articleTable.publishedAt))
       .limit(80);
-  const fresh = await query(FRESH_NEWS_MAX_AGE_DAYS);
-  return fresh.length >= FRESH_NEWS_MIN_RESULTS ? fresh : query(FRESH_NEWS_FALLBACK_DAYS);
+  let rows: Awaited<ReturnType<typeof query>> = [];
+  for (const days of FRESH_NEWS_WINDOWS_DAYS) {
+    rows = await query(days);
+    if (rows.length >= FRESH_NEWS_MIN_RESULTS) break;
+  }
+  return rows;
 }
 
 export default async function HomePage(
