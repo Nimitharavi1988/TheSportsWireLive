@@ -3,9 +3,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { db } from "@/db";
 import { article } from "@/db/schema";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, or } from "drizzle-orm";
 import { TRACKED_CLUBS } from "@/lib/clubs";
 import { titleMatchesAnyTerm } from "@/lib/titleMatch";
+import { taggedWith } from "@/lib/tags";
 import { findClubCrest } from "@/lib/teamNames";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 import { StandingsCarousel } from "@/components/StandingsCarousel";
@@ -70,7 +71,7 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
   const articles = await db.select().from(article)
     .where(and(
       eq(article.status, "published"),
-      titleMatchesAnyTerm(club.searchTerms)
+      or(titleMatchesAnyTerm(club.searchTerms), taggedWith("club", club.slug))
     ))
     .orderBy(desc(article.publishedAt))
     .limit(30);

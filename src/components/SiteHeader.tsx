@@ -27,6 +27,7 @@ import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import SportsScoreIcon from "@mui/icons-material/SportsScore";
 import SmartDisplayIcon from "@mui/icons-material/SmartDisplay";
 import InsightsIcon from "@mui/icons-material/Insights";
+import StadiumIcon from "@mui/icons-material/Stadium";
 import SportsBasketballIcon from "@mui/icons-material/SportsBasketball";
 import SportsBaseballIcon from "@mui/icons-material/SportsBaseball";
 import SportsRugbyIcon from "@mui/icons-material/SportsRugby";
@@ -100,6 +101,8 @@ const MORE_SPORTS_LINKS: { href: string; label: string; category: string | null;
   // All series and events (Asian Games, bilateral cricket series, IPL) —
   // was footer-only; the homepage "Happening now" row covers active ones.
   { href: "/series", label: "Series & Events", category: null, icon: EventIcon },
+  // Ground guides with fixtures and results (lib/venues.ts).
+  { href: "/venue", label: "Venues", category: null, icon: StadiumIcon },
   { href: "/sport/rugby", label: "Rugby", category: "rugby", icon: SportsRugbyIcon },
   { href: "/sport/athletics", label: "Athletics", category: "athletics", icon: DirectionsRunIcon },
   { href: "/sport/hockey", label: "NHL", category: "hockey", icon: SportsHockeyIcon },

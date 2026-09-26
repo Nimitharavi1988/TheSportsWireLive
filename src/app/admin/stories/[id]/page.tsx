@@ -8,7 +8,9 @@ import { article, author } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { isOriginalStory } from "@/lib/stories";
 import { StoryEditor } from "../StoryEditor";
-import { storyCategories } from "../editorData";
+import { storyCategories, storySeriesOptions } from "../editorData";
+import { tagOptions } from "@/lib/tags";
+import { articleTag } from "@/db/schema";
 
 export const metadata = { title: "Edit story", robots: { index: false } };
 
@@ -20,6 +22,7 @@ export default async function EditStoryPage(props: { params: Promise<{ id: strin
   if (!row) notFound();
   const [writer] = row.authorSlug ? await db.select().from(author).where(eq(author.slug, row.authorSlug)).limit(1) : [];
   const original = isOriginalStory(row);
+  const tags = await db.select({ kind: articleTag.kind, slug: articleTag.slug }).from(articleTag).where(eq(articleTag.articleId, row.id));
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
@@ -27,6 +30,8 @@ export default async function EditStoryPage(props: { params: Promise<{ id: strin
       <Typography variant="h4" sx={{ mt: 1, mb: 3 }}>{original ? (row.status === "draft" ? "Draft" : "Edit story") : "Edit ingested story"}</Typography>
       <StoryEditor
         categories={storyCategories()}
+        seriesOptions={await storySeriesOptions(row.seriesKey)}
+        tagOptions={tagOptions()}
         initial={{
           id: row.id,
           slug: row.slug,
@@ -42,6 +47,8 @@ export default async function EditStoryPage(props: { params: Promise<{ id: strin
           authorBio: writer?.bio ?? "",
           original,
           hasByline: Boolean(row.authorSlug),
+          seriesKey: row.seriesKey,
+          tags,
         }}
       />
     </Container>

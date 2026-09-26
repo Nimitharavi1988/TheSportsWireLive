@@ -12,9 +12,32 @@ import { fetchMlbStandingsTable } from "../ingestion/mlbData";
 import { fetchNhlStandingsTable } from "../ingestion/nhlData";
 import { fetchCricketStandings } from "../events/cricketStandings";
 import { EVENT_HUBS } from "../events/eventHubs";
+import { VENUES } from "../venues";
+import { fetchVenueDetails } from "../venueDetails";
+import type { VenueDetails } from "../venues";
 import { SNAPSHOT_KEYS } from "./read";
 
-type SnapshotSource = { key: string; sourceUrl: string; load: () => Promise<unknown[] | null> };
+// A table (list of groups) or one record (a venue's details).
+// refreshAfterMs: how old the stored copy may get before it's fetched again
+// (default: every run) — for data that rarely changes, fetched from a
+// provider that rate-limits bursts (Wikimedia).
+type SnapshotSource = {
+  key: string;
+  sourceUrl: string;
+  load: () => Promise<unknown[] | object | null>;
+  refreshAfterMs?: (stored: unknown) => number;
+  // Combine a fresh fetch with the stored copy (keep what the fresh one lacks).
+  merge?: (fresh: object, stored: unknown) => object;
+};
+
+const HOUR = 60 * 60 * 1000;
+// Venue details: daily; sooner while the photo is missing (a rate-limited
+// licence lookup comes back without one).
+const venueRefreshAfter = (stored: unknown) => ((stored as VenueDetails | null)?.image ? 24 * HOUR : 6 * HOUR);
+const venueMerge = (fresh: object, stored: unknown) => {
+  const f = fresh as VenueDetails;
+  return f.image ? f : { ...f, image: (stored as VenueDetails | null)?.image ?? null };
+};
 
 function sources(): SnapshotSource[] {
   const espn = (path: string) => `https://site.api.espn.com/apis/v2/sports/${path}/standings`;
@@ -29,21 +52,28 @@ function sources(): SnapshotSource[] {
       list.push({ key: SNAPSHOT_KEYS.cricketStandings(s.espnLeagueId), sourceUrl: espn(`cricket/${s.espnLeagueId}`), load: () => fetchCricketStandings(s.espnLeagueId) });
     }
   }
+  for (const venue of VENUES) {
+    list.push({ key: SNAPSHOT_KEYS.venue(venue.slug), sourceUrl: `https://en.wikipedia.org/wiki/${venue.wikipedia}`, load: () => fetchVenueDetails(venue), refreshAfterMs: venueRefreshAfter, merge: venueMerge });
+  }
   return list;
 }
 
 export async function syncSnapshots(): Promise<void> {
+  const stored = new Map((await db.select().from(dataSnapshot)).map((r) => [r.key, r]));
   for (const s of sources()) {
+    const previous = stored.get(s.key);
+    if (s.refreshAfterMs && previous && Date.now() - previous.fetchedAt.getTime() < s.refreshAfterMs(previous.data)) continue;
     try {
-      const data = await s.load();
-      if (!data || data.length === 0) {
+      const fetched = await s.load();
+      const data = fetched && !Array.isArray(fetched) && s.merge && previous ? s.merge(fetched, previous.data) : fetched;
+      if (!data || (Array.isArray(data) && data.length === 0)) {
         console.warn(`[snapshots] ${s.key}: nothing fetched — kept previous copy`);
         continue;
       }
       await db.insert(dataSnapshot)
         .values({ key: s.key, data, sourceUrl: s.sourceUrl, fetchedAt: new Date() })
         .onConflictDoUpdate({ target: dataSnapshot.key, set: { data, sourceUrl: s.sourceUrl, fetchedAt: new Date() } });
-      console.log(`[snapshots] ${s.key}: ${data.length} groups`);
+      console.log(`[snapshots] ${s.key}: ${Array.isArray(data) ? `${data.length} groups` : "updated"}`);
     } catch (err) {
       console.error(`[snapshots] ${s.key} failed:`, err);
     }
