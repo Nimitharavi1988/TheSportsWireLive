@@ -6,37 +6,10 @@ import { TRACKED_CLUBS, type TrackedClub } from "./clubs";
 import { TRACKED_COUNTRIES, type TrackedCountry } from "./countries";
 import { VENUES, type Venue } from "./venues";
 
-// Tags an editor picks for a story (ArticleTag), alongside the automatic
-// headline matching the site already does for players, clubs and
-// countries. Each kind points at an existing page.
-export const TAG_KINDS = ["player", "club", "country", "venue"] as const;
-export type TagKind = (typeof TAG_KINDS)[number];
-
-export interface TagOption {
-  kind: TagKind;
-  slug: string;
-  label: string;
-}
-
-const KIND_LABEL: Record<TagKind, string> = { player: "Player", club: "Team", country: "Country", venue: "Venue" };
-
-export function tagGroupLabel(kind: TagKind): string {
-  return KIND_LABEL[kind];
-}
-
-// Everything that can be tagged, for the editor's picker.
-export function tagOptions(): TagOption[] {
-  return [
-    ...TRACKED_COUNTRIES.map((c) => ({ kind: "country" as const, slug: c.slug, label: c.name })),
-    ...TRACKED_CLUBS.map((c) => ({ kind: "club" as const, slug: c.slug, label: c.name })),
-    ...TRACKED_PLAYERS.map((p) => ({ kind: "player" as const, slug: p.slug, label: p.name })),
-    ...VENUES.map((v) => ({ kind: "venue" as const, slug: v.slug, label: `${v.name}, ${v.city}` })),
-  ];
-}
-
-export function isKnownTag(t: { kind: string; slug: string }): t is { kind: TagKind; slug: string } {
-  return tagOptions().some((o) => o.kind === t.kind && o.slug === t.slug);
-}
+// Database side of story tags (ArticleTag) — server only. The tag list
+// itself (kinds, options) is lib/tagOptions.ts, which the browser can use.
+export { TAG_KINDS, tagOptions, tagGroupLabel, isKnownTag, type TagKind, type TagOption } from "./tagOptions";
+import type { TagKind } from "./tagOptions";
 
 // "This story is tagged with it" as a WHERE condition on Article, for the
 // player/club/country/venue pages (OR'd with their headline matching).
