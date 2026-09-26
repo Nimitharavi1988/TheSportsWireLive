@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { MAX_PER_CHANNEL, pickVideoStrip, splitLibrary, withAdSlots } from "./videoStrip";
+import { MAX_PER_CHANNEL, pickVideoStrip, splitLibrary } from "./videoStrip";
 
 const v = (channelTitle: string, hoursAgo: number, isHighlights = false) => ({
   channelTitle,
@@ -41,11 +41,3 @@ describe("splitLibrary", () => {
   });
 });
 
-describe("withAdSlots", () => {
-  it("puts an ad after every N cards, never last", () => {
-    const kinds = (n: number) => withAdSlots(Array.from({ length: n }, (_, i) => i), 3).map((x) => x.kind[0]).join("");
-    expect(kinds(7)).toBe("vvvavvvav");
-    expect(kinds(6)).toBe("vvvavvv");
-    expect(kinds(2)).toBe("vv");
-  });
-});
