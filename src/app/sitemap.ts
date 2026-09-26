@@ -1,10 +1,13 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/db";
 import { article as articleTable } from "@/db/schema";
-import { and, eq, isNotNull, desc } from "drizzle-orm";
+import { and, eq, isNotNull, desc, notInArray } from "drizzle-orm";
 import { STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 import { TRACKED_PLAYERS } from "@/lib/players";
 import { TRACKED_CLUBS } from "@/lib/clubs";
+import { TRACKED_COUNTRIES } from "@/lib/countries";
+import { CATEGORY_META } from "@/lib/categoryMeta";
+import { MATCH_DATA_SOURCE_NAMES } from "@/lib/matchDataSources";
 
 export const revalidate = 3600;
 
@@ -20,7 +23,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const articles = await db
     .select({ slug: articleTable.slug, publishedAt: articleTable.publishedAt, updatedAt: articleTable.updatedAt })
     .from(articleTable)
-    .where(eq(articleTable.status, "published"))
+    // Match rows are templated score cards and are noindex (see the
+    // article page's generateMetadata) — /scores and the sport pages are
+    // what should rank for scores.
+    .where(and(eq(articleTable.status, "published"), notInArray(articleTable.sourceName, MATCH_DATA_SOURCE_NAMES)))
     .orderBy(desc(articleTable.publishedAt))
     .limit(20000);
 
@@ -31,25 +37,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: siteUrl, changeFrequency: "hourly", priority: 1 },
-    { url: `${siteUrl}/sport/football`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/sport/cricket`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/sport/american-football`, changeFrequency: "hourly", priority: 0.8 },
-    // Was missing these 4 of 7 nav categories entirely — each has a real
-    // self-canonicalizing page (CATEGORY_META in page.tsx already covers
-    // all 7), just never had a direct sitemap discovery path.
-    { url: `${siteUrl}/sport/basketball`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/sport/college-football`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/sport/wnba`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/sport/baseball`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/sport/rugby`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/sport/athletics`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/sport/hockey`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/sport/volleyball`, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${siteUrl}/sport/formula-1`, changeFrequency: "hourly", priority: 0.8 },
+    // Every sport section, from the same list the site uses for them.
+    ...Object.keys(CATEGORY_META).map((category) => ({
+      url: `${siteUrl}/sport/${category}`,
+      changeFrequency: "hourly" as const,
+      priority: 0.8,
+    })),
+    { url: `${siteUrl}/scores`, changeFrequency: "always", priority: 0.8 },
     { url: `${siteUrl}/standings`, changeFrequency: "daily", priority: 0.6 },
     { url: `${siteUrl}/videos`, changeFrequency: "hourly", priority: 0.7 },
     { url: `${siteUrl}/player`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${siteUrl}/club`, changeFrequency: "weekly", priority: 0.5 },
+    { url: `${siteUrl}/country`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${siteUrl}/series`, changeFrequency: "daily", priority: 0.5 },
     { url: `${siteUrl}/about`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${siteUrl}/privacy`, changeFrequency: "yearly", priority: 0.2 },
@@ -61,6 +60,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
     ...TRACKED_PLAYERS.map((player) => ({
       url: `${siteUrl}/player/${player.slug}`,
+      changeFrequency: "daily" as const,
+      priority: 0.6,
+    })),
+    ...TRACKED_COUNTRIES.map((country) => ({
+      url: `${siteUrl}/country/${country.slug}`,
       changeFrequency: "daily" as const,
       priority: 0.6,
     })),

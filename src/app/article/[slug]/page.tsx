@@ -129,6 +129,11 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
     title: article.title,
     description,
     alternates: { canonical: `/article/${article.slug}` },
+    // Match rows are templated score cards (a couple of hundred characters
+    // each, ~2,100 of them) — kept for readers, but not offered to search
+    // engines as articles: at that volume thin pages can weigh on how the
+    // whole site is judged. /scores and the sport pages rank for scores.
+    ...(isMatchDataSource(article.sourceName) ? { robots: { index: false, follow: true } } : {}),
     openGraph: {
       title: article.title,
       description,
@@ -173,7 +178,11 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
     description: displaySummary(article, 160),
     ...(article.heroImageUrl ? { image: [article.heroImageUrl] } : {}),
     author: { "@type": "Organization", name: "Sports Wire Live" },
-    publisher: { "@type": "Organization", name: "Sports Wire Live" },
+    publisher: {
+      "@type": "Organization",
+      name: "Sports Wire Live",
+      logo: { "@type": "ImageObject", url: `${process.env.SITE_URL ?? "http://localhost:3000"}/icon-512`, width: 512, height: 512 },
+    },
     mainEntityOfPage: { "@type": "WebPage", "@id": `${process.env.SITE_URL ?? "http://localhost:3000"}/article/${article.slug}` },
   };
 
