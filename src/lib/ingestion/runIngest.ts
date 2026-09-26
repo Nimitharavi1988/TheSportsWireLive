@@ -174,7 +174,16 @@ interface Grounding {
 // substantive, and only falls back to page extraction when it's too thin.
 async function resolveGrounding(item: RawMatchItem): Promise<Grounding | null> {
   const snippet = item.sourceSnippet?.trim();
-  if (snippet && snippet.length >= THIN_SNIPPET_THRESHOLD) return { text: snippet };
+  if (snippet && snippet.length >= THIN_SNIPPET_THRESHOLD) {
+    // The snippet is enough to write from, but a feed without images
+    // (FIVB, Volleyball Magazine, Athletics Weekly...) still needs the page
+    // for its photo — otherwise the story keeps the stock fallback and can
+    // never pass auto-approval's real-image bar (confirmed 2026-09-26: every
+    // Volleyball Magazine story sat unpublished for exactly this reason).
+    if (item.heroImageUrl || isGoogleNewsRedirect(item.sourceUrl)) return { text: snippet };
+    const page = await extractArticleContent(item.sourceUrl).catch(() => null);
+    return { text: snippet, imageUrl: page?.imageUrl };
+  }
   // A Google News redirect link can never be extracted (see
   // isGoogleNewsRedirect above), so when its own snippet is also under the
   // thin threshold there's no path to real grounding at all -- skip the

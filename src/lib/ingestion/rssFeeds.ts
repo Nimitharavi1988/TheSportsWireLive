@@ -223,10 +223,15 @@ const FEEDS: { url: string; category: string; sourceName: string }[] = [
   { url: "https://www.theguardian.com/sport/nba/rss", category: "basketball", sourceName: "The Guardian" },
   { url: "https://www.theguardian.com/sport/nhl/rss", category: "hockey", sourceName: "The Guardian" },
   // Volleyball had match results only (espnVolleyballData.ts/
-  // volleyballData.ts), no news. Volleyball Magazine is the one working
-  // free feed found (Volleyball World's feed 404s): low volume, page text
-  // and photo extractable 2/3 on the sampled items.
+  // volleyballData.ts), no news. Checked live 2026-09-26 (Volleyball
+  // World's own feeds 404): Volleyball Magazine (~1/day), FIVB — the
+  // international federation (~10/week), NCAA.com D1 women's (~4/week, the
+  // same college game the ESPN scores cover). None carry images in the
+  // feed; the page photo is extracted during grounding (runIngest.ts),
+  // found on 2-3 of 3 sampled items per feed.
   { url: "https://volleyballmag.com/feed/", category: "volleyball", sourceName: "Volleyball Magazine" },
+  { url: "https://www.fivb.com/feed/", category: "volleyball", sourceName: "FIVB" },
+  { url: "https://www.ncaa.com/news/volleyball-women/d1/rss.xml", category: "volleyball", sourceName: "NCAA.com" },
   // College football and WNBA news (added 2026-09-26 with the sections
   // themselves) — same Yahoo feed shape as NFL/MLB/NBA/NHL above. Checked
   // live: 50 items in the last 24h each; sampled pages readable 3/3, with a
