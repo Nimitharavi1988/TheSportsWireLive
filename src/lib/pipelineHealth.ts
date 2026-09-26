@@ -25,13 +25,13 @@ async function socialPace(platform: "facebook" | "instagram") {
   const now = Date.now();
   const [{ value: last1h }, { value: last6h }, { value: last24h }] = await Promise.all([
     db.select({ value: count() }).from(socialPost)
-      .where(and(eq(socialPost.platform, platform), eq(socialPost.status, "posted"), gte(socialPost.createdAt, new Date(now - 1 * 60 * 60 * 1000))))
+      .where(and(eq(socialPost.platform, platform), eq(socialPost.destination, "main"), eq(socialPost.status, "posted"), gte(socialPost.createdAt, new Date(now - 1 * 60 * 60 * 1000))))
       .then((r) => r[0]),
     db.select({ value: count() }).from(socialPost)
-      .where(and(eq(socialPost.platform, platform), eq(socialPost.status, "posted"), gte(socialPost.createdAt, new Date(now - 6 * 60 * 60 * 1000))))
+      .where(and(eq(socialPost.platform, platform), eq(socialPost.destination, "main"), eq(socialPost.status, "posted"), gte(socialPost.createdAt, new Date(now - 6 * 60 * 60 * 1000))))
       .then((r) => r[0]),
     db.select({ value: count() }).from(socialPost)
-      .where(and(eq(socialPost.platform, platform), eq(socialPost.status, "posted"), gte(socialPost.createdAt, new Date(now - 24 * 60 * 60 * 1000))))
+      .where(and(eq(socialPost.platform, platform), eq(socialPost.destination, "main"), eq(socialPost.status, "posted"), gte(socialPost.createdAt, new Date(now - 24 * 60 * 60 * 1000))))
       .then((r) => r[0]),
   ]);
   return { last1h, last6h, last24h };

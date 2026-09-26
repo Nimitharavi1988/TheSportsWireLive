@@ -223,7 +223,7 @@ export async function postSocialPoster(
       .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.platform, "instagram"), eq(socialPostTable.status, "posted")))
       .limit(1),
     db.select({ id: socialPostTable.id }).from(socialPostTable)
-      .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.platform, "facebook"), eq(socialPostTable.status, "posted")))
+      .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.platform, "facebook"), eq(socialPostTable.destination, "main"), eq(socialPostTable.status, "posted")))
       .limit(1),
   ]);
   const needInstagram = platforms.instagram && !existingInstagram;

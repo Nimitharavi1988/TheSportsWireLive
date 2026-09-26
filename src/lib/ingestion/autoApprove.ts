@@ -6,6 +6,7 @@ import { submitToIndexNow, articleUrl } from "../indexNow";
 import { isMatchDataSource } from "../matchDataSources";
 import { isHighlightWorthy } from "../highlightWorthy";
 import { isPushWorthy } from "../pushWorthy";
+import { postToTopicPages } from "../social/topicPosting";
 import { postArticleToFacebook } from "../social/facebook";
 import { postInstagramPoster } from "../social/postInstagramPoster";
 import { sendPushToAllSubscribers } from "../push";
@@ -292,7 +293,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     // earlier, re-selected and silently skipped). A post, once made, should
     // never be re-selected as a candidate — no reason to time-bound this.
     db.select({ articleId: socialPost.articleId }).from(socialPost)
-      .where(and(eq(socialPost.platform, "facebook"), inArray(socialPost.status, ["posted", "queued"]))),
+      .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, "main"), inArray(socialPost.status, ["posted", "queued"]))),
     db.select({ articleId: socialPost.articleId }).from(socialPost)
       .where(and(eq(socialPost.platform, "instagram"), inArray(socialPost.status, ["posted", "queued"]))),
     // Same-event dedup: titles of everything actually posted in the last 24h,
@@ -300,7 +301,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     // story) from also reaching the Page — see titleSimilarity.ts.
     db.select({ title: article.title }).from(socialPost)
       .innerJoin(article, eq(socialPost.articleId, article.id))
-      .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.status, "posted"), gte(socialPost.postedAt, similarityCutoff))),
+      .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, "main"), eq(socialPost.status, "posted"), gte(socialPost.postedAt, similarityCutoff))),
     db.select({ title: article.title }).from(socialPost)
       .innerJoin(article, eq(socialPost.articleId, article.id))
       .where(and(eq(socialPost.platform, "instagram"), eq(socialPost.status, "posted"), gte(socialPost.postedAt, similarityCutoff))),
@@ -433,7 +434,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   const todayStart = new Date();
   todayStart.setUTCHours(0, 0, 0, 0);
   const [{ value: postedToday }] = await db.select({ value: count() }).from(socialPost)
-    .where(and(eq(socialPost.platform, "facebook"), gte(socialPost.createdAt, todayStart)));
+    .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, "main"), gte(socialPost.createdAt, todayStart)));
   const remainingToday = Math.max(0, MAX_FACEBOOK_POSTS_PER_DAY - postedToday);
 
   // Paced allocation: how many posts SHOULD have gone out by this point in
@@ -553,6 +554,9 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
       }
     }
   }
+
+  // Topic Pages (e.g. India cricket) — own topics, limits and history.
+  await postToTopicPages(now);
 
   await sendAutomatedPushNotifications(toApprove);
 

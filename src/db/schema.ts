@@ -125,6 +125,9 @@ export const socialPost = pgTable("SocialPost", {
   id: text("id").primaryKey(),
   articleId: text("articleId").notNull(),
   platform: socialPlatformEnum("platform").notNull(),
+  // Which Page/account: "main" (Sports Wire Live) or a topic Page key
+  // (social/facebookDestinations.ts). Each has its own posting history.
+  destination: text("destination").notNull().default("main"),
   status: socialPostStatusEnum("status").notNull().default("queued"),
   externalPostId: text("externalPostId"),
   errorMessage: text("errorMessage"),
