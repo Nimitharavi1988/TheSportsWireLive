@@ -6,10 +6,12 @@ import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
+import { reportClientError } from "@/lib/reportClientError";
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error(error);
+    reportClientError(error);
   }, [error]);
 
   return (
@@ -33,6 +35,10 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
             Back to Sports Wire Live
           </Button>
         </Stack>
+        {/* Lets a reader quote the error when reporting it. */}
+        <Typography variant="caption" sx={{ color: "text.disabled", wordBreak: "break-word" }}>
+          {error.digest ? `Ref ${error.digest}` : error.message.slice(0, 160)}
+        </Typography>
       </Stack>
     </Container>
   );
