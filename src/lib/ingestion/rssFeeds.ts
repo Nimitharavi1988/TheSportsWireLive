@@ -94,7 +94,32 @@ export function extractRssImage(entry: any): RssImage | null {
   return null;
 }
 
-const FEEDS: { url: string; category: string; sourceName: string }[] = [
+export interface RssFeed {
+  url: string;
+  category: string;
+  sourceName: string;
+  // Per-feed topic filter, on the headline: a general sports feed can feed
+  // one sport's section (`include`), and a feed's off-brand content can be
+  // kept out (`exclude`). Without `include`, every item takes the feed's
+  // category — right for a sport-specific feed, wrong for a mixed one.
+  include?: RegExp;
+  exclude?: RegExp;
+}
+
+// Whether a feed item belongs in the site under that feed (pure, tested).
+export function acceptsItem(feed: Pick<RssFeed, "include" | "exclude">, title: string): boolean {
+  if (feed.include && !feed.include.test(title)) return false;
+  if (feed.exclude && feed.exclude.test(title)) return false;
+  return true;
+}
+
+// Cricket stories in a general sports feed (Indian outlets, 2026-09-26).
+const CRICKET_HEADLINE =
+  /\b(cricket|odis?|t20is?|t20|test match|ipl|wpl|bcci|icc|ranji|duleep|wicket|innings|kohli|rohit|gill|bumrah|samson|pant|jadeja|kuldeep|hardik|west indies|windies)\b/i;
+// Fantasy/betting/prediction pieces some cricket sites publish daily — not news.
+const FANTASY_OR_BETTING = /\b(dream11|fantasy|predictions?|predicted xi|betting|odds|who will win|today'?s match)\b/i;
+
+const FEEDS: RssFeed[] = [
   // No structured race-data source exists on any free tier (confirmed live:
   // api-sports.io's Formula-1 API free plan rejects the current season
   // entirely — "try from 2022 to 2024"), so F1 is RSS-only editorial
@@ -159,6 +184,22 @@ const FEEDS: { url: string; category: string; sourceName: string }[] = [
   // search alone was missing.
   { url: "https://timesofindia.indiatimes.com/rssfeeds/54829575.cms", category: "cricket", sourceName: "The Times of India" },
   { url: "https://www.wisden.com/feed", category: "cricket", sourceName: "Wisden" },
+  // Indian cricket coverage read directly (added 2026-09-26). The India v
+  // West Indies ODI build-up (squads, injuries, Greenfield/Thiruvananthapuram
+  // venue and pitch stories) was all arriving via Google News search, whose
+  // links can't be read — so almost every one was rejected. Each feed below
+  // checked live: current items, readable pages, real photos, robots.txt
+  // allows. General sports feeds take cricket headlines only (include);
+  // CricTracker/CricketAddictor carry daily pitch reports and venue stats
+  // but also fantasy/betting predictions, which are excluded.
+  { url: "https://sportstar.thehindu.com/cricket/feeder/default.rss", category: "cricket", sourceName: "Sportstar" },
+  { url: "https://www.thehindu.com/sport/cricket/feeder/default.rss", category: "cricket", sourceName: "The Hindu" },
+  { url: "https://indianexpress.com/section/sports/cricket/feed/", category: "cricket", sourceName: "The Indian Express" },
+  { url: "https://www.indiatoday.in/rss/1206550", category: "cricket", sourceName: "India Today", include: CRICKET_HEADLINE },
+  { url: "https://www.onmanorama.com/sports.feeds.rss.xml", category: "cricket", sourceName: "Onmanorama", include: CRICKET_HEADLINE },
+  { url: "https://english.mathrubhumi.com/rss/sports", category: "cricket", sourceName: "Mathrubhumi", include: CRICKET_HEADLINE },
+  { url: "https://www.crictracker.com/feed/", category: "cricket", sourceName: "CricTracker", exclude: FANTASY_OR_BETTING },
+  { url: "https://cricketaddictor.com/feed/", category: "cricket", sourceName: "CricketAddictor", exclude: FANTASY_OR_BETTING },
   // ESPN's general soccer feed — broader global coverage than the UK-focused
   // feeds above, more likely to pick up MLS (Messi/Inter Miami) and Saudi
   // Pro League (Ronaldo/Al-Nassr) news, which football-data.org's structured
@@ -302,6 +343,7 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
 
       for (const entry of parsed.items ?? []) {
         if (!entry.title || !entry.link) continue;
+        if (!acceptsItem(feed, decodeHtmlEntities(entry.title))) continue;
 
         const image = extractRssImage(entry);
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractRssImage } from "./rssFeeds";
+import { acceptsItem, extractRssImage } from "./rssFeeds";
 
 describe("extractRssImage", () => {
   it("extracts a BBC-style media:thumbnail (single object, attribute-only)", () => {
@@ -56,5 +56,19 @@ describe("extractRssImage", () => {
 
   it("returns null when a feed entry has no image field at all", () => {
     expect(extractRssImage({})).toBeNull();
+  });
+});
+
+describe("acceptsItem (per-feed topic filter)", () => {
+  const cricketOnly = { include: /\b(cricket|odi|kohli)\b/i };
+  const noFantasy = { exclude: /\b(dream11|prediction)\b/i };
+  it("keeps only matching headlines from a general sports feed", () => {
+    expect(acceptsItem(cricketOnly, "Kohli eyes record at Thiruvananthapuram ODI")).toBe(true);
+    expect(acceptsItem(cricketOnly, "Ronaldinho arrives in Kerala for exhibition match")).toBe(false);
+  });
+  it("drops excluded content and leaves plain feeds untouched", () => {
+    expect(acceptsItem(noFantasy, "IND vs WI Dream11 Prediction, 1st ODI")).toBe(false);
+    expect(acceptsItem(noFantasy, "Greenfield pitch report for 1st ODI")).toBe(true);
+    expect(acceptsItem({}, "Anything")).toBe(true);
   });
 });
