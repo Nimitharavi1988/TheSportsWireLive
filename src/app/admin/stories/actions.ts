@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { CATEGORY_META } from "@/lib/categoryMeta";
 import { MAX_UPLOAD_BYTES, UPLOAD_TYPES, mediaBucket, mediaKey, mediaUrl } from "@/lib/media";
-import { ORIGINAL_SOURCE, ORIGINAL_TRENDING_SCORE, authorSlug, isOriginalStory, publishProblems, storySlug } from "@/lib/stories";
+import { ORIGINAL_SOURCE, ORIGINAL_TRENDING_SCORE, STORY_KINDS, authorSlug, isOriginalStory, publishProblems, storySlug } from "@/lib/stories";
 import { articleUrl, submitToIndexNow } from "@/lib/indexNow";
 
 // Write a story / Edit (src/app/admin/stories). Every action checks the
@@ -39,6 +39,8 @@ export interface SaveStoryInput {
   summary: string;
   body: string;
   category: string;
+  // Original stories only (lib/stories.ts STORY_KINDS).
+  storyKind: string;
   heroImageUrl: string | null;
   heroImageCredit: string | null;
   authorName: string;
@@ -65,6 +67,7 @@ function revalidateStory(slug: string, category: string) {
   revalidatePath("/");
   revalidatePath(`/sport/${category.split("/")[0]}`);
   revalidatePath("/admin/stories");
+  revalidatePath("/analysis");
 }
 
 export async function saveStory(input: SaveStoryInput): Promise<Result<{ id: string; slug: string; status: string }>> {
@@ -88,6 +91,7 @@ export async function saveStory(input: SaveStoryInput): Promise<Result<{ id: str
     if (problems.length > 0) return { ok: false, error: problems.join(" ") };
   }
   if (!input.title.trim()) return { ok: false, error: "Add a headline." };
+  const storyKind = input.storyKind in STORY_KINDS ? input.storyKind : "analysis";
   if (!original && !input.summary.trim()) return { ok: false, error: "Add a summary." };
   if (!original && input.byline && !input.authorName.trim()) return { ok: false, error: "Add the writer's name for the byline." };
 
@@ -119,6 +123,7 @@ export async function saveStory(input: SaveStoryInput): Promise<Result<{ id: str
       slug,
       verticalId: sports.id,
       category: input.category,
+      storyKind,
       sourceName: ORIGINAL_SOURCE,
       sourceUrl: articleUrl(slug),
       dedupeHash: `original-${id}`,
@@ -137,7 +142,7 @@ export async function saveStory(input: SaveStoryInput): Promise<Result<{ id: str
   const status = original ? (input.publish ? "published" : "draft") : existing.status;
   await db.update(article).set({
     ...text,
-    ...(original ? { category: input.category, status } : {}),
+    ...(original ? { category: input.category, storyKind, status } : {}),
     ...(firstPublish ? { publishedAt: now, createdAt: now } : {}),
   }).where(eq(article.id, existing.id));
   if (status === "published") await submitToIndexNow([articleUrl(existing.slug)]);

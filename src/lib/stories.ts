@@ -17,6 +17,21 @@ export const ORIGINAL_SOURCE = "Sports Wire Live";
 // leads the home page and is picked for social posting.
 export const ORIGINAL_TRENDING_SCORE = 100;
 
+// The kinds of original piece, shown as a label on the story and in the
+// Analysis section.
+export const STORY_KINDS = {
+  analysis: "Analysis",
+  preview: "Preview",
+  opinion: "Opinion",
+  feature: "Feature",
+  report: "Match report",
+} as const;
+export type StoryKind = keyof typeof STORY_KINDS;
+
+export function storyKindLabel(kind: string | null | undefined): string | null {
+  return kind && kind in STORY_KINDS ? STORY_KINDS[kind as StoryKind] : null;
+}
+
 export const STORY_LIMITS = {
   title: { min: 10, max: 150 },
   summary: { min: 50, max: 300 },

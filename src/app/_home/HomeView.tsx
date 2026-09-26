@@ -1,3 +1,4 @@
+import { AnalysisStrip } from "@/components/AnalysisStrip";
 import { TeamCrest } from "@/components/TeamCrest";
 import { CATEGORY_META } from "@/lib/categoryMeta";
 import { Suspense } from "react";
@@ -755,6 +756,10 @@ export async function HomeView({ category }: { category?: string }) {
       <MobileScoresRow matches={liveMatches.slice(0, 12)} sport={category?.split("/")[0]} />
       <HomeBanners />
       {!category && <ForYouStrip />}
+      {/* Our writers' latest pieces (nothing until there are some). */}
+      <Suspense fallback={null}>
+        <AnalysisStrip category={category} />
+      </Suspense>
       {articles.length === 0 && (
         <Box sx={{ textAlign: "center", py: 8 }}>
           <Typography variant="h6" gutterBottom>

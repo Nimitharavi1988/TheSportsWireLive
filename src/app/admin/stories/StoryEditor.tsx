@@ -12,7 +12,7 @@ import Typography from "@mui/material/Typography";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import { saveStory, uploadStoryImage, deleteDraft } from "./actions";
-import { STORY_LIMITS, wordCount } from "@/lib/stories";
+import { STORY_KINDS, STORY_LIMITS, wordCount } from "@/lib/stories";
 
 export interface StoryEditorValues {
   id?: string;
@@ -20,6 +20,7 @@ export interface StoryEditorValues {
   summary: string;
   body: string;
   category: string;
+  storyKind: string;
   heroImageUrl: string | null;
   heroImageCredit: string | null;
   authorName: string;
@@ -137,9 +138,14 @@ export function StoryEditor({ initial, categories }: { initial: StoryEditorValue
         slotProps={{ htmlInput: { maxLength: STORY_LIMITS.summary.max } }} />
 
       {v.original && (
-        <TextField select label="Sport" value={v.category} onChange={(e) => set("category", e.target.value)} sx={{ maxWidth: 320 }}>
-          {categories.map((c) => <MenuItem key={c.value} value={c.value}>{c.label}</MenuItem>)}
-        </TextField>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+          <TextField select label="Sport" value={v.category} onChange={(e) => set("category", e.target.value)} sx={{ minWidth: 240 }}>
+            {categories.map((c) => <MenuItem key={c.value} value={c.value}>{c.label}</MenuItem>)}
+          </TextField>
+          <TextField select label="Kind of piece" value={v.storyKind} onChange={(e) => set("storyKind", e.target.value)} sx={{ minWidth: 200 }}>
+            {Object.entries(STORY_KINDS).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
+          </TextField>
+        </Stack>
       )}
 
       <Box>

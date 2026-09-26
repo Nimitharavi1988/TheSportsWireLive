@@ -26,6 +26,7 @@ import SportsFootballIcon from "@mui/icons-material/SportsFootball";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import SportsScoreIcon from "@mui/icons-material/SportsScore";
 import SmartDisplayIcon from "@mui/icons-material/SmartDisplay";
+import InsightsIcon from "@mui/icons-material/Insights";
 import SportsBasketballIcon from "@mui/icons-material/SportsBasketball";
 import SportsBaseballIcon from "@mui/icons-material/SportsBaseball";
 import SportsRugbyIcon from "@mui/icons-material/SportsRugby";
@@ -58,7 +59,11 @@ import type { SvgIconComponent } from "@mui/icons-material";
 // top-level billing overpromised what the page actually covers. Lives in
 // MORE_SPORTS_LINKS below until that coverage gap closes; graduate it back
 // here once it's genuinely cross-sport.
-const NAV_LINKS: { href: string; label: string; category: string | null; icon: SvgIconComponent }[] = [
+// wideOnly: in the top bar only when there's room for it (WIDE_NAV_MEDIA);
+// narrower, it's listed first in the More dropdown instead, so the bar
+// never wraps onto a second row.
+const WIDE_NAV_MEDIA = "@media (min-width: 1000px)";
+const NAV_LINKS: { href: string; label: string; category: string | null; icon: SvgIconComponent; wideOnly?: boolean }[] = [
   { href: "/", label: "All", category: null, icon: ViewListIcon },
   // Personalized feed of followed teams/players/sports (see for-you/page.tsx).
   { href: "/for-you", label: "For You", category: null, icon: StarBorderIcon },
@@ -67,6 +72,8 @@ const NAV_LINKS: { href: string; label: string; category: string | null; icon: S
   { href: "/sport/american-football", label: "NFL", category: "american-football", icon: SportsFootballIcon },
   { href: "/scores", label: "Scores", category: null, icon: SportsScoreIcon },
   { href: "/videos", label: "Videos", category: null, icon: SmartDisplayIcon },
+  // Our own writers' pieces (see app/analysis).
+  { href: "/analysis", label: "Analysis", category: null, icon: InsightsIcon, wideOnly: true },
 ];
 
 // Everything else — including sports that used to be top-level
@@ -204,7 +211,8 @@ function NavLinks() {
                 component={Link}
                 href={link.href}
                 sx={{
-                  display: "flex",
+                  display: link.wideOnly ? "none" : "flex",
+                  ...(link.wideOnly ? { [WIDE_NAV_MEDIA]: { display: "flex" } } : {}),
                   alignItems: "center",
                   gap: 0.6,
                   flexShrink: 0,
@@ -290,9 +298,10 @@ function NavLinks() {
                   boxShadow: "0 6px 20px rgba(0,0,0,0.12)",
                 }}
               >
-                {MORE_SPORTS_LINKS.map((link) => {
+                {[...NAV_LINKS.filter((l) => l.wideOnly), ...MORE_SPORTS_LINKS].map((link) => {
                   const Icon = link.icon;
                   const isActive = isLinkActive(link);
+                  const wideOnly = "wideOnly" in link && link.wideOnly;
                   return (
                     <Box
                       key={link.label}
@@ -301,6 +310,8 @@ function NavLinks() {
                       onClick={() => setMoreOpen(false)}
                       sx={{
                         display: "flex",
+                        // Already in the top bar when it's wide enough.
+                        ...(wideOnly ? { [WIDE_NAV_MEDIA]: { display: "none" } } : {}),
                         alignItems: "center",
                         gap: 1.2,
                         px: 2,
@@ -406,7 +417,8 @@ function NavLinksFallback() {
                 component={Link}
                 href={link.href}
                 sx={{
-                  display: "flex",
+                  display: link.wideOnly ? "none" : "flex",
+                  ...(link.wideOnly ? { [WIDE_NAV_MEDIA]: { display: "flex" } } : {}),
                   alignItems: "center",
                   gap: 0.6,
                   flexShrink: 0,

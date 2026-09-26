@@ -16,7 +16,7 @@ export default async function NewStoryPage() {
       <Typography variant="h4" sx={{ mt: 1, mb: 3 }}>Write a story</Typography>
       <StoryEditor
         categories={storyCategories()}
-        initial={{ title: "", summary: "", body: "", category: "cricket", heroImageUrl: null, heroImageCredit: "", authorName: "", authorBio: "", original: true, hasByline: true }}
+        initial={{ title: "", summary: "", body: "", category: "cricket", storyKind: "analysis", heroImageUrl: null, heroImageCredit: "", authorName: "", authorBio: "", original: true, hasByline: true }}
       />
     </Container>
   );
