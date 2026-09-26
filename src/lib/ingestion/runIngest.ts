@@ -25,7 +25,7 @@ import { computeDedupeHash, computeStableDedupeHash } from "./dedupe";
 import { runQualityChecks } from "./qualityCheck";
 import { fetchTrendingKeywords, computeTrendingScore } from "./trending";
 import { fetchStockImagePools, createStockImagePicker } from "./stockImages";
-import { generateCommentary, generateMatchRecap, verifyCommentaryHasSubstance } from "./commentary";
+import { aiUnavailableReason, generateCommentary, generateMatchRecap, verifyCommentaryHasSubstance } from "./commentary";
 import { extractArticleContent, extractArticleContentDetailed } from "./articleTextExtractor";
 import { fetchPersonPhoto, sportSearchHint } from "./wikimediaImages";
 import { isExcludedSource } from "../excludedSources";
@@ -484,7 +484,8 @@ export async function runIngest() {
           // reachable by a bulk-approve or a reviewer skimming past it.
           // Only touches still-pending items — an already-published
           // article isn't silently pulled by a later failed retry.
-          if (!commentary && existing.status === "pending_review") {
+          // Not when the AI itself was unavailable — that's no verdict on the story.
+          if (!commentary && existing.status === "pending_review" && !aiUnavailableReason()) {
             await db.update(article).set({ status: "rejected", rejectionReason: retryReason, updatedAt: new Date() }).where(eq(article.id, existing.id));
             existing.status = "rejected";
           }
@@ -649,10 +650,12 @@ export async function runIngest() {
         // just be folded into generateCommentary's own response.
         const commentary = rawCommentary && (await verifyCommentaryHasSubstance(item.title, rawCommentary)) ? rawCommentary : null;
         if (commentary) body = commentary;
-        else {
+        else if (!aiUnavailableReason()) {
           commentaryAttemptFailed = true;
           rejectionReason = commentaryFailureReason(rawCommentary, grounding.text.length);
         }
+        // AI unavailable (out of credits, rate-limited, down): not a verdict
+        // on the story — it stays pending and is written on a later run.
         if (extractedVenue) venue = extractedVenue;
         await sleep(COMMENTARY_DELAY_MS);
 
@@ -852,6 +855,7 @@ export async function runIngest() {
     if (!quality.passed) flagged++;
   }
 
+  if (aiUnavailableReason()) console.warn(`[ingest] ${aiUnavailableReason()} — stories were left pending, not rejected; they will be written once the AI is back.`);
   console.log(
     `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${staleSkipped} stale RSS items skipped (older than ${MAX_RSS_ITEM_AGE_MS / 86400000}d), ${crossProviderSkipped} matches already stored from another provider, ` +
     `${duplicates} duplicates skipped (${backfilled} of those backfilled with a body they missed on a previous run), ` +
