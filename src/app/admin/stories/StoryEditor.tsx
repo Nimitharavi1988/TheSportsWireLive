@@ -12,7 +12,7 @@ import Typography from "@mui/material/Typography";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import Autocomplete from "@mui/material/Autocomplete";
-import { tagGroupLabel, type TagOption } from "@/lib/tags";
+import { tagGroupLabel, type TagOption } from "@/lib/tagOptions";
 import { saveStory, uploadStoryImage, deleteDraft } from "./actions";
 import { STORY_KINDS, STORY_LIMITS, wordCount } from "@/lib/stories";
 
