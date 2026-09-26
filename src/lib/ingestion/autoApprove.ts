@@ -630,7 +630,7 @@ export async function rejectStaleNoImageArticles(): Promise<number> {
   const staleIds = candidates.filter((a) => !hasRealImage(a)).map((a) => a.id);
   if (staleIds.length === 0) return 0;
 
-  await db.update(article).set({ status: "rejected", updatedAt: new Date() }).where(inArray(article.id, staleIds));
+  await db.update(article).set({ status: "rejected", rejectionReason: `no real photo after ${STALE_NO_IMAGE_HOURS}h`, updatedAt: new Date() }).where(inArray(article.id, staleIds));
   return staleIds.length;
 }
 
@@ -660,7 +660,7 @@ export async function rejectStaleNoBodyArticles(): Promise<number> {
     .map((a) => a.id);
   if (staleIds.length === 0) return 0;
 
-  await db.update(article).set({ status: "rejected", updatedAt: new Date() }).where(inArray(article.id, staleIds));
+  await db.update(article).set({ status: "rejected", rejectionReason: `no write-up after ${STALE_NO_BODY_HOURS}h`, updatedAt: new Date() }).where(inArray(article.id, staleIds));
   return staleIds.length;
 }
 

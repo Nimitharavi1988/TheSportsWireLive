@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { acceptsItem, extractRssImage } from "./rssFeeds";
+import { acceptsItem, extractRssImage, feedContentImage, feedFullText } from "./rssFeeds";
 
 describe("extractRssImage", () => {
   it("extracts a BBC-style media:thumbnail (single object, attribute-only)", () => {
@@ -70,5 +70,19 @@ describe("acceptsItem (per-feed topic filter)", () => {
     expect(acceptsItem(noFantasy, "IND vs WI Dream11 Prediction, 1st ODI")).toBe(false);
     expect(acceptsItem(noFantasy, "Greenfield pitch report for 1st ODI")).toBe(true);
     expect(acceptsItem({}, "Anything")).toBe(true);
+  });
+});
+
+describe("feed full text and inline photo (WordPress-style feeds)", () => {
+  const body = "<p>" + "Virat Kohli has a fine record at Greenfield. ".repeat(12) + "</p>";
+  it("uses content:encoded as the article text when it is substantial", () => {
+    expect(feedFullText({ "content:encoded": body })?.startsWith("Virat Kohli has a fine record")).toBe(true);
+    expect(feedFullText({ "content:encoded": "<p>Short teaser</p>" })).toBeUndefined();
+    expect(feedFullText({})).toBeUndefined();
+  });
+  it("takes the first real photo, skipping avatars and pixels", () => {
+    const html = '<img src="https://secure.gravatar.com/a.jpg"><img src="https://static.cricketaddictor.com/images/posts/2026/kohli.jpg" width="800">';
+    expect(feedContentImage({ "content:encoded": html })?.url).toBe("https://static.cricketaddictor.com/images/posts/2026/kohli.jpg");
+    expect(feedContentImage({ "content:encoded": "<p>no image</p>" })).toBeNull();
   });
 });

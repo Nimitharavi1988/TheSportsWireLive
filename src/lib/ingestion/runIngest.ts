@@ -26,7 +26,7 @@ import { runQualityChecks } from "./qualityCheck";
 import { fetchTrendingKeywords, computeTrendingScore } from "./trending";
 import { fetchStockImagePools, createStockImagePicker } from "./stockImages";
 import { generateCommentary, generateMatchRecap, verifyCommentaryHasSubstance } from "./commentary";
-import { extractArticleContent } from "./articleTextExtractor";
+import { extractArticleContent, extractArticleContentDetailed } from "./articleTextExtractor";
 import { fetchPersonPhoto, sportSearchHint } from "./wikimediaImages";
 import { isExcludedSource } from "../excludedSources";
 import { competitionFromSummary } from "../teamNames";
@@ -39,6 +39,12 @@ import { resolvePrimaryPlayerName } from "../players";
 // that date changes, defeating dedup for the same underlying event.
 function dedupeHashFor(item: RawMatchItem): string {
   return item.dedupeKey ? computeStableDedupeHash(item.dedupeKey) : computeDedupeHash(item.title, item.publishedAt);
+}
+
+// Why an AI write-up attempt produced nothing usable (Article.rejectionReason).
+function commentaryFailureReason(rawCommentary: string | null | undefined, groundingChars: number): string {
+  const basis = ` (source text ${groundingChars} chars${groundingChars < THIN_SNIPPET_THRESHOLD ? ", too thin" : ""})`;
+  return rawCommentary ? `AI write-up failed the substance check${basis}` : `AI returned no write-up${basis}`;
 }
 
 function sleep(ms: number) {
@@ -172,7 +178,11 @@ interface Grounding {
 // too AND a real snippet, so it should use that directly rather than making
 // an unnecessary extra fetch. Every other feed's own snippet is used when
 // substantive, and only falls back to page extraction when it's too thin.
+// Why grounding found nothing, for Article.rejectionReason.
+let lastGroundingFailure = "";
+
 async function resolveGrounding(item: RawMatchItem): Promise<Grounding | null> {
+  lastGroundingFailure = "";
   const snippet = item.sourceSnippet?.trim();
   if (snippet && snippet.length >= THIN_SNIPPET_THRESHOLD) {
     // The snippet is enough to write from, but a feed without images
@@ -196,9 +206,13 @@ async function resolveGrounding(item: RawMatchItem): Promise<Grounding | null> {
   // (see commentary.ts's own instruction). Every other source still gets
   // the full extraction attempt below -- this only short-circuits the one
   // case already known to be a dead end before spending anything on it.
-  if (isGoogleNewsRedirect(item.sourceUrl)) return null;
-  const extracted = await extractArticleContent(item.sourceUrl);
-  if (extracted) return { text: extracted.text, imageUrl: extracted.imageUrl };
+  if (isGoogleNewsRedirect(item.sourceUrl)) {
+    lastGroundingFailure = "Google News link (unreadable) and feed summary too short";
+    return null;
+  }
+  const extracted = await extractArticleContentDetailed(item.sourceUrl);
+  if (!("failure" in extracted)) return { text: extracted.text, imageUrl: extracted.imageUrl };
+  lastGroundingFailure = `source page unreadable (${extracted.failure})${snippet ? "; used short feed summary" : ""}`;
   return snippet ? { text: snippet } : null;
 }
 
@@ -451,6 +465,7 @@ export async function runIngest() {
           // as pure headline-paraphrase is treated the same as an empty one
           // below, not silently accepted.
           const commentary = rawCommentary && (await verifyCommentaryHasSubstance(item.title, rawCommentary)) ? rawCommentary : null;
+          const retryReason = commentaryFailureReason(rawCommentary, grounding.text.length);
           await sleep(COMMENTARY_DELAY_MS);
 
           // A real generation attempt just failed on retry — same rule the
@@ -470,7 +485,7 @@ export async function runIngest() {
           // Only touches still-pending items — an already-published
           // article isn't silently pulled by a later failed retry.
           if (!commentary && existing.status === "pending_review") {
-            await db.update(article).set({ status: "rejected", updatedAt: new Date() }).where(eq(article.id, existing.id));
+            await db.update(article).set({ status: "rejected", rejectionReason: retryReason, updatedAt: new Date() }).where(eq(article.id, existing.id));
             existing.status = "rejected";
           }
 
@@ -510,7 +525,7 @@ export async function runIngest() {
           // (extraction blocked, RSS snippet too thin/missing) — same
           // "real attempt failed" rejection as the commentary-came-back-
           // empty case above.
-          await db.update(article).set({ status: "rejected", updatedAt: new Date() }).where(eq(article.id, existing.id));
+          await db.update(article).set({ status: "rejected", rejectionReason: lastGroundingFailure || "nothing to write from", updatedAt: new Date() }).where(eq(article.id, existing.id));
           existing.status = "rejected";
         }
       }
@@ -613,6 +628,7 @@ export async function runIngest() {
     // a human to even read. Catching this at ingestion time instead of
     // waiting for a separate cleanup pass.
     let commentaryAttemptFailed = false;
+    let rejectionReason: string | undefined;
     if (!body && quality.passed && canAffordCommentary(item.category)) {
       // knownPersonName (player-news) items used to be excluded here
       // outright — see resolveGrounding's comment for why they're now
@@ -626,7 +642,10 @@ export async function runIngest() {
         // just be folded into generateCommentary's own response.
         const commentary = rawCommentary && (await verifyCommentaryHasSubstance(item.title, rawCommentary)) ? rawCommentary : null;
         if (commentary) body = commentary;
-        else commentaryAttemptFailed = true;
+        else {
+          commentaryAttemptFailed = true;
+          rejectionReason = commentaryFailureReason(rawCommentary, grounding.text.length);
+        }
         if (extractedVenue) venue = extractedVenue;
         await sleep(COMMENTARY_DELAY_MS);
 
@@ -665,6 +684,7 @@ export async function runIngest() {
         // blocked, RSS snippet too thin) — a real attempt that failed, same
         // as commentary generation coming back empty above.
         commentaryAttemptFailed = true;
+        rejectionReason = lastGroundingFailure || "nothing to write from";
       }
     }
 
@@ -787,6 +807,7 @@ export async function runIngest() {
           : commentaryAttemptFailed && !body
             ? "rejected"
             : "pending_review",
+        rejectionReason: commentaryAttemptFailed && !body ? rejectionReason : undefined,
         // Marks this as a player-news item so autoApprove.ts knows a null
         // body here is the finished state (summary + real photo + source
         // link), not "not yet enriched" — see the field's schema comment.

@@ -113,6 +113,31 @@ export function acceptsItem(feed: Pick<RssFeed, "include" | "exclude">, title: s
   return true;
 }
 
+// The article's full text when the feed carries it (content:encoded) —
+// enough to write from without fetching the page. undefined for feeds that
+// only give a short description (pure, tested).
+export function feedFullText(entry: object): string | undefined {
+  const html = (entry as Record<string, unknown>)["content:encoded"];
+  if (typeof html !== "string") return undefined;
+  if (!html) return undefined;
+  const text = decodeHtmlEntities(html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ").replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+  return text.length >= 400 ? text : undefined;
+}
+
+// First real photo inside the feed's article HTML, for feeds that don't use
+// media:/enclosure tags. Skips avatars, emoji and tracking pixels (pure, tested).
+export function feedContentImage(entry: object): RssImage | null {
+  const fields = entry as Record<string, unknown>;
+  const raw = fields["content:encoded"] ?? fields.content;
+  const html = typeof raw === "string" ? raw : "";
+  for (const m of html.matchAll(/<img\b[^>]*\bsrc="(https?:\/\/[^"]+)"/gi)) {
+    const url = m[1];
+    if (/gravatar|emoji|pixel|1x1|\.gif(\?|$)|\.svg(\?|$)/i.test(url)) continue;
+    return { url };
+  }
+  return null;
+}
+
 // Cricket stories in a general sports feed (Indian outlets, 2026-09-26).
 const CRICKET_HEADLINE =
   /\b(cricket|odis?|t20is?|t20|test match|ipl|wpl|bcci|icc|ranji|duleep|wicket|innings|kohli|rohit|gill|bumrah|samson|pant|jadeja|kuldeep|hardik|west indies|windies)\b/i;
@@ -345,7 +370,13 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
         if (!entry.title || !entry.link) continue;
         if (!acceptsItem(feed, decodeHtmlEntities(entry.title))) continue;
 
-        const image = extractRssImage(entry);
+        // Feeds that carry the whole article in content:encoded (CricTracker,
+        // CricketAddictor and most WordPress sites) are grounded from it and
+        // take its first photo, so no page fetch is needed — page fetches from
+        // the ingestion runner can be refused by these sites (2026-09-26: the
+        // short description alone was too thin, and the page fetch failed).
+        const fullText = feedFullText(entry);
+        const image = extractRssImage(entry) ?? feedContentImage(entry);
 
         items.push({
           // Decoded: some feeds (Yahoo Sports) encode titles twice — see htmlEntities.ts.
@@ -359,7 +390,7 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
           // Carried through the pipeline only as grounding input for the
           // optional LLM commentary step (commentary.ts) — never stored or
           // displayed as-is, so it never republishes the source's own prose.
-          sourceSnippet: entry.contentSnippet ? decodeHtmlEntities(entry.contentSnippet).slice(0, 1200) : undefined,
+          sourceSnippet: (fullText ?? (entry.contentSnippet ? decodeHtmlEntities(entry.contentSnippet) : undefined))?.slice(0, 3000),
           sourceUrl: entry.link,
           sourceName: feed.sourceName,
           category: feed.category,

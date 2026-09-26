@@ -69,6 +69,9 @@ export const article = pgTable("Article", {
   kickoffAt: timestamp("kickoffAt", { precision: 3 }),
   homeScoreText: text("homeScoreText"),
   awayScoreText: text("awayScoreText"),
+  // Why ingestion/auto-approval rejected it ("source page unreadable (http
+  // 403)", "AI returned no write-up", ...), for diagnosing sources.
+  rejectionReason: text("rejectionReason"),
   seriesKey: text("seriesKey"),
   seriesLabel: text("seriesLabel"),
   venue: text("venue"),
