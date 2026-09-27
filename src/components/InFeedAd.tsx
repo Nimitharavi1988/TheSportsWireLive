@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { whenPageIdle } from "@/lib/whenPageIdle";
 import Box from "@mui/material/Box";
 
 declare global {
@@ -37,37 +38,44 @@ export function InFeedAd({ slot, layoutKey, sx }: { slot: string; layoutKey: str
 
   useEffect(() => {
     if (!clientId || pushed.current) return;
-    pushed.current = true;
-    // The copy for the other screen size is hidden (zero width): no request.
-    if (insRef.current && insRef.current.offsetWidth === 0) return;
-    try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch {
-      // AdSense script blocked/not loaded -- fail silently, same
-      // "never break the page over an optional feature" rule as every
-      // other best-effort integration in this codebase.
-      setFilled(false);
-      return;
-    }
+    let observer: MutationObserver | undefined;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
 
-    const el = insRef.current;
-    if (!el) return;
+    // After load, when idle (whenPageIdle.ts) — same as DisplayAd.
+    const cancel = whenPageIdle(() => {
+      pushed.current = true;
+      // The copy for the other screen size is hidden (zero width): no request.
+      if (insRef.current && insRef.current.offsetWidth === 0) return;
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch {
+        // AdSense script blocked/not loaded -- fail silently, same
+        // "never break the page over an optional feature" rule as every
+        // other best-effort integration in this codebase.
+        setFilled(false);
+        return;
+      }
 
-    const observer = new MutationObserver(() => {
-      const status = el.getAttribute("data-ad-status");
-      if (status === "filled") setFilled(true);
-      else if (status === "unfilled") setFilled(false);
+      const el = insRef.current;
+      if (!el) return;
+
+      observer = new MutationObserver(() => {
+        const status = el.getAttribute("data-ad-status");
+        if (status === "filled") setFilled(true);
+        else if (status === "unfilled") setFilled(false);
+      });
+      observer.observe(el, { attributes: true, attributeFilter: ["data-ad-status"] });
+
+      // Caps how long we wait for AdSense to resolve -- if it never does
+      // (blocked, slow network), don't leave the slot reserving space forever.
+      timeout = setTimeout(() => {
+        if (!el.getAttribute("data-ad-status")) setFilled(false);
+      }, 5000);
     });
-    observer.observe(el, { attributes: true, attributeFilter: ["data-ad-status"] });
-
-    // Caps how long we wait for AdSense to resolve -- if it never does
-    // (blocked, slow network), don't leave the slot reserving space forever.
-    const timeout = setTimeout(() => {
-      if (!el.getAttribute("data-ad-status")) setFilled(false);
-    }, 5000);
 
     return () => {
-      observer.disconnect();
+      cancel();
+      observer?.disconnect();
       clearTimeout(timeout);
     };
   }, [clientId]);

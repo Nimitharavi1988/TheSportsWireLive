@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { whenPageIdle } from "@/lib/whenPageIdle";
 
 declare global {
   interface Window {
@@ -28,45 +29,53 @@ export function DisplayAd({ slot, onFillStatusChange }: { slot: string; onFillSt
 
   useEffect(() => {
     if (!clientId || pushed.current) return;
-    pushed.current = true;
-    // Hidden at this screen size (e.g. the sidebar ad below md): no ad
-    // request — AdSense can't size a zero-width slot and logs an error.
-    if (insRef.current && insRef.current.offsetWidth === 0) {
-      onFillStatusChange?.(false);
-      return;
-    }
-    try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch {
-      // AdSense script blocked/not loaded (e.g. an ad blocker) -- fail
-      // silently, same "never break the page over an optional feature"
-      // rule as every other best-effort integration in this codebase.
-      onFillStatusChange?.(false);
-      return;
-    }
+    let observer: MutationObserver | undefined;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
 
-    const el = insRef.current;
-    if (!el || !onFillStatusChange) return;
+    // After load, when idle — never competing with the first paint
+    // (whenPageIdle.ts).
+    const cancel = whenPageIdle(() => {
+      pushed.current = true;
+      // Hidden at this screen size (e.g. the sidebar ad below md): no ad
+      // request — AdSense can't size a zero-width slot and logs an error.
+      if (insRef.current && insRef.current.offsetWidth === 0) {
+        onFillStatusChange?.(false);
+        return;
+      }
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch {
+        // AdSense script blocked/not loaded (e.g. an ad blocker) -- fail
+        // silently, same "never break the page over an optional feature"
+        // rule as every other best-effort integration in this codebase.
+        onFillStatusChange?.(false);
+        return;
+      }
 
-    // AdSense sets data-ad-status ("filled" | "unfilled") on the <ins>
-    // once it's decided whether it has an ad to show -- this happens
-    // asynchronously after push({}) above, so watch for it rather than
-    // checking once.
-    const observer = new MutationObserver(() => {
-      const status = el.getAttribute("data-ad-status");
-      if (status === "filled") onFillStatusChange(true);
-      else if (status === "unfilled") onFillStatusChange(false);
+      const el = insRef.current;
+      if (!el || !onFillStatusChange) return;
+
+      // AdSense sets data-ad-status ("filled" | "unfilled") on the <ins>
+      // once it's decided whether it has an ad to show -- this happens
+      // asynchronously after push({}) above, so watch for it rather than
+      // checking once.
+      observer = new MutationObserver(() => {
+        const status = el.getAttribute("data-ad-status");
+        if (status === "filled") onFillStatusChange(true);
+        else if (status === "unfilled") onFillStatusChange(false);
+      });
+      observer.observe(el, { attributes: true, attributeFilter: ["data-ad-status"] });
+
+      // Caps how long we wait for AdSense to resolve -- if it never does
+      // (blocked, slow network), don't leave the caller in permanent limbo.
+      timeout = setTimeout(() => {
+        if (!el.getAttribute("data-ad-status")) onFillStatusChange(false);
+      }, 5000);
     });
-    observer.observe(el, { attributes: true, attributeFilter: ["data-ad-status"] });
-
-    // Caps how long we wait for AdSense to resolve -- if it never does
-    // (blocked, slow network), don't leave the caller in permanent limbo.
-    const timeout = setTimeout(() => {
-      if (!el.getAttribute("data-ad-status")) onFillStatusChange(false);
-    }, 5000);
 
     return () => {
-      observer.disconnect();
+      cancel();
+      observer?.disconnect();
       clearTimeout(timeout);
     };
   }, [clientId, onFillStatusChange]);
