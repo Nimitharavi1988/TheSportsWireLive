@@ -65,11 +65,13 @@ async function resizeForUpload(file: File): Promise<Blob> {
 // The byline is remembered in this browser so it doesn't need retyping.
 const BYLINE_KEY = "swl:byline";
 
-export function StoryEditor({ initial, categories, seriesOptions, tagOptions }: {
+export function StoryEditor({ initial, categories, seriesOptions, tagOptions, idea }: {
   initial: StoryEditorValues;
   categories: { value: string; label: string }[];
   seriesOptions: SeriesOption[];
   tagOptions: TagOption[];
+  // Opened from Story ideas (lib/storyIdeas.ts): marked used on first save.
+  idea?: { key: string; headline: string; reason: string; brief: string };
 }) {
   const router = useRouter();
   const [v, setV] = useState(initial);
@@ -118,7 +120,7 @@ export function StoryEditor({ initial, categories, seriesOptions, tagOptions }: 
   function save(publish: boolean) {
     setMessage(null);
     startTransition(async () => {
-      const r = await saveStory({ ...v, publish, byline });
+      const r = await saveStory({ ...v, publish, byline, ideaKey: v.id ? undefined : idea?.key });
       if (!r.ok) {
         setMessage({ kind: "error", text: r.error });
         return;
@@ -150,6 +152,11 @@ export function StoryEditor({ initial, categories, seriesOptions, tagOptions }: 
   return (
     <Stack spacing={2.5} sx={{ maxWidth: 820 }}>
       {message && <Alert severity={message.kind}>{message.text}</Alert>}
+      {idea && !v.id && (
+        <Alert severity="info">
+          <strong>From Story ideas: {idea.headline}</strong> — {idea.reason}. Sport, kind, series and tags are set; Draft with AI has the brief ready.
+        </Alert>
+      )}
       {v.original && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap", p: 1.5, border: "1px dashed", borderColor: "divider", borderRadius: 2 }}>
           <Button variant="outlined" startIcon={<AutoAwesomeOutlinedIcon />} onClick={() => setDraftOpen(true)}>Draft with AI</Button>
@@ -218,6 +225,7 @@ export function StoryEditor({ initial, categories, seriesOptions, tagOptions }: 
         <AiDraftDialog
           open={draftOpen}
           onClose={() => setDraftOpen(false)}
+          initialBrief={idea?.brief}
           request={{ category: v.category, storyKind: v.storyKind, seriesKey: v.seriesKey, tags: v.tags }}
           contextLabels={[
             categories.find((c) => c.value === v.category)?.label ?? v.category,

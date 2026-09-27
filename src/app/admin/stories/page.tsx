@@ -36,7 +36,10 @@ export default async function StoriesPage() {
       <SiteBreadcrumbs steps={[{ name: "Admin", href: "/admin" }]} current="Stories" />
       <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mb: 3 }}>
         <Typography variant="h4">Stories</Typography>
-        <Link href="/admin/stories/new"><Button variant="contained">Write a story</Button></Link>
+        <Stack direction="row" spacing={1}>
+          <Link href="/admin/stories/ideas"><Button variant="outlined">Story ideas</Button></Link>
+          <Link href="/admin/stories/new"><Button variant="contained">Write a story</Button></Link>
+        </Stack>
       </Stack>
       {rows.length === 0 ? (
         <Typography sx={{ color: "text.secondary" }}>

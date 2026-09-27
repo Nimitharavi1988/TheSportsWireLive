@@ -21,15 +21,17 @@ import { draftStoryWithAI, type AiDraftRequest } from "./actions";
 
 // Optional first draft for the writer (lib/aiDraft.ts). Uses the story's
 // sport, kind, series and tags as they're set in the editor, plus a brief.
-export function AiDraftDialog({ open, onClose, request, contextLabels, onUse }: {
+export function AiDraftDialog({ open, onClose, request, contextLabels, onUse, initialBrief = "" }: {
   open: boolean;
   onClose: () => void;
   request: Omit<AiDraftRequest, "brief">;
   contextLabels: string[];
   onUse: (draft: AiDraft) => void;
+  // From a story idea — editable like any brief.
+  initialBrief?: string;
 }) {
   const phone = useMediaQuery("(max-width:600px)");
-  const [brief, setBrief] = useState("");
+  const [brief, setBrief] = useState(initialBrief);
   const [draft, setDraft] = useState<AiDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();

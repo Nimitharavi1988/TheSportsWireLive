@@ -7,6 +7,7 @@ import { isAutoApprovable } from "@/lib/contentQuality";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import CardActions from "@mui/material/CardActions";
@@ -388,7 +389,8 @@ export function ArticleQueueClient({
                   </Typography>
                   <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                     <Button size="small" onClick={() => setDetailId(article.id)}>View details</Button>
-                    <a href={`/admin/stories/${article.id}`} style={{ fontSize: 13, color: "inherit" }}>Edit</a>
+                    {/* Headline, summary, text, photo, tags — pending or live (stories/[id]). */}
+                    <Button size="small" variant="outlined" startIcon={<EditOutlinedIcon />} href={`/admin/stories/${article.id}`}>Edit</Button>
                     <a href={article.sourceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: "inherit", textDecoration: "none" }}>
                       Source ↗
                     </a>
