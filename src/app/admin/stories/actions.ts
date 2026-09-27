@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { article, articleTag, author, vertical } from "@/db/schema";
 import { and, desc, eq, gte, isNotNull, notInArray, or } from "drizzle-orm";
 import { isKnownTag } from "@/lib/tags";
+import { markStoryIdea } from "@/lib/storyIdeasData";
 import { createId } from "@paralleldrive/cuid2";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
@@ -69,6 +70,8 @@ export interface SaveStoryInput {
   seriesKey: string | null;
   // Players, teams, countries and venues it's about (lib/tags.ts).
   tags: { kind: string; slug: string }[];
+  // The Story ideas entry it was started from (new stories only).
+  ideaKey?: string;
 }
 
 // The series/event label for a key, from the stories already filed under it.
@@ -174,6 +177,8 @@ export async function saveStory(input: SaveStoryInput): Promise<Result<{ id: str
       createdAt: now,
     });
     await saveTags(id, input.tags);
+    // Off the Story ideas list: someone is writing it.
+    if (input.ideaKey) await markStoryIdea(input.ideaKey.slice(0, 200), "used", id);
     if (input.publish) await submitToIndexNow([articleUrl(slug)]);
     revalidateStory(slug, input.category);
     return { ok: true, id, slug, status: input.publish ? "published" : "draft" };

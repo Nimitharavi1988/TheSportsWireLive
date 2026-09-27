@@ -208,6 +208,17 @@ export const articleTag = pgTable("ArticleTag", {
   slug: text("slug").notNull(),
 }, (t) => [primaryKey({ columns: [t.articleId, t.kind, t.slug] }), index("ArticleTag_kind_slug_idx").on(t.kind, t.slug)]);
 
+// Story Ideas (lib/storyIdeas.ts) the editor dismissed or started a story
+// from — ideas themselves are worked out from live data each time, so only
+// this is stored (created 2026-09-28 via CREATE TABLE).
+export const storyIdea = pgTable("StoryIdea", {
+  key: text("key").primaryKey(),
+  // "dismissed" | "used"
+  status: text("status").notNull(),
+  articleId: text("articleId"),
+  updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+});
+
 // People who write for the site — the byline on original and editor-
 // rewritten stories, with their own page (/author/[slug]).
 export const author = pgTable("Author", {
