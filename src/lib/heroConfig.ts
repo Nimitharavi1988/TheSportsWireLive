@@ -11,7 +11,7 @@ export const HERO_CAP = 5;
 // advertise stale news indefinitely. Shared between the homepage's hero
 // selection (page.tsx) and the admin queue's "Featured hero" chip, so the
 // two never disagree about whether a given pick is still actually live.
-export const HERO_FEATURE_MAX_AGE_DAYS = 2;
+export const HERO_FEATURE_MAX_AGE_DAYS = 1;
 
 export function isHeroFeatureStale(featuredAt: Date | null): boolean {
   if (!featuredAt) return true;
@@ -34,7 +34,7 @@ export function isHeroFeatureStale(featuredAt: Date | null): boolean {
 // the section self-corrects without needing an admin to remember to come
 // back and clear it. Shared between the homepage's highlight selection
 // (page.tsx) and the admin queue's "📌 Highlighted" chip.
-export const HIGHLIGHT_MAX_AGE_DAYS = 2;
+export const HIGHLIGHT_MAX_AGE_DAYS = 1;
 
 export function isHighlightStale(highlightedAt: Date | null): boolean {
   if (!highlightedAt) return true;
@@ -63,7 +63,7 @@ export function sectionOf(category: string): string {
 // Football, Cricket, Volleyball, F1 and Athletics fill from 24h; MLB and
 // Rugby need 2 days; NHL and NBA 7. Nothing older than the last window is
 // ever shown.
-export const FRESH_NEWS_WINDOWS_DAYS = [1, 2, 7] as const;
+export const FRESH_NEWS_WINDOWS_DAYS = [1, 2, 3] as const;
 export const FRESH_NEWS_MAX_AGE_DAYS = FRESH_NEWS_WINDOWS_DAYS[0];
 export const FRESH_NEWS_FALLBACK_DAYS = FRESH_NEWS_WINDOWS_DAYS[FRESH_NEWS_WINDOWS_DAYS.length - 1];
 export const FRESH_NEWS_MIN_RESULTS = 25;
