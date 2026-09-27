@@ -35,6 +35,7 @@
  */
 import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
+import { decodeHtmlEntities } from "../htmlEntities";
 
 const USER_AGENT = "TheSportsWireLiveBot/1.0 (sports news aggregator; reads one already-linked article for summarization)";
 
@@ -142,6 +143,63 @@ function extractOgImage(doc: Document): string | undefined {
   return undefined;
 }
 
+// Whether a URL actually serves an image (following redirects). A page's
+// og:image isn't always one: FIVB's points at a WordPress attachment *page*
+// (".../103432-jpeg/", text/html) — stored as the story's photo, it could
+// never display (checked 2026-09-27). HEAD first; some servers refuse HEAD,
+// so then a GET, dropped as soon as the headers arrive.
+export async function isImageUrl(url: string): Promise<boolean> {
+  for (const method of ["HEAD", "GET"] as const) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6_000);
+    try {
+      const res = await fetch(url, { method, headers: { "User-Agent": USER_AGENT }, redirect: "follow", signal: controller.signal });
+      const type = res.headers.get("content-type") ?? "";
+      if (method === "GET") controller.abort();
+      if (res.ok && type.startsWith("image/")) return true;
+      if (res.ok && type) return false;
+    } catch {
+      // Try the next method.
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return false;
+}
+
+// Images on the page described by the story's own headline (alt text equal
+// to the og:title or <h1>) — a page's lead photo, even outside the article
+// text (FIVB's cover image sits in the page header). Read before Readability
+// runs, which rewrites the document.
+function headlineImages(doc: Document): string[] {
+  const norm = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+  const titles = new Set([norm(doc.querySelector('meta[property="og:title"]')?.getAttribute("content")), norm(doc.querySelector("h1")?.textContent)].filter(Boolean));
+  return [...doc.querySelectorAll("img[src]")]
+    .filter((img) => titles.has(norm(img.getAttribute("alt"))))
+    .map((img) => (img as HTMLImageElement).src)
+    .filter((src) => /^https?:\/\//.test(src))
+    .slice(0, 2);
+}
+
+// The story's photo from its page: og:image / twitter:image when it really
+// is an image, else the photo captioned with the headline, else the first
+// real photo in the article body.
+async function pickPageImage(doc: Document, articleHtml: string, titled: string[]): Promise<string | undefined> {
+  const candidates: string[] = [];
+  const meta = extractOgImage(doc);
+  if (meta) candidates.push(decodeHtmlEntities(meta));
+  candidates.push(...titled);
+  for (const m of articleHtml.matchAll(/<img\b[^>]*\bsrc="(https?:\/\/[^"]+)"/gi)) {
+    const src = decodeHtmlEntities(m[1]);
+    if (!/gravatar|emoji|pixel|1x1|\.gif(\?|$)|\.svg(\?|$)|logo|avatar/i.test(src)) candidates.push(src);
+    if (candidates.length >= 4) break;
+  }
+  for (const url of candidates) {
+    if (await isImageUrl(url)) return url;
+  }
+  return undefined;
+}
+
 export async function extractArticleContent(url: string): Promise<ArticleExtraction | null> {
   const result = await extractArticleContentDetailed(url);
   return "failure" in result ? null : result;
@@ -164,11 +222,12 @@ export async function extractArticleContentDetailed(url: string): Promise<Articl
     const html = await res.text();
     const dom = new JSDOM(html, { url });
     const document = dom.window.document;
+    const titled = headlineImages(document);
     const article = new Readability(document).parse();
     const text = article?.textContent?.trim();
     if (!text || text.length < 100) return { failure: "no article text found on page" };
 
-    return { text: text.slice(0, MAX_EXTRACT_CHARS), imageUrl: extractOgImage(document) };
+    return { text: text.slice(0, MAX_EXTRACT_CHARS), imageUrl: await pickPageImage(document, article?.content ?? "", titled) };
   } catch (err) {
     console.error(`Article content extraction failed for "${url}":`, err);
     return { failure: `extraction error: ${err instanceof Error ? err.message.slice(0, 80) : "unknown"}` };

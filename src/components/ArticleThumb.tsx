@@ -94,7 +94,11 @@ export function ArticleThumb({
       </Box>
     );
   }
-  if (article.homeCrestUrl && article.awayCrestUrl) {
+  // A match (two crests, or two named teams — a missing crest shows the
+  // team's initials): both on a plain panel, big enough to recognise, with
+  // "v" between. Was two ~23px crests floating on a tinted box, which read
+  // as a broken image on phones (2026-09-27).
+  if ((article.homeCrestUrl && article.awayCrestUrl) || (article.homeTeam && article.awayTeam)) {
     return (
       <Box
         sx={{
@@ -102,15 +106,18 @@ export function ArticleThumb({
           height: size,
           borderRadius: 1.5,
           flexShrink: 0,
-          bgcolor: "rgba(29, 107, 63, 0.06)",
+          bgcolor: "background.paper",
+          border: "1px solid",
+          borderColor: "divider",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: 0.25,
+          gap: size >= 60 ? 0.75 : 0.5,
         }}
       >
-        <TeamCrest name={article.homeTeam} crestUrl={article.homeCrestUrl} size={Math.round(size * 0.38)} />
-        <TeamCrest name={article.awayTeam} crestUrl={article.awayCrestUrl} size={Math.round(size * 0.38)} />
+        <TeamCrest name={article.homeTeam} crestUrl={article.homeCrestUrl} size={Math.round(size * 0.46)} />
+        <Box component="span" sx={{ fontSize: Math.max(9, Math.round(size * 0.16)), fontWeight: 700, color: "text.disabled" }}>v</Box>
+        <TeamCrest name={article.awayTeam} crestUrl={article.awayCrestUrl} size={Math.round(size * 0.46)} />
       </Box>
     );
   }

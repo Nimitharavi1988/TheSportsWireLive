@@ -84,5 +84,8 @@ describe("feed full text and inline photo (WordPress-style feeds)", () => {
     const html = '<img src="https://secure.gravatar.com/a.jpg"><img src="https://static.cricketaddictor.com/images/posts/2026/kohli.jpg" width="800">';
     expect(feedContentImage({ "content:encoded": html })?.url).toBe("https://static.cricketaddictor.com/images/posts/2026/kohli.jpg");
     expect(feedContentImage({ "content:encoded": "<p>no image</p>" })).toBeNull();
+    // FIVB (2026-09-27): "&" arrives encoded, and an empty href sits next to src.
+    const fivb = '<figure><img decoding="async" src="https://www.fivb.org/Vis2009/Images/GetImage.asmx?No=202308402&#038;maxSize=1400" href="" srcset="x 300w"></figure>';
+    expect(feedContentImage({ "content:encoded": fivb })?.url).toBe("https://www.fivb.org/Vis2009/Images/GetImage.asmx?No=202308402&maxSize=1400");
   });
 });
