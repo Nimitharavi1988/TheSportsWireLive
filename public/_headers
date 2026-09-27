@@ -1,0 +1,7 @@
+# Cloudflare Workers static-asset headers (read by Workers Assets, not served).
+# Next's build output under /_next/static has content-hashed names — a new
+# deploy means new file names — so it's safe to cache for a year. Without
+# this they were served "max-age=0, must-revalidate": every page load
+# re-checked all ~16 script files (checked 2026-09-27).
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable

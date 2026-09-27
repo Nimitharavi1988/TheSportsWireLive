@@ -24,7 +24,11 @@ export const revalidate = 300;
 // chip that opens an empty page is a dead end.
 const SPORT_ORDER = ["football", "cricket", "american-football", "college-football", "basketball", "wnba", "baseball", "hockey"];
 
-type Props = { searchParams: Promise<{ category?: string; q?: string }> };
+type Props = { searchParams: Promise<{ category?: string; q?: string; all?: string }> };
+
+// Cards shown before "Show all": the full two-week library was ~160 cards
+// and 656 KB of HTML (2026-09-27). Highlights get up to half.
+const FIRST_PAGE = 48;
 
 // The search box value, trimmed and length-capped.
 function searchQuery(raw: string | undefined): string {
@@ -113,7 +117,12 @@ export default async function VideosPage(props: Props) {
     const qs = new URLSearchParams({ ...(category ? { category } : {}), ...(q ? { q } : {}) }).toString();
     return qs ? `/videos?${qs}` : "/videos";
   };
-  const { featured, highlights, latest } = splitLibrary(videos);
+  const library = splitLibrary(videos);
+  const { featured } = library;
+  const showAll = params.all === "1";
+  const highlights = showAll ? library.highlights : library.highlights.slice(0, FIRST_PAGE / 2);
+  const latest = showAll ? library.latest : library.latest.slice(0, FIRST_PAGE - highlights.length);
+  const hidden = library.highlights.length + library.latest.length - highlights.length - latest.length;
   const chips = [
     { label: "All", category: null as string | null },
     ...SPORT_ORDER.filter((s) => s === sport || sportsWithVideos.includes(s)).map((s) => ({ label: categoryChipStyle(s).label, category: s })),
@@ -245,6 +254,16 @@ export default async function VideosPage(props: Props) {
                   <VideoGrid videos={section.items} />
                 </Fragment>
               )
+          )}
+
+          {hidden > 0 && (
+            <Box sx={{ textAlign: "center", mt: 4 }}>
+              <Link href={`/videos?${new URLSearchParams({ ...(sport ? { category: sport } : {}), all: "1" })}`} style={{ textDecoration: "none" }}>
+                <Typography component="span" sx={{ fontWeight: 600, color: "primary.main" }}>
+                  Show all videos ({hidden} more)
+                </Typography>
+              </Link>
+            </Box>
           )}
 
           <Typography variant="caption" component="p" sx={{ color: "text.disabled", mt: 4 }}>

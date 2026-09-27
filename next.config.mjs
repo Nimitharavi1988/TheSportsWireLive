@@ -37,6 +37,12 @@ const nextConfig = {
       { protocol: "https", hostname: "**" },
       { protocol: "http", hostname: "**" },
     ],
+    // Every responsive image lists each of these widths in its srcset, in
+    // the HTML. Next's defaults (16 widths, up to 3840px) made the image
+    // lists 143 KB of the homepage's 544 KB (2026-09-27); nothing here is
+    // shown wider than 960px, so 1920 covers it at 2x.
+    deviceSizes: [640, 828, 1080, 1920],
+    imageSizes: [32, 48, 64, 96, 128, 256, 384],
   },
 };
 
