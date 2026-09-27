@@ -326,6 +326,7 @@ export async function runIngest() {
         : await db.select({
             id: article.id, dedupeHash: article.dedupeHash, body: article.body, heroImageUrl: article.heroImageUrl,
             matchStatus: article.matchStatus, status: article.status, slug: article.slug, scoreSource: article.scoreSource,
+            sourceUrl: article.sourceUrl, rejectionReason: article.rejectionReason,
           }).from(article).where(inArray(article.dedupeHash, allHashes))
     ).map((a) => [a.dedupeHash, a])
   );
@@ -350,6 +351,7 @@ export async function runIngest() {
   );
   let crossProviderSkipped = 0;
   let crossProviderRefreshed = 0;
+  let reopenedFromDirect = 0;
 
   let ingested = 0;
   let duplicates = 0;
@@ -405,6 +407,28 @@ export async function runIngest() {
 
     if (existing) {
       duplicates++;
+
+      // A story first seen through Google News (an unreadable redirect
+      // link) and rejected for that alone would otherwise block the same
+      // story arriving directly from the publisher's own feed — same title
+      // and day, so same dedupe hash. Seen 2026-09-27: The Indian Express's
+      // "Kohli, Gill tons guide India to 8-wicket win" was stuck rejected
+      // while its own feed carried the readable original. Reopen the story
+      // with the direct link, so it's written up below like any new item.
+      if (
+        existing.status === "rejected" &&
+        isGoogleNewsRedirect(existing.sourceUrl) &&
+        !isGoogleNewsRedirect(item.sourceUrl) &&
+        !isMatchDataSource(item.sourceName)
+      ) {
+        await db.update(article)
+          .set({ status: "pending_review", rejectionReason: null, sourceUrl: item.sourceUrl, sourceName: item.sourceName, updatedAt: new Date() })
+          .where(eq(article.id, existing.id));
+        existing.status = "pending_review";
+        existing.sourceUrl = item.sourceUrl;
+        existing.rejectionReason = null;
+        reopenedFromDirect++;
+      }
 
       // A match-data source's dedupeKey is stable per real-world event
       // (e.g. espn-nfl-${event.id}), deliberately the SAME whether the
@@ -863,7 +887,7 @@ export async function runIngest() {
     // story appearing twice in one run (two sources reporting it) trying
     // to create it a second time.
     for (const k of keysFor(item)) matchOwners.set(k, { id: created.id, sourceName: item.sourceName, homeTeam: created.homeTeam, matchStatus: created.matchStatus });
-    existingArticles.set(dedupeHash, { id: created.id, dedupeHash, body: created.body, heroImageUrl: created.heroImageUrl, matchStatus: created.matchStatus, status: created.status, slug: created.slug, scoreSource: created.scoreSource });
+    existingArticles.set(dedupeHash, { id: created.id, dedupeHash, body: created.body, heroImageUrl: created.heroImageUrl, matchStatus: created.matchStatus, status: created.status, slug: created.slug, scoreSource: created.scoreSource, sourceUrl: created.sourceUrl, rejectionReason: created.rejectionReason });
 
     ingested++;
     if (!quality.passed) flagged++;
@@ -871,7 +895,7 @@ export async function runIngest() {
 
   if (aiUnavailableReason()) console.warn(`[ingest] ${aiUnavailableReason()} — stories were left pending, not rejected; they will be written once the AI is back.`);
   console.log(
-    `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${staleSkipped} stale RSS items skipped (older than ${MAX_RSS_ITEM_AGE_MS / 86400000}d), ${crossProviderSkipped} matches already stored from another provider (${crossProviderRefreshed} scored from a superseding one), ` +
+    `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${staleSkipped} stale RSS items skipped (older than ${MAX_RSS_ITEM_AGE_MS / 86400000}d), ${crossProviderSkipped} matches already stored from another provider (${crossProviderRefreshed} scored from a superseding one), ${reopenedFromDirect} Google-News-rejected stories reopened from the publisher's own feed, ` +
     `${duplicates} duplicates skipped (${backfilled} of those backfilled with a body they missed on a previous run), ` +
     `${cricketCommentaryCalls + otherCommentaryCalls} RSS commentary calls (${cricketCommentaryCalls} cricket, ${otherCommentaryCalls} other), ${matchRecapCalls} match recap calls. ` +
     `(${scoreItems.length} from football-data.org, ${nflItems.length} from ESPN NFL, ${newsItems.length} from RSS, ${playerNewsItems.length} from per-player Google News search, ${cricketItems.length} from CricketData.org, ${trendingKeywords.length} trending keywords checked)`
