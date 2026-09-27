@@ -1,5 +1,21 @@
 import { isMatchDataSource } from "./matchDataSources";
 
+// Flagged image URLs that should never be approved, regardless of other
+// criteria. Used to block images from problematic sources (e.g. wrong sport
+// imagery from RSS feeds). Add URLs here when an image systematically
+// mismatches article content across multiple articles.
+export const BLOCKED_IMAGE_URLS = new Set<string>([
+  // Cricket image (West Indies) incorrectly used for badminton articles from Hindustan Times RSS
+  "https://images.hindustantimes.com/img/2024/10/03/550x309/west_indies_cricket_1696329384.jpg",
+]);
+
+export function isImageUrlBlocked(imageUrl: string | null): boolean {
+  if (!imageUrl) return false;
+  // Normalize the URL (remove query params, fragments) for reliable matching
+  const normalized = new URL(imageUrl).href.split("?")[0].split("#")[0];
+  return BLOCKED_IMAGE_URLS.has(normalized) || Array.from(BLOCKED_IMAGE_URLS).some((url) => normalized === url);
+}
+
 // The single shared answer to "is this article good enough to publish" --
 // relocated here 2026-09-20 from ingestion/autoApprove.ts (an odd home for
 // something admin/actions.ts also needs to import) after a real incident:
@@ -60,6 +76,11 @@ export function isAutoApprovable(article: {
   playerNewsSourced: boolean;
   sourceName: string;
 }): boolean {
+  // Reject articles with flagged image URLs that don't match content or are
+  // from problematic sources. Checked before any other criteria so a known-bad
+  // image blocks approval immediately, regardless of body quality.
+  if (isImageUrlBlocked(article.heroImageUrl)) return false;
+
   // Match rows are structured scores, not stories: they don't need a photo
   // to be worth showing (a missing or broken team logo falls back to the
   // team's initials — components/TeamCrest.tsx). Requiring one held back
