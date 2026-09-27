@@ -61,7 +61,7 @@ export async function syncYouTubeVideos(now: Date = new Date()): Promise<YouTube
     }
     result.channels++;
 
-    const entries = parseYouTubeFeed(xml).filter((e) => !e.isShort);
+    const entries = parseYouTubeFeed(xml).filter((e) => !e.isShort && (!channel.include || channel.include.test(e.title)));
     if (entries.length === 0) continue;
     const known = new Set(
       (await db.select({ youtubeId: video.youtubeId }).from(video).where(inArray(video.youtubeId, entries.map((e) => e.youtubeId)))).map(

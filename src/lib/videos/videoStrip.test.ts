@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { MAX_PER_CHANNEL, pickVideoStrip, splitLibrary } from "./videoStrip";
+import { MAX_PER_CHANNEL, pickVideoStrip, splitLibrary, videoSearchWords } from "./videoStrip";
+import { CRICKET_TITLE } from "./youtubeChannels";
 
 const v = (channelTitle: string, hoursAgo: number, isHighlights = false) => ({
   channelTitle,
@@ -41,3 +42,22 @@ describe("splitLibrary", () => {
   });
 });
 
+
+describe("videoSearchWords", () => {
+  it("normalises team names to fixture codes and drops vs", () => {
+    expect(videoSearchWords("India vs West Indies")).toEqual(["ind", "wi"]);
+    expect(videoSearchWords("Kohli, Windies highlights!")).toEqual(["kohli", "wi", "highlights"]);
+  });
+  it("strips LIKE wildcards and empty input", () => {
+    expect(videoSearchWords("%_")).toEqual([]);
+    expect(videoSearchWords("  ")).toEqual([]);
+  });
+});
+
+describe("CRICKET_TITLE (Star Sports filter)", () => {
+  it("keeps cricket, drops other sports", () => {
+    expect(CRICKET_TITLE.test("Another Milestone. Another Kohli Masterclass | #INDvWI")).toBe(true);
+    expect(CRICKET_TITLE.test("Rohit-Kohli are back! | #CricketKaKeeda Ep 4")).toBe(true);
+    expect(CRICKET_TITLE.test("Florian Wirtz & Jeremie Frimpong draft their dream Liverpool team | #PLonJioStar")).toBe(false);
+  });
+});
