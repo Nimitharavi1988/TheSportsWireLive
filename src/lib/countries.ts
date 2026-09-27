@@ -33,4 +33,8 @@ export const TRACKED_COUNTRIES: TrackedCountry[] = [
   { slug: "scotland", name: "Scotland", searchTerms: ["Scotland"] },
   { slug: "netherlands", name: "Netherlands", searchTerms: ["Netherlands"] },
   { slug: "nepal", name: "Nepal", searchTerms: ["Nepal"] },
+  // A cricket team of several nations, not one country, but it plays and is
+  // reported as one: missing, it couldn't be tagged on India v West Indies
+  // stories (2026-09-27).
+  { slug: "west-indies", name: "West Indies", searchTerms: ["West Indies", "Windies"] },
 ];

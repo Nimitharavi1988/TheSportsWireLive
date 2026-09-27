@@ -252,6 +252,8 @@ export function StoryEditor({ initial, categories, seriesOptions, tagOptions }: 
             groupBy={(o) => tagGroupLabel(o.kind)}
             getOptionLabel={(o) => o.label}
             isOptionEqualToValue={(a, b) => a.kind === b.kind && a.slug === b.slug}
+            noOptionsText="Not in our list yet — ask for it to be added (tracked players, teams and grounds only)."
+            clearOnBlur
             value={tagOptions.filter((o) => v.tags.some((t) => t.kind === o.kind && t.slug === o.slug))}
             onChange={(_, chosen) => set("tags", chosen.map((o) => ({ kind: o.kind, slug: o.slug })))}
             renderInput={(params) => (
