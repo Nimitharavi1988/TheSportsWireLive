@@ -16,6 +16,24 @@ export function splitLibrary<T extends { isHighlights: boolean }>(videos: T[]): 
   return { featured, highlights: rest.filter((v) => v.isHighlights), latest: rest.filter((v) => !v.isHighlights) };
 }
 
+// A /videos search box entry -> the words to match (pure, unit-tested):
+// lower-cased, up to 6, with LIKE wildcards stripped so "%" or "_" can't
+// match everything. "vs"/"v" are dropped — titles write "IND vs WI",
+// "#INDvWI" and "India v West Indies" alike, so names shorten to the codes
+// fixture tags use ("ind" still matches "India").
+export function videoSearchWords(query: string): string[] {
+  return [...new Set(
+    query
+      .toLowerCase()
+      .replace(/[%_\\]/g, " ")
+      .replace(/\bwest indies\b|\bwindies\b/g, "wi")
+      .replace(/\bindia\b/g, "ind")
+      .split(/[\s,]+/)
+      .map((w) => w.replace(/^[^\p{L}\p{N}#]+|[^\p{L}\p{N}]+$/gu, ""))
+      .filter((w) => w.length > 0 && w !== "vs" && w !== "v")
+  )].slice(0, 6);
+}
+
 export const MAX_PER_CHANNEL = 3;
 
 export function pickVideoStrip<T extends { channelTitle: string; publishedAt: Date; isHighlights: boolean }>(rows: T[], limit: number): T[] {

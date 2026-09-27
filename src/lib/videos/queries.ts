@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { video } from "@/db/schema";
-import { and, desc, eq, gte, isNull, ne, or } from "drizzle-orm";
-import { pickVideoStrip, VIDEO_FRESH_MS, VIDEO_PAGE_FRESH_MS } from "./videoStrip";
+import { and, desc, eq, gte, ilike, isNull, ne, or } from "drizzle-orm";
+import { pickVideoStrip, VIDEO_FRESH_MS, VIDEO_PAGE_FRESH_MS, videoSearchWords } from "./videoStrip";
 
 export type VideoItem = { youtubeId: string; title: string; channelTitle: string; publishedAt: Date; isHighlights: boolean; category: string };
 
@@ -55,6 +55,24 @@ export async function fetchLatestVideos(
 // per-channel cap (the page is the full list), newest first.
 export async function fetchVideoLibrary(opts: { category?: string; now?: Date } = {}): Promise<VideoItem[]> {
   return fetchRecent({ sport: videoSport(opts.category), freshMs: VIDEO_PAGE_FRESH_MS, now: opts.now ?? new Date(), take: 200 });
+}
+
+// /videos?q= search over the same window: every word must appear in the
+// title or channel name ("kohli wi" finds "Kohli ... #INDvWI").
+export async function searchVideos(query: string, opts: { category?: string; now?: Date } = {}): Promise<VideoItem[]> {
+  const words = videoSearchWords(query);
+  if (words.length === 0) return [];
+  const sport = videoSport(opts.category);
+  return db
+    .select(COLUMNS)
+    .from(video)
+    .where(and(
+      gte(video.publishedAt, new Date((opts.now ?? new Date()).getTime() - VIDEO_PAGE_FRESH_MS)),
+      ...(sport ? [eq(video.category, sport)] : []),
+      ...words.map((w) => or(ilike(video.title, `%${w}%`), ilike(video.channelTitle, `%${w}%`)))
+    ))
+    .orderBy(desc(video.isHighlights), desc(video.publishedAt))
+    .limit(60);
 }
 
 // Which sports have any videos in the /videos window, for its filter chips

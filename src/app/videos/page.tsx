@@ -8,7 +8,8 @@ import SmartDisplayIcon from "@mui/icons-material/SmartDisplay";
 import { Fragment } from "react";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { relativeTime } from "@/lib/relativeTime";
-import { fetchVideoLibrary, fetchVideoSports, type VideoItem } from "@/lib/videos/queries";
+import { fetchVideoLibrary, fetchVideoSports, searchVideos, type VideoItem } from "@/lib/videos/queries";
+import SearchIcon from "@mui/icons-material/Search";
 import { splitLibrary } from "@/lib/videos/videoStrip";
 import { VideoCard } from "@/components/videos/VideoStrip";
 import { VideoPlayer } from "@/components/videos/VideoPlayer";
@@ -23,16 +24,24 @@ export const revalidate = 300;
 // chip that opens an empty page is a dead end.
 const SPORT_ORDER = ["football", "cricket", "american-football", "college-football", "basketball", "wnba", "baseball", "hockey"];
 
-type Props = { searchParams: Promise<{ category?: string }> };
+type Props = { searchParams: Promise<{ category?: string; q?: string }> };
+
+// The search box value, trimmed and length-capped.
+function searchQuery(raw: string | undefined): string {
+  return (raw ?? "").trim().slice(0, 80);
+}
 
 function activeSport(raw: string | undefined): string | null {
   return raw && SPORT_ORDER.includes(raw) ? raw : null;
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
-  const sport = activeSport((await props.searchParams).category);
+  const params = await props.searchParams;
+  const sport = activeSport(params.category);
   const label = sport ? categoryChipStyle(sport).label : null;
   return {
+    // Search results are thin, endless variations of the same page.
+    ...(searchQuery(params.q) ? { robots: { index: false, follow: true } } : {}),
     title: label ? `${label} Videos & Highlights` : "Sports Videos & Highlights",
     description: label
       ? `The latest official ${label} highlights and videos, updated through the day on Sports Wire Live.`
@@ -91,11 +100,19 @@ function videoJsonLd(videos: VideoItem[]) {
 }
 
 export default async function VideosPage(props: Props) {
-  const sport = activeSport((await props.searchParams).category);
-  const [videos, sportsWithVideos] = await Promise.all([
-    fetchVideoLibrary({ category: sport ?? undefined }),
+  const params = await props.searchParams;
+  const sport = activeSport(params.category);
+  const q = searchQuery(params.q);
+  const [videos, sportsWithVideos, results] = await Promise.all([
+    q ? Promise.resolve([] as VideoItem[]) : fetchVideoLibrary({ category: sport ?? undefined }),
     fetchVideoSports(),
+    q ? searchVideos(q, { category: sport ?? undefined }) : Promise.resolve(null),
   ]);
+  // Chips keep the search: "Cricket" while searching "kohli" narrows it.
+  const chipHref = (category: string | null) => {
+    const qs = new URLSearchParams({ ...(category ? { category } : {}), ...(q ? { q } : {}) }).toString();
+    return qs ? `/videos?${qs}` : "/videos";
+  };
   const { featured, highlights, latest } = splitLibrary(videos);
   const chips = [
     { label: "All", category: null as string | null },
@@ -115,13 +132,47 @@ export default async function VideosPage(props: Props) {
         </Typography>
       </Stack>
 
+      {/* A plain GET form: works without JavaScript and gives a shareable URL. */}
+      <Box
+        component="form"
+        role="search"
+        action="/videos"
+        method="get"
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          maxWidth: 520,
+          mb: 2,
+          px: 1.5,
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 5,
+          bgcolor: "background.paper",
+          "&:focus-within": { borderColor: "text.secondary" },
+        }}
+      >
+        <SearchIcon sx={{ color: "text.secondary", fontSize: 20 }} aria-hidden />
+        {sport && <input type="hidden" name="category" value={sport} />}
+        <Box
+          component="input"
+          type="search"
+          name="q"
+          defaultValue={q}
+          maxLength={80}
+          placeholder="Search videos — e.g. Kohli, India West Indies"
+          aria-label="Search videos"
+          sx={{ flex: 1, minWidth: 0, border: 0, outline: 0, py: 1, font: "inherit", fontSize: 15, bgcolor: "transparent", color: "text.primary" }}
+        />
+      </Box>
+
       <Box component="nav" aria-label="Sports" sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 3 }}>
         {chips.map((f) => {
           const isActive = f.category === sport;
           return (
             <Link
               key={f.label}
-              href={f.category ? `/videos?category=${f.category}` : "/videos"}
+              href={chipHref(f.category)}
               aria-current={isActive ? "page" : undefined}
               style={{ textDecoration: "none" }}
             >
@@ -148,7 +199,26 @@ export default async function VideosPage(props: Props) {
         })}
       </Box>
 
-      {!featured ? (
+      {results ? (
+        <Box component="section" aria-label="Search results">
+          <Stack direction="row" spacing={2} sx={{ alignItems: "baseline", mb: 2, flexWrap: "wrap" }}>
+            <Typography variant="h6" component="h2" sx={{ fontWeight: 600 }}>
+              {results.length === 0 ? "No videos" : `${results.length}${results.length === 60 ? "+" : ""} video${results.length === 1 ? "" : "s"}`} for &ldquo;{q}&rdquo;
+              {sport ? ` in ${categoryChipStyle(sport).label}` : ""}
+            </Typography>
+            <Link href={sport ? `/videos?category=${sport}` : "/videos"} style={{ fontSize: 14 }}>
+              Clear search
+            </Link>
+          </Stack>
+          {results.length > 0 ? (
+            <VideoGrid videos={results} />
+          ) : (
+            <Typography sx={{ color: "text.secondary", py: 4 }}>
+              Try a player, team or competition — videos from the last two weeks are searched.
+            </Typography>
+          )}
+        </Box>
+      ) : !featured ? (
         <Typography sx={{ color: "text.secondary", py: 6, textAlign: "center" }}>
           No videos yet{sport ? ` for ${categoryChipStyle(sport).label}` : ""} — check back after today&apos;s games.
         </Typography>

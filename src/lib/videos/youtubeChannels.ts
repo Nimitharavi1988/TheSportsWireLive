@@ -12,7 +12,14 @@ export interface YouTubeChannel {
   id: string;
   title: string;
   category: string;
+  // For a broadcaster covering several sports: only titles matching this
+  // are stored, so its football clips don't land under cricket.
+  include?: RegExp;
 }
+
+// Cricket titles on a multi-sport channel: a fixture tag (#INDvWI), the
+// word cricket, or a format.
+export const CRICKET_TITLE = /#[A-Z]{2,3}v[A-Z]{2,3}\b|cricket|\b(ODIs?|T20Is?|T20|IPL|WPL|Test match)\b/i;
 
 export const YOUTUBE_CHANNELS: YouTubeChannel[] = [
   { id: "UCDVYQ4Zhbm3S2dlz7P1GBDg", title: "NFL", category: "american-football" },
@@ -27,4 +34,9 @@ export const YOUTUBE_CHANNELS: YouTubeChannel[] = [
   { id: "UCZ7wY7MRDSygp63HIEfdQZA", title: "Sky Sports Football", category: "football" },
   { id: "UCt2JXOLNxqry7B_4rRZME3Q", title: "ICC", category: "cricket" },
   { id: "UCkd4takjjF1EGD1TKIK2QiA", title: "Sky Sports Cricket", category: "cricket" },
+  // India's home broadcaster: India's home series (IND v WI, 2026-09) are
+  // here, not on ICC. Checked 2026-09-27 (@StarSports page + RSS title
+  // "Star Sports", daily uploads, embeddable). It also posts football and
+  // other sports, hence the filter.
+  { id: "UCmqfX0S3x0I3uwLkPdpX03w", title: "Star Sports", category: "cricket", include: CRICKET_TITLE },
 ];
