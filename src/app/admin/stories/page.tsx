@@ -1,3 +1,4 @@
+import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
 import { redirect } from "next/navigation";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
@@ -32,8 +33,8 @@ export default async function StoriesPage() {
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Link href="/admin" style={{ fontSize: 14 }}>← Review queue</Link>
-      <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mt: 1, mb: 3 }}>
+      <SiteBreadcrumbs steps={[{ name: "Admin", href: "/admin" }]} current="Stories" />
+      <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mb: 3 }}>
         <Typography variant="h4">Stories</Typography>
         <Link href="/admin/stories/new"><Button variant="contained">Write a story</Button></Link>
       </Stack>

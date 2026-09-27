@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { SeeAllLink } from "./SeeAllLink";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
@@ -20,9 +20,9 @@ export async function AnalysisStrip({ category, placement }: { category?: string
   if (items.length === 0 || leads !== (placement === "top")) return null;
   return (
     <Paper component="section" aria-label="Analysis" variant="outlined" sx={placement === "top" ? { p: 2.5, mb: 3 } : { p: 2.5, mt: 3 }}>
-      <Stack direction="row" sx={{ alignItems: "baseline", justifyContent: "space-between", mb: 2 }}>
+      <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h6" component="h2" sx={{ fontWeight: 700 }}>Analysis</Typography>
-        <Link href="/analysis" style={{ fontSize: 14, fontWeight: 600 }}>All analysis →</Link>
+        <SeeAllLink href="/analysis">All analysis</SeeAllLink>
       </Stack>
       <AnalysisList items={items.slice(0, SHOWN)} thumbSize={placement === "top" ? 72 : 56} />
     </Paper>

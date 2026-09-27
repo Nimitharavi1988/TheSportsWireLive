@@ -1,10 +1,10 @@
+import { SeeAllLink } from "@/components/SeeAllLink";
 import Link from "next/link";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import SmartDisplayIcon from "@mui/icons-material/SmartDisplay";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { ScrollRow } from "@/components/ScrollRow";
 import { relativeTime } from "@/lib/relativeTime";
@@ -62,11 +62,7 @@ function VideosHeading({ title, headingSx, moreHref }: { title: string; headingS
         {title}
       </Typography>
       {moreHref && (
-        <Link href={moreHref} style={{ textDecoration: "none" }}>
-          <Typography component="span" sx={{ fontSize: 14, fontWeight: 600, color: "primary.main", display: "flex", alignItems: "center" }}>
-            All videos <ChevronRightIcon sx={{ fontSize: 18 }} />
-          </Typography>
-        </Link>
+        <SeeAllLink href={moreHref}>All videos</SeeAllLink>
       )}
     </Stack>
   );

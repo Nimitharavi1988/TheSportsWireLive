@@ -1,7 +1,7 @@
+import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
 import { notFound, redirect } from "next/navigation";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
-import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { article, author } from "@/db/schema";
@@ -26,8 +26,8 @@ export default async function EditStoryPage(props: { params: Promise<{ id: strin
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Link href="/admin/stories" style={{ fontSize: 14 }}>← Stories</Link>
-      <Typography variant="h4" sx={{ mt: 1, mb: 3 }}>{original ? (row.status === "draft" ? "Draft" : "Edit story") : "Edit ingested story"}</Typography>
+      <SiteBreadcrumbs steps={[{ name: "Admin", href: "/admin" }, { name: "Stories", href: "/admin/stories" }]} current={row.title} />
+      <Typography variant="h4" sx={{ mb: 3 }}>{original ? (row.status === "draft" ? "Draft" : "Edit story") : "Edit ingested story"}</Typography>
       <StoryEditor
         categories={storyCategories()}
         seriesOptions={await storySeriesOptions(row.seriesKey)}
