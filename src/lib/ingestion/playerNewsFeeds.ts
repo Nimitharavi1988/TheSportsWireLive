@@ -133,7 +133,9 @@ const MAX_ITEMS_PER_PLAYER = 5;
 export async function fetchPlayerNews(): Promise<RawMatchItem[]> {
   const items: RawMatchItem[] = [];
 
-  for (const player of TRACKED_PLAYERS) {
+  // Only the players picked for it (players.ts newsSearch) — most names are
+  // tracked for tagging and pages alone.
+  for (const player of TRACKED_PLAYERS.filter((p) => p.newsSearch !== false)) {
     try {
       const feed = await parser.parseURL(googleNewsSearchUrl(player.name));
 

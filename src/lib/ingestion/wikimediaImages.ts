@@ -121,6 +121,10 @@ export function sportSearchHint(sport: "football" | "cricket" | "american-footba
   if (sport.startsWith("basketball") || sport.startsWith("wnba")) return "basketball player";
   if (sport.startsWith("college-football")) return "American football player";
   if (sport.startsWith("baseball")) return "baseball player";
+  if (sport.startsWith("hockey")) return "ice hockey player";
+  if (sport.startsWith("formula-1")) return "racing driver";
+  if (sport.startsWith("rugby")) return "rugby union player";
+  if (sport.startsWith("athletics")) return "athlete";
   return "";
 }
 

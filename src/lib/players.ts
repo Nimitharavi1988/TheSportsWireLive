@@ -4,11 +4,15 @@
  * player's dedicated page (/player/[slug]). Keeping one list avoids the
  * two ever drifting apart. Living config — add names as gaps are found.
  */
+export type PlayerSport =
+  | "football" | "cricket" | "american-football" | "baseball" | "basketball"
+  | "wnba" | "college-football" | "hockey" | "formula-1" | "athletics" | "rugby";
+
 export interface TrackedPlayer {
   slug: string;
   name: string; // full name, used for the Wikipedia/Wikimedia lookup
   searchTerms: string[]; // substrings matched against article titles (case-insensitive)
-  sport: "football" | "cricket" | "american-football" | "baseball" | "basketball"; // used to scope the player page's Standings widget (no standings data exists for cricket/NFL/MLB/NBA on this API tier) and to tag the player-news search item's category (playerNewsFeeds.ts)
+  sport: PlayerSport; // used to scope the player page's Standings widget (no standings data exists for cricket/NFL/MLB/NBA on this API tier) and to tag the player-news search item's category (playerNewsFeeds.ts)
   // ESPN Cricinfo's numeric player ID (the trailing number in
   // espncricinfo.com/cricketers/{slug}-{id}) — cricket players only. Lets
   // cricinfoPlayerFeeds.ts pull that player's own official RSS feed
@@ -16,6 +20,14 @@ export interface TrackedPlayer {
   // on the per-player Google News search, whose links can't be resolved to
   // real article text (see articleTextExtractor.ts's Google News finding).
   cricinfoPlayerId?: number;
+  // Not everyone tagged is a player: coaches/managers and officials
+  // (selectors, GMs) get the same page, labelled for what they are.
+  role?: "coach" | "official";
+  // Also searched on Google News every ingestion run (playerNewsFeeds.ts).
+  // Off for everyone added for tagging from 2026-09-27: those searches cost
+  // a request per person per run and mostly return unreadable redirect
+  // links — tagging, pages and headline matching don't need them.
+  newsSearch?: false;
 }
 
 export const TRACKED_PLAYERS: TrackedPlayer[] = [
@@ -283,6 +295,148 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   { slug: "damian-lillard", name: "Damian Lillard", searchTerms: ["Damian Lillard"], sport: "basketball" },
   { slug: "devin-booker", name: "Devin Booker", searchTerms: ["Devin Booker"], sport: "basketball" },
   { slug: "shai-gilgeous-alexander", name: "Shai Gilgeous-Alexander", searchTerms: ["Gilgeous-Alexander"], sport: "basketball" },
+
+  // ---- Added 2026-09-27 for tagging and pages (not news-searched) --------
+  // From an audit of 10 days of headlines: names in the news with no page.
+  // Full names as search terms wherever a surname alone is ambiguous
+  // (Hamilton, Alonso, Norris, Brown, Green...).
+
+  // Cricket
+  { slug: "ravindra-jadeja", name: "Ravindra Jadeja", searchTerms: ["Jadeja"], sport: "cricket", newsSearch: false },
+  { slug: "kuldeep-yadav", name: "Kuldeep Yadav", searchTerms: ["Kuldeep Yadav", "Kuldeep"], sport: "cricket", newsSearch: false },
+  { slug: "mohammed-siraj", name: "Mohammed Siraj", searchTerms: ["Siraj"], sport: "cricket", newsSearch: false },
+  { slug: "ruturaj-gaikwad", name: "Ruturaj Gaikwad", searchTerms: ["Gaikwad"], sport: "cricket", newsSearch: false },
+  { slug: "nitish-kumar-reddy", name: "Nitish Kumar Reddy", searchTerms: ["Nitish Kumar Reddy", "Nitish Reddy"], sport: "cricket", newsSearch: false },
+  { slug: "prasidh-krishna", name: "Prasidh Krishna", searchTerms: ["Prasidh"], sport: "cricket", newsSearch: false },
+  { slug: "arshdeep-singh", name: "Arshdeep Singh", searchTerms: ["Arshdeep"], sport: "cricket", newsSearch: false },
+  { slug: "axar-patel", name: "Axar Patel", searchTerms: ["Axar"], sport: "cricket", newsSearch: false },
+  { slug: "naman-dhir", name: "Naman Dhir", searchTerms: ["Naman Dhir"], sport: "cricket", newsSearch: false },
+  { slug: "dhruv-jurel", name: "Dhruv Jurel", searchTerms: ["Jurel"], sport: "cricket", newsSearch: false },
+  { slug: "smriti-mandhana", name: "Smriti Mandhana", searchTerms: ["Mandhana"], sport: "cricket", newsSearch: false },
+  { slug: "harmanpreet-kaur", name: "Harmanpreet Kaur", searchTerms: ["Harmanpreet"], sport: "cricket", newsSearch: false },
+  { slug: "shafali-verma", name: "Shafali Verma", searchTerms: ["Shafali"], sport: "cricket", newsSearch: false },
+  { slug: "jemimah-rodrigues", name: "Jemimah Rodrigues", searchTerms: ["Jemimah"], sport: "cricket", newsSearch: false },
+  { slug: "harry-brook", name: "Harry Brook", searchTerms: ["Harry Brook"], sport: "cricket", newsSearch: false },
+  { slug: "brydon-carse", name: "Brydon Carse", searchTerms: ["Brydon Carse"], sport: "cricket", newsSearch: false },
+  { slug: "shai-hope", name: "Shai Hope", searchTerms: ["Shai Hope"], sport: "cricket", newsSearch: false },
+  { slug: "roston-chase", name: "Roston Chase", searchTerms: ["Roston Chase"], sport: "cricket", newsSearch: false },
+  { slug: "alzarri-joseph", name: "Alzarri Joseph", searchTerms: ["Alzarri Joseph"], sport: "cricket", newsSearch: false },
+  { slug: "shamar-joseph", name: "Shamar Joseph", searchTerms: ["Shamar Joseph"], sport: "cricket", newsSearch: false },
+  { slug: "jayden-seales", name: "Jayden Seales", searchTerms: ["Jayden Seales", "Seales"], sport: "cricket", newsSearch: false },
+  { slug: "john-campbell", name: "John Campbell", searchTerms: ["John Campbell"], sport: "cricket", newsSearch: false },
+  { slug: "justin-greaves", name: "Justin Greaves", searchTerms: ["Justin Greaves"], sport: "cricket", newsSearch: false },
+  { slug: "sherfane-rutherford", name: "Sherfane Rutherford", searchTerms: ["Rutherford"], sport: "cricket", newsSearch: false },
+  { slug: "gudakesh-motie", name: "Gudakesh Motie", searchTerms: ["Motie"], sport: "cricket", newsSearch: false },
+  { slug: "keacy-carty", name: "Keacy Carty", searchTerms: ["Keacy Carty"], sport: "cricket", newsSearch: false },
+  { slug: "zaheer-khan", name: "Zaheer Khan", searchTerms: ["Zaheer Khan"], sport: "cricket", newsSearch: false },
+  { slug: "irfan-pathan", name: "Irfan Pathan", searchTerms: ["Irfan Pathan"], sport: "cricket", newsSearch: false },
+  { slug: "mohammad-kaif", name: "Mohammad Kaif", searchTerms: ["Mohammad Kaif"], sport: "cricket", newsSearch: false },
+  { slug: "gautam-gambhir", name: "Gautam Gambhir", searchTerms: ["Gambhir"], sport: "cricket", role: "coach", newsSearch: false },
+  { slug: "morne-morkel", name: "Morne Morkel", searchTerms: ["Morkel"], sport: "cricket", role: "coach", newsSearch: false },
+  { slug: "stephen-fleming", name: "Stephen Fleming", searchTerms: ["Stephen Fleming"], sport: "cricket", role: "coach", newsSearch: false },
+  { slug: "ajit-agarkar", name: "Ajit Agarkar", searchTerms: ["Agarkar"], sport: "cricket", role: "official", newsSearch: false },
+
+  // Football
+  { slug: "lamine-yamal", name: "Lamine Yamal", searchTerms: ["Lamine Yamal", "Yamal"], sport: "football", newsSearch: false },
+  { slug: "morgan-rogers", name: "Morgan Rogers", searchTerms: ["Morgan Rogers"], sport: "football", newsSearch: false },
+  { slug: "trent-alexander-arnold", name: "Trent Alexander-Arnold", searchTerms: ["Alexander-Arnold", "Trent Alexander"], sport: "football", newsSearch: false },
+  { slug: "thomas-tuchel", name: "Thomas Tuchel", searchTerms: ["Tuchel"], sport: "football", role: "coach", newsSearch: false },
+  { slug: "jurgen-klopp", name: "Jürgen Klopp", searchTerms: ["Klopp"], sport: "football", role: "coach", newsSearch: false },
+  { slug: "pep-guardiola", name: "Pep Guardiola", searchTerms: ["Guardiola"], sport: "football", role: "coach", newsSearch: false },
+  { slug: "mikel-arteta", name: "Mikel Arteta", searchTerms: ["Arteta"], sport: "football", role: "coach", newsSearch: false },
+  { slug: "carlo-ancelotti", name: "Carlo Ancelotti", searchTerms: ["Ancelotti"], sport: "football", role: "coach", newsSearch: false },
+  { slug: "vincent-kompany", name: "Vincent Kompany", searchTerms: ["Kompany"], sport: "football", role: "coach", newsSearch: false },
+  { slug: "jorge-jesus", name: "Jorge Jesus", searchTerms: ["Jorge Jesus"], sport: "football", role: "coach", newsSearch: false },
+
+  // NFL
+  { slug: "jaxson-dart", name: "Jaxson Dart", searchTerms: ["Jaxson Dart"], sport: "american-football", newsSearch: false },
+  { slug: "caleb-williams", name: "Caleb Williams", searchTerms: ["Caleb Williams"], sport: "american-football", newsSearch: false },
+  { slug: "jayden-daniels", name: "Jayden Daniels", searchTerms: ["Jayden Daniels"], sport: "american-football", newsSearch: false },
+  { slug: "puka-nacua", name: "Puka Nacua", searchTerms: ["Puka Nacua", "Nacua"], sport: "american-football", newsSearch: false },
+  { slug: "dak-prescott", name: "Dak Prescott", searchTerms: ["Dak Prescott", "Prescott"], sport: "american-football", newsSearch: false },
+  { slug: "brock-bowers", name: "Brock Bowers", searchTerms: ["Brock Bowers"], sport: "american-football", newsSearch: false },
+  { slug: "drake-maye", name: "Drake Maye", searchTerms: ["Drake Maye"], sport: "american-football", newsSearch: false },
+  { slug: "baker-mayfield", name: "Baker Mayfield", searchTerms: ["Baker Mayfield", "Mayfield"], sport: "american-football", newsSearch: false },
+  { slug: "brock-purdy", name: "Brock Purdy", searchTerms: ["Brock Purdy", "Purdy"], sport: "american-football", newsSearch: false },
+  { slug: "joey-porter-jr", name: "Joey Porter Jr.", searchTerms: ["Joey Porter Jr"], sport: "american-football", newsSearch: false },
+  { slug: "alec-pierce", name: "Alec Pierce", searchTerms: ["Alec Pierce"], sport: "american-football", newsSearch: false },
+
+  // College football
+  { slug: "arch-manning", name: "Arch Manning", searchTerms: ["Arch Manning"], sport: "college-football", newsSearch: false },
+  { slug: "dante-moore", name: "Dante Moore", searchTerms: ["Dante Moore"], sport: "college-football", newsSearch: false },
+  { slug: "jeremiah-smith", name: "Jeremiah Smith", searchTerms: ["Jeremiah Smith"], sport: "college-football", newsSearch: false },
+  { slug: "faizon-brandon", name: "Faizon Brandon", searchTerms: ["Faizon Brandon"], sport: "college-football", newsSearch: false },
+  { slug: "lane-kiffin", name: "Lane Kiffin", searchTerms: ["Kiffin"], sport: "college-football", role: "coach", newsSearch: false },
+  { slug: "deion-sanders", name: "Deion Sanders", searchTerms: ["Deion Sanders", "Coach Prime"], sport: "college-football", role: "coach", newsSearch: false },
+  { slug: "lincoln-riley", name: "Lincoln Riley", searchTerms: ["Lincoln Riley"], sport: "college-football", role: "coach", newsSearch: false },
+  { slug: "dan-lanning", name: "Dan Lanning", searchTerms: ["Dan Lanning"], sport: "college-football", role: "coach", newsSearch: false },
+  { slug: "josh-heupel", name: "Josh Heupel", searchTerms: ["Heupel"], sport: "college-football", role: "coach", newsSearch: false },
+
+  // NBA
+  { slug: "jaylen-brown", name: "Jaylen Brown", searchTerms: ["Jaylen Brown"], sport: "basketball", newsSearch: false },
+  { slug: "draymond-green", name: "Draymond Green", searchTerms: ["Draymond Green", "Draymond"], sport: "basketball", newsSearch: false },
+  { slug: "austin-reaves", name: "Austin Reaves", searchTerms: ["Austin Reaves"], sport: "basketball", newsSearch: false },
+  { slug: "jalen-brunson", name: "Jalen Brunson", searchTerms: ["Jalen Brunson", "Brunson"], sport: "basketball", newsSearch: false },
+  { slug: "tyrese-maxey", name: "Tyrese Maxey", searchTerms: ["Tyrese Maxey", "Maxey"], sport: "basketball", newsSearch: false },
+  { slug: "scottie-barnes", name: "Scottie Barnes", searchTerms: ["Scottie Barnes"], sport: "basketball", newsSearch: false },
+  { slug: "michael-porter-jr", name: "Michael Porter Jr.", searchTerms: ["Michael Porter Jr"], sport: "basketball", newsSearch: false },
+  { slug: "bronny-james", name: "Bronny James", searchTerms: ["Bronny James", "Bronny"], sport: "basketball", newsSearch: false },
+  { slug: "rob-pelinka", name: "Rob Pelinka", searchTerms: ["Pelinka"], sport: "basketball", role: "official", newsSearch: false },
+
+  // WNBA
+  { slug: "caitlin-clark", name: "Caitlin Clark", searchTerms: ["Caitlin Clark"], sport: "wnba", newsSearch: false },
+  { slug: "angel-reese", name: "Angel Reese", searchTerms: ["Angel Reese"], sport: "wnba", newsSearch: false },
+  { slug: "aja-wilson", name: "A'ja Wilson", searchTerms: ["A'ja Wilson"], sport: "wnba", newsSearch: false },
+  { slug: "breanna-stewart", name: "Breanna Stewart", searchTerms: ["Breanna Stewart"], sport: "wnba", newsSearch: false },
+  { slug: "napheesa-collier", name: "Napheesa Collier", searchTerms: ["Napheesa Collier"], sport: "wnba", newsSearch: false },
+  { slug: "sabrina-ionescu", name: "Sabrina Ionescu", searchTerms: ["Ionescu"], sport: "wnba", newsSearch: false },
+  { slug: "paige-bueckers", name: "Paige Bueckers", searchTerms: ["Bueckers"], sport: "wnba", newsSearch: false },
+  { slug: "nneka-ogwumike", name: "Nneka Ogwumike", searchTerms: ["Nneka Ogwumike"], sport: "wnba", newsSearch: false },
+  { slug: "stephanie-white", name: "Stephanie White", searchTerms: ["Stephanie White"], sport: "wnba", role: "coach", newsSearch: false },
+
+  // MLB
+  { slug: "justin-verlander", name: "Justin Verlander", searchTerms: ["Verlander"], sport: "baseball", newsSearch: false },
+  { slug: "paul-skenes", name: "Paul Skenes", searchTerms: ["Skenes"], sport: "baseball", newsSearch: false },
+  { slug: "tarik-skubal", name: "Tarik Skubal", searchTerms: ["Skubal"], sport: "baseball", newsSearch: false },
+  { slug: "roki-sasaki", name: "Roki Sasaki", searchTerms: ["Roki Sasaki"], sport: "baseball", newsSearch: false },
+  { slug: "aaron-boone", name: "Aaron Boone", searchTerms: ["Aaron Boone"], sport: "baseball", role: "coach", newsSearch: false },
+  { slug: "dave-roberts", name: "Dave Roberts", searchTerms: ["Dave Roberts"], sport: "baseball", role: "coach", newsSearch: false },
+
+  // NHL
+  { slug: "connor-mcdavid", name: "Connor McDavid", searchTerms: ["McDavid"], sport: "hockey", newsSearch: false },
+  { slug: "sidney-crosby", name: "Sidney Crosby", searchTerms: ["Sidney Crosby"], sport: "hockey", newsSearch: false },
+  { slug: "auston-matthews", name: "Auston Matthews", searchTerms: ["Auston Matthews"], sport: "hockey", newsSearch: false },
+  { slug: "alex-ovechkin", name: "Alex Ovechkin", searchTerms: ["Ovechkin"], sport: "hockey", newsSearch: false },
+  { slug: "nathan-mackinnon", name: "Nathan MacKinnon", searchTerms: ["MacKinnon"], sport: "hockey", newsSearch: false },
+  { slug: "leon-draisaitl", name: "Leon Draisaitl", searchTerms: ["Draisaitl"], sport: "hockey", newsSearch: false },
+  { slug: "macklin-celebrini", name: "Macklin Celebrini", searchTerms: ["Celebrini"], sport: "hockey", newsSearch: false },
+
+  // Formula 1
+  { slug: "max-verstappen", name: "Max Verstappen", searchTerms: ["Verstappen"], sport: "formula-1", newsSearch: false },
+  { slug: "lewis-hamilton", name: "Lewis Hamilton", searchTerms: ["Lewis Hamilton"], sport: "formula-1", newsSearch: false },
+  { slug: "lando-norris", name: "Lando Norris", searchTerms: ["Lando Norris"], sport: "formula-1", newsSearch: false },
+  { slug: "charles-leclerc", name: "Charles Leclerc", searchTerms: ["Leclerc"], sport: "formula-1", newsSearch: false },
+  { slug: "george-russell", name: "George Russell", searchTerms: ["George Russell"], sport: "formula-1", newsSearch: false },
+  { slug: "oscar-piastri", name: "Oscar Piastri", searchTerms: ["Piastri"], sport: "formula-1", newsSearch: false },
+  { slug: "kimi-antonelli", name: "Kimi Antonelli", searchTerms: ["Antonelli"], sport: "formula-1", newsSearch: false },
+  { slug: "fernando-alonso", name: "Fernando Alonso", searchTerms: ["Fernando Alonso"], sport: "formula-1", newsSearch: false },
+  { slug: "carlos-sainz", name: "Carlos Sainz", searchTerms: ["Carlos Sainz"], sport: "formula-1", newsSearch: false },
+  { slug: "isack-hadjar", name: "Isack Hadjar", searchTerms: ["Hadjar"], sport: "formula-1", newsSearch: false },
+  { slug: "franco-colapinto", name: "Franco Colapinto", searchTerms: ["Colapinto"], sport: "formula-1", newsSearch: false },
+  { slug: "liam-lawson", name: "Liam Lawson", searchTerms: ["Liam Lawson"], sport: "formula-1", newsSearch: false },
+  { slug: "pierre-gasly", name: "Pierre Gasly", searchTerms: ["Gasly"], sport: "formula-1", newsSearch: false },
+  { slug: "oliver-bearman", name: "Oliver Bearman", searchTerms: ["Bearman"], sport: "formula-1", newsSearch: false },
+  { slug: "arvid-lindblad", name: "Arvid Lindblad", searchTerms: ["Lindblad"], sport: "formula-1", newsSearch: false },
+
+  // Athletics and Olympic sports (Asian Games)
+  { slug: "neeraj-chopra", name: "Neeraj Chopra", searchTerms: ["Neeraj Chopra"], sport: "athletics", newsSearch: false },
+  { slug: "manu-bhaker", name: "Manu Bhaker", searchTerms: ["Manu Bhaker"], sport: "athletics", newsSearch: false },
+  { slug: "mirabai-chanu", name: "Mirabai Chanu", searchTerms: ["Mirabai Chanu"], sport: "athletics", newsSearch: false },
+  { slug: "anahat-singh", name: "Anahat Singh", searchTerms: ["Anahat Singh"], sport: "athletics", newsSearch: false },
+
+  // Rugby
+  { slug: "fin-smith", name: "Fin Smith", searchTerms: ["Fin Smith"], sport: "rugby", newsSearch: false },
+  { slug: "antoine-dupont", name: "Antoine Dupont", searchTerms: ["Antoine Dupont"], sport: "rugby", newsSearch: false },
 ];
 
 // Flat list of every search term, for the homepage's auto-highlight check.
