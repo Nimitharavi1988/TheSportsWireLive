@@ -113,7 +113,8 @@ const MORE_SPORTS_LINKS: { href: string; label: string; category: string | null;
 // Brand green tint for the active-nav pill — deliberately not MUI's default
 // "success" palette, which is a visibly different green from the site's own
 // primary (#1d6b3f) and would look inconsistent sitting next to it.
-const ACTIVE_TINT = "rgba(29, 107, 63, 0.1)";
+// 0.07 (was 0.1): primary-green text on it keeps 4.5:1 contrast (4.49 at 0.1).
+const ACTIVE_TINT = "rgba(29, 107, 63, 0.07)";
 
 // One typography treatment for every menu item's label — the top-level
 // pills already used 14px/600, but the desktop dropdown's MenuItem had no

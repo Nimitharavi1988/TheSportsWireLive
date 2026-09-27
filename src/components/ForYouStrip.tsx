@@ -9,6 +9,8 @@ import Button from "@mui/material/Button";
 import CloseIcon from "@mui/icons-material/Close";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import { useFollows } from "./useFollows";
+import { FOLLOWS_COOKIE } from "@/lib/follows";
+import { FAVORITE_SPORTS_COOKIE } from "@/lib/preferences";
 
 const DISMISSED_KEY = "swl_foryou_prompt_dismissed";
 // The old My Feed prompt's dismissal — honored so anyone who already
@@ -28,22 +30,33 @@ const subscribeStorage = (onChange: () => void) => {
   return () => window.removeEventListener("storage", onChange);
 };
 
+// Runs while the HTML is parsed, before the strip paints: marks <html> when
+// this visitor dismissed the strip or already follows something, and CSS
+// hides the strip. It used to appear only after hydration — the page's
+// whole layout shift (CLS 0.08-0.1 in PageSpeed, 2026-09-27), everything
+// below it jumping 129px on phones.
+const HIDE_BEFORE_PAINT = `try{if(localStorage.getItem(${JSON.stringify(DISMISSED_KEY)})||localStorage.getItem(${JSON.stringify(LEGACY_DISMISSED_KEY)})||/(^|; )(${FOLLOWS_COOKIE}|${FAVORITE_SPORTS_COOKIE})=[^;]/.test(document.cookie))document.documentElement.dataset.foryou="hide"}catch(e){}`;
+
 // Homepage entry point to For You, replacing MyFeedPicker's inline picker
 // card. Only a one-line, dismissible invitation for visitors who follow
 // nothing yet — once they follow something, the "For You" nav item is the
 // way in, so the homepage doesn't repeat their feed (an earlier version
 // showed a preview of it here; removed as a duplicate of the nav page).
+// Rendered on the server (most visitors see it), hidden before paint for
+// the rest (HIDE_BEFORE_PAINT), then removed once the browser check runs.
 export function ForYouStrip() {
   const { follows, ready } = useFollows();
-  // Server snapshot is "dismissed" so nothing renders before the browser check.
-  const storedDismissed = useSyncExternalStore(subscribeStorage, readDismissed, () => true);
+  const storedDismissed = useSyncExternalStore(subscribeStorage, readDismissed, () => false);
   const [dismissedNow, setDismissedNow] = useState(false);
 
-  if (!ready || follows.length > 0 || storedDismissed || dismissedNow) return null;
+  if ((ready && follows.length > 0) || storedDismissed || dismissedNow) return null;
 
   return (
+    <>
+    <script dangerouslySetInnerHTML={{ __html: HIDE_BEFORE_PAINT }} />
     <Box
       sx={{
+        "html[data-foryou='hide'] &": { display: "none" },
         display: "flex",
         alignItems: "center",
         gap: 1.5,
@@ -75,5 +88,6 @@ export function ForYouStrip() {
         <CloseIcon fontSize="small" />
       </IconButton>
     </Box>
+    </>
   );
 }

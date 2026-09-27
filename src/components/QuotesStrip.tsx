@@ -10,7 +10,7 @@ import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import type { PlayerQuote } from "@/lib/quotes";
 
-const PLAYER_AVATAR_COLORS = ["#1d6b3f", "#b8752e", "#3d5a73"];
+const PLAYER_AVATAR_COLORS = ["#1d6b3f", "#935b20", "#3d5a73"];
 
 function playerInitials(name: string): string {
   const parts = name.split(" ").filter(Boolean);

@@ -67,7 +67,7 @@ describe("buildPrefixTsQuery", () => {
 
 describe("searchEntities with extra items", () => {
   const series = {
-    entity: { kind: "series" as const, slug: "india-vs-west-indies-odi", name: "India vs West Indies • ODI", subtitle: "ODI series", href: "/series/india-vs-west-indies-odi", initials: "IW", color: "#b8752e" },
+    entity: { kind: "series" as const, slug: "india-vs-west-indies-odi", name: "India vs West Indies • ODI", subtitle: "ODI series", href: "/series/india-vs-west-indies-odi", initials: "IW", color: "#935b20" },
     haystack: ["india vs west indies  odi", "india vs west indies odi"],
   };
 

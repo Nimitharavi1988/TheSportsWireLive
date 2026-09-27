@@ -23,7 +23,7 @@ function chipSx(active: boolean) {
     borderRadius: 5,
     border: "1px solid",
     borderColor: active ? "primary.main" : "divider",
-    bgcolor: active ? "rgba(29, 107, 63, 0.1)" : "transparent",
+    bgcolor: active ? "rgba(29, 107, 63, 0.07)" : "transparent",
     color: active ? "primary.main" : "text.primary",
     transition: "border-color 0.15s, background-color 0.15s",
     "&:hover": { borderColor: active ? "primary.main" : "text.secondary" },

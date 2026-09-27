@@ -24,12 +24,15 @@ export function MoreHeadlinesAdTile({ slot }: { slot: string }) {
   return (
     <Card
       variant="outlined"
+      // Unfilled: out of the row and zero height, but still 260px wide —
+      // display:none left AdSense no width to size the ad from, so it
+      // refused to load it ("No slot size for availableWidth=0") and the
+      // tile could never fill (2026-09-27).
       sx={{
         minWidth: 260,
         maxWidth: 260,
-        minHeight: 240,
         flexShrink: 0,
-        display: filled ? undefined : "none",
+        ...(filled ? { minHeight: 240 } : { position: "absolute", height: 0, overflow: "hidden", border: 0, pointerEvents: "none" }),
       }}
     >
       <CardContent>

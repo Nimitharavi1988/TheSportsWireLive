@@ -8,7 +8,8 @@
 const CATEGORY_CHIP: Record<string, { label: string; color: string; emoji?: string }> = {
   football: { label: "Football", color: "#1d6b3f", emoji: "⚽" },
   "football/world-cup": { label: "World Cup", color: "#3d5a73" },
-  cricket: { label: "Cricket", color: "#b8752e", emoji: "🏏" },
+  // #935b20 (was #b8752e, 3.7:1 on white): 5.6:1, readable as small text.
+  cricket: { label: "Cricket", color: "#935b20", emoji: "🏏" },
   "american-football": { label: "NFL", color: "#6b3fa0", emoji: "🏈" },
   "college-football": { label: "College Football", color: "#8e2a2a", emoji: "🏈" },
   athletics: { label: "Athletics", color: "#a02b5c", emoji: "🏃" },

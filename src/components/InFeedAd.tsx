@@ -38,6 +38,8 @@ export function InFeedAd({ slot, layoutKey, sx }: { slot: string; layoutKey: str
   useEffect(() => {
     if (!clientId || pushed.current) return;
     pushed.current = true;
+    // The copy for the other screen size is hidden (zero width): no request.
+    if (insRef.current && insRef.current.offsetWidth === 0) return;
     try {
       (window.adsbygoogle = window.adsbygoogle || []).push({});
     } catch {
@@ -73,7 +75,10 @@ export function InFeedAd({ slot, layoutKey, sx }: { slot: string; layoutKey: str
   if (!clientId) return null;
 
   return (
-    <Box sx={filled ? sx : { display: "none" }}>
+    // Unfilled: zero height, not display:none — see CollapsibleAdBox.tsx.
+    // sx still applies, so the copy meant for the other screen size stays
+    // hidden (zero width) and never requests an ad.
+    <Box sx={filled ? sx : { ...sx, height: 0, overflow: "hidden", mb: 0 }}>
       <ins
         ref={insRef}
         className="adsbygoogle"

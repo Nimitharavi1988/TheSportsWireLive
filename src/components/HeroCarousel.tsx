@@ -51,10 +51,24 @@ const HERO_ASPECT_RATIO = "4 / 3";
 export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
   const [index, setIndex] = useState(0);
 
+  // Rotation starts on the reader's first scroll, tap or key, not at load:
+  // a slide swapped in while nobody has touched the page becomes the page's
+  // "largest paint" — a lazy-loaded image arriving seconds later, which
+  // made PageSpeed's LCP 3.3s though the first slide is preloaded
+  // (2026-09-27). Browsers stop measuring LCP at the first input.
   useEffect(() => {
     if (slides.length <= 1) return;
-    const timer = setInterval(() => setIndex((i) => (i + 1) % slides.length), AUTO_ADVANCE_MS);
-    return () => clearInterval(timer);
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const events = ["scroll", "pointerdown", "keydown", "touchstart"] as const;
+    const start = () => {
+      events.forEach((e) => window.removeEventListener(e, start));
+      timer = setInterval(() => setIndex((i) => (i + 1) % slides.length), AUTO_ADVANCE_MS);
+    };
+    events.forEach((e) => window.addEventListener(e, start, { once: true, passive: true }));
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, start));
+      clearInterval(timer);
+    };
   }, [slides.length]);
 
   // Auto-advance can leave `index` pointing past the end if the slide count
@@ -280,10 +294,9 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
           </IconButton>
           <Stack
             direction="row"
-            spacing={0.75}
             sx={{
               position: "absolute",
-              bottom: imageUrl ? 12 : -20,
+              bottom: imageUrl ? 4 : -28,
               left: "50%",
               transform: "translateX(-50%)",
             }}
@@ -299,15 +312,25 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                 onClick={() => setIndex(i)}
                 aria-label={`Go to story ${i + 1} of ${slides.length}`}
                 aria-current={i === safeIndex}
+                // 24px tap target (accessibility minimum) around a 7px dot.
                 sx={{
-                  width: 7,
-                  height: 7,
+                  width: 24,
+                  height: 24,
                   p: 0,
                   border: "none",
-                  borderRadius: "50%",
+                  bgcolor: "transparent",
                   cursor: "pointer",
-                  bgcolor: i === safeIndex ? (imageUrl ? "#fff" : "primary.main") : imageUrl ? "rgba(255,255,255,0.5)" : "divider",
-                  transition: "background-color 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  "&::before": {
+                    content: '""',
+                    width: 7,
+                    height: 7,
+                    borderRadius: "50%",
+                    bgcolor: i === safeIndex ? (imageUrl ? "#fff" : "primary.main") : imageUrl ? "rgba(255,255,255,0.5)" : "divider",
+                    transition: "background-color 0.2s",
+                  },
                 }}
               />
             ))}

@@ -29,7 +29,8 @@ const SECTIONS: { href: string; label: string; category: string | null }[] = [
 ];
 
 // Same active tint as the header nav.
-const ACTIVE_TINT = "rgba(29, 107, 63, 0.1)";
+// 0.07 (was 0.1): primary-green text on it keeps 4.5:1 contrast (4.49 at 0.1).
+const ACTIVE_TINT = "rgba(29, 107, 63, 0.07)";
 
 function Row({ isActive }: { isActive: (s: (typeof SECTIONS)[number]) => boolean }) {
   return (

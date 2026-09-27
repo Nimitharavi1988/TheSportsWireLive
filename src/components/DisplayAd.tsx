@@ -29,6 +29,12 @@ export function DisplayAd({ slot, onFillStatusChange }: { slot: string; onFillSt
   useEffect(() => {
     if (!clientId || pushed.current) return;
     pushed.current = true;
+    // Hidden at this screen size (e.g. the sidebar ad below md): no ad
+    // request — AdSense can't size a zero-width slot and logs an error.
+    if (insRef.current && insRef.current.offsetWidth === 0) {
+      onFillStatusChange?.(false);
+      return;
+    }
     try {
       (window.adsbygoogle = window.adsbygoogle || []).push({});
     } catch {

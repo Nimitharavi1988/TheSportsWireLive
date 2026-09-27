@@ -18,7 +18,10 @@ export function CollapsibleAdBox({ slot, sx }: { slot: string; sx?: object }) {
   }, []);
 
   return (
-    <Box sx={filled ? sx : { display: "none" }}>
+    // Unfilled: zero height, not display:none — AdSense sizes the ad from
+    // its container's width, and at width 0 it refused to load the slot
+    // ("No slot size for availableWidth=0"), so it could never fill.
+    <Box sx={filled ? sx : { height: 0, overflow: "hidden" }}>
       <DisplayAd slot={slot} onFillStatusChange={handleFillStatusChange} />
     </Box>
   );

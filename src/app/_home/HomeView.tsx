@@ -137,7 +137,7 @@ async function PlayerNewsSection({
     <Box component="section" sx={{ mb: 4 }}>
       <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
         <StarIcon sx={{ fontSize: 20, color: "primary.main" }} />
-        <Typography variant="h5" sx={SECTION_HEADING_SX}>Player News</Typography>
+        <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>Player News</Typography>
       </Stack>
       <ScrollRow>
         {playerNews.map(({ player, article, photo }) => (
@@ -240,7 +240,7 @@ function PlayerNewsSkeleton() {
     <Box component="section" sx={{ mb: 4 }}>
       <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
         <StarIcon sx={{ fontSize: 20, color: "primary.main" }} />
-        <Typography variant="h5" sx={SECTION_HEADING_SX}>Player News</Typography>
+        <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>Player News</Typography>
       </Stack>
       <ScrollRow>
         {[...Array(4)].map((_, i) => (
@@ -1108,7 +1108,7 @@ export async function HomeView({ category }: { category?: string }) {
             <Box component="section" sx={{ mb: 4 }}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <SwapHorizIcon sx={{ color: "warning.main" }} />
-                <Typography variant="h5" sx={SECTION_HEADING_SX}>Transfers &amp; Big News</Typography>
+                <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>Transfers &amp; Big News</Typography>
               </Stack>
               <Stack spacing={2}>
                 {highlightArticles.map((article) => (
@@ -1122,7 +1122,7 @@ export async function HomeView({ category }: { category?: string }) {
             <Box component="section">
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <ScoreboardIcon sx={{ color: "primary.main" }} />
-                <Typography variant="h5" sx={SECTION_HEADING_SX}>Match Results &amp; Previews</Typography>
+                <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>Match Results &amp; Previews</Typography>
               </Stack>
               <Stack spacing={2}>
                 {matchArticles.map((article) => (
@@ -1136,7 +1136,7 @@ export async function HomeView({ category }: { category?: string }) {
             <Box component="section" sx={{ mt: matchArticles.length > 0 ? 4 : 0 }}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <SportsFootballIcon sx={{ color: categoryChipStyle("american-football").color }} />
-                <Typography variant="h5" sx={SECTION_HEADING_SX}>NFL Scores &amp; Previews</Typography>
+                <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>NFL Scores &amp; Previews</Typography>
               </Stack>
               <Stack spacing={2}>
                 {nflArticles.map((article) => (
@@ -1203,7 +1203,7 @@ export async function HomeView({ category }: { category?: string }) {
               >
             <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 0.5 }}>
               <ArticleIcon sx={{ fontSize: 18, color: "primary.main" }} />
-              <Typography variant="h6">
+              <Typography variant="h6" component="h2">
                 Also in the News
               </Typography>
             </Stack>
@@ -1271,7 +1271,7 @@ export async function HomeView({ category }: { category?: string }) {
 
       {moreArticles.length > 0 && (
         <Box component="section" sx={{ mt: 5 }}>
-          <Typography variant="h5" sx={{ ...SECTION_HEADING_SX, mb: 2 }}>
+          <Typography variant="h5" component="h2" sx={{ ...SECTION_HEADING_SX, mb: 2 }}>
             More Headlines
           </Typography>
           <ScrollRow gap={2}>
@@ -1327,7 +1327,7 @@ export async function HomeView({ category }: { category?: string }) {
                         src={article.heroImageUrl}
                         alt={article.title}
                         fill
-                        sizes="(max-width: 900px) 100vw, 33vw"
+                        sizes="260px" // the cards are a fixed 260px wide
                         sx={{ objectFit: "cover", objectPosition: "top", borderRadius: 1 }}
                       />
                       {article.heroImageCredit && (
