@@ -57,8 +57,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   // same one used elsewhere on this page) rather than padding with generic
   // filler — makes the description more specific, not just longer.
   const sportLabel = categoryChipStyle(player.sport).label;
+  const role = player.role === "coach" ? " (Coach)" : "";
   return {
-    title: `${player.name} News, Stats & Latest ${sportLabel} Updates`,
+    title: `${player.name}${role} News, Stats & Latest ${sportLabel} Updates`,
     description: `Follow ${player.name}'s latest ${sportLabel} news, match performances, interviews, and career updates — automatically updated on Sports Wire Live.`,
     alternates: { canonical: `/player/${player.slug}` },
   };
@@ -148,6 +149,11 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
               <Typography variant="h4" component="h1" gutterBottom>
                 {player.name}
               </Typography>
+              {player.role && (
+                <Typography variant="body2" sx={{ color: "primary.main", fontWeight: 600 }}>
+                  {categoryChipStyle(player.sport).label} {player.role === "coach" ? "coach" : "official"}
+                </Typography>
+              )}
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
                 {articles.length} {articles.length === 1 ? "story" : "stories"} on Sports Wire Live
               </Typography>

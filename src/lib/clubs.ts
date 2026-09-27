@@ -15,7 +15,7 @@
  * shortlist) with an explicit `sport` tag — re-run that script later to
  * pick up renamed/relocated/expansion teams, same "living config" spirit.
  */
-export type ClubSport = "football" | "american-football" | "basketball" | "baseball" | "hockey" | "cricket";
+export type ClubSport = "football" | "american-football" | "basketball" | "baseball" | "hockey" | "cricket" | "college-football";
 
 export interface TrackedClub {
   slug: string;
@@ -26,22 +26,22 @@ export interface TrackedClub {
 
 export const TRACKED_CLUBS: TrackedClub[] = [
   // Premier League
-  { slug: "manchester-city", name: "Manchester City", searchTerms: ["Manchester City"] },
+  { slug: "manchester-city", name: "Manchester City", searchTerms: ["Manchester City", "Man City"] },
   { slug: "arsenal", name: "Arsenal", searchTerms: ["Arsenal"] },
   { slug: "liverpool", name: "Liverpool", searchTerms: ["Liverpool"] },
-  { slug: "manchester-united", name: "Manchester United", searchTerms: ["Manchester United"] },
+  { slug: "manchester-united", name: "Manchester United", searchTerms: ["Manchester United", "Man Utd", "Man United"] },
   { slug: "chelsea", name: "Chelsea", searchTerms: ["Chelsea"] },
   // La Liga
   { slug: "real-madrid", name: "Real Madrid", searchTerms: ["Real Madrid"] },
-  { slug: "barcelona", name: "Barcelona", searchTerms: ["Barcelona"] },
+  { slug: "barcelona", name: "Barcelona", searchTerms: ["Barcelona", "Barça", "Barca"] },
   { slug: "atletico-madrid", name: "Atlético Madrid", searchTerms: ["Atlético Madrid", "Atletico Madrid"] },
   // Serie A
   { slug: "inter-milan", name: "Inter Milan", searchTerms: ["Internazionale", "Inter Milan"] },
   { slug: "ac-milan", name: "AC Milan", searchTerms: ["AC Milan"] },
-  { slug: "juventus", name: "Juventus", searchTerms: ["Juventus"] },
+  { slug: "juventus", name: "Juventus", searchTerms: ["Juventus", "Juve"] },
   // Bundesliga
-  { slug: "bayern-munich", name: "Bayern Munich", searchTerms: ["Bayern Munich", "Bayern München"] },
-  { slug: "borussia-dortmund", name: "Borussia Dortmund", searchTerms: ["Borussia Dortmund"] },
+  { slug: "bayern-munich", name: "Bayern Munich", searchTerms: ["Bayern Munich", "Bayern München", "Bayern"] },
+  { slug: "borussia-dortmund", name: "Borussia Dortmund", searchTerms: ["Borussia Dortmund", "Dortmund"] },
   // Ligue 1
   { slug: "psg", name: "Paris Saint-Germain", searchTerms: ["Paris Saint-Germain", "PSG"] },
   { slug: "marseille", name: "Marseille", searchTerms: ["Marseille"] },
@@ -316,4 +316,24 @@ export const TRACKED_CLUBS: TrackedClub[] = [
   { slug: "punjab-kings", name: "Punjab Kings", searchTerms: ["Punjab Kings"], sport: "cricket" },
   { slug: "gujarat-titans", name: "Gujarat Titans", searchTerms: ["Gujarat Titans"], sport: "cricket" },
   { slug: "lucknow-super-giants", name: "Lucknow Super Giants", searchTerms: ["Lucknow Super Giants"], sport: "cricket" },
+  // Added 2026-09-27: clubs in the news with no page.
+  { slug: "west-ham-united", name: "West Ham United", searchTerms: ["West Ham"], sport: "football" },
+  // College football: full names where the state or school alone is
+  // ambiguous (Texas, Georgia, Michigan, Oregon...).
+  { slug: "ohio-state", name: "Ohio State Buckeyes", searchTerms: ["Ohio State"], sport: "college-football" },
+  { slug: "penn-state", name: "Penn State Nittany Lions", searchTerms: ["Penn State"], sport: "college-football" },
+  { slug: "notre-dame", name: "Notre Dame Fighting Irish", searchTerms: ["Notre Dame"], sport: "college-football" },
+  { slug: "ole-miss", name: "Ole Miss Rebels", searchTerms: ["Ole Miss"], sport: "college-football" },
+  { slug: "michigan-wolverines", name: "Michigan Wolverines", searchTerms: ["Michigan Wolverines"], sport: "college-football" },
+  { slug: "michigan-state", name: "Michigan State Spartans", searchTerms: ["Michigan State"], sport: "college-football" },
+  { slug: "texas-longhorns", name: "Texas Longhorns", searchTerms: ["Texas Longhorns"], sport: "college-football" },
+  { slug: "tennessee-volunteers", name: "Tennessee Volunteers", searchTerms: ["Tennessee Volunteers", "Vols"], sport: "college-football" },
+  { slug: "georgia-bulldogs", name: "Georgia Bulldogs", searchTerms: ["Georgia Bulldogs"], sport: "college-football" },
+  { slug: "alabama-crimson-tide", name: "Alabama Crimson Tide", searchTerms: ["Alabama Crimson Tide"], sport: "college-football" },
+  { slug: "lsu-tigers", name: "LSU Tigers", searchTerms: ["LSU"], sport: "college-football" },
+  { slug: "oregon-ducks", name: "Oregon Ducks", searchTerms: ["Oregon Ducks"], sport: "college-football" },
+  { slug: "usc-trojans", name: "USC Trojans", searchTerms: ["USC Trojans"], sport: "college-football" },
+  { slug: "iowa-state", name: "Iowa State Cyclones", searchTerms: ["Iowa State"], sport: "college-football" },
+  { slug: "mississippi-state", name: "Mississippi State Bulldogs", searchTerms: ["Mississippi State"], sport: "college-football" },
+  { slug: "colorado-buffaloes", name: "Colorado Buffaloes", searchTerms: ["Colorado Buffaloes"], sport: "college-football" },
 ];
