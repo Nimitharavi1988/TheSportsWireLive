@@ -121,9 +121,12 @@ const MAX_MATCH_RECAP_PER_RUN = 20;
 const CRICKET_COMMENTARY_RESERVED = 35;
 
 // RSS items older than this are skipped outright rather than ingested —
-// see the skip site below for why. 3 days comfortably covers a slow news
-// day without letting genuinely stale (weeks-old) items through.
-const MAX_RSS_ITEM_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+// see the skip site below for why. 24 hours, matching the site's display
+// windows (heroConfig.ts, 2026-09-27; was 3 days): an item first seen when
+// already older than that would never be shown, yet still used an AI
+// write-up. Stories ingested while fresh stay stored as they age, so the
+// 2-3 day fallback for quiet sports (FRESH_NEWS_WINDOWS_DAYS) still works.
+const MAX_RSS_ITEM_AGE_MS = 24 * 60 * 60 * 1000;
 
 // football-data.org/CricketData.org/ESPN NFL items always arrive with `body`
 // already set to a template built from real match facts (see footballData.ts
