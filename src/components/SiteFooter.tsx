@@ -16,7 +16,7 @@ const FOOTER_LINKS = [
 
 export default function SiteFooter() {
   return (
-    <Box component="footer" sx={{ borderTop: "1px solid", borderColor: "divider", mt: 8, py: 4 }}>
+    <Box component="footer" sx={{ borderTop: "1px solid", borderColor: "divider", mt: 8, py: 4, contentVisibility: "auto", containIntrinsicSize: "auto 200px" }}>
       <Container maxWidth="lg">
         <Stack
           direction={{ xs: "column", sm: "row" }}

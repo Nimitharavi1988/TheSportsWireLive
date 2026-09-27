@@ -84,6 +84,13 @@ import SportsFootballIcon from "@mui/icons-material/SportsFootball";
 // CSS weight number was identical.
 const SECTION_HEADING_SX = { fontFamily: "var(--font-body)", color: "text.secondary", fontWeight: 600 };
 
+// Sections usually below the first screen: the browser skips laying them
+// out until they are near the viewport. The first layout of the whole
+// homepage took 0.4-2.1s on a slow phone (Lighthouse traces, 2026-09-27)
+// and held back the first paint; with this it measured ~40% less.
+// contain-intrinsic-size keeps the scrollbar steady until they render.
+const BELOW_FOLD_SX = { contentVisibility: "auto", containIntrinsicSize: "auto 600px" } as const;
+
 
 // Was a hardcoded allowlist of RSS source names — confirmed live (twice
 // now) that this drifts stale every time a new RSS feed or player-news
@@ -879,7 +886,7 @@ export async function HomeView({ category }: { category?: string }) {
             )}
 
             {categoryTiles.length > 0 && (
-              <Paper component="section" variant="outlined" sx={{ p: 2 }}>
+              <Paper component="section" variant="outlined" sx={{ p: 2, ...BELOW_FOLD_SX }}>
                 <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, mb: 1, display: "block" }}>
                   By Category
                 </Typography>
@@ -932,7 +939,7 @@ export async function HomeView({ category }: { category?: string }) {
             )}
 
             {competitionTiles.length > 0 && (
-              <Paper component="section" variant="outlined" sx={{ p: 2, mt: 3 }}>
+              <Paper component="section" variant="outlined" sx={{ p: 2, mt: 3, ...BELOW_FOLD_SX }}>
                 <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, mb: 1, display: "block" }}>
                   By Competition
                 </Typography>
@@ -984,7 +991,7 @@ export async function HomeView({ category }: { category?: string }) {
             <SentimentLeaderboard />
 
             {justIn.length > 0 && (
-              <Paper component="section" variant="outlined" sx={{ p: 2, mt: 3 }}>
+              <Paper component="section" variant="outlined" sx={{ p: 2, mt: 3, ...BELOW_FOLD_SX }}>
                 <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 1.5 }}>
                   <AccessTimeIcon sx={{ fontSize: 15, color: "primary.main" }} />
                   <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, lineHeight: 1 }}>
@@ -1105,7 +1112,7 @@ export async function HomeView({ category }: { category?: string }) {
           </Suspense>
 
           {highlightArticles.length > 0 && (
-            <Box component="section" sx={{ mb: 4 }}>
+            <Box component="section" sx={{ mb: 4, ...BELOW_FOLD_SX }}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <SwapHorizIcon sx={{ color: "warning.main" }} />
                 <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>Transfers &amp; Big News</Typography>
@@ -1119,7 +1126,7 @@ export async function HomeView({ category }: { category?: string }) {
           )}
 
           {matchArticles.length > 0 && (
-            <Box component="section">
+            <Box component="section" sx={BELOW_FOLD_SX}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <ScoreboardIcon sx={{ color: "primary.main" }} />
                 <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>Match Results &amp; Previews</Typography>
@@ -1133,7 +1140,7 @@ export async function HomeView({ category }: { category?: string }) {
           )}
 
           {nflArticles.length > 0 && (
-            <Box component="section" sx={{ mt: matchArticles.length > 0 ? 4 : 0 }}>
+            <Box component="section" sx={{ mt: matchArticles.length > 0 ? 4 : 0, ...BELOW_FOLD_SX }}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <SportsFootballIcon sx={{ color: categoryChipStyle("american-football").color }} />
                 <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>NFL Scores &amp; Previews</Typography>
@@ -1199,7 +1206,7 @@ export async function HomeView({ category }: { category?: string }) {
               <Paper
                 component="aside"
                 variant="outlined"
-                sx={{ p: 3 }}
+                sx={{ p: 3, ...BELOW_FOLD_SX }}
               >
             <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 0.5 }}>
               <ArticleIcon sx={{ fontSize: 18, color: "primary.main" }} />
@@ -1270,7 +1277,7 @@ export async function HomeView({ category }: { category?: string }) {
       </Box>
 
       {moreArticles.length > 0 && (
-        <Box component="section" sx={{ mt: 5 }}>
+        <Box component="section" sx={{ mt: 5, ...BELOW_FOLD_SX }}>
           <Typography variant="h5" component="h2" sx={{ ...SECTION_HEADING_SX, mb: 2 }}>
             More Headlines
           </Typography>
