@@ -131,7 +131,9 @@ export function feedContentImage(entry: object): RssImage | null {
   const raw = fields["content:encoded"] ?? fields.content;
   const html = typeof raw === "string" ? raw : "";
   for (const m of html.matchAll(/<img\b[^>]*\bsrc="(https?:\/\/[^"]+)"/gi)) {
-    const url = m[1];
+    // Attribute values keep "&" encoded ("&#038;") — FIVB's photo URLs were
+    // stored that way and never loaded.
+    const url = decodeHtmlEntities(m[1]);
     if (/gravatar|emoji|pixel|1x1|\.gif(\?|$)|\.svg(\?|$)/i.test(url)) continue;
     return { url };
   }

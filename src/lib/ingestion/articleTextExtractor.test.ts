@@ -5,6 +5,15 @@ function textResponse(body: string, ok = true, contentType = "text/plain") {
   return { ok, status: ok ? 200 : 404, headers: { get: () => contentType }, text: async () => body };
 }
 
+// A page whose photos (.jpg/.png/.webp URLs) answer as images.
+function pageWithImages(html: string) {
+  return vi.fn(async (url: string) => {
+    if (url.endsWith("/robots.txt")) return textResponse("", false);
+    if (/.(jpe?g|png|webp)$/.test(url)) return textResponse("", true, "image/jpeg");
+    return htmlResponse(html);
+  });
+}
+
 function htmlResponse(body: string) {
   return { ok: true, status: 200, headers: { get: () => "text/html; charset=utf-8" }, text: async () => body };
 }
@@ -78,13 +87,7 @@ describe("extractArticleContent", () => {
       "<head><title>Real headline</title></head>",
       '<head><title>Real headline</title><meta property="og:image" content="https://example.com/photos/story-1.jpg"></head>'
     );
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string) => {
-        if (url.endsWith("/robots.txt")) return textResponse("", false);
-        return htmlResponse(htmlWithImage);
-      })
-    );
+    vi.stubGlobal("fetch", pageWithImages(htmlWithImage));
 
     const result = await extractArticleContent("https://example.com/sport/story-1");
     expect(result?.imageUrl).toBe("https://example.com/photos/story-1.jpg");
@@ -95,16 +98,20 @@ describe("extractArticleContent", () => {
       "<head><title>Real headline</title></head>",
       '<head><title>Real headline</title><meta name="twitter:image" content="https://example.com/photos/tw.jpg"></head>'
     );
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string) => {
-        if (url.endsWith("/robots.txt")) return textResponse("", false);
-        return htmlResponse(htmlWithImage);
-      })
-    );
+    vi.stubGlobal("fetch", pageWithImages(htmlWithImage));
 
     const result = await extractArticleContent("https://example.com/sport/story-1");
     expect(result?.imageUrl).toBe("https://example.com/photos/tw.jpg");
+  });
+
+  it("skips an og:image that isn't an image and uses the photo captioned with the headline (FIVB)", async () => {
+    const html = ARTICLE_HTML
+      .replace("<head><title>Real headline</title></head>", '<head><title>Real headline</title><meta property="og:image" content="https://example.com/story-1/103432-jpeg/"></head>')
+      .replace("<nav>", '<img class="cover" src="https://example.com/uploads/103432-scaled.jpeg" alt="Real headline"><nav>');
+    vi.stubGlobal("fetch", pageWithImages(html));
+
+    const result = await extractArticleContent("https://example.com/sport/story-1");
+    expect(result?.imageUrl).toBe("https://example.com/uploads/103432-scaled.jpeg");
   });
 
   it("leaves imageUrl undefined when the page has no image meta tags", async () => {

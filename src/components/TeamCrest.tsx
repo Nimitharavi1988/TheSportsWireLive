@@ -44,9 +44,13 @@ export function TeamCrest({ name, crestUrl, size, alt = "" }: { name?: string | 
         height: size,
         borderRadius: "50%",
         flexShrink: 0,
-        bgcolor: "action.hover",
-        color: "text.secondary",
-        fontSize: Math.round(size * 0.4),
+        // Solid enough to read on white or tinted backgrounds (was a faint
+        // action.hover circle that vanished on the match panels).
+        bgcolor: "grey.200",
+        color: "text.primary",
+        border: "1px solid",
+        borderColor: "grey.300",
+        fontSize: Math.max(8, Math.round(size * 0.38)),
         fontWeight: 700,
         display: "flex",
         alignItems: "center",
