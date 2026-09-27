@@ -66,6 +66,7 @@ function PushNotificationButton({
 
 export interface QueueArticle {
   id: string;
+  slug: string;
   title: string;
   summary: string;
   body: string | null;
@@ -387,10 +388,15 @@ export function ArticleQueueClient({
                   <Typography variant="body2" sx={{ color: "text.secondary", mb: 1 }}>
                     {displaySummary(article)}
                   </Typography>
-                  <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+                  <Stack direction="row" spacing={2} sx={{ alignItems: "center", flexWrap: "wrap" }}>
                     <Button size="small" onClick={() => setDetailId(article.id)}>View details</Button>
                     {/* Headline, summary, text, photo, tags — pending or live (stories/[id]). */}
-                    <Button size="small" variant="outlined" startIcon={<EditOutlinedIcon />} href={`/admin/stories/${article.id}`}>Edit</Button>
+                    <IconButton size="small" title="Edit article" href={`/admin/stories/${article.id}`} component="a">
+                      <EditOutlinedIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                    {status === "published" && (
+                      <Button size="small" variant="text" href={`/article/${article.slug}`} target="_blank">View on site ↗</Button>
+                    )}
                     <a href={article.sourceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: "inherit", textDecoration: "none" }}>
                       Source ↗
                     </a>
