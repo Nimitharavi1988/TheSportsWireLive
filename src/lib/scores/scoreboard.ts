@@ -200,3 +200,48 @@ export async function fetchVenueMatches(matchTerms: string[], limit = 8): Promis
   });
   return { upcoming: cards(upcomingRows), recent: cards(recentRows) };
 }
+
+// A series' matches (fixtures and results), in date order — background for
+// the story editor's AI draft (lib/aiDraft.ts).
+export async function fetchSeriesMatches(seriesKey: string, limit = 12): Promise<ScoreMatch[]> {
+  const now = new Date();
+  const rows = await db
+    .select(MATCH_COLUMNS)
+    .from(article)
+    .where(and(eq(article.status, "published"), eq(article.seriesKey, seriesKey), inArray(article.sourceName, MATCH_DATA_SOURCE_NAMES), isNotNull(article.kickoffAt)))
+    .orderBy(asc(article.kickoffAt))
+    .limit(limit);
+  return rows.flatMap((r) => {
+    const m = toScoreMatch(r, now);
+    return m ? [m] : [];
+  });
+}
+
+// Matches between the given teams (either as home or away) within `days`
+// of now — the draft's fixtures when a story is tagged with teams rather
+// than a series (the providers don't file every match under a series).
+export async function fetchTeamMatches(teamNames: string[], days = 21, limit = 12): Promise<ScoreMatch[]> {
+  if (teamNames.length === 0) return [];
+  const now = new Date();
+  const span = days * 24 * 60 * 60 * 1000;
+  const involves = or(inArray(article.homeTeam, teamNames), inArray(article.awayTeam, teamNames));
+  const rows = await db
+    .select(MATCH_COLUMNS)
+    .from(article)
+    .where(and(
+      eq(article.status, "published"),
+      inArray(article.sourceName, MATCH_DATA_SOURCE_NAMES),
+      involves,
+      gte(article.kickoffAt, new Date(now.getTime() - span)),
+      lte(article.kickoffAt, new Date(now.getTime() + span))
+    ))
+    .orderBy(asc(article.kickoffAt))
+    .limit(limit * 3);
+  const cards = rows.flatMap((r) => {
+    const m = toScoreMatch(r, now);
+    return m ? [m] : [];
+  });
+  // With two or more teams, only their meetings; with one, all its games.
+  const both = teamNames.length > 1 ? cards.filter((m) => teamNames.includes(m.home.name) && teamNames.includes(m.away.name)) : cards;
+  return both.slice(0, limit);
+}

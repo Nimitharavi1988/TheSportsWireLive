@@ -33,6 +33,10 @@ describe("stories", () => {
     expect(problems).toHaveLength(4);
   });
 
+  it("won't publish with notes left for the writer", () => {
+    expect(publishProblems({ ...ready, body: ready.body + " [ADD: pitch report]" }, ["cricket"])).toEqual(["Replace the [ADD: …] notes with real details first."]);
+  });
+
   it("counts words and reads subheadings", () => {
     expect(wordCount("  one two\nthree ")).toBe(3);
     expect(wordCount("")).toBe(0);

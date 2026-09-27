@@ -15,6 +15,8 @@ import Autocomplete from "@mui/material/Autocomplete";
 import { tagGroupLabel, type TagOption } from "@/lib/tagOptions";
 import { saveStory, uploadStoryImage, deleteDraft } from "./actions";
 import { PhotoFinder } from "./PhotoFinder";
+import { AiDraftDialog } from "./AiDraftDialog";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
 import { STORY_KINDS, STORY_LIMITS, wordCount } from "@/lib/stories";
 
@@ -76,6 +78,9 @@ export function StoryEditor({ initial, categories, seriesOptions, tagOptions }: 
   const [pending, startTransition] = useTransition();
   const fileInput = useRef<HTMLInputElement | null>(null);
   const [finderOpen, setFinderOpen] = useState(false);
+  const [draftOpen, setDraftOpen] = useState(false);
+  // What the AI draft said to verify, kept in view until publishing.
+  const [draftChecks, setDraftChecks] = useState<string[]>([]);
 
   useEffect(() => {
     if (initial.authorName) return;
@@ -144,6 +149,19 @@ export function StoryEditor({ initial, categories, seriesOptions, tagOptions }: 
   return (
     <Stack spacing={2.5} sx={{ maxWidth: 820 }}>
       {message && <Alert severity={message.kind}>{message.text}</Alert>}
+      {v.original && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap", p: 1.5, border: "1px dashed", borderColor: "divider", borderRadius: 2 }}>
+          <Button variant="outlined" startIcon={<AutoAwesomeOutlinedIcon />} onClick={() => setDraftOpen(true)}>Draft with AI</Button>
+          <Typography variant="body2" sx={{ color: "text.secondary", flex: 1, minWidth: 220 }}>
+            Optional. A first draft from the site&apos;s fixtures, ground and recent news — you rewrite it in your voice and check every fact.
+          </Typography>
+        </Box>
+      )}
+      {draftChecks.length > 0 && (
+        <Alert severity="warning" onClose={() => setDraftChecks([])}>
+          <strong>From the AI draft — check before publishing:</strong> {draftChecks.join(" · ")}
+        </Alert>
+      )}
       {!v.original && (
         <Alert severity="info">
           Editing an ingested story. Changes go live straight away. Tick &quot;Show my byline&quot; only if you&apos;ve substantially rewritten it.
@@ -196,6 +214,22 @@ export function StoryEditor({ initial, categories, seriesOptions, tagOptions }: 
           <TextField label="Photo credit" value={v.heroImageCredit ?? ""} onChange={(e) => set("heroImageCredit", e.target.value)} size="small" sx={{ mt: 1.5, maxWidth: 420 }} fullWidth
             helperText="Who took it — use only photos you took or have permission to use." />
         )}
+        <AiDraftDialog
+          open={draftOpen}
+          onClose={() => setDraftOpen(false)}
+          request={{ category: v.category, storyKind: v.storyKind, seriesKey: v.seriesKey, tags: v.tags }}
+          contextLabels={[
+            categories.find((c) => c.value === v.category)?.label ?? v.category,
+            STORY_KINDS[v.storyKind as keyof typeof STORY_KINDS] ?? "Analysis",
+            ...(v.seriesKey ? [seriesOptions.find((o) => o.key === v.seriesKey)?.label ?? v.seriesKey] : []),
+            ...tagOptions.filter((o) => v.tags.some((t) => t.kind === o.kind && t.slug === o.slug)).map((o) => o.label),
+          ]}
+          onUse={(draft) => {
+            if ((v.body.trim() || v.title.trim()) && !confirm("Replace the headline, summary and story text with the AI draft?")) return;
+            setV((cur) => ({ ...cur, title: draft.title || cur.title, summary: draft.summary || cur.summary, body: draft.body }));
+            setDraftChecks(draft.checks);
+          }}
+        />
         <PhotoFinder
           open={finderOpen}
           initialQuery={v.title.split(/[:|–—]| - /)[0].trim().slice(0, 60)}
