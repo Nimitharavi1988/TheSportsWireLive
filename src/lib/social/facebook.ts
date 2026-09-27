@@ -111,7 +111,7 @@ export async function postArticleToFacebook(articleId: string, destination?: Fac
   // every other Gemini-dependent step here.
   const captions = article.body ? await generateSocialCaptions(article.title, article.body) : null;
   const captionBody = captions?.facebook ?? article.title;
-  const hashtags = selectFacebookHashtags(article.title, article.category).join(" ");
+  const hashtags = (destination?.hashtags ?? selectFacebookHashtags)(article.title, article.category).join(" ");
   const message = `${emojiFor(article.category)} ${captionBody}\n\n${hashtags}`;
 
   const [socialPost] = await db.insert(socialPostTable)

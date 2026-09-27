@@ -9,6 +9,7 @@
  * Tokens come from GitHub Actions secrets (never stored here); Page ids
  * are public. A destination whose token isn't set is simply skipped.
  */
+import { selectIndiaCricketHashtags } from "./hashtagRepertoire";
 
 export interface FacebookDestination {
   key: string;
@@ -26,6 +27,9 @@ export interface FacebookDestination {
   // within it, so busier sports can't crowd its stories out.
   sport: string;
   matches: (a: DestinationCandidate) => boolean;
+  // The post's hashtags, when this Page wants its own (default: the main
+  // Page's topic tags + #SportsWireLive — hashtagRepertoire.ts).
+  hashtags?: (title: string, category: string) => string[];
 }
 
 export interface DestinationCandidate {
@@ -64,6 +68,8 @@ export const INDIA_CRICKET_PAGE: FacebookDestination = {
   activeHours: { timeZone: "Asia/Kolkata", start: 7, end: 23 },
   sport: "cricket",
   matches: isIndiaCricket,
+  // #INDvWI, the player, #TeamIndia — not the main Page's brand tag.
+  hashtags: (title) => selectIndiaCricketHashtags(title),
 };
 
 export const TOPIC_DESTINATIONS: FacebookDestination[] = [INDIA_CRICKET_PAGE];

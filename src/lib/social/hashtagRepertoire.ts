@@ -1,3 +1,4 @@
+import { TRACKED_PLAYERS } from "../players";
 // Explicit-request tag repertoire (2026-09-22) — deterministic, code-side
 // selection rather than letting Gemini invent hashtags. Same reasoning as
 // generateSocialCaptions itself: separating "does this tag genuinely apply"
@@ -156,4 +157,64 @@ export function selectFacebookHashtags(title: string, category: string): string[
 // than replacing one.
 export function selectInstagramHashtags(title: string, category: string): string[] {
   return [...selectAllRelevantTags(title, category).slice(0, 15), INSTAGRAM_BRAND_TAG];
+}
+
+// ---- India cricket Page (facebookDestinations.ts INDIA_CRICKET_PAGE) -----
+// A cricket-only audience wants the match and the people, not generic
+// "#CricketNews": the fixture tag fans follow (#INDvWI), the player the
+// story is about (from the tracked list, players.ts), and #TeamIndia.
+// Still 3 at most, like every Facebook post here.
+
+// Cricket nations as fixture tags use them (#INDvWI, #INDvAUS).
+const CRICKET_CODES: [string, RegExp][] = [
+  ["IND", /\b(india|ind)\b(?!\s+(a|u19|under-19s?|women)\b)/i],
+  ["WI", /\b(west indies|windies|wi)\b/i],
+  ["AUS", /\b(australia|aus)\b/i],
+  ["ENG", /\b(england|eng)\b/i],
+  ["PAK", /\b(pakistan|pak)\b/i],
+  ["SA", /\b(south africa|sa)\b/i],
+  ["NZ", /\b(new zealand|nz)\b/i],
+  ["SL", /\b(sri lanka|sl)\b/i],
+  ["BAN", /\b(bangladesh|ban)\b/i],
+  ["AFG", /\b(afghanistan|afg)\b/i],
+  ["ZIM", /\b(zimbabwe|zim)\b/i],
+  ["IRE", /\b(ireland|ire)\b/i],
+];
+
+// "#INDvWI" when the headline names India and one opponent (India first,
+// the way fans write it); null otherwise (pure, unit-tested).
+export function cricketFixtureTag(title: string): string | null {
+  const found = CRICKET_CODES.filter(([, re]) => re.test(title)).map(([code]) => code);
+  if (!found.includes("IND")) return null;
+  const opponents = found.filter((c) => c !== "IND");
+  return opponents.length === 1 ? `#INDv${opponents[0]}` : null;
+}
+
+// "#ViratKohli" from a name: letters and digits only, accents dropped.
+export function personHashtag(name: string): string {
+  return "#" + name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9]/g, "");
+}
+
+export function selectIndiaCricketHashtags(title: string): string[] {
+  const tags: string[] = [];
+  const fixture = cricketFixtureTag(title);
+  if (fixture) tags.push(fixture);
+  const lower = title.toLowerCase();
+  // The player the headline leads with (earliest mention), not whoever
+  // comes first in the tracked list.
+  let player: { name: string; at: number } | null = null;
+  for (const p of TRACKED_PLAYERS) {
+    if (p.sport !== "cricket") continue;
+    for (const t of p.searchTerms) {
+      const at = lower.indexOf(t.toLowerCase());
+      if (at >= 0 && (!player || at < player.at)) player = { name: p.name, at };
+    }
+  }
+  if (player) tags.push(personHashtag(player.name));
+  if (/\b(india|team india|ind)\b/i.test(title)) tags.push("#TeamIndia");
+  for (const filler of ["#TeamIndia", "#CricketNews", "#Cricket"]) {
+    if (tags.length >= 3) break;
+    if (!tags.includes(filler)) tags.push(filler);
+  }
+  return tags.slice(0, 3);
 }
