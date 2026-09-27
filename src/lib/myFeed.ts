@@ -18,6 +18,9 @@ export interface MyFeedArticle {
   heroImageCreditUrl: string | null;
   homeCrestUrl: string | null;
   awayCrestUrl: string | null;
+  // Match rows: the sides, for initials when a crest is missing.
+  homeTeam: string | null;
+  awayTeam: string | null;
   // Names of the followed entities this story matched ("Arsenal", "Cricket")
   // — shown as the row's context line so it's clear why it's in the feed.
   matchedFollows: string[];
@@ -66,6 +69,8 @@ export async function fetchFollowingArticles(refs: FollowRef[], limit = 30): Pro
       heroImageCreditUrl: article.heroImageCreditUrl,
       homeCrestUrl: article.homeCrestUrl,
       awayCrestUrl: article.awayCrestUrl,
+      homeTeam: article.homeTeam,
+      awayTeam: article.awayTeam,
       seriesKey: article.seriesKey,
     })
     .from(article)

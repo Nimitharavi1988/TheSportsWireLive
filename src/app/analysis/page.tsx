@@ -1,8 +1,9 @@
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
-import { AnalysisList } from "@/components/AnalysisList";
+import { StoryGrid } from "@/components/StoryGrid";
 import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
 import { fetchAnalysis } from "@/lib/analysis";
+import { storyKindLabel } from "@/lib/stories";
 
 // Every story written by the site's own writers — previews, analysis,
 // opinion, features (see admin Write a story).
@@ -22,7 +23,7 @@ export async function generateMetadata() {
 export default async function AnalysisPage() {
   const items = await fetchAnalysis({ limit: 100 });
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <SiteBreadcrumbs steps={[{ name: "Home", href: "/" }]} current="Analysis" />
       <Typography variant="h4" component="h1" sx={{ mt: 2, mb: 1 }}>Analysis</Typography>
       <Typography sx={{ color: "text.secondary", mb: 4 }}>
@@ -31,7 +32,13 @@ export default async function AnalysisPage() {
       {items.length === 0 ? (
         <Typography sx={{ color: "text.secondary" }}>Our first pieces are on the way.</Typography>
       ) : (
-        <AnalysisList items={items} showSummary />
+        <StoryGrid
+          items={items.map((s) => ({
+            ...s,
+            kicker: storyKindLabel(s.storyKind) ?? "Analysis",
+            footer: s.authorName ? `By ${s.authorName}` : "Sports Wire Live",
+          }))}
+        />
       )}
     </Container>
   );

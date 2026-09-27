@@ -7,7 +7,7 @@ import { followKey, parseFollows, readFollowsFrom } from "@/lib/follows";
 import { resolveAllFollows } from "@/lib/competitions";
 import { fetchFollowingArticles } from "@/lib/myFeed";
 import { FollowManager } from "@/components/FollowManager";
-import { ArticleRow } from "@/components/ArticleRow";
+import { StoryGrid } from "@/components/StoryGrid";
 
 // Unlike the homepage (ISR-cached, so it must never read a per-visitor
 // cookie — see preferences.ts), this page exists only to be personal, so
@@ -54,21 +54,22 @@ export default async function ForYouPage({ searchParams }: { searchParams: Promi
           </Typography>
         )}
 
-        {entities.length > 0 &&
-          (articles.length === 0 ? (
-            <Typography sx={{ color: "text.secondary", py: 5, textAlign: "center" }}>
-              {active
-                ? `No recent stories about ${active.name} yet.`
-                : "No recent stories for what you follow yet. Try following a few more teams or a whole sport."}
-            </Typography>
-          ) : (
-            <Box component="section" aria-label="Your stories">
-              {articles.map((a) => (
-                <ArticleRow key={a.id} article={a} context={a.matchedFollows.join(", ") || null} />
-              ))}
-            </Box>
-          ))}
+        {entities.length > 0 && articles.length === 0 && (
+          <Typography sx={{ color: "text.secondary", py: 5, textAlign: "center" }}>
+            {active
+              ? `No recent stories about ${active.name} yet.`
+              : "No recent stories for what you follow yet. Try following a few more teams or a whole sport."}
+          </Typography>
+        )}
       </Box>
+
+      {/* Full width, the same card grid as Analysis (StoryGrid) — the
+          follow controls above stay at a readable width. */}
+      {articles.length > 0 && (
+        <Box component="section" aria-label="Your stories" sx={{ mt: 3 }}>
+          <StoryGrid items={articles.map((a) => ({ ...a, footer: a.matchedFollows.join(", ") || null }))} />
+        </Box>
+      )}
     </Container>
   );
 }
