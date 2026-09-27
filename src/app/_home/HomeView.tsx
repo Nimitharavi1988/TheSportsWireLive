@@ -6,13 +6,13 @@ import { CATEGORY_META } from "@/lib/categoryMeta";
 import { Suspense } from "react";
 import { db } from "@/db";
 import { article as articleTable } from "@/db/schema";
-import { and, eq, like, isNotNull, isNull, ne, or, desc, gte, type SQL } from "drizzle-orm";
+import { and, eq, like, isNotNull, isNull, ne, notInArray, or, desc, gte, type SQL } from "drizzle-orm";
 import { ForYouStrip } from "@/components/ForYouStrip";
 import { HappeningNow } from "@/components/HappeningNow";
 import { LatestVideos, VideoStripSkeleton } from "@/components/videos/VideoStrip";
 import { happeningNowEntities } from "@/lib/competitions";
 import { getMedalLeaderLines } from "@/lib/events/queries";
-import { isMatchDataSource } from "@/lib/matchDataSources";
+import { isMatchDataSource, MATCH_DATA_SOURCE_NAMES } from "@/lib/matchDataSources";
 import { hasRealImage } from "@/lib/contentQuality";
 import { isHeroQualityImage } from "@/lib/imageQuality";
 import Link from "next/link";
@@ -322,10 +322,15 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // recent stories: the first window in FRESH_NEWS_WINDOWS_DAYS (24h) that
 // yields enough stories, widening step by step on a quiet sport page (see
 // heroConfig.ts). Every section built from `articles` inherits the limit.
+// News only: match results have their own query (matchCandidatesRaw) for
+// the hero and "Match Results & Previews". Left in, they crowded news out
+// of this top-80 cut — on 2026-09-27 the Volleyball section's 80 slots were
+// all college match results (trending score 80 each) and its best news
+// story ranked 82nd, so the section showed no news at all.
 async function fetchFreshRanked(baseConditions: SQL[]) {
   const query = (days: number) =>
     db.select().from(articleTable)
-      .where(and(...baseConditions, gte(articleTable.publishedAt, new Date(Date.now() - days * DAY_MS))))
+      .where(and(...baseConditions, notInArray(articleTable.sourceName, MATCH_DATA_SOURCE_NAMES), gte(articleTable.publishedAt, new Date(Date.now() - days * DAY_MS))))
       .orderBy(desc(articleTable.trendingScore), desc(articleTable.publishedAt))
       .limit(80);
   let rows: Awaited<ReturnType<typeof query>> = [];
