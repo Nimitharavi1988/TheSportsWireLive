@@ -18,6 +18,7 @@ import { PhotoFinder } from "./PhotoFinder";
 import { AiDraftDialog } from "./AiDraftDialog";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { STORY_KINDS, STORY_LIMITS, wordCount } from "@/lib/stories";
 
 export interface StoryEditorValues {
@@ -205,9 +206,9 @@ export function StoryEditor({ initial, categories, seriesOptions, tagOptions }: 
           // Credit from the finder: exactly what the licence asks for.
           <Box sx={{ mt: 1.5 }}>
             <Typography variant="caption" sx={{ color: "text.secondary" }}>Photo credit (from the photo&apos;s licence)</Typography>
-            <Typography variant="body2">
-              {v.heroImageCredit} ·{" "}
-              <a href={v.heroImageCreditUrl} target="_blank" rel="noreferrer">source and licence ↗</a>
+            <Typography variant="body2">{v.heroImageCredit}</Typography>
+            <Typography variant="body2" component="a" href={v.heroImageCreditUrl} target="_blank" rel="noreferrer" sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, color: "primary.main", fontWeight: 600, textDecoration: "none", "&:hover": { textDecoration: "underline" } }}>
+              Source and licence <OpenInNewIcon sx={{ fontSize: 15 }} />
             </Typography>
           </Box>
         ) : (
@@ -291,7 +292,7 @@ export function StoryEditor({ initial, categories, seriesOptions, tagOptions }: 
           <Button variant="contained" onClick={() => save(false)} disabled={pending || uploading}>Save changes</Button>
         )}
         {v.slug && live && (
-          <a href={`/article/${v.slug}`} target="_blank" rel="noreferrer" style={{ fontSize: 14 }}>View on site ↗</a>
+          <Button component="a" href={`/article/${v.slug}`} target="_blank" rel="noreferrer" endIcon={<OpenInNewIcon />}>View on site</Button>
         )}
       </Stack>
     </Stack>

@@ -1,7 +1,7 @@
+import { SeeAllLink } from "./SeeAllLink";
 import Link from "next/link";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import type { EntityResult } from "@/lib/entitySearch";
 import { EntityAvatar } from "./EntityAvatar";
 import { ScrollRow } from "./ScrollRow";
@@ -23,11 +23,9 @@ export function HappeningNow({ competitions, medalLines = {} }: { competitions: 
         <Typography sx={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.3, color: "text.secondary" }}>
           Series &amp; events
         </Typography>
-        <Link href="/series" style={{ marginLeft: "auto", textDecoration: "none" }}>
-          <Typography component="span" sx={{ fontSize: 13, fontWeight: 600, color: "primary.main", display: "flex", alignItems: "center" }}>
-            All series and events <ChevronRightIcon sx={{ fontSize: 16 }} />
-          </Typography>
-        </Link>
+        <Box sx={{ ml: "auto" }}>
+          <SeeAllLink href="/series" size="sm">All series and events</SeeAllLink>
+        </Box>
       </Box>
       <ScrollRow gap={1}>
         {competitions.map((c) => (
