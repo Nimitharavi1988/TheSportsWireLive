@@ -226,10 +226,10 @@ function isInternationalAudienceWindow(now: Date): boolean {
 
 // How far back the social-posting candidate pool looks for published,
 // not-yet-posted articles — see the pool-building comment below for why
-// this exists at all. 3 days matches runIngest.ts's own staleness window
-// for the same reasoning: old enough to give a real backlog to draw from,
+// this exists at all. 1 day (24h) matches the rest of the platform's
+// freshness requirement: old enough to give a real backlog to draw from,
 // not so old that a week-old story starts appearing as "new" on the Page.
-const SOCIAL_BACKLOG_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+const SOCIAL_BACKLOG_WINDOW_MS = 1 * 24 * 60 * 60 * 1000;
 
 
 export async function autoApproveValidArticles(): Promise<{ checked: number; approved: number }> {

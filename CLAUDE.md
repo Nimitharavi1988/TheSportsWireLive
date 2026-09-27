@@ -23,3 +23,13 @@ Applies to SportsEvent, NewsArticle, and any future structured data on article/[
   - `endDate`, `offers`, `performer`: no real data exists anywhere in this pipeline (we don't know match duration in advance, don't sell tickets, and don't track individual athlete lineups for match results) — leave these unset rather than estimate/invent.
 - **Verify structured-data changes with Google's actual Rich Results Test** (`search.google.com/test/rich-results?url=<page>`) against a real live article before considering a fix done — don't just eyeball the JSON-LD output. A deploy can lag a minute or two behind a push; re-check after confirming the new version is actually live (e.g. via a quick `curl`).
 - Google Search Console flags issues via email — check Search Console's own Events/Enhancements report periodically, and use "Validate Fix" after a real fix ships to prompt an earlier recrawl instead of waiting for the natural cycle.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
