@@ -10,6 +10,7 @@ const FOOTER_LINKS = [
   { href: "/series", label: "Series" },
   { href: "/standings", label: "Standings" },
   { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
   { href: "/privacy", label: "Privacy Policy" },
   { href: "/terms", label: "Terms of Service" },
 ];
