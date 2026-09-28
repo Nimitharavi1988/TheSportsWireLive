@@ -20,11 +20,13 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
+import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
 import CloseIcon from "@mui/icons-material/Close";
 import { displaySummary } from "@/lib/articleSummary";
+import { REEL_MUSIC_STYLE_NAMES } from "@/lib/social/reelMusic";
 
 // Admin-triggered only, no persisted "already sent" state (unlike
 // SocialPostButton) — a push notification isn't tracked per-article the
@@ -91,7 +93,8 @@ export interface QueueArticle {
   // explicitly), but real rows with this platform now exist, so the type
   // has to admit them or every query pulling raw socialPosts rows fails to
   // typecheck.
-  socialPosts: { platform: "facebook" | "x" | "instagram" | "push"; status: "queued" | "posted" | "failed"; errorMessage: string | null; externalPostId: string | null }[];
+  // destination "reel" rows are Reels (ReelButton); the other buttons skip them.
+  socialPosts: { platform: "facebook" | "x" | "instagram" | "push"; destination: string; status: "queued" | "posted" | "failed"; errorMessage: string | null; externalPostId: string | null }[];
 }
 
 const SOCIAL_LABEL: Record<"facebook" | "instagram", string> = { facebook: "Facebook", instagram: "Instagram" };
@@ -117,7 +120,7 @@ function SocialPostButton({
 }) {
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const lastPost = socialPosts.find((p) => p.platform === platform);
+  const lastPost = socialPosts.find((p) => p.platform === platform && p.destination !== "reel");
   const label = SOCIAL_LABEL[platform];
 
   if (lastPost?.status === "posted") {
@@ -187,7 +190,7 @@ function InstagramPosterButton({
 }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ text: string; severity: "success" | "error" } | null>(null);
-  const alreadyPosted = socialPosts.some((p) => p.platform === "instagram" && p.status === "posted");
+  const alreadyPosted = socialPosts.some((p) => p.platform === "instagram" && p.destination !== "reel" && p.status === "posted");
   if (alreadyPosted) return null;
 
   function handleClick() {
@@ -216,6 +219,56 @@ function InstagramPosterButton({
   );
 }
 
+// Queues a Reel (Instagram + Facebook) with the chosen music, via a GitHub
+// Actions job like InstagramPosterButton above. Hidden once a reel is on
+// both platforms; the job itself skips a platform that already has one.
+function ReelButton({
+  socialPosts,
+  action,
+}: {
+  socialPosts: QueueArticle["socialPosts"];
+  action: (music: string) => Promise<{ success: boolean; error?: string }>;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [music, setMusic] = useState("auto");
+  const [message, setMessage] = useState<{ text: string; severity: "success" | "error" } | null>(null);
+  const reelOn = (platform: string) => socialPosts.some((p) => p.platform === platform && p.destination === "reel" && p.status === "posted");
+  if (reelOn("instagram") && reelOn("facebook")) return null;
+
+  function handleClick() {
+    setMessage(null);
+    startTransition(async () => {
+      const result = await action(music);
+      setMessage(
+        result.success
+          ? { text: "Queued — the reel will post to Instagram and Facebook in a few minutes.", severity: "success" }
+          : { text: `Could not queue reel: ${result.error}`, severity: "error" }
+      );
+    });
+  }
+
+  return (
+    <>
+      <TextField select size="small" label="Music" value={music} onChange={(e) => setMusic(e.target.value)} sx={{ minWidth: 110 }}>
+        <MenuItem value="auto">Auto</MenuItem>
+        {REEL_MUSIC_STYLE_NAMES.map((name) => (
+          <MenuItem key={name} value={name} sx={{ textTransform: "capitalize" }}>
+            {name}
+          </MenuItem>
+        ))}
+      </TextField>
+      <Button size="small" variant="outlined" color="secondary" onClick={handleClick} disabled={isPending}>
+        {isPending ? "Queuing…" : "Post reel"}
+      </Button>
+      <Snackbar open={message !== null} autoHideDuration={8000} onClose={() => setMessage(null)} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <Alert severity={message?.severity ?? "success"} onClose={() => setMessage(null)} sx={{ maxWidth: 480 }}>
+          {message?.text}
+        </Alert>
+      </Snackbar>
+    </>
+  );
+}
+
 export function ArticleQueueClient({
   articles,
   status,
@@ -231,6 +284,7 @@ export function ArticleQueueClient({
   postToFacebookManually,
   postToInstagramManually,
   postInstagramPosterManually,
+  postReelManually,
   sendPushNotificationManually,
 }: {
   articles: QueueArticle[];
@@ -247,6 +301,7 @@ export function ArticleQueueClient({
   postToFacebookManually: (articleId: string) => Promise<{ success: boolean; error?: string }>;
   postToInstagramManually: (articleId: string) => Promise<{ success: boolean; error?: string }>;
   postInstagramPosterManually: (articleId: string) => Promise<{ success: boolean; error?: string }>;
+  postReelManually: (articleId: string, music: string) => Promise<{ success: boolean; error?: string }>;
   sendPushNotificationManually: (articleId: string) => Promise<{ success: boolean; error?: string; sent?: number; failed?: number }>;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -458,6 +513,9 @@ export function ArticleQueueClient({
                 <InstagramPosterButton socialPosts={article.socialPosts} action={postInstagramPosterManually.bind(null, article.id)} />
               )}
               {status === "published" && (
+                <ReelButton socialPosts={article.socialPosts} action={postReelManually.bind(null, article.id)} />
+              )}
+              {status === "published" && (
                 <PushNotificationButton action={sendPushNotificationManually.bind(null, article.id)} />
               )}
             </CardActions>
@@ -575,6 +633,9 @@ export function ArticleQueueClient({
               )}
               {status === "published" && (
                 <InstagramPosterButton socialPosts={detailArticle.socialPosts} action={postInstagramPosterManually.bind(null, detailArticle.id)} />
+              )}
+              {status === "published" && (
+                <ReelButton socialPosts={detailArticle.socialPosts} action={postReelManually.bind(null, detailArticle.id)} />
               )}
               {status === "published" && (
                 <PushNotificationButton action={sendPushNotificationManually.bind(null, detailArticle.id)} />

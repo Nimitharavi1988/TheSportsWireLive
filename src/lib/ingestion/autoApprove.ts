@@ -9,6 +9,7 @@ import { isPushWorthy } from "../pushWorthy";
 import { postToTopicPages } from "../social/topicPosting";
 import { postArticleToFacebook } from "../social/facebook";
 import { postInstagramPoster } from "../social/postInstagramPoster";
+import { postReel } from "../social/postReel";
 import { sendPushToAllSubscribers } from "../push";
 import { isSimilarToAny } from "../titleSimilarity";
 import { MIN_BODY_LENGTH, MIN_MATCH_DATA_BODY_LENGTH, hasRealImage, isAutoApprovable } from "../contentQuality";
@@ -534,9 +535,11 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     }
   }
 
-  // Instagram still uses the generated poster (socialPoster.ts) - a
-  // Gemini call plus a real git commit/push/deploy-poll per attempt, far
-  // more expensive than Facebook's plain post above. Paced against its
+  // Instagram posts a Reel (postReel.ts, explicit request 2026-09-28),
+  // falling back to the generated poster (socialPoster.ts) for the same
+  // story if the reel fails, so a reel problem never stops Instagram
+  // posting. Facebook stays on its plain post above for now. Both cost
+  // Gemini calls and a render per attempt, far more than Facebook's post. Paced against its
   // own daily budget (instagramRunCap, above) rather than the old flat
   // "2 attempts" cap, and stops as soon as one succeeds within the run —
   // no need to spend more of this run's already-paced budget once that
@@ -547,7 +550,16 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     if (instagramDone || instagramAttempts >= instagramRunCap) break;
     instagramAttempts++;
     try {
-      const posted = await postInstagramPoster(article.id);
+      let posted = false;
+      try {
+        posted = (await postReel(article.id, { instagram: true, facebook: false })).instagramPosted;
+      } catch (reelErr) {
+        console.error("Instagram reel failed for article", article.id, reelErr);
+      }
+      if (!posted) {
+        console.log(`[instagram] reel not posted for ${article.id}, trying the poster`);
+        posted = await postInstagramPoster(article.id);
+      }
       if (posted) instagramDone = true;
     } catch (err) {
       console.error("Instagram post failed for article", article.id, err);

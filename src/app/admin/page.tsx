@@ -18,6 +18,7 @@ import {
   postToFacebookManually,
   postToInstagramManually,
   postInstagramPosterManually,
+  postReelManually,
   sendPushNotificationManually,
 } from "./actions";
 import Container from "@mui/material/Container";
@@ -207,6 +208,7 @@ export default async function AdminQueuePage(
         postToFacebookManually={postToFacebookManually}
         postToInstagramManually={postToInstagramManually}
         postInstagramPosterManually={postInstagramPosterManually}
+        postReelManually={postReelManually}
         sendPushNotificationManually={sendPushNotificationManually}
       />
 

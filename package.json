@@ -45,6 +45,7 @@
     "@types/web-push": "^3.6.4",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
+    "ffmpeg-static": "^5.3.0",
     "tsx": "^4.16.2",
     "typescript": "^5.5.4",
     "vitest": "^5.0.0",
@@ -53,7 +54,8 @@
   "allowScripts": {
     "unrs-resolver@1.12.2": true,
     "workerd@1.20260907.1": true,
-    "esbuild@0.25.4": true
+    "esbuild@0.25.4": true,
+    "ffmpeg-static@5.3.0": true
   },
   "overrides": {
     "@types/react": "19.2.18"

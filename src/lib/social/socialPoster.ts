@@ -2,7 +2,7 @@ import { categoryEmoji } from "@/lib/categoryDisplay";
 import { socialArticleUrl } from "./trackedLink";
 import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable, socialPosterImage } from "@/db/schema";
-import { eq, and, lt } from "drizzle-orm";
+import { eq, and, lt, ne } from "drizzle-orm";
 
 const POSTER_MAX_AGE_MS = 2 * 60 * 60 * 1000;
 import { createId } from "@paralleldrive/cuid2";
@@ -215,7 +215,7 @@ export async function postSocialPoster(
 
   const [[existingInstagram], [existingFacebook]] = await Promise.all([
     db.select({ id: socialPostTable.id }).from(socialPostTable)
-      .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.platform, "instagram"), eq(socialPostTable.status, "posted")))
+      .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.platform, "instagram"), ne(socialPostTable.destination, "reel"), eq(socialPostTable.status, "posted")))
       .limit(1),
     db.select({ id: socialPostTable.id }).from(socialPostTable)
       .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.platform, "facebook"), eq(socialPostTable.destination, "main"), eq(socialPostTable.status, "posted")))

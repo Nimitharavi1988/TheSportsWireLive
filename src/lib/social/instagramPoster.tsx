@@ -35,6 +35,14 @@ function guessImageContentType(url: string, headerValue: string | null): string 
 // thumbnail. Only applies to genuine Wikimedia thumbnail URLs; every other
 // image source (Pexels, RSS-embedded photos, team crests) is used as-is.
 async function resolveHighResUrl(url: string): Promise<string> {
+  // Pexels photos are stored at a small h=/w= size; their CDN resizes on
+  // request, so ask for one tall enough for a 1920px reel frame.
+  if (url.startsWith("https://images.pexels.com/")) {
+    const u = new URL(url);
+    u.searchParams.delete("w");
+    u.searchParams.set("h", "1920");
+    return u.toString();
+  }
   const match = url.match(/\/thumb\/[0-9a-f]\/[0-9a-f]{2}\/([^/]+)\/\d+px-/);
   if (!match) return url;
   const fileName = decodeURIComponent(match[1]);
@@ -55,10 +63,31 @@ async function resolveHighResUrl(url: string): Promise<string> {
   }
 }
 
+// Fetches the story photo (at a higher resolution where possible) as a data
+// URI for Satori. Shared with the reel renderer (reel.tsx).
+export async function loadHeroImageDataUri(heroImageUrl: string): Promise<string> {
+  const backgroundUrl = await resolveHighResUrl(heroImageUrl);
+
+  // Inlined as a data URI — satori's own image loader can't reliably
+  // resolve a remote URL directly (confirmed live: "Unsupported image
+  // type" against a Wikimedia thumbnail URL it fetched itself).
+  const bgImageRes = await fetch(backgroundUrl, {
+    headers: { "User-Agent": "TheSportsWireLiveBot/1.0 (sports news aggregator)" },
+  });
+  const bgImageBuf = Buffer.from(await bgImageRes.arrayBuffer());
+  // Confirmed live: a real photo's response returned a malformed,
+  // multi-value Content-Type header ("application/octet-stream,
+  // image/webp"), which broke Satori's image parser entirely (rendered
+  // with no size/blank). The URL's own file extension is a much more
+  // reliable signal than trusting an arbitrary server's header.
+  const contentType = guessImageContentType(backgroundUrl, bgImageRes.headers.get("content-type"));
+  return `data:${contentType};base64,${bgImageBuf.toString("base64")}`;
+}
+
 // Brand green (theme primary, brightened for a dark background) and the
 // dark panel the photo fades into.
-const BRAND_GREEN = "#12a35e";
-const PANEL = "#0b1712";
+export const BRAND_GREEN = "#12a35e";
+export const PANEL = "#0b1712";
 
 // Headline size by length: short hooks read big, long ones still fit.
 function hookSize(hook: string): number {
@@ -91,22 +120,7 @@ export async function renderInstagramPoster(params: {
     readFile(join(fontsDir, "Poppins-SemiBold.ttf")),
   ]);
 
-  const backgroundUrl = await resolveHighResUrl(params.heroImageUrl);
-
-  // Inlined as a data URI — satori's own image loader can't reliably
-  // resolve a remote URL directly (confirmed live: "Unsupported image
-  // type" against a Wikimedia thumbnail URL it fetched itself).
-  const bgImageRes = await fetch(backgroundUrl, {
-    headers: { "User-Agent": "TheSportsWireLiveBot/1.0 (sports news aggregator)" },
-  });
-  const bgImageBuf = Buffer.from(await bgImageRes.arrayBuffer());
-  // Confirmed live: a real photo's response returned a malformed,
-  // multi-value Content-Type header ("application/octet-stream,
-  // image/webp"), which broke Satori's image parser entirely (rendered
-  // with no size/blank). The URL's own file extension is a much more
-  // reliable signal than trusting an arbitrary server's header.
-  const contentType = guessImageContentType(backgroundUrl, bgImageRes.headers.get("content-type"));
-  const bgImage = `data:${contentType};base64,${bgImageBuf.toString("base64")}`;
+  const bgImage = await loadHeroImageDataUri(params.heroImageUrl);
 
   const { eyebrow, hook, rows } = params.content;
   const sport = params.category ? categoryChipStyle(params.category.split("/")[0]) : null;
