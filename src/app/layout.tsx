@@ -9,18 +9,25 @@ import GoogleAnalytics from "@/components/GoogleAnalytics";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
+// display "optional" (was "swap"): the fonts are preloaded, so Chrome waits
+// up to ~100ms for them and draws with them directly. With "swap" the first
+// layout always drew with the Arial-based fallback first, and in a fresh
+// browser loading that fallback took most of a 1-2s first layout on a slow
+// phone (Lighthouse traces, 2026-09-28: first paint 3.49s -> 3.16s). A
+// visitor whose fonts arrive later sees the size-matched fallback for that
+// page view instead of a swap — no layout shift either way.
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["600", "700"],
   variable: "--font-heading",
-  display: "swap",
+  display: "optional",
 });
 
 const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   variable: "--font-body",
-  display: "swap",
+  display: "optional",
 });
 
 export const metadata = {
