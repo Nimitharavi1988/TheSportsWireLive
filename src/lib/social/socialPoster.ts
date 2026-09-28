@@ -1,10 +1,7 @@
 import { categoryEmoji } from "@/lib/categoryDisplay";
 import { socialArticleUrl } from "./trackedLink";
-import { execFileSync } from "node:child_process";
-import { writeFile, unlink, mkdir } from "node:fs/promises";
-import { join } from "node:path";
 import { db } from "@/db";
-import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
+import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable, socialPosterImage } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { generatePosterContent, generateSocialCaptions, type PosterContent, type SocialCaptions } from "@/lib/ingestion/commentary";
@@ -26,10 +23,6 @@ import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepert
 // grow over time from this.
 
 
-
-function git(...args: string[]) {
-  execFileSync("git", args, { stdio: "inherit" });
-}
 
 // Requires 3 CONSECUTIVE successful checks, not just one — confirmed live
 // (2026-09-16): a single 200 response isn't reliable proof the poster is
@@ -248,26 +241,21 @@ export async function postSocialPoster(
   console.log("Rendering poster image...");
   const png = await renderInstagramPoster({ content, heroImageUrl: article.heroImageUrl });
 
-  const relativePath = `public/social-posters/${article.slug}.png`;
-  const absolutePath = join(process.cwd(), relativePath);
-  // Git doesn't track empty directories, so public/social-posters/ doesn't
-  // exist in a fresh checkout — confirmed live, this crashed the very
-  // first real post attempt with ENOENT before it ever reached either
-  // platform's API.
-  await mkdir(join(process.cwd(), "public/social-posters"), { recursive: true });
-  await writeFile(absolutePath, png);
-
   const siteUrl = process.env.SITE_URL ?? "https://sportswirelive.com";
   const publicUrl = `${siteUrl}/social-posters/${article.slug}.png`;
   // Only Facebook carries the link (Instagram captions can't link out).
   const articleUrl = socialArticleUrl(siteUrl, article.slug, "facebook");
 
-  console.log("Committing poster to the repo...");
-  git("config", "user.name", "sports-wire-live-bot");
-  git("config", "user.email", "actions@users.noreply.github.com");
-  git("add", relativePath);
-  git("commit", "-m", `Add social poster for ${article.slug}`);
-  git("push");
+  // Stored in the database and served by app/social-posters/[file] for the
+  // platforms to fetch — was committed to the repo (and removed again
+  // after), each commit a full site deploy: ~100 a day, wiping the page
+  // cache every time (2026-09-28).
+  console.log("Storing poster for the platforms to fetch...");
+  const pngBase64 = Buffer.from(png).toString("base64");
+  await db
+    .insert(socialPosterImage)
+    .values({ slug: article.slug, pngBase64 })
+    .onConflictDoUpdate({ target: socialPosterImage.slug, set: { pngBase64, createdAt: new Date() } });
 
   try {
     console.log(`Waiting for ${publicUrl} to go live...`);
@@ -277,16 +265,11 @@ export async function postSocialPoster(
     const facebookPosted = needFacebook ? await postToFacebook(article, publicUrl, captions, articleUrl) : false;
     return { instagramPosted, facebookPosted };
   } finally {
-    // Runs even if waitUntilLive itself throws (confirmed live: it did,
-    // during local testing against a non-production SITE_URL) — otherwise
-    // the poster commit is left orphaned in the repo with nothing ever
-    // cleaning it up.
-    console.log("Cleaning up poster file from the repo...");
+    // Runs even if waitUntilLive itself throws, so a failed post never
+    // leaves the image behind.
+    console.log("Removing the stored poster...");
     try {
-      await unlink(absolutePath);
-      git("add", relativePath);
-      git("commit", "-m", `Remove social poster for ${article.slug} (already posted)`);
-      git("push");
+      await db.delete(socialPosterImage).where(eq(socialPosterImage.slug, article.slug));
     } catch (cleanupErr) {
       console.error("Cleanup commit failed (non-fatal):", cleanupErr);
     }
