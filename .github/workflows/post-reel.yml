@@ -21,6 +21,12 @@ on:
         default: green
         type: choice
         options: [green, blue, orange, red, purple, gold]
+      font:
+        description: "Headline font"
+        required: false
+        default: poppins
+        type: choice
+        options: [poppins, oswald, bebas, montserrat]
 
 permissions:
   contents: read
@@ -42,6 +48,7 @@ jobs:
           ARTICLE_ID: ${{ inputs.article_id }}
           MUSIC: ${{ inputs.music }}
           THEME: ${{ inputs.theme }}
+          FONT: ${{ inputs.font }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SITE_URL: ${{ vars.SITE_URL }}

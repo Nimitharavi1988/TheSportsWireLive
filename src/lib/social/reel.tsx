@@ -9,7 +9,7 @@ import type { PosterContent } from "@/lib/ingestion/commentary";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { loadHeroImageDataUri, BRAND_GREEN } from "./instagramPoster";
 import { generateReelMusic, type ReelMusicStyle } from "./reelMusic";
-import { REEL_THEMES, DEFAULT_REEL_THEME, type ReelTheme } from "./reelThemes";
+import { REEL_THEMES, DEFAULT_REEL_THEME, REEL_FONTS, DEFAULT_REEL_FONT, type ReelTheme, type ReelFont } from "./reelThemes";
 
 const execFileAsync = promisify(execFile);
 
@@ -53,17 +53,31 @@ function hookSize(hook: string): number {
   return 68;
 }
 
-// Resolved colours for one theme (reelThemes.ts).
+// Resolved colours and headline font for one reel (reelThemes.ts).
 interface Theme {
   accent: string;
   glow: string;
   // The theme's dark shade at the given opacity.
   shade: (alpha: number) => string;
+  // Style for big headline text at a given base (Poppins-equivalent) size.
+  head: (size: number) => React.CSSProperties;
 }
 
-function resolveTheme(name: ReelTheme): Theme {
+function resolveTheme(name: ReelTheme, fontName: ReelFont): Theme {
   const t = REEL_THEMES[name];
-  return { accent: t.accent, glow: t.glow, shade: (a) => `rgba(${t.tint.join(",")},${a})` };
+  const font = REEL_FONTS[fontName];
+  return {
+    accent: t.accent,
+    glow: t.glow,
+    shade: (a) => `rgba(${t.tint.join(",")},${a})`,
+    head: (size) => ({
+      fontFamily: font.family,
+      fontWeight: font.weight,
+      fontSize: Math.round(size * font.scale),
+      letterSpacing: font.letterSpacing,
+      textTransform: font.uppercase ? "uppercase" : "none",
+    }),
+  };
 }
 
 // Always brand green, whatever the theme.
@@ -110,7 +124,7 @@ function HookText({ th, content, sportLabel }: { th: Theme; content: PosterConte
           )}
           <div style={{ display: "flex", color: "rgba(255,255,255,0.9)", fontSize: 30, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>{content.eyebrow}</div>
         </div>
-        <div style={{ display: "flex", color: "white", fontSize: hookSize(content.hook), fontWeight: 700, lineHeight: 1.1, letterSpacing: -0.5 }}>{content.hook}</div>
+        <div style={{ display: "flex", color: "white", lineHeight: 1.1, ...th.head(hookSize(content.hook)) }}>{content.hook}</div>
         <div style={{ display: "flex", width: 140, height: 10, borderRadius: 5, background: th.accent, marginTop: 32 }} />
       </div>
     </Layer>
@@ -129,7 +143,7 @@ function FactText({ th, row, index, total }: { th: Theme; row: { label: string; 
             {index + 1}/{total}
           </div>
         </div>
-        <div style={{ display: "flex", color: "white", fontSize: valueSize, fontWeight: 700, lineHeight: 1.1 }}>{row.value}</div>
+        <div style={{ display: "flex", color: "white", lineHeight: 1.1, ...th.head(valueSize) }}>{row.value}</div>
       </div>
     </Layer>
   );
@@ -142,7 +156,7 @@ function EndCard({ th }: { th: Theme }) {
       <Wordmark th={th} size={60} />
       <div style={{ display: "flex", width: 160, height: 10, borderRadius: 5, background: th.accent, margin: "56px 0" }} />
       {/* Asking for comments: they're what gets a reel shown to more people. */}
-      <div style={{ display: "flex", color: "white", fontSize: 76, fontWeight: 700 }}>What's your take?</div>
+      <div style={{ display: "flex", color: "white", ...th.head(76) }}>What's your take?</div>
       <div style={{ display: "flex", color: "rgba(255,255,255,0.85)", fontSize: 44, fontWeight: 600, marginTop: 14 }}>Tell us in the comments</div>
       <div style={{ display: "flex", color: th.accent, fontSize: 42, fontWeight: 700, marginTop: 80 }}>Full story: link in bio</div>
       <div style={{ display: "flex", color: "rgba(255,255,255,0.7)", fontSize: 34, fontWeight: 600, marginTop: 18 }}>Follow @sportswirelivenews</div>
@@ -150,21 +164,17 @@ function EndCard({ th }: { th: Theme }) {
   );
 }
 
-async function renderLayer(node: ReactElement, fonts: { bold: Buffer; semibold: Buffer }): Promise<Buffer> {
-  const image = new ImageResponse(node, {
-    width: W,
-    height: H,
-    fonts: [
-      { name: "Poppins", data: fonts.bold, weight: 700, style: "normal" },
-      { name: "Poppins", data: fonts.semibold, weight: 600, style: "normal" },
-    ],
-  });
+type LayerFonts = { name: string; data: Buffer; weight: 400 | 600 | 700 | 800; style: "normal" }[];
+
+async function renderLayer(node: ReactElement, fonts: LayerFonts): Promise<Buffer> {
+  const image = new ImageResponse(node, { width: W, height: H, fonts });
   return Buffer.from(await image.arrayBuffer());
 }
 
 // Renders a ~14s vertical reel (1080x1920 H.264 MP4 with AAC music) from
-// the same PosterContent the Instagram poster uses: the hook, each key fact in turn, then a branded end card. Satori renders the text
-// as transparent layers; ffmpeg composites them over the photo, which
+// the same PosterContent the Instagram poster uses: the hook, each key fact
+// in turn, then a branded end card. Satori renders the text as transparent
+// layers; ffmpeg composites them over the photo, which
 // zooms slowly and continuously underneath. Plain Node only (GitHub
 // Actions or a local script) — same Satori/Workers restriction as
 // instagramPoster.tsx, and ffmpeg-static is a devDependency.
@@ -179,8 +189,10 @@ export async function renderReel(params: {
   // Or a music file we hold the rights to, used instead. Trimmed to length
   // and faded out.
   musicPath?: string;
-  // Colour theme (reelThemes.ts); defaults to brand green.
+  // Colour theme and headline font (reelThemes.ts); default brand green
+  // and Poppins.
   theme?: ReelTheme;
+  font?: ReelFont;
   // Also keep the layer PNGs here (for previewing); otherwise a temp dir.
   keepScenesDir?: string;
 }): Promise<Buffer> {
@@ -188,16 +200,22 @@ export async function renderReel(params: {
   if (!ffmpegPath) throw new Error("ffmpeg-static has no binary for this platform");
 
   const fontsDir = join(process.cwd(), "src/assets/fonts");
-  const [bold, semibold] = await Promise.all([
+  const headFont = REEL_FONTS[params.font ?? DEFAULT_REEL_FONT];
+  const [bold, semibold, head] = await Promise.all([
     readFile(join(fontsDir, "Poppins-Bold.ttf")),
     readFile(join(fontsDir, "Poppins-SemiBold.ttf")),
+    headFont.file ? readFile(join(fontsDir, headFont.file)) : null,
   ]);
-  const fonts = { bold, semibold };
+  const fonts: LayerFonts = [
+    { name: "Poppins", data: bold, weight: 700, style: "normal" },
+    { name: "Poppins", data: semibold, weight: 600, style: "normal" },
+    ...(head ? [{ name: headFont.family, data: head, weight: headFont.weight, style: "normal" as const }] : []),
+  ];
   const photoDataUri = await loadHeroImageDataUri(params.heroImageUrl);
   const photo = Buffer.from(photoDataUri.slice(photoDataUri.indexOf(",") + 1), "base64");
   const sport = params.category ? categoryChipStyle(params.category.split("/")[0]) : null;
   const facts = params.content.rows.slice(0, 3);
-  const th = resolveTheme(params.theme ?? DEFAULT_REEL_THEME);
+  const th = resolveTheme(params.theme ?? DEFAULT_REEL_THEME, params.font ?? DEFAULT_REEL_FONT);
 
   // Text scenes back to back; the end card starts where the last fact ends.
   const texts: { node: ReactElement; seconds: number }[] = [

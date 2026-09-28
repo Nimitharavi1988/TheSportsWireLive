@@ -1,6 +1,6 @@
 import { postReel } from "./postReel";
 import { REEL_MUSIC_STYLE_NAMES, type ReelMusicStyle } from "./reelMusic";
-import { REEL_THEME_NAMES, type ReelTheme } from "./reelThemes";
+import { REEL_THEME_NAMES, REEL_FONT_NAMES, type ReelTheme, type ReelFont } from "./reelThemes";
 
 // Entry point for .github/workflows/post-reel.yml, triggered from the admin
 // "Post reel" button (postReelManually in admin/actions.ts). MUSIC is a
@@ -19,8 +19,14 @@ async function main() {
     throw new Error(`Unknown THEME "${themeInput}" (expected ${REEL_THEME_NAMES.join(", ")})`);
   }
   const theme = themeInput as ReelTheme | undefined;
+  // FONT: a headline font from reelThemes.ts; empty for Poppins.
+  const fontInput = process.env.FONT || undefined;
+  if (fontInput && !REEL_FONT_NAMES.includes(fontInput as ReelFont)) {
+    throw new Error(`Unknown FONT "${fontInput}" (expected ${REEL_FONT_NAMES.join(", ")})`);
+  }
+  const font = fontInput as ReelFont | undefined;
 
-  const { instagramPosted, facebookPosted } = await postReel(articleId, { instagram: true, facebook: true, music, theme });
+  const { instagramPosted, facebookPosted } = await postReel(articleId, { instagram: true, facebook: true, music, theme, font });
   console.log(`Instagram: ${instagramPosted ? "posted" : "not posted"}. Facebook: ${facebookPosted ? "posted" : "not posted"}.`);
   // Fail the run when nothing went out, so it shows red in Actions.
   if (!instagramPosted && !facebookPosted) process.exit(1);

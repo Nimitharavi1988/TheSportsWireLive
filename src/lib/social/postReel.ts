@@ -7,7 +7,7 @@ import { createId } from "@paralleldrive/cuid2";
 import { generatePosterContent, generateSocialCaptions, type SocialCaptions } from "@/lib/ingestion/commentary";
 import { renderReel } from "./reel";
 import { musicStyleFor, type ReelMusicStyle } from "./reelMusic";
-import type { ReelTheme } from "./reelThemes";
+import type { ReelTheme, ReelFont } from "./reelThemes";
 import { resolvePageAccessToken } from "./facebook";
 import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepertoire";
 
@@ -172,10 +172,11 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
 // Renders one reel for a story and posts it to whichever of Instagram /
 // Facebook are requested and don't already have a reel of this story.
 // `music` is a style name, or undefined for the story's own pick;
-// `theme` a colour theme, or undefined for brand green.
+// `theme` / `font` a colour theme and headline font, or undefined for
+// brand green / Poppins.
 export async function postReel(
   articleId: string,
-  opts: { instagram: boolean; facebook: boolean; music?: ReelMusicStyle; theme?: ReelTheme }
+  opts: { instagram: boolean; facebook: boolean; music?: ReelMusicStyle; theme?: ReelTheme; font?: ReelFont }
 ): Promise<{ instagramPosted: boolean; facebookPosted: boolean }> {
   const none = { instagramPosted: false, facebookPosted: false };
   const [row] = await db.select({ article: articleTable, vertical: verticalTable })
@@ -200,8 +201,8 @@ export async function postReel(
   const captions = await generateSocialCaptions(article.title, article.body);
 
   const music = opts.music ?? musicStyleFor(article.id);
-  console.log(`Rendering reel (music: ${music}, theme: ${opts.theme ?? "default"})...`);
-  const mp4 = await renderReel({ content, heroImageUrl: article.heroImageUrl, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme: opts.theme });
+  console.log(`Rendering reel (music: ${music}, theme: ${opts.theme ?? "default"}, font: ${opts.font ?? "default"})...`);
+  const mp4 = await renderReel({ content, heroImageUrl: article.heroImageUrl, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme: opts.theme, font: opts.font });
   console.log(`Rendered ${(mp4.length / 1024 / 1024).toFixed(1)} MB`);
 
   const siteUrl = process.env.SITE_URL ?? "https://sportswirelive.com";

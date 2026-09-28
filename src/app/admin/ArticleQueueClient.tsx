@@ -27,7 +27,7 @@ import Alert from "@mui/material/Alert";
 import CloseIcon from "@mui/icons-material/Close";
 import { displaySummary } from "@/lib/articleSummary";
 import { REEL_MUSIC_STYLE_NAMES } from "@/lib/social/reelMusic";
-import { REEL_THEMES, REEL_THEME_NAMES, DEFAULT_REEL_THEME } from "@/lib/social/reelThemes";
+import { REEL_THEMES, REEL_THEME_NAMES, DEFAULT_REEL_THEME, REEL_FONTS, REEL_FONT_NAMES, DEFAULT_REEL_FONT } from "@/lib/social/reelThemes";
 
 // Admin-triggered only, no persisted "already sent" state (unlike
 // SocialPostButton) — a push notification isn't tracked per-article the
@@ -220,8 +220,8 @@ function InstagramPosterButton({
   );
 }
 
-// Queues a Reel (Instagram + Facebook) with the chosen music and colour
-// theme, via a GitHub
+// Queues a Reel (Instagram + Facebook) with the chosen music, colour theme
+// and headline font, via a GitHub
 // Actions job like InstagramPosterButton above. Hidden once a reel is on
 // both platforms; the job itself skips a platform that already has one.
 function ReelButton({
@@ -229,11 +229,12 @@ function ReelButton({
   action,
 }: {
   socialPosts: QueueArticle["socialPosts"];
-  action: (music: string, theme: string) => Promise<{ success: boolean; error?: string }>;
+  action: (music: string, theme: string, font: string) => Promise<{ success: boolean; error?: string }>;
 }) {
   const [isPending, startTransition] = useTransition();
   const [music, setMusic] = useState("auto");
   const [theme, setTheme] = useState<string>(DEFAULT_REEL_THEME);
+  const [font, setFont] = useState<string>(DEFAULT_REEL_FONT);
   const [message, setMessage] = useState<{ text: string; severity: "success" | "error" } | null>(null);
   const reelOn = (platform: string) => socialPosts.some((p) => p.platform === platform && p.destination === "reel" && p.status === "posted");
   if (reelOn("instagram") && reelOn("facebook")) return null;
@@ -241,7 +242,7 @@ function ReelButton({
   function handleClick() {
     setMessage(null);
     startTransition(async () => {
-      const result = await action(music, theme);
+      const result = await action(music, theme, font);
       setMessage(
         result.success
           ? { text: "Queued — the reel will post to Instagram and Facebook in a few minutes.", severity: "success" }
@@ -265,6 +266,13 @@ function ReelButton({
           <MenuItem key={name} value={name} sx={{ textTransform: "capitalize" }}>
             <Box component="span" sx={{ display: "inline-block", width: 12, height: 12, borderRadius: "50%", bgcolor: REEL_THEMES[name].accent, mr: 1 }} />
             {name}
+          </MenuItem>
+        ))}
+      </TextField>
+      <TextField select size="small" label="Font" value={font} onChange={(e) => setFont(e.target.value)} sx={{ minWidth: 130 }}>
+        {REEL_FONT_NAMES.map((name) => (
+          <MenuItem key={name} value={name}>
+            {REEL_FONTS[name].label}
           </MenuItem>
         ))}
       </TextField>
@@ -312,7 +320,7 @@ export function ArticleQueueClient({
   postToFacebookManually: (articleId: string) => Promise<{ success: boolean; error?: string }>;
   postToInstagramManually: (articleId: string) => Promise<{ success: boolean; error?: string }>;
   postInstagramPosterManually: (articleId: string) => Promise<{ success: boolean; error?: string }>;
-  postReelManually: (articleId: string, music: string, theme: string) => Promise<{ success: boolean; error?: string }>;
+  postReelManually: (articleId: string, music: string, theme: string, font: string) => Promise<{ success: boolean; error?: string }>;
   sendPushNotificationManually: (articleId: string) => Promise<{ success: boolean; error?: string; sent?: number; failed?: number }>;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());

@@ -6,13 +6,14 @@ import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { generatePosterContent } from "@/lib/ingestion/commentary";
 import { renderReel } from "@/lib/social/reel";
 import { musicStyleFor, type ReelMusicStyle } from "@/lib/social/reelMusic";
-import type { ReelTheme } from "@/lib/social/reelThemes";
+import type { ReelTheme, ReelFont } from "@/lib/social/reelThemes";
 
 // Local preview of a reel: renders one from a real story (ARTICLE_ID, or
 // the latest published story with a photo) into OUT_DIR (default
 // ./reel-sample) — the MP4 plus each layer PNG. MUSIC picks a track style
 // (reelMusic.ts); default is the story's own pick. THEME picks a colour
-// theme (reelThemes.ts); default brand green. Posts
+// theme and FONT a headline font (reelThemes.ts); default brand green and
+// Poppins. Posts
 // nothing, stores nothing.
 //   npx tsx --env-file=.env scripts/sampleReel.ts
 async function main() {
@@ -39,6 +40,7 @@ async function main() {
     credit: story.heroImageCredit,
     musicStyle: (process.env.MUSIC as ReelMusicStyle | undefined) ?? musicStyleFor(story.id),
     theme: process.env.THEME as ReelTheme | undefined,
+    font: process.env.FONT as ReelFont | undefined,
     keepScenesDir: outDir,
   });
   await writeFile(join(outDir, "reel.mp4"), mp4);

@@ -16,3 +16,18 @@ export const REEL_THEMES = {
 export type ReelTheme = keyof typeof REEL_THEMES;
 export const REEL_THEME_NAMES = Object.keys(REEL_THEMES) as ReelTheme[];
 export const DEFAULT_REEL_THEME: ReelTheme = "green";
+
+// Headline fonts for reels: the hook, the fact values and the end card's
+// question. Labels and small text stay Poppins. `file` is in
+// src/assets/fonts (null = Poppins Bold, already loaded); `scale` evens out
+// how big each font looks at the same size; Bebas Neue has no lowercase.
+export const REEL_FONTS = {
+  poppins: { label: "Poppins", family: "Poppins", file: null, weight: 700, scale: 1, letterSpacing: -0.5, uppercase: false },
+  oswald: { label: "Oswald", family: "Oswald", file: "Oswald-Bold.woff", weight: 700, scale: 1.12, letterSpacing: 0, uppercase: true },
+  bebas: { label: "Bebas Neue", family: "Bebas Neue", file: "BebasNeue-Regular.woff", weight: 400, scale: 1.3, letterSpacing: 1, uppercase: true },
+  montserrat: { label: "Montserrat", family: "Montserrat", file: "Montserrat-ExtraBold.woff", weight: 800, scale: 0.95, letterSpacing: -0.5, uppercase: false },
+} satisfies Record<string, { label: string; family: string; file: string | null; weight: 400 | 700 | 800; scale: number; letterSpacing: number; uppercase: boolean }>;
+
+export type ReelFont = keyof typeof REEL_FONTS;
+export const REEL_FONT_NAMES = Object.keys(REEL_FONTS) as ReelFont[];
+export const DEFAULT_REEL_FONT: ReelFont = "poppins";
