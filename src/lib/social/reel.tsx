@@ -7,8 +7,9 @@ import { join } from "node:path";
 import type { ReactElement } from "react";
 import type { PosterContent } from "@/lib/ingestion/commentary";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
-import { loadHeroImageDataUri, BRAND_GREEN, PANEL } from "./instagramPoster";
+import { loadHeroImageDataUri, BRAND_GREEN } from "./instagramPoster";
 import { generateReelMusic, type ReelMusicStyle } from "./reelMusic";
+import { REEL_THEMES, DEFAULT_REEL_THEME, REEL_FONTS, DEFAULT_REEL_FONT, type ReelTheme, type ReelFont } from "./reelThemes";
 
 const execFileAsync = promisify(execFile);
 
@@ -52,9 +53,37 @@ function hookSize(hook: string): number {
   return 68;
 }
 
-function Wordmark({ size = 34 }: { size?: number }) {
+// Resolved colours and headline font for one reel (reelThemes.ts).
+interface Theme {
+  accent: string;
+  glow: string;
+  // The theme's dark shade at the given opacity.
+  shade: (alpha: number) => string;
+  // Style for big headline text at a given base (Poppins-equivalent) size.
+  head: (size: number) => React.CSSProperties;
+}
+
+function resolveTheme(name: ReelTheme, fontName: ReelFont): Theme {
+  const t = REEL_THEMES[name];
+  const font = REEL_FONTS[fontName];
+  return {
+    accent: t.accent,
+    glow: t.glow,
+    shade: (a) => `rgba(${t.tint.join(",")},${a})`,
+    head: (size) => ({
+      fontFamily: font.family,
+      fontWeight: font.weight,
+      fontSize: Math.round(size * font.scale),
+      letterSpacing: font.letterSpacing,
+      textTransform: font.uppercase ? "uppercase" : "none",
+    }),
+  };
+}
+
+// Always brand green, whatever the theme.
+function Wordmark({ th, size = 34 }: { th: Theme; size?: number }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", fontSize: size, fontWeight: 700, color: "white", padding: "10px 22px 10px 16px", borderRadius: 12, background: "rgba(11,23,18,0.78)" }}>
+    <div style={{ display: "flex", alignItems: "center", fontSize: size, fontWeight: 700, color: "white", padding: "10px 22px 10px 16px", borderRadius: 12, background: th.shade(0.78) }}>
       <div style={{ display: "flex", width: size * 0.25, height: size * 1.1, background: BRAND_GREEN, borderRadius: 3, marginRight: 14 }} />
       <div style={{ display: "flex" }}>Sports Wire</div>
       <div style={{ display: "flex", color: BRAND_GREEN, marginLeft: 10 }}>Live</div>
@@ -70,86 +99,82 @@ function Layer({ children }: { children?: React.ReactNode }) {
 // Always on top of the photo: shading for legibility, the wordmark and the
 // photo credit. The top ~220px stays clear of Instagram's reel header and
 // the bottom ~380px of its caption and buttons, so text sits between.
-function ChromeLayer({ credit }: { credit?: string | null }) {
+function ChromeLayer({ th, credit }: { th: Theme; credit?: string | null }) {
   return (
     <Layer>
-      <div style={{ position: "absolute", top: 0, left: 0, width: W, height: H, display: "flex", background: `linear-gradient(180deg, rgba(11,23,18,0.55) 0%, rgba(11,23,18,0) 14%, rgba(11,23,18,0) 46%, rgba(11,23,18,0.8) 62%, rgba(11,23,18,0.92) 100%)` }} />
+      <div style={{ position: "absolute", top: 0, left: 0, width: W, height: H, display: "flex", background: `linear-gradient(180deg, ${th.shade(0.55)} 0%, ${th.shade(0)} 14%, ${th.shade(0)} 46%, ${th.shade(0.8)} 62%, ${th.shade(0.92)} 100%)` }} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "150px 60px 0 60px", position: "relative" }}>
-        <Wordmark />
+        <Wordmark th={th} />
         {credit && <div style={{ display: "flex", fontSize: 20, fontWeight: 600, color: "rgba(255,255,255,0.8)", maxWidth: 420, textAlign: "right" }}>{credit}</div>}
       </div>
     </Layer>
   );
 }
 
-function HookText({ content, sportLabel }: { content: PosterContent; sportLabel: string | null }) {
+function HookText({ th, content, sportLabel }: { th: Theme; content: PosterContent; sportLabel: string | null }) {
   return (
     <Layer>
       <div style={{ display: "flex", flex: 1 }} />
       <div style={{ display: "flex", flexDirection: "column", padding: "0 60px 420px 60px" }}>
         <div style={{ display: "flex", alignItems: "center", marginBottom: 24 }}>
           {sportLabel && (
-            <div style={{ display: "flex", padding: "8px 18px", borderRadius: 8, background: BRAND_GREEN, color: "white", fontSize: 30, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginRight: 18 }}>
+            <div style={{ display: "flex", padding: "8px 18px", borderRadius: 8, background: th.accent, color: "white", fontSize: 30, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginRight: 18 }}>
               {sportLabel}
             </div>
           )}
           <div style={{ display: "flex", color: "rgba(255,255,255,0.9)", fontSize: 30, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>{content.eyebrow}</div>
         </div>
-        <div style={{ display: "flex", color: "white", fontSize: hookSize(content.hook), fontWeight: 700, lineHeight: 1.1, letterSpacing: -0.5 }}>{content.hook}</div>
-        <div style={{ display: "flex", width: 140, height: 10, borderRadius: 5, background: BRAND_GREEN, marginTop: 32 }} />
+        <div style={{ display: "flex", color: "white", lineHeight: 1.1, ...th.head(hookSize(content.hook)) }}>{content.hook}</div>
+        <div style={{ display: "flex", width: 140, height: 10, borderRadius: 5, background: th.accent, marginTop: 32 }} />
       </div>
     </Layer>
   );
 }
 
-function FactText({ row, index, total }: { row: { label: string; value: string }; index: number; total: number }) {
+function FactText({ th, row, index, total }: { th: Theme; row: { label: string; value: string }; index: number; total: number }) {
   const valueSize = row.value.length <= 14 ? 110 : row.value.length <= 30 ? 84 : 62;
   return (
     <Layer>
       <div style={{ display: "flex", flex: 1 }} />
-      <div style={{ display: "flex", flexDirection: "column", margin: "0 60px 440px 60px", padding: "40px 48px 48px 48px", borderRadius: 24, background: "rgba(11,23,18,0.85)", borderLeft: `12px solid ${BRAND_GREEN}` }}>
+      <div style={{ display: "flex", flexDirection: "column", margin: "0 60px 440px 60px", padding: "40px 48px 48px 48px", borderRadius: 24, background: th.shade(0.85), borderLeft: `12px solid ${th.accent}` }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-          <div style={{ display: "flex", color: BRAND_GREEN, fontSize: 34, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase" }}>{row.label}</div>
+          <div style={{ display: "flex", color: th.accent, fontSize: 34, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase" }}>{row.label}</div>
           <div style={{ display: "flex", color: "rgba(255,255,255,0.55)", fontSize: 28, fontWeight: 700 }}>
             {index + 1}/{total}
           </div>
         </div>
-        <div style={{ display: "flex", color: "white", fontSize: valueSize, fontWeight: 700, lineHeight: 1.1 }}>{row.value}</div>
+        <div style={{ display: "flex", color: "white", lineHeight: 1.1, ...th.head(valueSize) }}>{row.value}</div>
       </div>
     </Layer>
   );
 }
 
 // Opaque branded end card, fading in over everything.
-function EndCard() {
+function EndCard({ th }: { th: Theme }) {
   return (
-    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "Poppins", background: `radial-gradient(circle at 50% 40%, #173a2a 0%, ${PANEL} 70%)` }}>
-      <Wordmark size={60} />
-      <div style={{ display: "flex", width: 160, height: 10, borderRadius: 5, background: BRAND_GREEN, margin: "56px 0" }} />
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "Poppins", background: `radial-gradient(circle at 50% 40%, ${th.glow} 0%, ${th.shade(1)} 70%)` }}>
+      <Wordmark th={th} size={60} />
+      <div style={{ display: "flex", width: 160, height: 10, borderRadius: 5, background: th.accent, margin: "56px 0" }} />
       {/* Asking for comments: they're what gets a reel shown to more people. */}
-      <div style={{ display: "flex", color: "white", fontSize: 76, fontWeight: 700 }}>What's your take?</div>
+      <div style={{ display: "flex", color: "white", ...th.head(76) }}>What's your take?</div>
       <div style={{ display: "flex", color: "rgba(255,255,255,0.85)", fontSize: 44, fontWeight: 600, marginTop: 14 }}>Tell us in the comments</div>
-      <div style={{ display: "flex", color: BRAND_GREEN, fontSize: 42, fontWeight: 700, marginTop: 80 }}>Full story: link in bio</div>
+      <div style={{ display: "flex", color: th.accent, fontSize: 42, fontWeight: 700, marginTop: 80 }}>Full story: link in bio</div>
       <div style={{ display: "flex", color: "rgba(255,255,255,0.7)", fontSize: 34, fontWeight: 600, marginTop: 18 }}>Follow @sportswirelivenews</div>
     </div>
   );
 }
 
-async function renderLayer(node: ReactElement, fonts: { bold: Buffer; semibold: Buffer }): Promise<Buffer> {
-  const image = new ImageResponse(node, {
-    width: W,
-    height: H,
-    fonts: [
-      { name: "Poppins", data: fonts.bold, weight: 700, style: "normal" },
-      { name: "Poppins", data: fonts.semibold, weight: 600, style: "normal" },
-    ],
-  });
+type LayerFonts = { name: string; data: Buffer; weight: 400 | 600 | 700 | 800; style: "normal" }[];
+
+async function renderLayer(node: ReactElement, fonts: LayerFonts): Promise<Buffer> {
+  const image = new ImageResponse(node, { width: W, height: H, fonts });
   return Buffer.from(await image.arrayBuffer());
 }
 
-// Renders a ~15s vertical reel (1080x1920 H.264 MP4 with AAC music) from the same PosterContent the Instagram poster uses: the hook,
-// each key fact in turn, then a branded end card. Satori renders the text
-// as transparent layers; ffmpeg composites them over the photo, which
+// Renders a ~14s vertical reel (1080x1920 H.264 MP4 with AAC music) from
+// the same PosterContent the Instagram poster uses: the hook, each key fact
+// in turn, then a branded end card. Satori renders the text as transparent
+// layers; ffmpeg composites them over the photo, which
 // zooms slowly and continuously underneath. Plain Node only (GitHub
 // Actions or a local script) — same Satori/Workers restriction as
 // instagramPoster.tsx, and ffmpeg-static is a devDependency.
@@ -164,6 +189,10 @@ export async function renderReel(params: {
   // Or a music file we hold the rights to, used instead. Trimmed to length
   // and faded out.
   musicPath?: string;
+  // Colour theme and headline font (reelThemes.ts); default brand green
+  // and Poppins.
+  theme?: ReelTheme;
+  font?: ReelFont;
   // Also keep the layer PNGs here (for previewing); otherwise a temp dir.
   keepScenesDir?: string;
 }): Promise<Buffer> {
@@ -171,20 +200,27 @@ export async function renderReel(params: {
   if (!ffmpegPath) throw new Error("ffmpeg-static has no binary for this platform");
 
   const fontsDir = join(process.cwd(), "src/assets/fonts");
-  const [bold, semibold] = await Promise.all([
+  const headFont = REEL_FONTS[params.font ?? DEFAULT_REEL_FONT];
+  const [bold, semibold, head] = await Promise.all([
     readFile(join(fontsDir, "Poppins-Bold.ttf")),
     readFile(join(fontsDir, "Poppins-SemiBold.ttf")),
+    headFont.file ? readFile(join(fontsDir, headFont.file)) : null,
   ]);
-  const fonts = { bold, semibold };
+  const fonts: LayerFonts = [
+    { name: "Poppins", data: bold, weight: 700, style: "normal" },
+    { name: "Poppins", data: semibold, weight: 600, style: "normal" },
+    ...(head ? [{ name: headFont.family, data: head, weight: headFont.weight, style: "normal" as const }] : []),
+  ];
   const photoDataUri = await loadHeroImageDataUri(params.heroImageUrl);
   const photo = Buffer.from(photoDataUri.slice(photoDataUri.indexOf(",") + 1), "base64");
   const sport = params.category ? categoryChipStyle(params.category.split("/")[0]) : null;
   const facts = params.content.rows.slice(0, 3);
+  const th = resolveTheme(params.theme ?? DEFAULT_REEL_THEME, params.font ?? DEFAULT_REEL_FONT);
 
   // Text scenes back to back; the end card starts where the last fact ends.
   const texts: { node: ReactElement; seconds: number }[] = [
-    { node: <HookText content={params.content} sportLabel={sport?.label ?? null} />, seconds: HOOK_SECONDS },
-    ...facts.map((row, i) => ({ node: <FactText row={row} index={i} total={facts.length} />, seconds: FACT_SECONDS })),
+    { node: <HookText th={th} content={params.content} sportLabel={sport?.label ?? null} />, seconds: HOOK_SECONDS },
+    ...facts.map((row, i) => ({ node: <FactText th={th} row={row} index={i} total={facts.length} />, seconds: FACT_SECONDS })),
   ];
   const starts: number[] = [];
   let t = 0;
@@ -205,8 +241,8 @@ export async function renderReel(params: {
     const textPaths = texts.map((_, i) => join(workDir, `layer-text-${i + 1}.png`));
     const endPath = join(workDir, "layer-end.png");
     const [chromePng, endPng, ...textPngs] = await Promise.all([
-      renderLayer(<ChromeLayer credit={params.credit} />, fonts),
-      renderLayer(<EndCard />, fonts),
+      renderLayer(<ChromeLayer th={th} credit={params.credit} />, fonts),
+      renderLayer(<EndCard th={th} />, fonts),
       ...texts.map((s) => renderLayer(s.node, fonts)),
     ]);
     await Promise.all([
@@ -264,7 +300,7 @@ export async function renderReel(params: {
     filters.push(`[${endInput}:v]format=rgba,fade=t=in:st=${f(endStart)}:d=0.5:alpha=1[end]`);
     filters.push(`[${audioInput}:a]atrim=0:${f(total)},afade=t=out:st=${f(total - 1.5)}:d=1.5,loudnorm=I=-16:TP=-1.5,aresample=44100[aout]`);
     filters.push(`[${last}][end]overlay=0:0:enable='gte(t\\,${f(endStart)})'[vend]`);
-    filters.push(`color=c=${BRAND_GREEN.replace("#", "0x")}:s=${W}x${PROGRESS_H}:r=${FPS}:d=${f(total)}[bar]`);
+    filters.push(`color=c=${th.accent.replace("#", "0x")}:s=${W}x${PROGRESS_H}:r=${FPS}:d=${f(total)}[bar]`);
     filters.push(`[vend][bar]overlay=x='-w+w*t/${f(total)}':y=0,format=yuv420p,setsar=1[vout]`);
 
     const outPath = join(workDir, "reel.mp4");
