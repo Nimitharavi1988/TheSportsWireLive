@@ -10,6 +10,7 @@ import { isAutoApprovable } from "@/lib/contentQuality";
 import { postArticleToFacebook } from "@/lib/social/facebook";
 import { postArticleToInstagram } from "@/lib/social/instagram";
 import { sendPushToAllSubscribers } from "@/lib/push";
+import { REEL_MUSIC_STYLE_NAMES, type ReelMusicStyle } from "@/lib/social/reelMusic";
 import { HERO_CAP, sectionOf } from "@/lib/heroConfig";
 import { submitToIndexNow, articleUrl } from "@/lib/indexNow";
 import { revalidatePath } from "next/cache";
@@ -122,6 +123,20 @@ export async function sendPushNotificationManually(articleId: string): Promise<{
 const GITHUB_REPO = "Nimitharavi1988/TheSportsWireLive";
 
 export async function postInstagramPosterManually(articleId: string): Promise<{ success: boolean; error?: string }> {
+  return dispatchWorkflow("post-instagram-poster.yml", { article_id: articleId });
+}
+
+// Queues a Reel of the story to Instagram and Facebook with the chosen
+// music, via post-reel.yml — same reason and mechanism as the poster above
+// (Satori and ffmpeg can't run in this Worker).
+export async function postReelManually(articleId: string, music: string): Promise<{ success: boolean; error?: string }> {
+  if (music !== "auto" && !REEL_MUSIC_STYLE_NAMES.includes(music as ReelMusicStyle)) {
+    return { success: false, error: `Unknown music style: ${music}` };
+  }
+  return dispatchWorkflow("post-reel.yml", { article_id: articleId, music });
+}
+
+async function dispatchWorkflow(workflow: string, inputs: Record<string, string>): Promise<{ success: boolean; error?: string }> {
   const session = await getSession();
   if (!session) return { success: false, error: "Not authenticated" };
 
@@ -130,7 +145,7 @@ export async function postInstagramPosterManually(articleId: string): Promise<{ 
 
   try {
     const res = await fetch(
-      `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/post-instagram-poster.yml/dispatches`,
+      `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${workflow}/dispatches`,
       {
         method: "POST",
         headers: {
@@ -138,7 +153,7 @@ export async function postInstagramPosterManually(articleId: string): Promise<{ 
           Accept: "application/vnd.github+json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ ref: "master", inputs: { article_id: articleId } }),
+        body: JSON.stringify({ ref: "master", inputs }),
       }
     );
     if (!res.ok) {

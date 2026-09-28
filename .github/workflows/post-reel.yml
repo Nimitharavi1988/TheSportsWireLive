@@ -1,0 +1,43 @@
+name: Post reel
+
+on:
+  # Triggered on-demand from the admin "Post reel" button
+  # (src/app/admin/actions.ts) via the GitHub API's workflow-dispatch
+  # endpoint. Manual runs via the Actions tab also work.
+  workflow_dispatch:
+    inputs:
+      article_id:
+        description: "Article ID to post"
+        required: true
+      music:
+        description: "Music style"
+        required: false
+        default: auto
+        type: choice
+        options: [auto, drive, anthem, trap, chill]
+
+permissions:
+  contents: read
+
+jobs:
+  post-reel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Includes devDependencies: ffmpeg-static downloads its Linux binary here.
+      - run: npm ci
+      # Satori + ffmpeg render here (plain Node), never in the Worker.
+      - run: npx tsx src/lib/social/postReelJob.ts
+        env:
+          ARTICLE_ID: ${{ inputs.article_id }}
+          MUSIC: ${{ inputs.music }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SITE_URL: ${{ vars.SITE_URL }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+          INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
