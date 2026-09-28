@@ -1,19 +1,20 @@
 import { isMatchDataSource } from "./matchDataSources";
 
-// Flagged image URLs that should never be approved, regardless of other
-// criteria. Used to block images from problematic sources (e.g. wrong sport
-// imagery from RSS feeds). Add URLs here when an image systematically
-// mismatches article content across multiple articles.
-export const BLOCKED_IMAGE_URLS = new Set<string>([
-  // Cricket image (West Indies) incorrectly used for badminton articles from Hindustan Times RSS
-  "https://images.hindustantimes.com/img/2024/10/03/550x309/west_indies_cricket_1696329384.jpg",
-]);
+// Images that must never publish: publisher placeholders that look like a
+// real photo but aren't one for the story. Exact URLs go in BLOCKED_IMAGE_URLS
+// (query string and fragment ignored); a placeholder family that comes in many
+// sizes/dates goes in BLOCKED_IMAGE_PATTERNS.
+export const BLOCKED_IMAGE_URLS = new Set<string>();
+export const BLOCKED_IMAGE_PATTERNS: RegExp[] = [
+  // Hindustan Times' generic "SPORTS NEWS" placeholder (a stock cricket team
+  // photo with the HT logo), sent for stories it has no picture for, e.g. the
+  // 2026 Asian Games badminton report. Found 2026-09-28.
+  /hindustantimes\.com\/.*\/logo\/ht-generic_/i,
+];
 
 export function isImageUrlBlocked(imageUrl: string | null): boolean {
   if (!imageUrl) return false;
-  // Normalize the URL (remove query params, fragments) for reliable matching
-  const normalized = new URL(imageUrl).href.split("?")[0].split("#")[0];
-  return BLOCKED_IMAGE_URLS.has(normalized) || Array.from(BLOCKED_IMAGE_URLS).some((url) => normalized === url);
+  return BLOCKED_IMAGE_URLS.has(imageUrl.split(/[?#]/)[0]) || BLOCKED_IMAGE_PATTERNS.some((p) => p.test(imageUrl));
 }
 
 // The single shared answer to "is this article good enough to publish" --

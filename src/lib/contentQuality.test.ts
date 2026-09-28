@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hasRealImage, isAutoApprovable } from "./contentQuality";
+import { hasRealImage, isAutoApprovable, isImageUrlBlocked } from "./contentQuality";
 
 describe("hasRealImage", () => {
   it("treats a team crest pair as a real image", () => {
@@ -95,5 +95,28 @@ describe("isAutoApprovable", () => {
 describe("isAutoApprovable for match rows", () => {
   it("approves a match row with no real image (a missing logo falls back to initials)", () => {
     expect(isAutoApprovable({ body: "Markhor IT Solutions face Sui Northern Gas Pipelines Limited in the President's Trophy.", heroImageUrl: "https://images.pexels.com/photos/1/stock.jpeg", homeCrestUrl: null, playerNewsSourced: false, sourceName: "ESPN Cricket" })).toBe(true);
+  });
+});
+
+describe("isImageUrlBlocked", () => {
+  it("blocks Hindustan Times' generic sports placeholder image", () => {
+    expect(isImageUrlBlocked("https://www.hindustantimes.com/ht-img/img/2025/06/30/1600x900/logo/ht-generic_sports3_1751287397748_1751287408612.jpg")).toBe(true);
+  });
+
+  it("does not block a real Hindustan Times photo or other publishers", () => {
+    expect(isImageUrlBlocked("https://www.hindustantimes.com/ht-img/img/2026/09/27/1600x900/kohli_1234.jpg")).toBe(false);
+    expect(isImageUrlBlocked("https://ichef.bbci.co.uk/photo.jpg")).toBe(false);
+  });
+
+  it("does not throw on a missing or malformed URL", () => {
+    expect(isImageUrlBlocked(null)).toBe(false);
+    expect(isImageUrlBlocked("not a url")).toBe(false);
+  });
+
+  it("makes an article with the placeholder image not auto-approvable", () => {
+    const body = "x".repeat(400);
+    const base = { body, homeCrestUrl: null, playerNewsSourced: false, sourceName: "Hindustan Times" };
+    expect(isAutoApprovable({ ...base, heroImageUrl: "https://www.hindustantimes.com/ht-img/img/2025/06/30/1600x900/logo/ht-generic_sports3_1.jpg" })).toBe(false);
+    expect(isAutoApprovable({ ...base, heroImageUrl: "https://www.hindustantimes.com/ht-img/img/2026/09/27/1600x900/kohli_1.jpg" })).toBe(true);
   });
 });
