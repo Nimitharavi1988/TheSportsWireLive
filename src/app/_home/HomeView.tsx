@@ -53,6 +53,8 @@ import { fetchPersonPhoto, sportSearchHint } from "@/lib/ingestion/wikimediaImag
 import {
   isHeroFeatureStale,
   isHighlightStale,
+  pickHeroArticles,
+  HERO_MAX_PER_SPORT,
   HIGHLIGHT_MAX_AGE_DAYS,
   FRESH_NEWS_WINDOWS_DAYS,
   FRESH_NEWS_MIN_RESULTS,
@@ -647,14 +649,9 @@ export async function HomeView({ category }: { category?: string }) {
     (a, b) => b.trendingScore - a.trendingScore
   );
   const heroCandidates = [...manuallyFeatured, ...heroMergedPool];
-  const seenHeroIds = new Set<string>();
-  const heroArticles = heroCandidates
-    .filter((a) => {
-      if (seenHeroIds.has(a.id)) return false;
-      seenHeroIds.add(a.id);
-      return true;
-    })
-    .slice(0, 5);
+  // On the all-sports page at most HERO_MAX_PER_SPORT automatic slides come
+  // from one sport (see pickHeroArticles); a sport page is unrestricted.
+  const heroArticles = pickHeroArticles(heroCandidates, manuallyFeaturedIds, category ? null : HERO_MAX_PER_SPORT);
   const heroIds = new Set(heroArticles.map((a) => a.id));
   const allMatchArticles = allMatchArticlesFull.filter((a) => !heroIds.has(a.id));
   const allBriefArticles = allBriefArticlesFull.filter((a) => !heroIds.has(a.id));

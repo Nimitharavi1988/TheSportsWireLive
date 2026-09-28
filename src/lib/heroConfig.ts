@@ -67,3 +67,42 @@ export const FRESH_NEWS_WINDOWS_DAYS = [1, 2, 3] as const;
 export const FRESH_NEWS_MAX_AGE_DAYS = FRESH_NEWS_WINDOWS_DAYS[0];
 export const FRESH_NEWS_FALLBACK_DAYS = FRESH_NEWS_WINDOWS_DAYS[FRESH_NEWS_WINDOWS_DAYS.length - 1];
 export const FRESH_NEWS_MIN_RESULTS = 25;
+
+// Automatic hero slots are filled by trending score, but on an all-sports
+// page one big event can take most of them (2026-09-28: three of five slots
+// were Asian Games cricket while a 75-score NFL story sat just outside).
+// So on the all-sports page at most HERO_MAX_PER_SPORT slides come from one
+// sport; a sport page (perSportCap null) is unrestricted. Manual picks are
+// never dropped, and if the cap would leave the carousel short, the best
+// skipped candidates backfill it.
+export const HERO_MAX_PER_SPORT = 2;
+export const HERO_SLIDE_COUNT = 5;
+
+export function pickHeroArticles<T extends { id: string; category: string }>(
+  candidates: T[],
+  manualIds: Set<string>,
+  perSportCap: number | null,
+  limit = HERO_SLIDE_COUNT
+): T[] {
+  const picked: T[] = [];
+  const skipped: T[] = [];
+  const seen = new Set<string>();
+  const perSport = new Map<string, number>();
+  for (const a of candidates) {
+    if (picked.length >= limit) break;
+    if (seen.has(a.id)) continue;
+    seen.add(a.id);
+    const sport = sectionOf(a.category);
+    if (perSportCap !== null && !manualIds.has(a.id) && (perSport.get(sport) ?? 0) >= perSportCap) {
+      skipped.push(a);
+      continue;
+    }
+    perSport.set(sport, (perSport.get(sport) ?? 0) + 1);
+    picked.push(a);
+  }
+  for (const a of skipped) {
+    if (picked.length >= limit) break;
+    picked.push(a);
+  }
+  return picked;
+}
