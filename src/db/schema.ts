@@ -219,6 +219,18 @@ export const storyIdea = pgTable("StoryIdea", {
   updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
 });
 
+// A social poster image while it's being posted (socialPoster.ts): served at
+// /social-posters/<slug>.png for Instagram/Facebook to fetch, deleted right
+// after. Was a git commit + a second commit to remove it — each one a full
+// site deploy, ~100 a day, wiping the page cache every time (2026-09-28).
+// PNG as base64 (Neon's HTTP driver moves text reliably). Created
+// 2026-09-28 via CREATE TABLE.
+export const socialPosterImage = pgTable("SocialPosterImage", {
+  slug: text("slug").primaryKey(),
+  pngBase64: text("pngBase64").notNull(),
+  createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+});
+
 // People who write for the site — the byline on original and editor-
 // rewritten stories, with their own page (/author/[slug]).
 export const author = pgTable("Author", {
