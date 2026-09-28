@@ -306,7 +306,7 @@ ${body}
 
 Produce:
 - eyebrow: a short all-caps category/context label, 2-4 words (e.g. "MANCHESTER DERBY", "TRANSFER NEWS", "MATCH REPORT"). No punctuation.
-- hook: a bold, attention-grabbing headline for the poster, under 10 words, that is strictly true to the article — dramatic phrasing is fine, but never state anything not actually supported by the text. Do not use clickbait that misrepresents the facts (e.g. don't imply a twist that didn't happen).
+- hook: a bold, attention-grabbing headline for the poster, under 10 words, that is strictly true to the article. Lead with the single most surprising or consequential fact, preferring a specific name, number or result over generic drama ("Salah scores 3 in 20 minutes", not "A stunning night at Anfield"). Dramatic phrasing is fine, but never state anything not actually supported by the text. Do not use clickbait that misrepresents the facts (e.g. don't imply a twist that didn't happen).
 - rows: 3 to 5 short label/value pairs, a quick-read fact summary of the story (e.g. score, key name, key stat, outcome) — every value must be a real fact stated in the article text above, never invented or estimated. label is 1-3 words, value is under 8 words. Fewer, real rows are better than padding with invented or vague ones. Order rows most important first.
 - Every row must be about the headline's own story: the same game, teams and people. Articles often end with other results, a roundup of other games, or related links; never take a row from those parts, even if the numbers look impressive. Don't repeat the hook in a row.
 

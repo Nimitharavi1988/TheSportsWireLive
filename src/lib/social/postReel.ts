@@ -10,6 +10,7 @@ import { musicStyleFor, type ReelMusicStyle } from "./reelMusic";
 import type { ReelTheme, ReelFont } from "./reelThemes";
 import { resolvePageAccessToken } from "./facebook";
 import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepertoire";
+import { reelTagsFor } from "./reelTags";
 
 // Posts a story as a Reel to Instagram and the main Facebook Page. Runs in
 // the post-reel GitHub Actions job only (renderReel needs plain Node).
@@ -84,20 +85,34 @@ async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, ca
   // comment prompt matching the reel's end card.
   const emoji = categoryEmoji(article.category);
   const creditLine = article.heroImageCredit ? `\n\n📷 ${article.heroImageCredit}` : "";
-  const hashtags = selectInstagramHashtags(article.title, article.category).join(" ");
+  // 4 specific tags + brand: more than that reads as spam and adds no reach.
+  const hashtags = selectInstagramHashtags(article.title, article.category, 4).join(" ");
   const caption = `${emoji} ${captions?.instagram ?? article.title}\n\n💬 What's your take? Tell us in the comments\n👉 Full breakdown — link in bio\n🔔 Follow @sportswirelivenews for daily sports news${creditLine}\n\n${hashtags}`;
+  const tags = reelTagsFor(article.title);
+
+  const createContainer = (withTags: boolean) =>
+    fetch(`${GRAPH}/${igUserId}/media`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      // Cover: the headline frame, 1s in (before the first fact appears).
+      body: JSON.stringify({
+        media_type: "REELS", upload_type: "resumable", caption, share_to_feed: true, thumb_offset: 1000, access_token: accessToken,
+        ...(withTags && tags.collaborators.length > 0 ? { collaborators: tags.collaborators } : {}),
+        ...(withTags && tags.userTags.length > 0 ? { user_tags: tags.userTags } : {}),
+      }),
+    });
 
   return recordAttempt(article, "instagram", async () => {
     console.log("[instagram reel] Creating container...");
-    const container = await graphJson(
-      await fetch(`${GRAPH}/${igUserId}/media`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // Cover: the headline frame, 1s in (before the first fact appears).
-        body: JSON.stringify({ media_type: "REELS", upload_type: "resumable", caption, share_to_feed: true, thumb_offset: 1000, access_token: accessToken }),
-      }),
-      "Instagram reel container"
-    );
+    const hasTags = tags.collaborators.length > 0 || tags.userTags.length > 0;
+    let container;
+    try {
+      container = await graphJson(await createContainer(hasTags), "Instagram reel container");
+    } catch (err) {
+      if (!hasTags) throw err;
+      console.warn("[instagram reel] Container with tags failed, retrying without:", err instanceof Error ? err.message : err);
+      container = await graphJson(await createContainer(false), "Instagram reel container");
+    }
     if (!container.id) throw new Error("Instagram returned no container id");
 
     console.log("[instagram reel] Uploading video...");

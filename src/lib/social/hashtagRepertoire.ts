@@ -155,8 +155,8 @@ export function selectFacebookHashtags(title: string, category: string): string[
 // comment for why padding to hit "10-15" isn't done here. Instagram
 // allows 30, so the brand tag is added on top of the topic tags rather
 // than replacing one.
-export function selectInstagramHashtags(title: string, category: string): string[] {
-  return [...selectAllRelevantTags(title, category).slice(0, 15), INSTAGRAM_BRAND_TAG];
+export function selectInstagramHashtags(title: string, category: string, limit = 15): string[] {
+  return [...selectAllRelevantTags(title, category).slice(0, limit), INSTAGRAM_BRAND_TAG];
 }
 
 // ---- India cricket Page (facebookDestinations.ts INDIA_CRICKET_PAGE) -----

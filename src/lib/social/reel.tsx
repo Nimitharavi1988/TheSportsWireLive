@@ -39,10 +39,10 @@ const PAN_Y = 0.3;
 // FADE before the next one comes in, so two sets of text never overlap.
 const FADE = 0.35;
 const SLIDE = 50;
-// Kept quick (~14s): short reels get watched through and replayed.
-const HOOK_SECONDS = 3.5;
-const FACT_SECONDS = 2.6;
-const END_SECONDS = 2.5;
+// Kept quick (~12s, was ~14s): short reels get watched through and replayed.
+const HOOK_SECONDS = 3;
+const FACT_SECONDS = 2.3;
+const END_SECONDS = 2.2;
 // Thin bar along the top edge filling up over the reel, so viewers can see
 // it's short and stay to the end.
 const PROGRESS_H = 10;
