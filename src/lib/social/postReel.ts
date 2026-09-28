@@ -91,7 +91,8 @@ async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, ca
       await fetch(`${GRAPH}/${igUserId}/media`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ media_type: "REELS", upload_type: "resumable", caption, share_to_feed: true, access_token: accessToken }),
+        // Cover: the headline frame, 1s in (before the first fact appears).
+        body: JSON.stringify({ media_type: "REELS", upload_type: "resumable", caption, share_to_feed: true, thumb_offset: 1000, access_token: accessToken }),
       }),
       "Instagram reel container"
     );
