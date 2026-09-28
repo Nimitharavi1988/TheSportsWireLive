@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { PosterContent } from "@/lib/ingestion/commentary";
+import { categoryChipStyle } from "@/lib/categoryDisplay";
 
 const WIKIMEDIA_USER_AGENT = "TheSportsWireLiveBot/1.0 (sports news aggregator)";
 
@@ -54,8 +55,24 @@ async function resolveHighResUrl(url: string): Promise<string> {
   }
 }
 
-// Renders the grungy/high-contrast Instagram poster (bold hook + quick-read
-// fact table over a darkened real photo) to a PNG buffer. Only ever run
+// Brand green (theme primary, brightened for a dark background) and the
+// dark panel the photo fades into.
+const BRAND_GREEN = "#12a35e";
+const PANEL = "#0b1712";
+
+// Headline size by length: short hooks read big, long ones still fit.
+function hookSize(hook: string): number {
+  if (hook.length <= 38) return 76;
+  if (hook.length <= 60) return 66;
+  return 56;
+}
+
+// Renders the Instagram poster (1080x1350) to a PNG: the story's photo in
+// full colour over the top ~60%, fading into a dark panel with the sport
+// tag and kicker, the hook headline, the key facts as stat cards, and a
+// footer with the site address. Redesigned 2026-09-28 — the first version
+// darkened and greyed the whole photo under an all-caps headline and a
+// plain text table, which read as dull. Only ever run
 // from a plain Node context (the GitHub Actions poster-post job) — next/og's
 // ImageResponse (Satori + WASM) is a confirmed bad fit for Cloudflare
 // Workers, so this must never be imported from anything the deployed app
@@ -63,6 +80,10 @@ async function resolveHighResUrl(url: string): Promise<string> {
 export async function renderInstagramPoster(params: {
   content: PosterContent;
   heroImageUrl: string;
+  // Sport category ("cricket", "football/world-cup") for the sport tag.
+  category?: string;
+  // Photo credit, shown small on the photo as on the site.
+  credit?: string | null;
 }): Promise<Buffer> {
   const fontsDir = join(process.cwd(), "src/assets/fonts");
   const [bold, semibold] = await Promise.all([
@@ -88,55 +109,83 @@ export async function renderInstagramPoster(params: {
   const bgImage = `data:${contentType};base64,${bgImageBuf.toString("base64")}`;
 
   const { eyebrow, hook, rows } = params.content;
+  const sport = params.category ? categoryChipStyle(params.category.split("/")[0]) : null;
+  const stats = rows.slice(0, 3);
+  const PHOTO_H = 820;
 
   const image = new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", fontFamily: "Poppins", background: "#0a0e0a" }}>
-        <img src={bgImage} width={1080} height={1350} style={{ position: "absolute", top: 0, left: 0, objectFit: "cover", filter: "grayscale(20%) brightness(0.75)" }} />
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", fontFamily: "Poppins", background: PANEL }}>
+        {/* Photo, full colour, fading into the panel below. */}
+        <img src={bgImage} width={1080} height={PHOTO_H} style={{ position: "absolute", top: 0, left: 0, objectFit: "cover", objectPosition: "top" }} />
         <div
           style={{
             position: "absolute",
             top: 0,
             left: 0,
-            width: "100%",
-            height: "100%",
+            width: 1080,
+            height: PHOTO_H,
             display: "flex",
-            background:
-              "linear-gradient(180deg, rgba(10,14,10,0.55) 0%, rgba(10,14,10,0.15) 30%, rgba(10,14,10,0.35) 55%, rgba(10,14,10,0.97) 82%, #0a0e0a 100%)",
+            background: `linear-gradient(180deg, rgba(11,23,18,0.5) 0%, rgba(11,23,18,0) 20%, rgba(11,23,18,0) 50%, rgba(11,23,18,0.85) 84%, ${PANEL} 100%)`,
           }}
         />
 
-        <div style={{ display: "flex", alignItems: "center", padding: "48px 56px 0 56px", position: "relative" }}>
-          <div style={{ display: "flex", alignItems: "center", padding: "8px 18px", borderRadius: 6, background: "linear-gradient(135deg, #2f8a5c, #17512f)" }}>
-            <div style={{ display: "flex", color: "white", fontSize: 28, fontWeight: 700, letterSpacing: 1 }}>SPORTS WIRE LIVE</div>
+        {/* Top bar: wordmark and photo credit. */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "44px 52px 0 52px", position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", fontSize: 32, fontWeight: 700, color: "white", padding: "10px 20px 10px 14px", borderRadius: 10, background: "rgba(11,23,18,0.78)" }}>
+            <div style={{ display: "flex", width: 8, height: 36, background: BRAND_GREEN, borderRadius: 3, marginRight: 14 }} />
+            <div style={{ display: "flex" }}>Sports Wire</div>
+            <div style={{ display: "flex", color: BRAND_GREEN, marginLeft: 10 }}>Live</div>
           </div>
+          {params.credit && (
+            <div style={{ display: "flex", fontSize: 18, fontWeight: 600, color: "rgba(255,255,255,0.8)", maxWidth: 440, marginTop: 10 }}>{params.credit}</div>
+          )}
         </div>
 
         <div style={{ display: "flex", flex: 1 }} />
 
-        <div style={{ display: "flex", flexDirection: "column", padding: "0 56px", position: "relative" }}>
-          <div style={{ display: "flex", color: "#ff4d4d", fontSize: 32, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", marginBottom: 16 }}>
-            {eyebrow}
+        {/* Sport tag + kicker, then the headline. */}
+        <div style={{ display: "flex", flexDirection: "column", padding: "0 52px", position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", marginBottom: 18 }}>
+            {sport && (
+              <div style={{ display: "flex", padding: "6px 16px", borderRadius: 6, background: BRAND_GREEN, color: "white", fontSize: 24, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginRight: 16 }}>
+                {sport.label}
+              </div>
+            )}
+            <div style={{ display: "flex", color: "rgba(255,255,255,0.88)", fontSize: 26, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>{eyebrow}</div>
           </div>
-          <div style={{ display: "flex", color: "white", fontSize: 72, fontWeight: 700, lineHeight: 1.1, textShadow: "0 4px 18px rgba(0,0,0,0.85)" }}>
-            {hook.toUpperCase()}
-          </div>
+          <div style={{ display: "flex", color: "white", fontSize: hookSize(hook), fontWeight: 700, lineHeight: 1.12, letterSpacing: -0.5 }}>{hook}</div>
+          <div style={{ display: "flex", width: 120, height: 8, borderRadius: 4, background: BRAND_GREEN, marginTop: 26 }} />
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", padding: "36px 56px 0 56px", position: "relative" }}>
-          {rows.map((row, i) => (
-            <div
-              key={row.label + i}
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.14)" }}
-            >
-              <div style={{ display: "flex", color: "rgba(255,255,255,0.65)", fontSize: 32, fontWeight: 600 }}>{row.label}</div>
-              <div style={{ display: "flex", color: "white", fontSize: 34, fontWeight: 700, textAlign: "right", maxWidth: 640 }}>{row.value}</div>
-            </div>
-          ))}
-        </div>
+        {/* Key facts as stat cards. */}
+        {stats.length > 0 && (
+          <div style={{ display: "flex", padding: "34px 52px 0 52px", position: "relative" }}>
+            {stats.map((row, i) => (
+              <div
+                key={row.label + i}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  flex: 1,
+                  padding: "18px 22px 20px 22px",
+                  marginLeft: i === 0 ? 0 : 16,
+                  borderRadius: 14,
+                  background: "rgba(255,255,255,0.07)",
+                  borderTop: `4px solid ${BRAND_GREEN}`,
+                }}
+              >
+                <div style={{ display: "flex", color: "rgba(255,255,255,0.6)", fontSize: 20, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 8 }}>{row.label}</div>
+                <div style={{ display: "flex", color: "white", fontSize: stats.length === 3 ? 30 : 36, fontWeight: 700, lineHeight: 1.2 }}>{row.value}</div>
+              </div>
+            ))}
+          </div>
+        )}
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "34px 56px 48px 56px", position: "relative" }}>
-          <div style={{ display: "flex", color: "rgba(255,255,255,0.8)", fontSize: 30, fontWeight: 600 }}>👉 Full breakdown on Sports Wire Live</div>
+        {/* Footer: where to read the full story. */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "34px 52px 44px 52px", paddingTop: 22, borderTop: "1px solid rgba(255,255,255,0.14)", position: "relative" }}>
+          <div style={{ display: "flex", color: "rgba(255,255,255,0.8)", fontSize: 26, fontWeight: 600 }}>Full story: link in bio</div>
+          <div style={{ display: "flex", color: BRAND_GREEN, fontSize: 28, fontWeight: 700 }}>sportswirelive.com</div>
         </div>
       </div>
     ),
