@@ -79,11 +79,12 @@ async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, ca
   if (!igUserId || !pageId || !rawToken) return false;
   const accessToken = await resolvePageAccessToken(pageId, rawToken);
 
-  // Same caption shape as the Instagram poster (socialPoster.ts).
+  // Same caption shape as the Instagram poster (socialPoster.ts), plus a
+  // comment prompt matching the reel's end card.
   const emoji = categoryEmoji(article.category);
   const creditLine = article.heroImageCredit ? `\n\n📷 ${article.heroImageCredit}` : "";
   const hashtags = selectInstagramHashtags(article.title, article.category).join(" ");
-  const caption = `${emoji} ${captions?.instagram ?? article.title}\n\n👉 Full breakdown — link in bio\n🔔 Follow @sportswirelivenews for daily sports news${creditLine}\n\n${hashtags}`;
+  const caption = `${emoji} ${captions?.instagram ?? article.title}\n\n💬 What's your take? Tell us in the comments\n👉 Full breakdown — link in bio\n🔔 Follow @sportswirelivenews for daily sports news${creditLine}\n\n${hashtags}`;
 
   return recordAttempt(article, "instagram", async () => {
     console.log("[instagram reel] Creating container...");

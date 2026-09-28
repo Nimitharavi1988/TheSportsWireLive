@@ -23,20 +23,28 @@ const FPS = 30;
 // of it (a face cut off at the edge, visibly soft).
 const PHOTO_TOP = 300;
 const PHOTO_MAX_H = 1000;
-// Supersampling for the zoom: zoompan crops on whole input pixels, so at 3x
-// each step is a third of an output pixel and the zoom doesn't judder.
-const SS = 3;
-// The whole photo layer zooms 1.00 -> 1.00+ZOOM once over the whole reel.
-const ZOOM = 0.08;
+// The photo layer is built at SS x size and scaled down at the end, so the
+// moving picture stays sharp.
+const SS = 2;
+// The whole photo layer moves once over the whole reel, eased in and out:
+// zooms 1.00 -> 1.00+ZOOM while drifting sideways across PAN_X of the room
+// the zoom frees up (left to right) and up by PAN_Y of it.
+const ZOOM = 0.18;
+const PAN_X = 0.6;
+const PAN_Y = 0.3;
 
 // Text scenes play one after another over the moving photo: each fades
 // (and its content slides up SLIDE px) in over FADE, and fades out over
 // FADE before the next one comes in, so two sets of text never overlap.
 const FADE = 0.35;
 const SLIDE = 50;
-const HOOK_SECONDS = 4;
-const FACT_SECONDS = 2.8;
+// Kept quick (~14s): short reels get watched through and replayed.
+const HOOK_SECONDS = 3.5;
+const FACT_SECONDS = 2.6;
 const END_SECONDS = 2.5;
+// Thin bar along the top edge filling up over the reel, so viewers can see
+// it's short and stay to the end.
+const PROGRESS_H = 10;
 
 function hookSize(hook: string): number {
   if (hook.length <= 38) return 92;
@@ -116,12 +124,13 @@ function FactText({ row, index, total }: { row: { label: string; value: string }
 function EndCard() {
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "Poppins", background: `radial-gradient(circle at 50% 40%, #173a2a 0%, ${PANEL} 70%)` }}>
-      <Wordmark size={64} />
+      <Wordmark size={60} />
       <div style={{ display: "flex", width: 160, height: 10, borderRadius: 5, background: BRAND_GREEN, margin: "56px 0" }} />
-      <div style={{ display: "flex", color: "white", fontSize: 64, fontWeight: 700 }}>Full story</div>
-      <div style={{ display: "flex", color: "rgba(255,255,255,0.8)", fontSize: 44, fontWeight: 600, marginTop: 12 }}>link in bio</div>
-      <div style={{ display: "flex", color: BRAND_GREEN, fontSize: 48, fontWeight: 700, marginTop: 72 }}>sportswirelive.com</div>
-      <div style={{ display: "flex", color: "rgba(255,255,255,0.7)", fontSize: 34, fontWeight: 600, marginTop: 20 }}>Follow @sportswirelivenews</div>
+      {/* Asking for comments: they're what gets a reel shown to more people. */}
+      <div style={{ display: "flex", color: "white", fontSize: 76, fontWeight: 700 }}>What's your take?</div>
+      <div style={{ display: "flex", color: "rgba(255,255,255,0.85)", fontSize: 44, fontWeight: 600, marginTop: 14 }}>Tell us in the comments</div>
+      <div style={{ display: "flex", color: BRAND_GREEN, fontSize: 42, fontWeight: 700, marginTop: 80 }}>Full story: link in bio</div>
+      <div style={{ display: "flex", color: "rgba(255,255,255,0.7)", fontSize: 34, fontWeight: 600, marginTop: 18 }}>Follow @sportswirelivenews</div>
     </div>
   );
 }
@@ -191,7 +200,7 @@ export async function renderReel(params: {
   try {
     const photoPath = join(workDir, "photo");
     const musicPath = params.musicPath ?? join(workDir, "music.wav");
-    if (!params.musicPath) await writeFile(musicPath, generateReelMusic(total, params.musicStyle));
+    if (!params.musicPath) await writeFile(musicPath, generateReelMusic(total, params.musicStyle, { swooshAt: [...starts.slice(1), endStart].map((s) => Math.max(0, s - 0.12)) }));
     const chromePath = join(workDir, "layer-chrome.png");
     const textPaths = texts.map((_, i) => join(workDir, `layer-text-${i + 1}.png`));
     const endPath = join(workDir, "layer-end.png");
@@ -219,6 +228,16 @@ export async function renderReel(params: {
     const endInput = 2 + texts.length;
     const audioInput = endInput + 1;
 
+    // The movement: a window onto the photo layer, eased 0 -> 1 through the
+    // reel, sampled with sub-pixel precision by perspective (bicubic). Not
+    // zoompan: it moves in whole pixels, which measured as visible judder
+    // once the photo also pans (frame-to-frame motion varying ~28%).
+    const ease = `((1-cos(PI*in/${frames}))/2)`;
+    const zoom = `(1+${ZOOM}*${ease})`;
+    const left = `((W-W/${zoom})*(${(1 - PAN_X) / 2}+${PAN_X}*${ease}))`;
+    const top = `((H-H/${zoom})*(${(1 + PAN_Y) / 2}-${PAN_Y}*${ease}))`;
+    const right = `(${left}+W/${zoom})`;
+    const bottom = `(${top}+H/${zoom})`;
     const sw = W * SS;
     const sh = H * SS;
     const filters: string[] = [
@@ -226,8 +245,9 @@ export async function renderReel(params: {
       `[0:v]split[pa][pb]`,
       `[pa]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,boxblur=12:2,eq=brightness=-0.18:saturation=0.8,scale=${sw}:${sh}[fill]`,
       `[pb]scale=${sw}:-2:flags=lanczos,crop=iw:'min(ih,${PHOTO_MAX_H * SS})':0:0[fg]`,
-      `[fill][fg]overlay=0:${PHOTO_TOP * SS},format=yuv420p,` +
-        `zoompan=z='1+${ZOOM}*on/${frames}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${W}x${H}:fps=${FPS}[bg]`,
+      `[fill][fg]overlay=0:${PHOTO_TOP * SS},format=yuv444p,loop=loop=${frames - 1}:size=1,settb=1/${FPS},setpts=N,` +
+        `perspective=x0='${left}':y0='${top}':x1='${right}':y1='${top}':x2='${left}':y2='${bottom}':x3='${right}':y3='${bottom}':interpolation=cubic:sense=source:eval=frame,` +
+        `scale=${W}:${H}:flags=lanczos,fps=${FPS},format=yuv420p[bg]`,
       `[bg][1:v]overlay=0:0:format=auto[v0]`,
     ];
     let last = "v0";
@@ -243,7 +263,9 @@ export async function renderReel(params: {
     });
     filters.push(`[${endInput}:v]format=rgba,fade=t=in:st=${f(endStart)}:d=0.5:alpha=1[end]`);
     filters.push(`[${audioInput}:a]atrim=0:${f(total)},afade=t=out:st=${f(total - 1.5)}:d=1.5,loudnorm=I=-16:TP=-1.5,aresample=44100[aout]`);
-    filters.push(`[${last}][end]overlay=0:0:enable='gte(t\\,${f(endStart)})',format=yuv420p,setsar=1[vout]`);
+    filters.push(`[${last}][end]overlay=0:0:enable='gte(t\\,${f(endStart)})'[vend]`);
+    filters.push(`color=c=${BRAND_GREEN.replace("#", "0x")}:s=${W}x${PROGRESS_H}:r=${FPS}:d=${f(total)}[bar]`);
+    filters.push(`[vend][bar]overlay=x='-w+w*t/${f(total)}':y=0,format=yuv420p,setsar=1[vout]`);
 
     const outPath = join(workDir, "reel.mp4");
     const args = [
@@ -252,7 +274,10 @@ export async function renderReel(params: {
       "-filter_complex", filters.join(";"),
       "-map", "[vout]",
       "-map", "[aout]",
-      "-c:v", "libx264", "-profile:v", "high", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-r", String(FPS),
+      "-c:v", "libx264", "-profile:v", "high", "-preset", "slow", "-crf", "18",
+      // Even quality from frame to frame: the default quality steps between
+      // frame types read as a faint pulsing on a slowly moving photo.
+      "-x264-params", "ipratio=1.0:pbratio=1.0:aq-mode=3", "-pix_fmt", "yuv420p", "-r", String(FPS),
       "-c:a", "aac", "-b:a", "128k",
       "-t", f(total),
       "-movflags", "+faststart",

@@ -118,6 +118,12 @@ export function musicStyleFor(id: string): ReelMusicStyle {
   return REEL_MUSIC_STYLE_NAMES[h % REEL_MUSIC_STYLE_NAMES.length];
 }
 
+function peakOf(L: Float32Array, R: Float32Array): number {
+  let peak = 0;
+  for (let i = 0; i < L.length; i++) peak = Math.max(peak, Math.abs(L[i]), Math.abs(R[i]));
+  return peak;
+}
+
 // Seeded PRNG so the noise (hats, clap) is identical on every render.
 function rng(seed: number) {
   let s = seed >>> 0;
@@ -129,7 +135,8 @@ function rng(seed: number) {
 
 const midiHz = (n: number) => 440 * Math.pow(2, (n - 69) / 12);
 
-export function generateReelMusic(seconds: number, styleName: ReelMusicStyle = "drive"): Buffer {
+// swooshAt: times (seconds) for a transition swoosh, mixed over the music.
+export function generateReelMusic(seconds: number, styleName: ReelMusicStyle = "drive", sfx: { swooshAt?: number[] } = {}): Buffer {
   const st: MusicStyle = REEL_MUSIC_STYLES[styleName];
   const n = Math.ceil(seconds * SR);
   const L = new Float32Array(n);
@@ -244,6 +251,24 @@ export function generateReelMusic(seconds: number, styleName: ReelMusicStyle = "
     const duck = t < barLen ? 1 : 0.35 + 0.65 * Math.min(1, ((t % beat) / beat) * 3);
     L[i] += lpL * st.padLevel * duck;
     R[i] += lpR * st.padLevel * duck;
+  }
+
+  // Swooshes for the text transitions: noise through a band-pass that
+  // sweeps up and back down, panned left to right.
+  const musicPeak = peakOf(L, R);
+  for (const at of sfx.swooshAt ?? []) {
+    const start = Math.floor(at * SR);
+    const len = Math.floor(0.45 * SR);
+    let low = 0, band = 0;
+    for (let k = 0; k < len; k++) {
+      const p = k / len;
+      const f = 300 + 5200 * Math.sin(Math.PI * Math.min(1, p * 1.3)) ** 2;
+      const c = 2 * Math.sin((Math.PI * f) / SR);
+      const high = noise() - low - 0.5 * band;
+      band += c * high;
+      low += c * band;
+      add(start + k, band * Math.sin(Math.PI * p) ** 2 * musicPeak * 0.35, -0.6 + 1.2 * p);
+    }
   }
 
   // Normalise, soft-clip, and fade the last 1.5s out.
