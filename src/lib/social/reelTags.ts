@@ -6,7 +6,22 @@
 // A wrong or private username makes Instagram reject the container, so
 // postReel retries once without tags (see postReelToInstagram).
 export const REEL_COLLABORATORS: Record<string, string> = {};
-export const REEL_USER_TAGS: Record<string, string> = {};
+// Leagues and governing bodies, checked 2026-09-28 by web search (top
+// result for the handle, matching name, 3M to 121M followers, own content).
+// Not API-verified: Business Discovery isn't enabled for our Meta app.
+export const REEL_USER_TAGS: Record<string, string> = {
+  "Premier League": "premierleague",
+  "Champions League": "championsleague",
+  NFL: "nfl",
+  NBA: "nba",
+  MLB: "mlb",
+  NHL: "nhl",
+  WNBA: "wnba",
+  "Formula 1": "f1",
+  F1: "f1",
+  IPL: "iplt20",
+  ICC: "icc",
+};
 
 function matching(map: Record<string, string>, title: string): string[] {
   const found = new Set<string>();
@@ -22,6 +37,7 @@ export function reelTagsFor(title: string): { collaborators: string[]; userTags:
   const collaborators = matching(REEL_COLLABORATORS, title).slice(0, 3);
   const userTags = matching(REEL_USER_TAGS, title)
     .filter((h) => !collaborators.includes(h))
+    .slice(0, 3)
     .map((username) => ({ username }));
   return { collaborators, userTags };
 }
