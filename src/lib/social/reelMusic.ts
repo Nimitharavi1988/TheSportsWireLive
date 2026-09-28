@@ -26,6 +26,7 @@ interface MusicStyle {
   padLevel: number;
   padBrightness: number; // 0.02 dark .. 0.15 bright
   swing: number; // 0 = straight, delays off-beat 16ths by this fraction of a step
+  padDuck?: number; // how far the pad dips on each beat, 0 (smooth) .. 1; default 0.65
 }
 
 export const REEL_MUSIC_STYLES = {
@@ -104,6 +105,68 @@ export const REEL_MUSIC_STYLES = {
     padLevel: 0.06,
     padBrightness: 0.05,
     swing: 0.35,
+  },
+  // Smoother options (added 2026-09-28): soft drums or none, warm chords,
+  // little or no pumping on the pad.
+  // Neo-soul: lush 9th chords, soft kick and rim, lazy swing, 84 BPM.
+  smooth: {
+    bpm: 84,
+    chords: [[53, 57, 60, 64], [53, 59, 64, 67], [52, 55, 59, 62], [55, 59, 60, 64]], // Dm9 G13 Cmaj9 Am9
+    bassRoots: [38, 31, 36, 33],
+    kick: [0.7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0],
+    clap: [0, 0, 0, 0, 0.35, 0, 0, 0, 0, 0, 0, 0, 0.35, 0, 0, 0],
+    hat: [0.35, 0, 0.25, 0, 0.35, 0, 0.25, 0, 0.35, 0, 0.25, 0, 0.35, 0, 0.25, 0],
+    openHat: new Array(16).fill(0),
+    bass: [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0],
+    bassKind: "pluck",
+    arp: [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    arpOctave: 12,
+    arpDecay: 3,
+    arpLevel: 0.09,
+    padLevel: 0.07,
+    padBrightness: 0.06,
+    padDuck: 0.3,
+    swing: 0.2,
+  },
+  // Ambient: no drums, slow bell-like arpeggio over soft major 7th pads, 72 BPM.
+  ambient: {
+    bpm: 72,
+    chords: [[60, 64, 67, 71], [57, 60, 64, 67], [57, 60, 64, 65], [55, 60, 62, 67]], // Cmaj7 Am7 Fmaj7 Gsus
+    bassRoots: [36, 33, 29, 31],
+    kick: new Array(16).fill(0),
+    clap: new Array(16).fill(0),
+    hat: new Array(16).fill(0),
+    openHat: new Array(16).fill(0),
+    bass: [16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    bassKind: "pluck",
+    arp: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+    arpOctave: 12,
+    arpDecay: 2.5,
+    arpLevel: 0.07,
+    padLevel: 0.09,
+    padBrightness: 0.045,
+    padDuck: 0,
+    swing: 0,
+  },
+  // Cinematic: heartbeat kick, pulsing bass, rising arpeggio, E minor, 90 BPM.
+  cinematic: {
+    bpm: 90,
+    chords: [[52, 55, 59], [52, 55, 60], [50, 55, 59], [50, 54, 57]], // Em C G D
+    bassRoots: [28, 24, 31, 26],
+    kick: [0.8, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 0, 0, 0, 0, 0, 0],
+    clap: new Array(16).fill(0),
+    hat: [0.25, 0.15, 0.25, 0.15, 0.25, 0.15, 0.25, 0.15, 0.25, 0.15, 0.25, 0.15, 0.25, 0.15, 0.25, 0.15],
+    openHat: new Array(16).fill(0),
+    bass: [2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0],
+    bassKind: "pluck",
+    arp: new Array(16).fill(1),
+    arpOctave: 12,
+    arpDecay: 9,
+    arpLevel: 0.07,
+    padLevel: 0.09,
+    padBrightness: 0.07,
+    padDuck: 0.2,
+    swing: 0,
   },
 } satisfies Record<string, MusicStyle>;
 
@@ -248,7 +311,8 @@ export function generateReelMusic(seconds: number, styleName: ReelMusicStyle = "
     const cutoff = t < barLen ? st.padBrightness * (0.25 + 0.75 * (t / barLen)) : st.padBrightness;
     lpL += cutoff * (vL - lpL);
     lpR += cutoff * (vR - lpR);
-    const duck = t < barLen ? 1 : 0.35 + 0.65 * Math.min(1, ((t % beat) / beat) * 3);
+    const depth = st.padDuck ?? 0.65;
+    const duck = t < barLen ? 1 : 1 - depth + depth * Math.min(1, ((t % beat) / beat) * 3);
     L[i] += lpL * st.padLevel * duck;
     R[i] += lpR * st.padLevel * duck;
   }

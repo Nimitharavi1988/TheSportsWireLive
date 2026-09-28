@@ -11,6 +11,7 @@ import { postArticleToFacebook } from "@/lib/social/facebook";
 import { postArticleToInstagram } from "@/lib/social/instagram";
 import { sendPushToAllSubscribers } from "@/lib/push";
 import { REEL_MUSIC_STYLE_NAMES, type ReelMusicStyle } from "@/lib/social/reelMusic";
+import { REEL_THEME_NAMES, type ReelTheme } from "@/lib/social/reelThemes";
 import { HERO_CAP, sectionOf } from "@/lib/heroConfig";
 import { submitToIndexNow, articleUrl } from "@/lib/indexNow";
 import { revalidatePath } from "next/cache";
@@ -127,13 +128,16 @@ export async function postInstagramPosterManually(articleId: string): Promise<{ 
 }
 
 // Queues a Reel of the story to Instagram and Facebook with the chosen
-// music, via post-reel.yml — same reason and mechanism as the poster above
+// music and colour theme, via post-reel.yml — same reason and mechanism as the poster above
 // (Satori and ffmpeg can't run in this Worker).
-export async function postReelManually(articleId: string, music: string): Promise<{ success: boolean; error?: string }> {
+export async function postReelManually(articleId: string, music: string, theme: string): Promise<{ success: boolean; error?: string }> {
   if (music !== "auto" && !REEL_MUSIC_STYLE_NAMES.includes(music as ReelMusicStyle)) {
     return { success: false, error: `Unknown music style: ${music}` };
   }
-  return dispatchWorkflow("post-reel.yml", { article_id: articleId, music });
+  if (!REEL_THEME_NAMES.includes(theme as ReelTheme)) {
+    return { success: false, error: `Unknown colour theme: ${theme}` };
+  }
+  return dispatchWorkflow("post-reel.yml", { article_id: articleId, music, theme });
 }
 
 async function dispatchWorkflow(workflow: string, inputs: Record<string, string>): Promise<{ success: boolean; error?: string }> {

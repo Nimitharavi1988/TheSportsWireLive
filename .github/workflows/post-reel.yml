@@ -14,7 +14,13 @@ on:
         required: false
         default: auto
         type: choice
-        options: [auto, drive, anthem, trap, chill]
+        options: [auto, drive, anthem, trap, chill, smooth, ambient, cinematic]
+      theme:
+        description: "Colour theme"
+        required: false
+        default: green
+        type: choice
+        options: [green, blue, orange, red, purple, gold]
 
 permissions:
   contents: read
@@ -35,6 +41,7 @@ jobs:
         env:
           ARTICLE_ID: ${{ inputs.article_id }}
           MUSIC: ${{ inputs.music }}
+          THEME: ${{ inputs.theme }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SITE_URL: ${{ vars.SITE_URL }}
