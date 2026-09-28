@@ -241,7 +241,7 @@ export async function postSocialPoster(
   const captions = await generateSocialCaptions(article.title, article.body);
 
   console.log("Rendering poster image...");
-  const png = await renderInstagramPoster({ content, heroImageUrl: article.heroImageUrl });
+  const png = await renderInstagramPoster({ content, heroImageUrl: article.heroImageUrl, category: article.category, credit: article.heroImageCredit });
 
   const siteUrl = process.env.SITE_URL ?? "https://sportswirelive.com";
   const publicUrl = `${siteUrl}/social-posters/${article.slug}.png`;
