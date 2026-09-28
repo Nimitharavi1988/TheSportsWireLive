@@ -5,6 +5,8 @@
 // account, and only for accounts that are actually the subject of our stories.
 // A wrong or private username makes Instagram reject the container, so
 // postReel retries once without tags (see postReelToInstagram).
+import { entitiesInTitle } from "./entityHandles";
+
 export const REEL_COLLABORATORS: Record<string, string> = {};
 // Leagues and governing bodies, checked 2026-09-28 by web search (top
 // result for the handle, matching name, 3M to 121M followers, own content).
@@ -32,10 +34,13 @@ function matching(map: Record<string, string>, title: string): string[] {
   return [...found];
 }
 
-// Instagram allows at most 3 collaborators per post.
-export function reelTagsFor(title: string): { collaborators: string[]; userTags: { username: string }[] } {
+// Instagram allows at most 3 collaborators per post. Tags are the players and
+// clubs the story leads with (entityHandles.ts, only those with a verified
+// handle), then any league in the headline, capped at 3 in total.
+export function reelTagsFor(title: string, category: string): { collaborators: string[]; userTags: { username: string }[] } {
   const collaborators = matching(REEL_COLLABORATORS, title).slice(0, 3);
-  const userTags = matching(REEL_USER_TAGS, title)
+  const entityHandles = entitiesInTitle(title, category, { precise: true }).flatMap((e) => (e.handle ? [e.handle] : []));
+  const userTags = [...new Set([...entityHandles, ...matching(REEL_USER_TAGS, title)])]
     .filter((h) => !collaborators.includes(h))
     .slice(0, 3)
     .map((username) => ({ username }));

@@ -88,7 +88,7 @@ async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, ca
   // 4 specific tags + brand: more than that reads as spam and adds no reach.
   const hashtags = selectInstagramHashtags(article.title, article.category, 4).join(" ");
   const caption = `${emoji} ${captions?.instagram ?? article.title}\n\n💬 What's your take? Tell us in the comments\n👉 Full breakdown — link in bio\n🔔 Follow @sportswirelivenews for daily sports news${creditLine}\n\n${hashtags}`;
-  const tags = reelTagsFor(article.title);
+  const tags = reelTagsFor(article.title, article.category);
 
   const createContainer = (withTags: boolean) =>
     fetch(`${GRAPH}/${igUserId}/media`, {

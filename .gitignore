@@ -40,3 +40,6 @@ npm-debug.log*
 # TypeScript incremental build info
 *.tsbuildinfo
 /reel-sample
+
+# generated entity list exports (scripts/exportSportsLists.ts)
+sports-lists/

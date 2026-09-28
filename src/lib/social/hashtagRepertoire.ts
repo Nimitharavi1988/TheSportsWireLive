@@ -1,4 +1,5 @@
 import { TRACKED_PLAYERS } from "../players";
+import { entitiesInTitle } from "./entityHandles";
 // Explicit-request tag repertoire (2026-09-22) — deterministic, code-side
 // selection rather than letting Gemini invent hashtags. Same reasoning as
 // generateSocialCaptions itself: separating "does this tag genuinely apply"
@@ -123,6 +124,10 @@ const SPORT_TAGS: Partial<Record<string, SportTags>> = {
 function selectAllRelevantTags(title: string, category: string): string[] {
   const sport = SPORT_TAGS[category];
   const tags: string[] = [];
+
+  // The tracked players and clubs the headline leads with, from the full
+  // lists (entityHandles.ts), ahead of the short hand-written lists below.
+  for (const e of entitiesInTitle(title, category, { precise: false }).slice(0, 3)) tags.push(personHashtag(e.name));
 
   if (sport) {
     for (const [tag, term] of sport.players) {
