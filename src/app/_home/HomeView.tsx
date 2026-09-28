@@ -89,7 +89,10 @@ const SECTION_HEADING_SX = { fontFamily: "var(--font-body)", color: "text.second
 // homepage took 0.4-2.1s on a slow phone (Lighthouse traces, 2026-09-27)
 // and held back the first paint; with this it measured ~40% less.
 // contain-intrinsic-size keeps the scrollbar steady until they render.
-const BELOW_FOLD_SX = { contentVisibility: "auto", containIntrinsicSize: "auto 600px" } as const;
+// Height only (containIntrinsicBlockSize): "containIntrinsicSize: auto
+// 600px" set the placeholder WIDTH to 600px too, widening the page on
+// phones to 649px (2026-09-28).
+const BELOW_FOLD_SX = { contentVisibility: "auto", containIntrinsicBlockSize: "auto 600px" } as const;
 
 
 // Was a hardcoded allowlist of RSS source names — confirmed live (twice
