@@ -2,7 +2,9 @@ import { categoryEmoji } from "@/lib/categoryDisplay";
 import { socialArticleUrl } from "./trackedLink";
 import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable, socialPosterImage } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, lt } from "drizzle-orm";
+
+const POSTER_MAX_AGE_MS = 2 * 60 * 60 * 1000;
 import { createId } from "@paralleldrive/cuid2";
 import { generatePosterContent, generateSocialCaptions, type PosterContent, type SocialCaptions } from "@/lib/ingestion/commentary";
 import { renderInstagramPoster } from "./instagramPoster";
@@ -250,6 +252,11 @@ export async function postSocialPoster(
   // platforms to fetch — was committed to the repo (and removed again
   // after), each commit a full site deploy: ~100 a day, wiping the page
   // cache every time (2026-09-28).
+  //
+  // Each poster is deleted in the finally below; this sweep catches any a
+  // killed run (runner crash, timeout) left behind. A post takes minutes,
+  // so anything over 2 hours old is finished with.
+  await db.delete(socialPosterImage).where(lt(socialPosterImage.createdAt, new Date(Date.now() - POSTER_MAX_AGE_MS)));
   console.log("Storing poster for the platforms to fetch...");
   const pngBase64 = Buffer.from(png).toString("base64");
   await db
