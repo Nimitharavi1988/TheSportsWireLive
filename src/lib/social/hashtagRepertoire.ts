@@ -121,13 +121,14 @@ const SPORT_TAGS: Partial<Record<string, SportTags>> = {
 // Ordered by specificity — a real player match is the most engaging/
 // targeted tag available, then confirmed league/event tags, then generic
 // sport tags, then a single general tag as filler if nothing else matched.
-function selectAllRelevantTags(title: string, category: string): string[] {
+function selectAllRelevantTags(title: string, category: string, withEntities = true): string[] {
   const sport = SPORT_TAGS[category];
   const tags: string[] = [];
 
   // The tracked players and clubs the headline leads with, from the full
   // lists (entityHandles.ts), ahead of the short hand-written lists below.
-  for (const e of entitiesInTitle(title, category, { precise: false }).slice(0, 3)) tags.push(personHashtag(e.name));
+  // Instagram only: Facebook link posts keep their original tags.
+  if (withEntities) for (const e of entitiesInTitle(title, category, { precise: false }).slice(0, 3)) tags.push(personHashtag(e.name));
 
   if (sport) {
     for (const [tag, term] of sport.players) {
@@ -153,7 +154,7 @@ export const INSTAGRAM_BRAND_TAG = "#sportsWireLiveNews";
 
 // 2 topic tags + the brand tag, keeping the 3-tag Facebook cap.
 export function selectFacebookHashtags(title: string, category: string): string[] {
-  return [...selectAllRelevantTags(title, category).slice(0, 2), FACEBOOK_BRAND_TAG];
+  return [...selectAllRelevantTags(title, category, false).slice(0, 2), FACEBOOK_BRAND_TAG];
 }
 
 // No artificial minimum/maximum beyond a sane upper bound — see module

@@ -74,3 +74,11 @@ describe("brand hashtags", () => {
     expect(tags.length).toBeLessThanOrEqual(30);
   });
 });
+
+describe("Facebook hashtags stay unchanged by player/club tags", () => {
+  it("does not lead with the players and clubs named in the headline (Instagram does)", () => {
+    const title = "Harry Kane double sinks Arsenal as Bayern go top of Bundesliga";
+    expect(selectFacebookHashtags(title, "football")).toEqual(["#FootballNews", "#SoccerLife", "#SportsWireLive"]);
+    expect(selectInstagramHashtags(title, "football", 4).slice(0, 3)).toEqual(["#HarryKane", "#Arsenal", "#BayernMunich"]);
+  });
+});
