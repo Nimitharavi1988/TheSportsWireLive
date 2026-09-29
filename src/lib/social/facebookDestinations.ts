@@ -26,6 +26,10 @@ export interface FacebookDestination {
   // The sport this Page covers (category prefix) — candidates are chosen
   // within it, so busier sports can't crowd its stories out.
   sport: string;
+  // Also draw candidates from other categories whose title contains one of
+  // these phrases (case-insensitive) — e.g. Asian Games stories filed under
+  // athletics.
+  alsoTitleLike?: string[];
   matches: (a: DestinationCandidate) => boolean;
   // The post's hashtags, when this Page wants its own (default: the main
   // Page's topic tags + #SportsWireLive — hashtagRepertoire.ts).
@@ -52,8 +56,12 @@ const INDIA_TEAM = /^india(n)?\b/i;
 const INDIA_TERMS =
   /\b(india|indian|bcci|team india|ipl|wpl|ranji|duleep|vijay hazare|syed mushtaq ali|irani cup|greenfield|thiruvananthapuram|eden gardens|wankhede|chinnaswamy|chepauk|narendra modi stadium)\b/i;
 
+const ASIAN_GAMES = /asian games/i;
+
 export function isIndiaCricket(a: DestinationCandidate): boolean {
-  if (!a.category.startsWith("cricket")) return false;
+  // Asian Games stories in any sport — the Page's audience follows India's
+  // whole Games campaign, not only its cricket.
+  if (!a.category.startsWith("cricket")) return [a.title, a.seriesLabel].some((t) => t && ASIAN_GAMES.test(t));
   if ((a.homeTeam && INDIA_TEAM.test(a.homeTeam)) || (a.awayTeam && INDIA_TEAM.test(a.awayTeam))) return true;
   return [a.title, a.seriesLabel, a.leagueLabel, a.venue].some((t) => t && INDIA_TERMS.test(t));
 }
@@ -63,10 +71,11 @@ export const INDIA_CRICKET_PAGE: FacebookDestination = {
   label: "India cricket Page",
   pageId: "359420874511841",
   tokenEnv: "FACEBOOK_PAGE_2_ACCESS_TOKEN",
-  dailyCap: 15,
-  perRunCap: 2,
+  dailyCap: 30,
+  perRunCap: 3,
   activeHours: { timeZone: "Asia/Kolkata", start: 7, end: 23 },
   sport: "cricket",
+  alsoTitleLike: ["asian games"],
   matches: isIndiaCricket,
   // #INDvWI, the player, #TeamIndia — not the main Page's brand tag.
   hashtags: (title) => selectIndiaCricketHashtags(title),
@@ -93,8 +102,13 @@ export function localDayStart(now: Date, timeZone: string): Date {
 export function destinationRunCap(d: Pick<FacebookDestination, "dailyCap" | "perRunCap" | "activeHours">, postedToday: number, now: Date): number {
   const { timeZone, start, end } = d.activeHours;
   const hour = localHour(now, timeZone);
-  if (hour < start || hour >= end) return 0;
-  const elapsed = (hour - start) / (end - start);
+  if (hour < start || hour >= end) {
+    // Overnight: low intensity — at most one post, only in the first run of
+    // every second hour (~4 over the night), and still within the daily cap.
+    return hour % 2 < 0.25 ? Math.max(0, Math.min(1, d.dailyCap - postedToday)) : 0;
+  }
+  // 25% head start so the Page isn't silent through the morning.
+  const elapsed = Math.min(1, (hour - start) / (end - start) + 0.25);
   const expected = Math.ceil(d.dailyCap * elapsed) || 1;
   return Math.max(0, Math.min(d.perRunCap, expected - postedToday, d.dailyCap - postedToday));
 }

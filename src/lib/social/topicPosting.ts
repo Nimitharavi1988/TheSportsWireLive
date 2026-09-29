@@ -9,7 +9,7 @@
  */
 import { db } from "@/db";
 import { article, socialPost } from "@/db/schema";
-import { and, count, desc, eq, gte, inArray, like } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, like, ilike, or } from "drizzle-orm";
 import { isMatchDataSource } from "../matchDataSources";
 import { hasRealImage } from "../contentQuality";
 import { isSimilarToAny } from "../titleSimilarity";
@@ -41,7 +41,7 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
       venue: article.venue, matchStatus: article.matchStatus, heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
       trendingScore: article.trendingScore,
     }).from(article)
-      .where(and(eq(article.status, "published"), like(article.category, `${d.sport}%`), gte(article.publishedAt, new Date(now.getTime() - POOL_WINDOW_MS))))
+      .where(and(eq(article.status, "published"), or(like(article.category, `${d.sport}%`), ...(d.alsoTitleLike ?? []).map((t) => ilike(article.title, `%${t}%`))), gte(article.publishedAt, new Date(now.getTime() - POOL_WINDOW_MS))))
       .orderBy(desc(article.trendingScore), desc(article.publishedAt))
       .limit(500),
     db.select({ articleId: socialPost.articleId }).from(socialPost)

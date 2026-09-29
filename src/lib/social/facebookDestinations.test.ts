@@ -21,19 +21,25 @@ describe("isIndiaCricket", () => {
   });
 });
 
-describe("destinationRunCap (India cricket Page: 15/day over 7:00-23:00 IST)", () => {
+describe("destinationRunCap (India cricket Page: 30/day over 7:00-23:00 IST)", () => {
   // 13:30 UTC = 19:00 IST: 12 of 16 active hours gone -> ~12 expected.
   const evening = new Date("2026-09-26T13:30:00Z");
 
   it("spreads the day's posts over the active hours", () => {
-    expect(destinationRunCap(INDIA_CRICKET_PAGE, 5, evening)).toBe(2);
-    expect(destinationRunCap(INDIA_CRICKET_PAGE, 11, evening)).toBe(1);
-    expect(destinationRunCap(INDIA_CRICKET_PAGE, 12, evening)).toBe(0);
+    expect(destinationRunCap(INDIA_CRICKET_PAGE, 5, evening)).toBe(3);
+    expect(destinationRunCap(INDIA_CRICKET_PAGE, 28, evening)).toBe(2);
+    expect(destinationRunCap(INDIA_CRICKET_PAGE, 30, evening)).toBe(0);
   });
 
   it("posts nothing at night or once the day's limit is reached", () => {
     expect(destinationRunCap(INDIA_CRICKET_PAGE, 0, new Date("2026-09-26T20:00:00Z"))).toBe(0); // 01:30 IST
-    expect(destinationRunCap(INDIA_CRICKET_PAGE, 15, new Date("2026-09-26T17:00:00Z"))).toBe(0);
+    expect(destinationRunCap(INDIA_CRICKET_PAGE, 30, new Date("2026-09-26T17:00:00Z"))).toBe(0);
+  });
+
+  it("keeps overnight low intensity: one post in the first run of every second hour", () => {
+    expect(destinationRunCap(INDIA_CRICKET_PAGE, 0, new Date("2026-09-26T20:30:00Z"))).toBe(1); // 02:00 IST
+    expect(destinationRunCap(INDIA_CRICKET_PAGE, 0, new Date("2026-09-26T21:30:00Z"))).toBe(0); // 03:00 IST
+    expect(destinationRunCap(INDIA_CRICKET_PAGE, 30, new Date("2026-09-26T20:30:00Z"))).toBe(0);
   });
 
   it("counts the day from local midnight", () => {
