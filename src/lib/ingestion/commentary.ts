@@ -309,8 +309,31 @@ Produce:
 - hook: a bold, attention-grabbing headline for the poster, under 10 words, that is strictly true to the article. Lead with the single most surprising or consequential fact, preferring a specific name, number or result over generic drama ("Salah scores 3 in 20 minutes", not "A stunning night at Anfield"). Dramatic phrasing is fine, but never state anything not actually supported by the text. Do not use clickbait that misrepresents the facts (e.g. don't imply a twist that didn't happen).
 - rows: 3 to 5 short label/value pairs, a quick-read fact summary of the story (e.g. score, key name, key stat, outcome) — every value must be a real fact stated in the article text above, never invented or estimated. label is 1-3 words, value is under 8 words. Fewer, real rows are better than padding with invented or vague ones. Order rows most important first.
 - Every row must be about the headline's own story: the same game, teams and people. Articles often end with other results, a roundup of other games, or related links; never take a row from those parts, even if the numbers look impressive. Don't repeat the hook in a row.
+- Every row must ADD something a reader can't already see in the headline and hook: a number, a score, a stat, a record, a name not yet mentioned, a quote, a date, or what happens next. A row that just restates who or what the headline already names ("Player: Jalen Hurts", "Team: Philadelphia Eagles" under a headline about them) is wrong. Prefer concrete facts like "296 runs chased with 8 overs to spare" over labels. If fewer than 3 rows add something new, return fewer rows.
 
 If the article doesn't contain enough concrete facts for at least 3 real rows, return fewer rows rather than inventing any.`;
+}
+
+const ROW_STOPWORDS = new Set(["the", "and", "for", "with", "from", "that", "this", "vs", "his", "her", "their", "was", "were", "has", "have", "after", "into"]);
+const GENERIC_ROW_LABELS = new Set(["player", "team", "name", "person", "club", "athlete", "coach", "manager"]);
+
+function significantWords(text: string): string[] {
+  return text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 2 && !ROW_STOPWORDS.has(w));
+}
+
+// Drops rows that only restate the headline or hook: a value whose words are
+// (almost) all already in them, or a generic "Player"/"Team" label whose value
+// is half-covered. A reel of "Player: Jalen Hurts / Team: Philadelphia Eagles"
+// under a headline about the Eagles' Jalen Hurts adds nothing to read.
+export function dropRepeatedRows(rows: { label: string; value: string }[], title: string, hook: string): { label: string; value: string }[] {
+  const known = new Set([...significantWords(title), ...significantWords(hook)]);
+  return rows.filter((r) => {
+    const words = significantWords(r.value);
+    if (words.length === 0) return false;
+    const covered = words.filter((w) => known.has(w)).length / words.length;
+    const generic = GENERIC_ROW_LABELS.has(r.label.trim().toLowerCase());
+    return !(covered >= 0.75 || (generic && covered >= 0.5));
+  });
 }
 
 export interface PosterContent {
@@ -355,8 +378,9 @@ export async function generatePosterContent(title: string, body: string): Promis
         .slice(0, 5)
     : [];
 
-  if (!hook || rows.length < 3) return null;
-  return { eyebrow: eyebrow || "SPORTS NEWS", hook, rows };
+  const fresh = dropRepeatedRows(rows, title, hook);
+  if (!hook || fresh.length < 3) return null;
+  return { eyebrow: eyebrow || "SPORTS NEWS", hook, rows: fresh };
 }
 
 // Expands a match-data template (score/fixture + standings context, already

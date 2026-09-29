@@ -12,6 +12,7 @@ import { postInstagramPoster } from "../social/postInstagramPoster";
 import { postReel } from "../social/postReel";
 import { sendPushToAllSubscribers } from "../push";
 import { isSimilarToAny } from "../titleSimilarity";
+import { orderForVariety } from "../social/reelVariety";
 import { MIN_BODY_LENGTH, MIN_MATCH_DATA_BODY_LENGTH, hasRealImage, isAutoApprovable, isHockeyNewsSyndicated } from "../contentQuality";
 
 // Runs as a follow-up step right after runIngest.ts in the same GitHub
@@ -370,7 +371,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     return a.trendingScore;
   }
 
-  function selectTopN(n: number, byTrending: SocialCandidate[], eligible: SocialCandidate[], recentTitles: string[]): SocialCandidate[] {
+  function selectTopN(n: number, byTrending: SocialCandidate[], eligible: SocialCandidate[], recentTitles: string[], reserve = true): SocialCandidate[] {
     const selected: SocialCandidate[] = [];
     const chosenTitles = [...recentTitles];
     function tryAdd(a: SocialCandidate): boolean {
@@ -402,7 +403,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     // the always-1 entries in RESERVED_CATEGORIES, so it's appended here
     // rather than living in that static array.
     const reservations = [...RESERVED_CATEGORIES, { category: "american-football", slots: americanFootballReservedSlots(now) }];
-    for (const { category, slots } of reservations) {
+    for (const { category, slots } of reserve ? reservations : []) {
       const matches = byTrending.filter((a) => a.category === category);
       let added = 0;
       for (const article of matches) {
@@ -523,10 +524,23 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   const hockeyNewsIds = new Set([...toApprove, ...backlogPool].filter((a) => isHockeyNewsSyndicated(a.heroImageUrl)).map((a) => a.id));
   const igPool = [...freshCandidates, ...backlogExcludingFresh.filter((a) => !igPostedIds.has(a.id))]
     .filter((a) => a.category !== "volleyball" && !hockeyNewsIds.has(a.id));
-  const igByTrending = [...igPool].sort((a, b) => socialSelectionScore(b) - socialSelectionScore(a));
+  // Reels: no reserved slots (they always went to hockey/cricket first), and
+  // a sport that made 3 of the last 6 reels waits its turn. See reelVariety.ts.
+  const recentIgCategories = (
+    await db.select({ category: article.category }).from(socialPost)
+      .innerJoin(article, eq(socialPost.articleId, article.id))
+      .where(and(eq(socialPost.platform, "instagram"), eq(socialPost.status, "posted")))
+      .orderBy(desc(socialPost.postedAt))
+      .limit(6)
+  ).map((r) => r.category);
+  const igByTrending = orderForVariety(
+    [...igPool].sort((a, b) => socialSelectionScore(b) - socialSelectionScore(a)),
+    recentIgCategories,
+    isMatchDataSource
+  );
   const igEligible = igByTrending.filter((a) => isHighlightWorthy(a.title));
   const instagramMaxAttempts = instagramRunCap > 0 ? Math.max(instagramRunCap, MIN_INSTAGRAM_ATTEMPTS_PER_RUN) : 0;
-  const instagramCandidates = selectTopN(instagramMaxAttempts, igByTrending, igEligible, igRecentTitles);
+  const instagramCandidates = selectTopN(instagramMaxAttempts, igByTrending, igEligible, igRecentTitles, false);
   console.log(
     `[instagram] postedToday=${instagramPostedToday} remainingToday=${instagramRemainingToday} runCap=${instagramRunCap} igPool=${igPool.length} candidates=${instagramCandidates.length}`
   );
