@@ -24,6 +24,14 @@ const FPS = 30;
 // of it (a face cut off at the edge, visibly soft).
 const PHOTO_TOP = 300;
 const PHOTO_MAX_H = 1000;
+// A sharp, wide photo is instead cropped (subject-aware, sharp's attention
+// strategy) to 1080x1000 and shown larger: about 52% of the frame rather than
+// 32%. Needs a source at least this tall so it isn't blown up; smaller photos
+// keep the layout above.
+const PORTRAIT_ASPECT = 1080 / 1000;
+const PORTRAIT_PHOTO_TOP = 270;
+const PORTRAIT_PHOTO_H = 1000;
+const MIN_CROP_SOURCE_H = 800;
 // The photo layer is built at SS x size and scaled down at the end, so the
 // moving picture stays sharp.
 const SS = 2;
@@ -34,15 +42,20 @@ const ZOOM = 0.18;
 const PAN_X = 0.6;
 const PAN_Y = 0.3;
 
-// Text scenes play one after another over the moving photo: each fades
-// (and its content slides up SLIDE px) in over FADE, and fades out over
-// FADE before the next one comes in, so two sets of text never overlap.
-const FADE = 0.35;
+// Text scenes hand over back to back: the outgoing card fades out quickly
+// (TRANS_OUT, drifting up DRIFT px) and the next fades in (TRANS_IN, sliding
+// up SLIDE px into place) OVERLAP seconds before it is gone, all eased, so
+// there is no blank beat. The overlap is kept tiny on purpose: two cards
+// share one spot, and a longer crossfade shows both as garbled ghost text.
+const TRANS_IN = 0.3;
+const TRANS_OUT = 0.22;
+const OVERLAP = 0.05;
 const SLIDE = 50;
+const DRIFT = 30;
 // Kept quick (~12s, was ~14s): short reels get watched through and replayed.
 const HOOK_SECONDS = 3;
 const FACT_SECONDS = 2.3;
-const END_SECONDS = 2.2;
+const END_SECONDS = 1.9;
 // Thin bar along the top edge filling up over the reel, so viewers can see
 // it's short and stay to the end.
 const PROGRESS_H = 10;
@@ -99,11 +112,11 @@ function Layer({ children }: { children?: React.ReactNode }) {
 // Always on top of the photo: shading for legibility, the wordmark and the
 // photo credit. The top ~220px stays clear of Instagram's reel header and
 // the bottom ~380px of its caption and buttons, so text sits between.
-function ChromeLayer({ th, credit }: { th: Theme; credit?: string | null }) {
+function ChromeLayer({ th, credit, darkFrom, darkTo }: { th: Theme; credit?: string | null; darkFrom: number; darkTo: number }) {
   return (
     <Layer>
-      <div style={{ position: "absolute", top: 0, left: 0, width: W, height: H, display: "flex", background: `linear-gradient(180deg, ${th.shade(0.55)} 0%, ${th.shade(0)} 14%, ${th.shade(0)} 46%, ${th.shade(0.8)} 62%, ${th.shade(0.92)} 100%)` }} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "150px 60px 0 60px", position: "relative" }}>
+      <div style={{ position: "absolute", top: 0, left: 0, width: W, height: H, display: "flex", background: `linear-gradient(180deg, ${th.shade(0.55)} 0%, ${th.shade(0)} 14%, ${th.shade(0)} ${darkFrom}%, ${th.shade(0.8)} ${darkTo}%, ${th.shade(0.92)} 100%)` }} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "185px 60px 0 60px", position: "relative" }}>
         <Wordmark th={th} />
         {credit && <div style={{ display: "flex", fontSize: 20, fontWeight: 600, color: "rgba(255,255,255,0.8)", maxWidth: 420, textAlign: "right" }}>{credit}</div>}
       </div>
@@ -152,7 +165,7 @@ function FactText({ th, row, index, total }: { th: Theme; row: { label: string; 
 // Opaque branded end card, fading in over everything.
 function EndCard({ th }: { th: Theme }) {
   return (
-    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "Poppins", background: `radial-gradient(circle at 50% 40%, ${th.glow} 0%, ${th.shade(1)} 70%)` }}>
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "Poppins", background: `radial-gradient(circle at 50% 40%, ${th.shade(0.78)} 0%, ${th.shade(0.92)} 70%)` }}>
       <Wordmark th={th} size={60} />
       <div style={{ display: "flex", width: 160, height: 10, borderRadius: 5, background: th.accent, margin: "56px 0" }} />
       {/* Asking for comments: they're what gets a reel shown to more people. */}
@@ -162,6 +175,22 @@ function EndCard({ th }: { th: Theme }) {
       <div style={{ display: "flex", color: "rgba(255,255,255,0.7)", fontSize: 34, fontWeight: 600, marginTop: 18 }}>Follow @sportswirelivenews</div>
     </div>
   );
+}
+
+// Subject-aware crop for a wide, sharp photo (see PORTRAIT_*); null keeps the
+// original landscape layout (small photo, no sharp available, or crop failed).
+async function cropForPortrait(photo: Buffer): Promise<Buffer | null> {
+  try {
+    const sharp = (await import("sharp")).default;
+    const meta = await sharp(photo).metadata();
+    const w = meta.width ?? 0;
+    const h = meta.height ?? 0;
+    if (h < MIN_CROP_SOURCE_H || w / h < 1.3) return null;
+    const cropW = Math.min(w, Math.round(h * PORTRAIT_ASPECT));
+    return await sharp(photo).resize(cropW, h, { fit: "cover", position: sharp.strategy.attention }).jpeg({ quality: 92 }).toBuffer();
+  } catch {
+    return null;
+  }
 }
 
 type LayerFonts = { name: string; data: Buffer; weight: 400 | 600 | 700 | 800; style: "normal" }[];
@@ -212,7 +241,14 @@ export async function renderReel(params: {
     ...(head ? [{ name: headFont.family, data: head, weight: headFont.weight, style: "normal" as const }] : []),
   ];
   const photoDataUri = await loadHeroImageDataUri(params.heroImageUrl);
-  const photo = Buffer.from(photoDataUri.slice(photoDataUri.indexOf(",") + 1), "base64");
+  const original = Buffer.from(photoDataUri.slice(photoDataUri.indexOf(",") + 1), "base64");
+  const cropped = await cropForPortrait(original);
+  const photo = cropped ?? original;
+  const photoTop = cropped ? PORTRAIT_PHOTO_TOP : PHOTO_TOP;
+  const photoMaxH = cropped ? PORTRAIT_PHOTO_H : PHOTO_MAX_H;
+  // Text darkening starts where the photo's lower part ends.
+  const darkFrom = cropped ? 50 : 46;
+  const darkTo = cropped ? 66 : 62;
   const sport = params.category ? categoryChipStyle(params.category.split("/")[0]) : null;
   const facts = params.content.rows.slice(0, 3);
   const th = resolveTheme(params.theme ?? DEFAULT_REEL_THEME, params.font ?? DEFAULT_REEL_FONT);
@@ -236,12 +272,12 @@ export async function renderReel(params: {
   try {
     const photoPath = join(workDir, "photo");
     const musicPath = params.musicPath ?? join(workDir, "music.wav");
-    if (!params.musicPath) await writeFile(musicPath, generateReelMusic(total, params.musicStyle, { swooshAt: [...starts.slice(1), endStart].map((s) => Math.max(0, s - 0.12)) }));
+    if (!params.musicPath) await writeFile(musicPath, generateReelMusic(total, params.musicStyle, { swooshAt: [...starts.slice(1), endStart].map((s) => Math.max(0, s - OVERLAP)) }));
     const chromePath = join(workDir, "layer-chrome.png");
     const textPaths = texts.map((_, i) => join(workDir, `layer-text-${i + 1}.png`));
     const endPath = join(workDir, "layer-end.png");
     const [chromePng, endPng, ...textPngs] = await Promise.all([
-      renderLayer(<ChromeLayer th={th} credit={params.credit} />, fonts),
+      renderLayer(<ChromeLayer th={th} credit={params.credit} darkFrom={darkFrom} darkTo={darkTo} />, fonts),
       renderLayer(<EndCard th={th} />, fonts),
       ...texts.map((s) => renderLayer(s.node, fonts)),
     ]);
@@ -280,8 +316,8 @@ export async function renderReel(params: {
       // Blurred fill: blurred small (cheap), then scaled back up.
       `[0:v]split[pa][pb]`,
       `[pa]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,boxblur=12:2,eq=brightness=-0.18:saturation=0.8,scale=${sw}:${sh}[fill]`,
-      `[pb]scale=${sw}:-2:flags=lanczos,crop=iw:'min(ih,${PHOTO_MAX_H * SS})':0:0[fg]`,
-      `[fill][fg]overlay=0:${PHOTO_TOP * SS},format=yuv444p,loop=loop=${frames - 1}:size=1,settb=1/${FPS},setpts=N,` +
+      `[pb]scale=${sw}:-2:flags=lanczos,crop=iw:'min(ih,${photoMaxH * SS})':0:0[fg]`,
+      `[fill][fg]overlay=0:${photoTop * SS},format=yuv444p,loop=loop=${frames - 1}:size=1,settb=1/${FPS},setpts=N,` +
         `perspective=x0='${left}':y0='${top}':x1='${right}':y1='${top}':x2='${left}':y2='${bottom}':x3='${right}':y3='${bottom}':interpolation=cubic:sense=source:eval=frame,` +
         `scale=${W}:${H}:flags=lanczos,fps=${FPS},format=yuv420p[bg]`,
       `[bg][1:v]overlay=0:0:format=auto[v0]`,
@@ -290,16 +326,20 @@ export async function renderReel(params: {
     texts.forEach((s, i) => {
       const start = starts[i];
       const end = start + s.seconds;
-      const fadeIn = i === 0 ? "" : `fade=t=in:st=${f(start)}:d=${FADE}:alpha=1,`;
-      filters.push(`[${2 + i}:v]format=rgba,${fadeIn}fade=t=out:st=${f(end - FADE)}:d=${FADE}:alpha=1[t${i}]`);
-      // Eased slide up into place (the hook is already in place at t=0).
-      const y = i === 0 ? "0" : `${SLIDE}*pow(max(0\\,1-(t-${f(start)})/${FADE})\\,2)`;
-      filters.push(`[${last}][t${i}]overlay=x=0:y='${y}':enable='between(t\\,${f(start)}\\,${f(end)})'[v${i + 1}]`);
+      // Fades in OVERLAP early, over the previous scene's fade-out.
+      const inAt = i === 0 ? start : start - OVERLAP;
+      const fadeIn = i === 0 ? "" : `fade=t=in:st=${f(inAt)}:d=${TRANS_IN}:alpha=1,`;
+      filters.push(`[${2 + i}:v]format=rgba,${fadeIn}fade=t=out:st=${f(end - TRANS_OUT)}:d=${TRANS_OUT}:alpha=1[t${i}]`);
+      // Eased slide: up into place while entering (the hook is already in
+      // place at t=0), drifting up while leaving.
+      const rise = i === 0 ? "0" : `${SLIDE}*pow(1-clip((t-${f(inAt)})/${TRANS_IN}\\,0\\,1)\\,2)`;
+      const drift = `${DRIFT}*(1-pow(1-clip((t-${f(end - TRANS_OUT)})/${TRANS_OUT}\\,0\\,1)\\,2))`;
+      filters.push(`[${last}][t${i}]overlay=x=0:y='${rise}-${drift}':enable='between(t\\,${f(inAt)}\\,${f(end)})'[v${i + 1}]`);
       last = `v${i + 1}`;
     });
-    filters.push(`[${endInput}:v]format=rgba,fade=t=in:st=${f(endStart)}:d=0.5:alpha=1[end]`);
+    filters.push(`[${endInput}:v]format=rgba,fade=t=in:st=${f(endStart - OVERLAP)}:d=0.4:alpha=1[end]`);
     filters.push(`[${audioInput}:a]atrim=0:${f(total)},afade=t=out:st=${f(total - 1.5)}:d=1.5,loudnorm=I=-16:TP=-1.5,aresample=44100[aout]`);
-    filters.push(`[${last}][end]overlay=0:0:enable='gte(t\\,${f(endStart)})'[vend]`);
+    filters.push(`[${last}][end]overlay=0:0:enable='gte(t\\,${f(endStart - OVERLAP)})'[vend]`);
     filters.push(`color=c=${th.accent.replace("#", "0x")}:s=${W}x${PROGRESS_H}:r=${FPS}:d=${f(total)}[bar]`);
     filters.push(`[vend][bar]overlay=x='-w+w*t/${f(total)}':y=0,format=yuv420p,setsar=1[vout]`);
 

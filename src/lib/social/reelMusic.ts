@@ -322,7 +322,7 @@ export function generateReelMusic(seconds: number, styleName: ReelMusicStyle = "
   const musicPeak = peakOf(L, R);
   for (const at of sfx.swooshAt ?? []) {
     const start = Math.floor(at * SR);
-    const len = Math.floor(0.45 * SR);
+    const len = Math.floor(0.35 * SR);
     let low = 0, band = 0;
     for (let k = 0; k < len; k++) {
       const p = k / len;
@@ -331,7 +331,7 @@ export function generateReelMusic(seconds: number, styleName: ReelMusicStyle = "
       const high = noise() - low - 0.5 * band;
       band += c * high;
       low += c * band;
-      add(start + k, band * Math.sin(Math.PI * p) ** 2 * musicPeak * 0.35, -0.6 + 1.2 * p);
+      add(start + k, band * Math.sin(Math.PI * p) ** 2 * musicPeak * 0.1, -0.6 + 1.2 * p);
     }
   }
 
