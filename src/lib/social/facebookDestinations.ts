@@ -56,7 +56,7 @@ const INDIA_TEAM = /^india(n)?\b/i;
 const INDIA_TERMS =
   /\b(india|indian|bcci|team india|ipl|wpl|ranji|duleep|vijay hazare|syed mushtaq ali|irani cup|greenfield|thiruvananthapuram|eden gardens|wankhede|chinnaswamy|chepauk|narendra modi stadium)\b/i;
 
-const ASIAN_GAMES = /asian games/i;
+const ASIAN_GAMES = /\basian games\b/i;
 
 export function isIndiaCricket(a: DestinationCandidate): boolean {
   // Asian Games stories in any sport — the Page's audience follows India's
