@@ -12,6 +12,14 @@ export const BLOCKED_IMAGE_PATTERNS: RegExp[] = [
   /hindustantimes\.com\/.*\/logo\/ht-generic_/i,
 ];
 
+// The Hockey News' stories syndicated through Yahoo Sports, recognisable by
+// the image host path. Held out of Instagram (autoApprove.ts) from 2026-09-28:
+// some arrive with the magazine's own "Pick a free issue, subscribe today"
+// ad banner as the photo, which went out as Reels.
+export function isHockeyNewsSyndicated(imageUrl: string | null): boolean {
+  return Boolean(imageUrl && /the_hockey_news/i.test(imageUrl));
+}
+
 export function isImageUrlBlocked(imageUrl: string | null): boolean {
   if (!imageUrl) return false;
   return BLOCKED_IMAGE_URLS.has(imageUrl.split(/[?#]/)[0]) || BLOCKED_IMAGE_PATTERNS.some((p) => p.test(imageUrl));

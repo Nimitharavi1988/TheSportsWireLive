@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hasRealImage, isAutoApprovable, isImageUrlBlocked } from "./contentQuality";
+import { hasRealImage, isAutoApprovable, isImageUrlBlocked, isHockeyNewsSyndicated } from "./contentQuality";
 
 describe("hasRealImage", () => {
   it("treats a team crest pair as a real image", () => {
@@ -118,5 +118,16 @@ describe("isImageUrlBlocked", () => {
     const base = { body, homeCrestUrl: null, playerNewsSourced: false, sourceName: "Hindustan Times" };
     expect(isAutoApprovable({ ...base, heroImageUrl: "https://www.hindustantimes.com/ht-img/img/2025/06/30/1600x900/logo/ht-generic_sports3_1.jpg" })).toBe(false);
     expect(isAutoApprovable({ ...base, heroImageUrl: "https://www.hindustantimes.com/ht-img/img/2026/09/27/1600x900/kohli_1.jpg" })).toBe(true);
+  });
+});
+
+describe("isHockeyNewsSyndicated", () => {
+  it("recognises The Hockey News' Yahoo-hosted images, direct or wrapped", () => {
+    expect(isHockeyNewsSyndicated("https://media.zenfs.com/en/the_hockey_news_buffalo_sabres_articles_890/76e5.jpg")).toBe(true);
+    expect(isHockeyNewsSyndicated("https://s.yimg.com/lo/x/resizefill_w1200_h675%3Bformat_webp/https%3A%2F%2Fmedia.zenfs.com%2Fen%2Fthe_hockey_news_san_jose_sharks_articles_416%2F8ca9.jpg")).toBe(true);
+  });
+  it("does not match other publishers or a missing image", () => {
+    expect(isHockeyNewsSyndicated("https://media.zenfs.com/en/usa_today_sports_articles_558/db04.jpg")).toBe(false);
+    expect(isHockeyNewsSyndicated(null)).toBe(false);
   });
 });

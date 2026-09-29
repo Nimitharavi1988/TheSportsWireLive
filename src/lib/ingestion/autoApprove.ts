@@ -12,7 +12,7 @@ import { postInstagramPoster } from "../social/postInstagramPoster";
 import { postReel } from "../social/postReel";
 import { sendPushToAllSubscribers } from "../push";
 import { isSimilarToAny } from "../titleSimilarity";
-import { MIN_BODY_LENGTH, MIN_MATCH_DATA_BODY_LENGTH, hasRealImage, isAutoApprovable } from "../contentQuality";
+import { MIN_BODY_LENGTH, MIN_MATCH_DATA_BODY_LENGTH, hasRealImage, isAutoApprovable, isHockeyNewsSyndicated } from "../contentQuality";
 
 // Runs as a follow-up step right after runIngest.ts in the same GitHub
 // Actions job — everything reaching "pending_review" has already passed
@@ -511,8 +511,11 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     0,
     Math.min(MAX_INSTAGRAM_POSTS_PER_RUN, instagramRemainingToday, instagramPaceTarget)
   );
+  // The Hockey News' syndicated stories stay off Instagram for now (some carry
+  // the magazine's own ad banner as their photo); Facebook is unchanged.
+  const hockeyNewsIds = new Set([...toApprove, ...backlogPool].filter((a) => isHockeyNewsSyndicated(a.heroImageUrl)).map((a) => a.id));
   const igPool = [...freshCandidates, ...backlogExcludingFresh.filter((a) => !igPostedIds.has(a.id))]
-    .filter((a) => a.category !== "volleyball");
+    .filter((a) => a.category !== "volleyball" && !hockeyNewsIds.has(a.id));
   const igByTrending = [...igPool].sort((a, b) => socialSelectionScore(b) - socialSelectionScore(a));
   const igEligible = igByTrending.filter((a) => isHighlightWorthy(a.title));
   const instagramCandidates = selectTopN(instagramRunCap, igByTrending, igEligible, igRecentTitles);
