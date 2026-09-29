@@ -1,4 +1,5 @@
 import { postReel } from "./postReel";
+import { TOPIC_DESTINATIONS } from "./facebookDestinations";
 import { REEL_MUSIC_STYLE_NAMES, type ReelMusicStyle } from "./reelMusic";
 import { REEL_THEME_NAMES, REEL_FONT_NAMES, type ReelTheme, type ReelFont } from "./reelThemes";
 
@@ -26,7 +27,14 @@ async function main() {
   }
   const font = fontInput as ReelFont | undefined;
 
-  const { instagramPosted, facebookPosted } = await postReel(articleId, { instagram: true, facebook: true, music, theme, font });
+  // TOPIC_PAGE: a topic Page key (facebookDestinations.ts) — post the reel to that Page only.
+  const topicKey = process.env.TOPIC_PAGE && process.env.TOPIC_PAGE !== "none" ? process.env.TOPIC_PAGE : undefined;
+  const topicPage = topicKey ? TOPIC_DESTINATIONS.find((d) => d.key === topicKey) : undefined;
+  if (topicKey && !topicPage) throw new Error(`Unknown TOPIC_PAGE "${topicKey}"`);
+
+  const { instagramPosted, facebookPosted } = await postReel(articleId, topicPage
+    ? { instagram: false, facebook: true, topicPage, music, theme, font }
+    : { instagram: true, facebook: true, music, theme, font });
   console.log(`Instagram: ${instagramPosted ? "posted" : "not posted"}. Facebook: ${facebookPosted ? "posted" : "not posted"}.`);
   // Fail the run when nothing went out, so it shows red in Actions.
   if (!instagramPosted && !facebookPosted) process.exit(1);

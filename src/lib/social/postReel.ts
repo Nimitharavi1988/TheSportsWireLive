@@ -186,7 +186,7 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
       "Facebook reel publish"
     );
     return start.video_id as string;
-  }, topicPage ? topicPage.key : DESTINATION);
+  }, topicPage ? `${topicPage.key}-reel` : DESTINATION);
 }
 
 // Renders one reel for a story and posts it to whichever of Instagram /
@@ -212,7 +212,7 @@ export async function postReel(
   }
 
   const existing = await db.select({ platform: socialPostTable.platform }).from(socialPostTable)
-    .where(and(eq(socialPostTable.articleId, articleId), inArray(socialPostTable.destination, [DESTINATION, ...(opts.topicPage ? [opts.topicPage.key] : [])]), eq(socialPostTable.status, "posted")));
+    .where(and(eq(socialPostTable.articleId, articleId), inArray(socialPostTable.destination, [DESTINATION, ...(opts.topicPage ? [`${opts.topicPage.key}-reel`] : [])]), eq(socialPostTable.status, "posted")));
   const needInstagram = opts.instagram && !existing.some((p) => p.platform === "instagram");
   const needFacebook = opts.facebook && !existing.some((p) => p.platform === "facebook");
   if (!needInstagram && !needFacebook) {

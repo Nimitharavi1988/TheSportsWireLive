@@ -21,6 +21,12 @@ on:
         default: green
         type: choice
         options: [green, blue, orange, red, purple, gold]
+      topic_page:
+        description: "Post to a topic Facebook Page only (no Instagram / main Page)"
+        required: false
+        default: none
+        type: choice
+        options: [none, india-cricket]
       font:
         description: "Headline font"
         required: false
@@ -49,6 +55,8 @@ jobs:
           MUSIC: ${{ inputs.music }}
           THEME: ${{ inputs.theme }}
           FONT: ${{ inputs.font }}
+          TOPIC_PAGE: ${{ inputs.topic_page }}
+          FACEBOOK_PAGE_2_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_2_ACCESS_TOKEN }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SITE_URL: ${{ vars.SITE_URL }}
