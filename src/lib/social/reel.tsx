@@ -25,12 +25,12 @@ const FPS = 30;
 const PHOTO_TOP = 300;
 const PHOTO_MAX_H = 1000;
 // A sharp, wide photo is instead cropped (subject-aware, sharp's attention
-// strategy) to 1080x1000 and shown larger: about 52% of the frame rather than
-// 32%. Needs a source at least this tall so it isn't blown up; smaller photos
-// keep the layout above.
-const PORTRAIT_ASPECT = 1080 / 1000;
-const PORTRAIT_PHOTO_TOP = 270;
-const PORTRAIT_PHOTO_H = 1000;
+// strategy) to a 4:5 portrait, 1080x1350, and shown big behind the text: 70%
+// of the frame rather than 32%. Needs a source at least this tall so it isn't
+// blown up; smaller photos keep the layout above.
+const PORTRAIT_ASPECT = 1080 / 1350;
+const PORTRAIT_PHOTO_TOP = 170;
+const PORTRAIT_PHOTO_H = 1350;
 const MIN_CROP_SOURCE_H = 800;
 // The photo layer is built at SS x size and scaled down at the end, so the
 // moving picture stays sharp.
@@ -112,13 +112,17 @@ function Layer({ children }: { children?: React.ReactNode }) {
 // Always on top of the photo: shading for legibility, the wordmark and the
 // photo credit. The top ~220px stays clear of Instagram's reel header and
 // the bottom ~380px of its caption and buttons, so text sits between.
-function ChromeLayer({ th, credit, darkFrom, darkTo }: { th: Theme; credit?: string | null; darkFrom: number; darkTo: number }) {
+// portrait: the big cropped photo fills the frame under the chrome, so the
+// credit goes under the wordmark on the left (the top right often carries the
+// publisher's own logo) and the darkening reaches full strength by darkEnd,
+// hiding the photo's bottom edge.
+function ChromeLayer({ th, credit, darkFrom, darkTo, darkEnd, portrait }: { th: Theme; credit?: string | null; darkFrom: number; darkTo: number; darkEnd: number; portrait: boolean }) {
   return (
     <Layer>
-      <div style={{ position: "absolute", top: 0, left: 0, width: W, height: H, display: "flex", background: `linear-gradient(180deg, ${th.shade(0.55)} 0%, ${th.shade(0)} 14%, ${th.shade(0)} ${darkFrom}%, ${th.shade(0.8)} ${darkTo}%, ${th.shade(0.92)} 100%)` }} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "185px 60px 0 60px", position: "relative" }}>
+      <div style={{ position: "absolute", top: 0, left: 0, width: W, height: H, display: "flex", background: `linear-gradient(180deg, ${th.shade(0.55)} 0%, ${th.shade(0)} 14%, ${th.shade(0)} ${darkFrom}%, ${th.shade(0.8)} ${darkTo}%, ${th.shade(0.93)} ${darkEnd}%, ${th.shade(0.93)} 100%)` }} />
+      <div style={{ display: "flex", flexDirection: portrait ? "column" : "row", justifyContent: "space-between", alignItems: portrait ? "flex-start" : "center", padding: "185px 60px 0 60px", position: "relative" }}>
         <Wordmark th={th} />
-        {credit && <div style={{ display: "flex", fontSize: 20, fontWeight: 600, color: "rgba(255,255,255,0.8)", maxWidth: 420, textAlign: "right" }}>{credit}</div>}
+        {credit && <div style={{ display: "flex", fontSize: 20, fontWeight: 600, color: "rgba(255,255,255,0.85)", maxWidth: 420, textAlign: portrait ? "left" : "right", marginTop: portrait ? 14 : 0, textShadow: "0 1px 6px rgba(0,0,0,0.85)" }}>{credit}</div>}
       </div>
     </Layer>
   );
@@ -247,8 +251,9 @@ export async function renderReel(params: {
   const photoTop = cropped ? PORTRAIT_PHOTO_TOP : PHOTO_TOP;
   const photoMaxH = cropped ? PORTRAIT_PHOTO_H : PHOTO_MAX_H;
   // Text darkening starts where the photo's lower part ends.
-  const darkFrom = cropped ? 50 : 46;
-  const darkTo = cropped ? 66 : 62;
+  const darkFrom = cropped ? 52 : 46;
+  const darkTo = cropped ? 68 : 62;
+  const darkEnd = cropped ? 82 : 100;
   const sport = params.category ? categoryChipStyle(params.category.split("/")[0]) : null;
   const facts = params.content.rows.slice(0, 3);
   const th = resolveTheme(params.theme ?? DEFAULT_REEL_THEME, params.font ?? DEFAULT_REEL_FONT);
@@ -277,7 +282,7 @@ export async function renderReel(params: {
     const textPaths = texts.map((_, i) => join(workDir, `layer-text-${i + 1}.png`));
     const endPath = join(workDir, "layer-end.png");
     const [chromePng, endPng, ...textPngs] = await Promise.all([
-      renderLayer(<ChromeLayer th={th} credit={params.credit} darkFrom={darkFrom} darkTo={darkTo} />, fonts),
+      renderLayer(<ChromeLayer th={th} credit={params.credit} darkFrom={darkFrom} darkTo={darkTo} darkEnd={darkEnd} portrait={Boolean(cropped)} />, fonts),
       renderLayer(<EndCard th={th} />, fonts),
       ...texts.map((s) => renderLayer(s.node, fonts)),
     ]);
