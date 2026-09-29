@@ -67,6 +67,7 @@ export const ENTITY_HANDLES: Record<string, string> = {
   "jasprit-bumrah": "jaspritb1",
   "angel-reese": "angel.reese",
   "kyler-murray": "k1",
+  "abhishek-sharma": "abhisheksharma_4", // confirmed by the site owner 2026-09-29
 };
 
 export interface MatchedEntity {
