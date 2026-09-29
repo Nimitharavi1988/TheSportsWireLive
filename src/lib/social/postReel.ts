@@ -201,17 +201,26 @@ export async function postReel(
     .limit(1);
   if (!row) throw new Error(`Article not found: ${articleId}`);
   const article: ArticleWithVertical = { ...row.article, vertical: row.vertical };
-  if (!article.heroImageUrl || !article.body) return none;
+  if (!article.heroImageUrl || !article.body) {
+    console.log(`[reel] skipped ${articleId}: no photo or no body`);
+    return none;
+  }
 
   const existing = await db.select({ platform: socialPostTable.platform }).from(socialPostTable)
     .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.destination, DESTINATION), eq(socialPostTable.status, "posted")));
   const needInstagram = opts.instagram && !existing.some((p) => p.platform === "instagram");
   const needFacebook = opts.facebook && !existing.some((p) => p.platform === "facebook");
-  if (!needInstagram && !needFacebook) return none;
+  if (!needInstagram && !needFacebook) {
+    console.log(`[reel] skipped ${articleId}: already has a reel on the requested platform(s)`);
+    return none;
+  }
 
   console.log("Generating reel copy...");
   const content = await generatePosterContent(article.title, article.body);
-  if (!content) return none;
+  if (!content) {
+    console.log(`[reel] skipped ${articleId}: no reel copy (too few real facts, or the copy call failed)`);
+    return none;
+  }
   console.log("Reel content:", JSON.stringify(content));
   const captions = await generateSocialCaptions(article.title, article.body);
 

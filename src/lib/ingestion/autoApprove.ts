@@ -83,6 +83,13 @@ const MAX_INSTAGRAM_POSTS_PER_DAY = 95;
 // commit/push/deploy-wait cycle, far more expensive than Facebook's plain
 // post, so this bounds cost even while a run is catching up to pace.
 const MAX_INSTAGRAM_POSTS_PER_RUN = 3;
+// A run stops at its first successful Instagram post, but a story can fail
+// without a trace (too few facts for reel copy, a render or Instagram hiccup),
+// and with one attempt per run that left whole runs empty: about one reel an
+// hour overnight against runs every ~15 minutes (2026-09-29). So a run may try
+// up to this many candidates, in trending order, until one posts. It never
+// posts more than the pace allows: success ends the run.
+const MIN_INSTAGRAM_ATTEMPTS_PER_RUN = 3;
 // Every ~15-min cron run in a day — used to PACE the daily budget evenly
 // across all 24 hours instead of letting it front-load into whichever
 // hours happen to have the most eligible content. Confirmed live: a flat
@@ -518,7 +525,11 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     .filter((a) => a.category !== "volleyball" && !hockeyNewsIds.has(a.id));
   const igByTrending = [...igPool].sort((a, b) => socialSelectionScore(b) - socialSelectionScore(a));
   const igEligible = igByTrending.filter((a) => isHighlightWorthy(a.title));
-  const instagramCandidates = selectTopN(instagramRunCap, igByTrending, igEligible, igRecentTitles);
+  const instagramMaxAttempts = instagramRunCap > 0 ? Math.max(instagramRunCap, MIN_INSTAGRAM_ATTEMPTS_PER_RUN) : 0;
+  const instagramCandidates = selectTopN(instagramMaxAttempts, igByTrending, igEligible, igRecentTitles);
+  console.log(
+    `[instagram] postedToday=${instagramPostedToday} remainingToday=${instagramRemainingToday} runCap=${instagramRunCap} igPool=${igPool.length} candidates=${instagramCandidates.length}`
+  );
 
   // Facebook is back to its original plain format (the old auto-link-card
   // post, not the generated poster) per explicit request - the comment-
@@ -550,7 +561,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   let instagramAttempts = 0;
   let instagramDone = false;
   for (const article of instagramCandidates) {
-    if (instagramDone || instagramAttempts >= instagramRunCap) break;
+    if (instagramDone || instagramAttempts >= instagramMaxAttempts) break;
     instagramAttempts++;
     try {
       let posted = false;
