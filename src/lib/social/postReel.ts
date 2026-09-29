@@ -2,7 +2,8 @@ import { categoryEmoji } from "@/lib/categoryDisplay";
 import { socialArticleUrl } from "./trackedLink";
 import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
+import type { FacebookDestination } from "./facebookDestinations";
 import { createId } from "@paralleldrive/cuid2";
 import { generatePosterContent, generateSocialCaptions, type SocialCaptions } from "@/lib/ingestion/commentary";
 import { renderReel } from "./reel";
@@ -54,9 +55,9 @@ async function uploadBytes(url: string, accessToken: string, mp4: Buffer, what: 
   await graphJson(res, what);
 }
 
-async function recordAttempt(article: ArticleWithVertical, platform: "instagram" | "facebook", run: () => Promise<string>): Promise<boolean> {
+async function recordAttempt(article: ArticleWithVertical, platform: "instagram" | "facebook", run: () => Promise<string>, destination = DESTINATION): Promise<boolean> {
   const [row] = await db.insert(socialPostTable)
-    .values({ id: createId(), articleId: article.id, platform, destination: DESTINATION, status: "queued" })
+    .values({ id: createId(), articleId: article.id, platform, destination, status: "queued" })
     .returning();
   try {
     const externalId = await run();
@@ -145,16 +146,20 @@ async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, ca
   });
 }
 
-async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null, articleUrl: string): Promise<boolean> {
-  const pageId = article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
-  const rawToken = article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+// topicPage: post to a topic Page (facebookDestinations.ts) instead of the
+// main Page — its own token and posting history, and a caption that points
+// viewers at the Page (Follow) as well as the article.
+async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null, articleUrl: string, topicPage?: FacebookDestination): Promise<boolean> {
+  const pageId = topicPage ? topicPage.pageId : article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
+  const rawToken = topicPage ? process.env[topicPage.tokenEnv] : article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
   if (!pageId || !rawToken) return false;
   const accessToken = await resolvePageAccessToken(pageId, rawToken);
 
   const emoji = categoryEmoji(article.category);
   const creditLine = article.heroImageCredit ? `\n\n📷 ${article.heroImageCredit}` : "";
-  const hashtags = selectFacebookHashtags(article.title, article.category).join(" ");
-  const description = `${emoji} ${captions?.facebook ?? article.title}\n\nFull breakdown: ${articleUrl}${creditLine}\n\n${hashtags}`;
+  const hashtags = (topicPage?.hashtags ? topicPage.hashtags(article.title, article.category) : selectFacebookHashtags(article.title, article.category)).join(" ");
+  const followLine = topicPage ? `👍 Follow for more: https://www.facebook.com/${topicPage.pageId}\n` : "";
+  const description = `${emoji} ${captions?.facebook ?? article.title}\n\n${followLine}Full breakdown: ${articleUrl}${creditLine}\n\n${hashtags}`;
 
   return recordAttempt(article, "facebook", async () => {
     console.log("[facebook reel] Starting upload...");
@@ -181,7 +186,7 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
       "Facebook reel publish"
     );
     return start.video_id as string;
-  });
+  }, topicPage ? topicPage.key : DESTINATION);
 }
 
 // Renders one reel for a story and posts it to whichever of Instagram /
@@ -191,7 +196,7 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
 // brand green / Poppins.
 export async function postReel(
   articleId: string,
-  opts: { instagram: boolean; facebook: boolean; music?: ReelMusicStyle; theme?: ReelTheme; font?: ReelFont }
+  opts: { instagram: boolean; facebook: boolean; topicPage?: FacebookDestination; music?: ReelMusicStyle; theme?: ReelTheme; font?: ReelFont }
 ): Promise<{ instagramPosted: boolean; facebookPosted: boolean }> {
   const none = { instagramPosted: false, facebookPosted: false };
   const [row] = await db.select({ article: articleTable, vertical: verticalTable })
@@ -207,7 +212,7 @@ export async function postReel(
   }
 
   const existing = await db.select({ platform: socialPostTable.platform }).from(socialPostTable)
-    .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.destination, DESTINATION), eq(socialPostTable.status, "posted")));
+    .where(and(eq(socialPostTable.articleId, articleId), inArray(socialPostTable.destination, [DESTINATION, ...(opts.topicPage ? [opts.topicPage.key] : [])]), eq(socialPostTable.status, "posted")));
   const needInstagram = opts.instagram && !existing.some((p) => p.platform === "instagram");
   const needFacebook = opts.facebook && !existing.some((p) => p.platform === "facebook");
   if (!needInstagram && !needFacebook) {
@@ -232,6 +237,6 @@ export async function postReel(
   const siteUrl = process.env.SITE_URL ?? "https://sportswirelive.com";
   const articleUrl = socialArticleUrl(siteUrl, article.slug, "facebook");
   const instagramPosted = needInstagram ? await postReelToInstagram(article, mp4, captions) : false;
-  const facebookPosted = needFacebook ? await postReelToFacebook(article, mp4, captions, articleUrl) : false;
+  const facebookPosted = needFacebook ? await postReelToFacebook(article, mp4, captions, articleUrl, opts.topicPage) : false;
   return { instagramPosted, facebookPosted };
 }
