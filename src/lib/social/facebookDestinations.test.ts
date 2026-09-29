@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { INDIA_CRICKET_PAGE, destinationRunCap, isIndiaCricket, localDayStart } from "./facebookDestinations";
+import { INDIA_CRICKET_PAGE, destinationRunCap, isCricketOrAsianGames, isIndiaCricket, localDayStart } from "./facebookDestinations";
 
 const story = (over: Partial<Parameters<typeof isIndiaCricket>[0]>) => ({
   category: "cricket", title: "", homeTeam: null, awayTeam: null, seriesLabel: null, leagueLabel: null, venue: null, ...over,
@@ -18,6 +18,14 @@ describe("isIndiaCricket", () => {
     expect(isIndiaCricket(story({ homeTeam: "England", awayTeam: "Sri Lanka", title: "England vs Sri Lanka, 3rd ODI" }))).toBe(false);
     expect(isIndiaCricket(story({ title: "Warwickshire vs Leicestershire", leagueLabel: "County Championship" }))).toBe(false);
     expect(isIndiaCricket(story({ category: "football", title: "India draw with Bangladesh" }))).toBe(false);
+  });
+});
+
+describe("isCricketOrAsianGames", () => {
+  it("takes all cricket and Asian Games stories in any sport, nothing else", () => {
+    expect(isCricketOrAsianGames(story({ title: "England vs Sri Lanka, 3rd ODI" }))).toBe(true);
+    expect(isCricketOrAsianGames(story({ category: "athletics", title: "Asian Games: Chanu wins weightlifting silver" }))).toBe(true);
+    expect(isCricketOrAsianGames(story({ category: "football", title: "Arsenal beat Spurs" }))).toBe(false);
   });
 });
 

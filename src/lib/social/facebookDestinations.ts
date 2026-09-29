@@ -66,6 +66,12 @@ export function isIndiaCricket(a: DestinationCandidate): boolean {
   return [a.title, a.seriesLabel, a.leagueLabel, a.venue].some((t) => t && INDIA_TERMS.test(t));
 }
 
+// The Page's topic rule: all cricket (not only India's) plus Asian Games
+// stories in any sport.
+export function isCricketOrAsianGames(a: DestinationCandidate): boolean {
+  return a.category.startsWith("cricket") || [a.title, a.seriesLabel].some((t) => t && ASIAN_GAMES.test(t));
+}
+
 export const INDIA_CRICKET_PAGE: FacebookDestination = {
   key: "india-cricket",
   label: "India cricket Page",
@@ -76,7 +82,7 @@ export const INDIA_CRICKET_PAGE: FacebookDestination = {
   activeHours: { timeZone: "Asia/Kolkata", start: 7, end: 23 },
   sport: "cricket",
   alsoTitleLike: ["asian games"],
-  matches: isIndiaCricket,
+  matches: isCricketOrAsianGames,
   // #INDvWI, the player, #TeamIndia — not the main Page's brand tag.
   hashtags: (title) => selectIndiaCricketHashtags(title),
 };
