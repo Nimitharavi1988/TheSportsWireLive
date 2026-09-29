@@ -43,6 +43,20 @@ async function resolveHighResUrl(url: string): Promise<string> {
     u.searchParams.set("h", "1920");
     return u.toString();
   }
+  // Yahoo Sports wraps the publisher's photo in a resizer URL that serves it
+  // shrunk (1200x675 WebP); the original sits percent-encoded at the end of the
+  // path (1600x1067 in the case checked). Use it when it answers, so the reel
+  // can qualify for the big-photo layout.
+  const yahoo = url.match(/^https:\/\/s\.yimg\.com\/lo\/mysterio\/api\/[^/]+\/[^/]+\/[^/]+\/(https?%3A[^?]+)$/i);
+  if (yahoo) {
+    try {
+      const original = decodeURIComponent(yahoo[1]);
+      const head = await fetch(original, { method: "HEAD" });
+      return head.ok ? original : url;
+    } catch {
+      return url;
+    }
+  }
   const match = url.match(/\/thumb\/[0-9a-f]\/[0-9a-f]{2}\/([^/]+)\/\d+px-/);
   if (!match) return url;
   const fileName = decodeURIComponent(match[1]);

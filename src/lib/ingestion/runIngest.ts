@@ -1,3 +1,4 @@
+import { isPromoBannerImage } from "./promoImages";
 import { db } from "@/db";
 import { article, vertical } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
@@ -404,6 +405,14 @@ export async function runIngest() {
 
   for (const item of rawItems) {
     if (INGEST_LIMIT !== undefined && ingested >= INGEST_LIMIT) break;
+
+    // A publisher's ad banner is not a photo of the story: drop it so the
+    // usual fallbacks (story image lookup, person photo, or no real image,
+    // which keeps it out of auto-approve) apply. See promoImages.ts.
+    if (item.heroImageUrl && (await isPromoBannerImage(item.heroImageUrl))) {
+      console.log(`[ingest] promo banner image dropped for "${item.title.slice(0, 60)}"`);
+      item.heroImageUrl = undefined;
+    }
 
     const dedupeHash = dedupeHashFor(item);
     const existing = existingArticles.get(dedupeHash);
