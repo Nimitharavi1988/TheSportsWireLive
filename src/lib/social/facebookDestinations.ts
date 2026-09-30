@@ -74,6 +74,25 @@ export function isCricketOrAsianGames(a: DestinationCandidate): boolean {
   return a.category.startsWith("cricket") || [a.title, a.seriesLabel].some((t) => t && ASIAN_GAMES.test(t));
 }
 
+// India v West Indies ODI series (2nd ODI 30 Sep 2026 IST): its stories go to
+// the front of the India cricket Page's queue until the series is over.
+const INDIA_WI_TERMS = /\b(west indies|windies|indvwi|ind vs wi|india vs wi)\b/i;
+const INDIA_WI_UNTIL = new Date("2026-10-03T00:00:00Z");
+
+export function isIndiaWestIndies(a: DestinationCandidate, now: Date): boolean {
+  if (now >= INDIA_WI_UNTIL) return false;
+  return isIndiaCricket(a) && [a.title, a.seriesLabel, a.homeTeam, a.awayTeam].some((t) => t && INDIA_WI_TERMS.test(t));
+}
+
+const FRESH_MS = 12 * 3600_000;
+
+// Queue order for a Page: focus stories first, then stories under 12 hours
+// old, then the rest — each group keeps its incoming (trending) order.
+export function prioritise<T extends DestinationCandidate & { publishedAt: Date | null }>(pool: T[], now: Date): T[] {
+  const tier = (a: T) => (isIndiaWestIndies(a, now) ? 0 : a.publishedAt && now.getTime() - a.publishedAt.getTime() < FRESH_MS ? 1 : 2);
+  return pool.map((a, i) => ({ a, i, t: tier(a) })).sort((x, y) => x.t - y.t || x.i - y.i).map((x) => x.a);
+}
+
 export const INDIA_CRICKET_PAGE: FacebookDestination = {
   key: "india-cricket",
   label: "India cricket Page",
@@ -84,7 +103,7 @@ export const INDIA_CRICKET_PAGE: FacebookDestination = {
   activeHours: { timeZone: "Asia/Kolkata", start: 7, end: 23 },
   sport: "cricket",
   alsoTitleLike: ["asian games"],
-  reels: { dailyCap: 4, perRunCap: 1 },
+  reels: { dailyCap: 24, perRunCap: 1 },
   matches: isCricketOrAsianGames,
   // #INDvWI, the player, #TeamIndia — not the main Page's brand tag.
   hashtags: (title) => selectIndiaCricketHashtags(title),

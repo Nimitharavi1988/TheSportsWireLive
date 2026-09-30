@@ -14,7 +14,7 @@ import { isMatchDataSource } from "../matchDataSources";
 import { hasRealImage } from "../contentQuality";
 import { isSimilarToAny } from "../titleSimilarity";
 import { postArticleToFacebook } from "./facebook";
-import { TOPIC_DESTINATIONS, destinationRunCap, localDayStart, type FacebookDestination } from "./facebookDestinations";
+import { TOPIC_DESTINATIONS, destinationRunCap, localDayStart, prioritise, type FacebookDestination } from "./facebookDestinations";
 
 const POOL_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 const SIMILARITY_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -39,7 +39,7 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
       id: article.id, title: article.title, category: article.category, sourceName: article.sourceName,
       homeTeam: article.homeTeam, awayTeam: article.awayTeam, seriesLabel: article.seriesLabel, leagueLabel: article.leagueLabel,
       venue: article.venue, matchStatus: article.matchStatus, heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
-      trendingScore: article.trendingScore,
+      trendingScore: article.trendingScore, publishedAt: article.publishedAt,
     }).from(article)
       .where(and(eq(article.status, "published"), or(like(article.category, `${d.sport}%`), ...(d.alsoTitleLike ?? []).map((t) => ilike(article.title, `%${t}%`))), gte(article.publishedAt, new Date(now.getTime() - POOL_WINDOW_MS))))
       .orderBy(desc(article.trendingScore), desc(article.publishedAt))
@@ -55,7 +55,7 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
 
   const toPost: { id: string; title: string }[] = [];
   const limit = dryRun ? d.dailyCap : runCap;
-  for (const a of pool) {
+  for (const a of prioritise(pool, now)) {
     if (toPost.length >= limit) break;
     if (posted.has(a.id) || !d.matches(a)) continue;
     const matchData = isMatchDataSource(a.sourceName);

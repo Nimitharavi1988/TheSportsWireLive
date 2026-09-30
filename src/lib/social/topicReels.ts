@@ -11,7 +11,7 @@ import { and, count, desc, eq, gte, like, ilike, or } from "drizzle-orm";
 import { isMatchDataSource } from "../matchDataSources";
 import { hasRealImage } from "../contentQuality";
 import { isSimilarToAny } from "../titleSimilarity";
-import { TOPIC_DESTINATIONS, destinationRunCap, localDayStart } from "./facebookDestinations";
+import { TOPIC_DESTINATIONS, destinationRunCap, localDayStart, prioritise } from "./facebookDestinations";
 import { postReel } from "./postReel";
 import { photoGetsBigLayout } from "./reel";
 
@@ -45,7 +45,7 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
         db.select({
           id: article.id, title: article.title, category: article.category, sourceName: article.sourceName,
           homeTeam: article.homeTeam, awayTeam: article.awayTeam, seriesLabel: article.seriesLabel, leagueLabel: article.leagueLabel,
-          venue: article.venue, body: article.body, heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
+          venue: article.venue, publishedAt: article.publishedAt, body: article.body, heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
         }).from(article)
           .where(and(
             eq(article.status, "published"),
@@ -66,7 +66,7 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
       let checked = 0;
       let attempts = 0;
       let postedNow = 0;
-      for (const a of pool) {
+      for (const a of prioritise(pool, now)) {
         if (postedNow >= runCap || attempts >= MAX_ATTEMPTS || checked >= MAX_PHOTO_CHECKS) break;
         if (done.has(a.id) || !a.body || !hasRealImage(a) || !d.matches(a)) continue;
         // Match rows are scorecards, not stories to narrate.
