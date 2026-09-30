@@ -30,6 +30,8 @@ export interface FacebookDestination {
   // these phrases (case-insensitive) — e.g. Asian Games stories filed under
   // athletics.
   alsoTitleLike?: string[];
+  // Automatic Reels for this Page (topicReels.ts): own daily limit, daytime only.
+  reels?: { dailyCap: number; perRunCap: number };
   matches: (a: DestinationCandidate) => boolean;
   // The post's hashtags, when this Page wants its own (default: the main
   // Page's topic tags + #SportsWireLive — hashtagRepertoire.ts).
@@ -82,6 +84,7 @@ export const INDIA_CRICKET_PAGE: FacebookDestination = {
   activeHours: { timeZone: "Asia/Kolkata", start: 7, end: 23 },
   sport: "cricket",
   alsoTitleLike: ["asian games"],
+  reels: { dailyCap: 4, perRunCap: 1 },
   matches: isCricketOrAsianGames,
   // #INDvWI, the player, #TeamIndia — not the main Page's brand tag.
   hashtags: (title) => selectIndiaCricketHashtags(title),
@@ -105,12 +108,13 @@ export function localDayStart(now: Date, timeZone: string): Date {
 // How many posts this run may make: the daily limit spread evenly over the
 // active hours, minus what's already gone out today, within the per-run
 // cap. 0 outside the active hours (pure, unit-tested).
-export function destinationRunCap(d: Pick<FacebookDestination, "dailyCap" | "perRunCap" | "activeHours">, postedToday: number, now: Date): number {
+export function destinationRunCap(d: Pick<FacebookDestination, "dailyCap" | "perRunCap" | "activeHours"> & { overnight?: boolean }, postedToday: number, now: Date): number {
   const { timeZone, start, end } = d.activeHours;
   const hour = localHour(now, timeZone);
   if (hour < start || hour >= end) {
     // Overnight: low intensity — at most one post, only in the first run of
     // every second hour (~4 over the night), and still within the daily cap.
+    if (d.overnight === false) return 0;
     return hour % 2 < 0.25 ? Math.max(0, Math.min(1, d.dailyCap - postedToday)) : 0;
   }
   // 25% head start so the Page isn't silent through the morning.

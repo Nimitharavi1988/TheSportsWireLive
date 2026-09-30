@@ -50,6 +50,13 @@ describe("destinationRunCap (India cricket Page: 30/day over 7:00-23:00 IST)", (
     expect(destinationRunCap(INDIA_CRICKET_PAGE, 30, new Date("2026-09-26T20:30:00Z"))).toBe(0);
   });
 
+  it("can be daytime-only (reels): nothing overnight, spread over the day", () => {
+    const reels = { ...INDIA_CRICKET_PAGE.reels!, activeHours: INDIA_CRICKET_PAGE.activeHours, overnight: false };
+    expect(destinationRunCap(reels, 0, new Date("2026-09-26T20:30:00Z"))).toBe(0); // 02:00 IST
+    expect(destinationRunCap(reels, 0, evening)).toBe(1);
+    expect(destinationRunCap(reels, 4, evening)).toBe(0);
+  });
+
   it("counts the day from local midnight", () => {
     expect(localDayStart(evening, "Asia/Kolkata").toISOString()).toBe("2026-09-25T18:30:00.000Z");
   });

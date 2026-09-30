@@ -181,6 +181,25 @@ function EndCard({ th }: { th: Theme }) {
   );
 }
 
+// Whether a photo of this size gets the big-photo layout (else the older one
+// with the photo in the top half).
+function fitsPortraitLayout(w: number, h: number): boolean {
+  return h >= MIN_CROP_SOURCE_H && w / h >= 1.3;
+}
+
+// Whether a story's photo will get the big-photo layout — checked before
+// picking it for a reel (topicReels.ts). False when it can't be loaded.
+export async function photoGetsBigLayout(heroImageUrl: string): Promise<boolean> {
+  try {
+    const uri = await loadHeroImageDataUri(heroImageUrl);
+    const sharp = (await import("sharp")).default;
+    const meta = await sharp(Buffer.from(uri.slice(uri.indexOf(",") + 1), "base64")).metadata();
+    return fitsPortraitLayout(meta.width ?? 0, meta.height ?? 0);
+  } catch {
+    return false;
+  }
+}
+
 // Subject-aware crop for a wide, sharp photo (see PORTRAIT_*); null keeps the
 // original landscape layout (small photo, no sharp available, or crop failed).
 async function cropForPortrait(photo: Buffer): Promise<Buffer | null> {
@@ -189,7 +208,7 @@ async function cropForPortrait(photo: Buffer): Promise<Buffer | null> {
     const meta = await sharp(photo).metadata();
     const w = meta.width ?? 0;
     const h = meta.height ?? 0;
-    if (h < MIN_CROP_SOURCE_H || w / h < 1.3) return null;
+    if (!fitsPortraitLayout(w, h)) return null;
     const cropW = Math.min(w, Math.round(h * PORTRAIT_ASPECT));
     return await sharp(photo).resize(cropW, h, { fit: "cover", position: sharp.strategy.attention }).jpeg({ quality: 92 }).toBuffer();
   } catch {

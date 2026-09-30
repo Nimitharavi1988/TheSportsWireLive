@@ -7,6 +7,7 @@ import { isMatchDataSource } from "../matchDataSources";
 import { isHighlightWorthy } from "../highlightWorthy";
 import { isPushWorthy } from "../pushWorthy";
 import { postToTopicPages } from "../social/topicPosting";
+import { postTopicReels } from "../social/topicReels";
 import { postArticleToFacebook } from "../social/facebook";
 import { postInstagramPoster } from "../social/postInstagramPoster";
 import { postReel } from "../social/postReel";
@@ -602,6 +603,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
 
   // Topic Pages (e.g. India cricket) — own topics, limits and history.
   await postToTopicPages(now);
+  await postTopicReels(now);
 
   await sendAutomatedPushNotifications(toApprove);
 
