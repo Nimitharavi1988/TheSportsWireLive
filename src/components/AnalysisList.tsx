@@ -23,7 +23,7 @@ export function AnalysisList({ items, thumbSize = 88, showSummary = false }: { i
                   {storyKindLabel(s.storyKind) ?? "Analysis"}
                   <Box component="span" sx={{ color: chip.color, ml: 1 }}>{chip.label}</Box>
                 </Typography>
-                <Typography className="analysis-title" sx={{ fontWeight: 700, lineHeight: 1.35 }}>{s.title}</Typography>
+                <Typography className="analysis-title" sx={{ fontFamily: "var(--font-body)", fontWeight: 600, lineHeight: 1.35 }}>{s.title}</Typography>
                 {showSummary && (
                   <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5, display: { xs: "none", sm: "block" } }}>{s.summary}</Typography>
                 )}

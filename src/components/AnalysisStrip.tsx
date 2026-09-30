@@ -16,7 +16,7 @@ export async function AnalysisStrip({ category }: { category?: string }) {
   return (
     <Paper component="section" aria-label="Analysis" variant="outlined" sx={{ p: 2.5, mt: 3 }}>
       <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-        <Typography variant="h6" component="h2" sx={{ fontWeight: 700 }}>Analysis</Typography>
+        <Typography variant="h6" component="h2" sx={{ fontFamily: "var(--font-body)", color: "text.secondary", fontWeight: 600 }}>Analysis</Typography>
         <SeeAllLink href="/analysis">All analysis</SeeAllLink>
       </Stack>
       <AnalysisList items={items} thumbSize={56} />
