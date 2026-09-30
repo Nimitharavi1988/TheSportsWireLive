@@ -1,9 +1,8 @@
 /**
  * Automatic Reels for the topic Facebook Pages (facebookDestinations.ts,
  * `reels` setting). Own history (SocialPost.destination "<key>-reel"), own
- * daily limit, daytime hours only. Only stories whose photo gets the
- * big-photo reel layout are picked (photoGetsBigLayout) so every Reel comes
- * out in the current look. Runs in the ingestion job (plain Node).
+ * daily limit, daytime hours only. Any story with a real photo qualifies: the
+ * photo is shown whole, never cropped. Runs in the ingestion job (plain Node).
  */
 import { db } from "@/db";
 import { article, socialPost } from "@/db/schema";
@@ -13,7 +12,6 @@ import { hasRealImage } from "../contentQuality";
 import { isSimilarToAny } from "../titleSimilarity";
 import { TOPIC_DESTINATIONS, destinationRunCap, localDayStart, prioritise } from "./facebookDestinations";
 import { postReel } from "./postReel";
-import { photoGetsBigLayout } from "./reel";
 
 const POOL_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 const SIMILARITY_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -73,7 +71,7 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
         if (isMatchDataSource(a.sourceName)) continue;
         if (isSimilarToAny(a.title, titles)) continue;
         checked++;
-        if (!a.heroImageUrl || !(await photoGetsBigLayout(a.heroImageUrl))) continue;
+        if (!a.heroImageUrl) continue;
         attempts++;
         try {
           const r = await postReel(a.id, { instagram: false, facebook: true, topicPage: d });

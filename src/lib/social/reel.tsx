@@ -28,7 +28,8 @@ const PHOTO_MAX_H = 1000;
 // strategy) to a 4:5 portrait, 1080x1350, and shown big behind the text: 70%
 // of the frame rather than 32%. Needs a source at least this tall so it isn't
 // blown up; smaller photos keep the layout above.
-const PORTRAIT_ASPECT = 1080 / 1350;
+const USE_PORTRAIT_CROP = false;
+const PORTRAIT_ASPECT =1080 / 1350;
 const PORTRAIT_PHOTO_TOP = 170;
 const PORTRAIT_PHOTO_H = 1350;
 const MIN_CROP_SOURCE_H = 800;
@@ -184,6 +185,9 @@ function EndCard({ th }: { th: Theme }) {
 // Whether a photo of this size gets the big-photo layout (else the older one
 // with the photo in the top half).
 function fitsPortraitLayout(w: number, h: number): boolean {
+  // Off: the 4:5 crop cut subjects off at the edges (raised arms, second
+  // player), so every photo now shows whole in the full-width layout.
+  if (!USE_PORTRAIT_CROP) return false;
   return h >= MIN_CROP_SOURCE_H && w / h >= 1.3;
 }
 
