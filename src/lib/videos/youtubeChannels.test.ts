@@ -26,6 +26,10 @@ describe("YOUTUBE_CHANNELS", () => {
     expect(new Set(ids).size).toBe(ids.length);
     for (const id of ids) expect(id).toMatch(/^UC[\w-]{22}$/);
   });
+  it("lists Sky Sports F1 for Formula 1, and not the official channel that blocks embedding", () => {
+    expect(YOUTUBE_CHANNELS.filter((c) => c.category === "formula-1").map((c) => c.title)).toEqual(["Sky Sports F1"]);
+    expect(YOUTUBE_CHANNELS.map((c) => c.id)).not.toContain("UCB_qr75-ydFVKSF9Dmo6izg");
+  });
   it("includes the West Indies and Cricket Australia channels for cricket", () => {
     const cricket = YOUTUBE_CHANNELS.filter((c) => c.category === "cricket").map((c) => c.title);
     expect(cricket).toEqual(expect.arrayContaining(["Windies Cricket", "cricket.com.au"]));

@@ -54,4 +54,13 @@ export const YOUTUBE_CHANNELS: YouTubeChannel[] = [
   // Africa tour) and the BBL/WBBL. Channel page read 2026-09-30: "The official
   // YouTube channel of cricket.com.au", @cricketcomau, 10.5M subscribers.
   { id: "UCkBY0aHJP9BwjZLDYxAQrKg", title: "cricket.com.au", category: "cricket" },
+  // Formula 1. The sport's own channel (@Formula1, UCB_qr75-ydFVKSF9Dmo6izg,
+  // 15.2M subscribers — not the @F1 impostor noted above) is NOT listed:
+  // checked 2026-09-30, every recent upload — race highlights included —
+  // returns "Video unavailable" in an embedded player whatever the referrer,
+  // so none could play here. Sky Sports F1 embeds fine (6 of 6 checked): race
+  // weekend shows, driver interviews and the F1 Show podcast, not race
+  // highlights (Sky doesn't put those on YouTube). Channel page read
+  // 2026-09-30: @SkySportsF1, 1.03M subscribers.
+  { id: "UC3kxJQ9RfaS5CKeYbbFMi4Q", title: "Sky Sports F1", category: "formula-1" },
 ];
