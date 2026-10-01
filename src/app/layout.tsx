@@ -102,6 +102,14 @@ export const viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${poppins.variable} ${inter.variable}`}>
+      <head>
+        {/* DNS prefetch for third-party scripts that load after the page
+            (GA and AdSense are both lazyOnload now) — resolves their
+            domains during idle time so the actual script fetch is faster
+            when it fires. */}
+        <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+      </head>
       <body>
         <GoogleAnalytics />
         <ServiceWorkerRegister />

@@ -105,15 +105,18 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
             >
               {/* priority only on the slide shown at first paint — this is
                   the site's actual LCP image; later slide switches from
-                  clicking the carousel arrows don't need eager preloading. */}
-              <Box
-                component={Image}
+                  clicking the carousel arrows don't need eager preloading.
+                  Next.js 16 separated priority (preload + eager loading)
+                  from fetchPriority (browser fetch hint) — both must be
+                  set explicitly. */}
+              <Image
                 src={imageUrl}
                 alt={slide.title}
                 fill
-                sizes="100vw"
+                sizes="(min-width: 1200px) 500px, (min-width: 900px) 60vw, calc(100vw - 32px)"
                 priority={safeIndex === 0}
-                sx={{ objectFit: "cover", objectPosition: "top" }}
+                fetchPriority={safeIndex === 0 ? "high" : undefined}
+                style={{ objectFit: "cover", objectPosition: "top" }}
               />
               <Box
                 sx={{
