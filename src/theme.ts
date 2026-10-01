@@ -21,7 +21,7 @@ const theme = createTheme({
     // without trading accessibility for it.
     primary: { main: "#0c7d45" },
     background: { default: "#f7f7f5", paper: "#ffffff" },
-    text: { primary: "#1a1a1a", secondary: "#6b6b6b" },
+    text: { primary: "#1a1a1a", secondary: "#6b6b6b", disabled: "#6e6e6e" },
   },
   typography: {
     fontFamily: "var(--font-body)",

@@ -196,7 +196,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                   position: "absolute",
                   top: 10,
                   right: 12,
-                  color: "rgba(255,255,255,0.45)",
+                  color: "rgba(255,255,255,0.85)",
                   fontSize: 10,
                   textShadow: "0 1px 2px rgba(0,0,0,0.5)",
                   transition: "color 0.15s",

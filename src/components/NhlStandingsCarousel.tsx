@@ -7,10 +7,11 @@ import { ConferenceStandings } from "./standings/ConferenceStandings";
 // Playoff places: 8 per conference. Ranked by points (an OT/shootout loss earns one).
 const PLAYOFF_PLACES = 8;
 
-export function NhlStandingsCarousel({ conferences }: { conferences: NhlConferenceStandings[] }) {
+export function NhlStandingsCarousel({ conferences, maxRows }: { conferences: NhlConferenceStandings[]; maxRows?: number }) {
   return (
     <ConferenceStandings
       conferences={conferences}
+      maxRows={maxRows}
       columns={[{ label: "W" }, { label: "L" }, { label: "OTL" }, { label: "PTS", strong: true }]}
       toRow={(row) => ({
         id: row.teamId,

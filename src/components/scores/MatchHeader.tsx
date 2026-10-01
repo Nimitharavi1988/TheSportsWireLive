@@ -85,7 +85,7 @@ export function MatchHeader({ match: initial }: { match: ScoreMatch }) {
           {[match.venue, match.broadcast ? `TV: ${match.broadcast}` : null].filter(Boolean).join(" · ")}
         </Typography>
       )}
-      <Typography component="div" sx={{ mt: 1, fontSize: 11, textAlign: "center", color: "text.disabled" }}>
+      <Typography component="div" sx={{ mt: 1, fontSize: 12, textAlign: "center", color: "text.disabled" }}>
         Source: <DataSource match={match} />
       </Typography>
     </Box>

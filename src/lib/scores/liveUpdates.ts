@@ -8,7 +8,10 @@
  */
 import type { ScoreMatch } from "./scoreboardModel";
 
-export const LIVE_POLL_MS = 60_000;
+// The server's own score refresh runs every ~2 minutes, so polling much
+// faster than this only re-reads the same row. Polling is skipped entirely
+// (needsLiveUpdate) when nothing on screen can change.
+export const LIVE_POLL_MS = 30_000;
 // An upcoming game is watched from shortly before its start, so it flips
 // to live promptly (same window as liveRefresh.ts's PRE_KICKOFF_MS).
 const PRE_START_MS = 15 * 60 * 1000;

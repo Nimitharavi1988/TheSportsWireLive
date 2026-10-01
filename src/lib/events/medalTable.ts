@@ -61,6 +61,14 @@ export function parseMedalTable(html: string): MedalTable {
   return { rows, totals };
 }
 
+// A medal can legitimately move between columns (a gold re-awarded as a
+// silver, a disqualification), which lowers one column while the nation's
+// total holds or rises — seen 2026-09-30 when Kazakhstan went 10 -> 9 gold and
+// 41 -> 56 medals, and the old "no column may drop" rule then rejected every
+// update for three days. Vandalism looks different: the total falls, or a
+// column collapses. So a column may drop by at most this much.
+const RECLASSIFY_MAX = 2;
+
 // Why a snapshot can't be trusted, or null when it can.
 export function medalTableProblem(table: MedalTable, previous: MedalTable | null): string | null {
   const { rows, totals } = table;
@@ -84,7 +92,11 @@ export function medalTableProblem(table: MedalTable, previous: MedalTable | null
     const before = new Map(previous.rows.map((r) => [r.nation, r]));
     for (const r of rows) {
       const p = before.get(r.nation);
-      if (p && (r.gold < p.gold || r.silver < p.silver || r.bronze < p.bronze)) return `${r.nation}'s medals went down`;
+      if (!p) continue;
+      if (r.total < p.total) return `${r.nation}'s medals went down`;
+      for (const col of ["gold", "silver", "bronze"] as const) {
+        if (p[col] - r[col] > RECLASSIFY_MAX) return `${r.nation}'s ${col} medals dropped by more than ${RECLASSIFY_MAX}`;
+      }
     }
     const nowNations = new Set(rows.map((r) => r.nation));
     const lost = previous.rows.find((r) => r.total > 0 && !nowNations.has(r.nation));

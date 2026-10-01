@@ -23,6 +23,8 @@ import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standing
 import { StandingsCarousel } from "@/components/StandingsCarousel";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
+import { CricketScorecard } from "@/components/scores/CricketScorecard";
+import { MatchBoxScore } from "@/components/scores/MatchBoxScore";
 import { InFeedAd } from "@/components/InFeedAd";
 import { TRACKED_PLAYERS } from "@/lib/players";
 import { TRACKED_CLUBS } from "@/lib/clubs";
@@ -413,6 +415,16 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           <Suspense fallback={null}>
             <MatchHighlightsForArticle articleId={article.id} />
           </Suspense>
+          {article.category.startsWith("cricket") && (
+            <Suspense fallback={null}>
+              <CricketScorecard sourceUrl={article.sourceUrl} teams={[scoreMatch.home.name, scoreMatch.away.name]} inPlay={scoreMatch.state === "live" || scoreMatch.state === "paused"} />
+            </Suspense>
+          )}
+          {!article.category.startsWith("cricket") && scoreMatch.state !== "upcoming" && (
+            <Suspense fallback={null}>
+              <MatchBoxScore sourceUrl={article.sourceUrl} leagueLabel={scoreMatch.leagueLabel} homeName={scoreMatch.home.name} inPlay={scoreMatch.state === "live" || scoreMatch.state === "paused"} />
+            </Suspense>
+          )}
         </>
       ) : article.homeCrestUrl && article.awayCrestUrl ? (
         <Stack
@@ -460,7 +472,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
               variant="caption"
               sx={{
                 color: "text.disabled",
-                fontSize: 10,
+                fontSize: 12,
                 mt: 0.75,
                 display: "block"
               }}>

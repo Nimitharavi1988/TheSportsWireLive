@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
@@ -19,23 +19,13 @@ function playerInitials(name: string): string {
   return (first + last).toUpperCase();
 }
 
-const AUTO_ADVANCE_MS = 6000;
-
 // Compact sidebar card — this is supplementary/editorial content, not real
 // news, so it deliberately carries much less visual weight than Player News
 // or Transfers & Big News: no section heading (the single small corner quote
 // mark is identifier enough), smaller type, no left/right IconButtons eating
-// into a ~240px-wide rail. Same reliable index-based rotation as Standings.
+// into a ~240px-wide rail. Changes only when the reader steps through it — auto-rotating text beside live scores competed for attention.
 export function QuotesStrip({ quotes }: { quotes: PlayerQuote[] }) {
   const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    if (quotes.length <= 1) return;
-    const timer = setInterval(() => {
-      setIndex((i) => (i + 1) % quotes.length);
-    }, AUTO_ADVANCE_MS);
-    return () => clearInterval(timer);
-  }, [quotes.length]);
 
   if (quotes.length === 0) return null;
   const current = quotes[index];
@@ -86,7 +76,7 @@ export function QuotesStrip({ quotes }: { quotes: PlayerQuote[] }) {
             {current.name}
           </Typography>
           {current.context && (
-            <Typography variant="caption" noWrap sx={{ color: "text.secondary", display: "block", fontSize: 10.5 }}>
+            <Typography variant="caption" noWrap sx={{ color: "text.secondary", display: "block", fontSize: 12 }}>
               {current.context}
             </Typography>
           )}

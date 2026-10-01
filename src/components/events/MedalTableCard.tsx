@@ -1,5 +1,6 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
+import Link from "next/link";
 import type { StoredMedalTable } from "@/lib/events/queries";
 import { UpdatedAgo } from "@/components/scores/DataFreshness";
 
@@ -12,8 +13,13 @@ const MEDALS = [
   { key: "bronze", label: "Bronze", color: "#b87333" },
 ] as const;
 
-export function MedalTableCard({ title, medals, limit }: { title: string; medals: StoredMedalTable; limit?: number }) {
-  const rows = limit ? medals.table.rows.slice(0, limit) : medals.table.rows;
+// `pin`: a nation to keep in view when it falls outside the top `limit` (shown
+// below a gap, with its real rank). `href`: where the full table lives.
+export function MedalTableCard({ title, medals, limit, pin, href }: { title: string; medals: StoredMedalTable; limit?: number; pin?: string; href?: string }) {
+  const all = medals.table.rows;
+  const top = limit ? all.slice(0, limit) : all;
+  const pinned = limit && pin ? all.find((r) => r.nation === pin && !top.includes(r)) : undefined;
+  const rows = pinned ? [...top, pinned] : top;
   const num = { textAlign: "right" as const, px: 0.75, fontVariantNumeric: "tabular-nums", width: 44 };
   return (
     <Box component="section" aria-label={`${title} medal table`} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3, bgcolor: "background.paper", overflow: "hidden" }}>
@@ -35,11 +41,11 @@ export function MedalTableCard({ title, medals, limit }: { title: string; medals
         </thead>
         <tbody>
           {rows.map((r) => (
-            <Box component="tr" key={r.nation} sx={{ borderTop: "1px solid", borderColor: "divider" }}>
+            <Box component="tr" key={r.nation} sx={{ borderTop: r === pinned ? "2px dotted" : "1px solid", borderColor: "divider", bgcolor: r.nation === pin ? "action.hover" : undefined }}>
               <Box component="td" sx={{ pl: 2, color: "text.secondary" }}>{r.rank}</Box>
               <Box component="td" sx={{ px: 0.75 }}>
                 {r.nation}
-                {r.host && <Box component="span" sx={{ ml: 0.75, fontSize: 11, color: "text.secondary" }}>Host</Box>}
+                {r.host && <Box component="span" sx={{ ml: 0.75, fontSize: 12, color: "text.secondary" }}>Host</Box>}
               </Box>
               <Box component="td" sx={num}>{r.gold}</Box>
               <Box component="td" sx={num}>{r.silver}</Box>
@@ -49,7 +55,7 @@ export function MedalTableCard({ title, medals, limit }: { title: string; medals
           ))}
         </tbody>
       </Box>
-      <Typography component="div" sx={{ px: 2, py: 0.75, fontSize: 11, color: "text.disabled", borderTop: "1px solid", borderColor: "divider" }}>
+      <Typography component="div" sx={{ px: 2, py: 0.75, fontSize: 12, color: "text.disabled", borderTop: "1px solid", borderColor: "divider" }}>
         Source:{" "}
         <a href={medals.sourceUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
           Wikipedia
@@ -57,6 +63,13 @@ export function MedalTableCard({ title, medals, limit }: { title: string; medals
         · <UpdatedAgo iso={medals.fetchedAt} />
         {limit && medals.table.rows.length > limit ? ` · top ${limit} of ${medals.table.rows.length}` : ""}
       </Typography>
+      {href && (
+        <Box sx={{ px: 2, py: 1, borderTop: "1px solid", borderColor: "divider" }}>
+          <Link href={href} style={{ textDecoration: "none", fontSize: 13, fontWeight: 600, color: "#0c7d45" }}>
+            Full medal table &rsaquo;
+          </Link>
+        </Box>
+      )}
     </Box>
   );
 }

@@ -7,10 +7,11 @@ import { ConferenceStandings } from "./standings/ConferenceStandings";
 // Playoff places: the top 6 per conference qualify directly (7-10 go to the play-in).
 const PLAYOFF_PLACES = 6;
 
-export function NbaStandingsCarousel({ conferences }: { conferences: NbaConferenceStandings[] }) {
+export function NbaStandingsCarousel({ conferences, maxRows }: { conferences: NbaConferenceStandings[]; maxRows?: number }) {
   return (
     <ConferenceStandings
       conferences={conferences}
+      maxRows={maxRows}
       columns={[{ label: "W", strong: true }, { label: "L" }]}
       toRow={(row) => ({
         id: row.teamId,

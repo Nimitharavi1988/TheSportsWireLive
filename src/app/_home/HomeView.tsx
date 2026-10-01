@@ -28,22 +28,11 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Divider from "@mui/material/Divider";
 import { fetchOneStockImage } from "@/lib/ingestion/stockImages";
-import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
-import type { NflConferenceStandings } from "@/lib/ingestion/nflData";
-import { SNAPSHOT_KEYS, readSnapshot } from "@/lib/snapshots/read";
-import { NflStandingsCarousel } from "@/components/NflStandingsCarousel";
-import type { NbaConferenceStandings } from "@/lib/ingestion/nbaData";
-import { NbaStandingsCarousel } from "@/components/NbaStandingsCarousel";
-import type { MlbConferenceStandings } from "@/lib/ingestion/mlbData";
-import { MlbStandingsCarousel } from "@/components/MlbStandingsCarousel";
-import type { NhlConferenceStandings } from "@/lib/ingestion/nhlData";
-import { NhlStandingsCarousel } from "@/components/NhlStandingsCarousel";
 import { crestAltText, competitionFromSummary } from "@/lib/teamNames";
 import { displaySummary } from "@/lib/articleSummary";
 import { relativeTime } from "@/lib/relativeTime";
 import { isHighlightWorthy } from "@/lib/highlightWorthy";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
-import { StandingsCarousel } from "@/components/StandingsCarousel";
 import { TRACKED_PLAYERS, type TrackedPlayer } from "@/lib/players";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
@@ -60,7 +49,9 @@ import {
   FRESH_NEWS_MIN_RESULTS,
 } from "@/lib/heroConfig";
 import { SentimentLeaderboard } from "@/components/SentimentLeaderboard";
-import { MobileScoresRow } from "@/components/scores/MobileScoresRow";
+import { ScoresPanel } from "@/components/scores/ScoresPanel";
+import { HomeStandings } from "@/components/standings/HomeStandings";
+import { HomeMedals } from "@/components/events/HomeMedals";
 import { CollapsibleAdBox } from "@/components/CollapsibleAdBox";
 import { MoreHeadlinesAdTile } from "@/components/MoreHeadlinesAdTile";
 import { HomeBanners } from "@/components/HomeBanners";
@@ -265,65 +256,6 @@ function PlayerNewsSkeleton() {
           </Paper>
         ))}
       </ScrollRow>
-    </Box>
-  );
-}
-
-// Streamed independently (see Suspense boundary in HomePage) — a real
-// football-data.org round-trip, one of the slowest of the page's external
-// calls alongside Player News, confirmed live.
-async function FootballStandingsWidget({ apiKey }: { apiKey: string }) {
-  const standings = await fetchStandingsTable(apiKey, "PL");
-  if (!standings || standings.rows.length === 0) return null;
-  return (
-    <Box sx={{ mb: 3 }}>
-      <StandingsCarousel leagues={STANDINGS_LEAGUES} initialCode="PL" initialTable={standings} />
-    </Box>
-  );
-}
-
-// Streamed independently (see Suspense boundary in HomePage) — same
-// reasoning as FootballStandingsWidget, ESPN instead of football-data.org.
-async function NflStandingsWidget() {
-  const nflStandings = await readSnapshot<NflConferenceStandings[]>(SNAPSHOT_KEYS.nflStandings);
-  if (!nflStandings || nflStandings.length === 0) return null;
-  return (
-    <Box sx={{ mb: 3 }}>
-      <NflStandingsCarousel conferences={nflStandings} />
-    </Box>
-  );
-}
-
-// Same streaming/null-check pattern as NflStandingsWidget above — added
-// 2026-09-20 to close the empty sidebar slot that basketball/baseball/
-// hockey category views previously had (only football and NFL had a
-// standings widget before this).
-async function NbaStandingsWidget() {
-  const nbaStandings = await readSnapshot<NbaConferenceStandings[]>(SNAPSHOT_KEYS.nbaStandings);
-  if (!nbaStandings || nbaStandings.length === 0) return null;
-  return (
-    <Box sx={{ mb: 3 }}>
-      <NbaStandingsCarousel conferences={nbaStandings} />
-    </Box>
-  );
-}
-
-async function MlbStandingsWidget() {
-  const mlbStandings = await readSnapshot<MlbConferenceStandings[]>(SNAPSHOT_KEYS.mlbStandings);
-  if (!mlbStandings || mlbStandings.length === 0) return null;
-  return (
-    <Box sx={{ mb: 3 }}>
-      <MlbStandingsCarousel conferences={mlbStandings} />
-    </Box>
-  );
-}
-
-async function NhlStandingsWidget() {
-  const nhlStandings = await readSnapshot<NhlConferenceStandings[]>(SNAPSHOT_KEYS.nhlStandings);
-  if (!nhlStandings || nhlStandings.length === 0) return null;
-  return (
-    <Box sx={{ mb: 3 }}>
-      <NhlStandingsCarousel conferences={nhlStandings} />
     </Box>
   );
 }
@@ -736,10 +668,6 @@ export async function HomeView({ category }: { category?: string }) {
   const usedBriefIds = new Set([...highlightIds, ...briefArticles.map((a) => a.id)]);
   const moreArticles = allBriefArticles.filter((a) => !usedBriefIds.has(a.id)).slice(0, 15);
 
-  // Standings only exist for domestic leagues on this API tier (not Champions
-  // League/World Cup/Euros — no data — and cricket has no active standings
-  // source at all), so only show this on "All" or the plain "Football" filter.
-  const showStandings = !category || category === "football";
   const standingsApiKey = process.env.FOOTBALL_DATA_API_KEY;
 
   // Yesterday's fix batched player photos/hero banners/standings/NFL
@@ -769,8 +697,6 @@ export async function HomeView({ category }: { category?: string }) {
       {/* AdSense loads only on pages of the site's own stories (home, sport
           sections, news articles) — see GoogleAdSense.tsx. */}
       <GoogleAdSense />
-      {/* Phones only: scores at the very top (see MobileScoresRow). */}
-      <MobileScoresRow matches={liveMatches.slice(0, 12)} sport={category?.split("/")[0]} />
       <HomeBanners />
       {!category && <ForYouStrip />}
       {articles.length === 0 && (
@@ -816,7 +742,7 @@ export async function HomeView({ category }: { category?: string }) {
             real standings data would just show a container with only the
             streamed widget in it once it resolves — a fine tradeoff for not
             blocking the whole sidebar on the same slow calls being deferred. */}
-        {(categoryTiles.length > 0 || justIn.length > 0 || PLAYER_QUOTES.length > 0 || showStandings || category === "american-football") && (
+        {(categoryTiles.length > 0 || justIn.length > 0 || PLAYER_QUOTES.length > 0) && (
           <Box
             component="aside"
             sx={{
@@ -851,36 +777,6 @@ export async function HomeView({ category }: { category?: string }) {
               // fine fallback.
             }}
           >
-            {showStandings && standingsApiKey && (
-              <Suspense fallback={null}>
-                <FootballStandingsWidget apiKey={standingsApiKey} />
-              </Suspense>
-            )}
-
-            {category === "american-football" && (
-              <Suspense fallback={null}>
-                <NflStandingsWidget />
-              </Suspense>
-            )}
-
-            {category === "basketball" && (
-              <Suspense fallback={null}>
-                <NbaStandingsWidget />
-              </Suspense>
-            )}
-
-            {category === "baseball" && (
-              <Suspense fallback={null}>
-                <MlbStandingsWidget />
-              </Suspense>
-            )}
-
-            {category === "hockey" && (
-              <Suspense fallback={null}>
-                <NhlStandingsWidget />
-              </Suspense>
-            )}
-
             {categoryTiles.length > 0 && (
               <Paper component="section" variant="outlined" sx={{ p: 2, ...BELOW_FOLD_SX }}>
                 <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, mb: 1, display: "block" }}>
@@ -1177,10 +1073,20 @@ export async function HomeView({ category }: { category?: string }) {
               // artificial empty row behind (confirmed live: a real visible
               // gap remained below <main>'s content even after that fix).
               gridRow: { md: "1" },
-              position: { md: "sticky" },
-              top: { md: 84 },
             }}
           >
+            {/* Scores and standings: one design each, above the sticky part (they
+                are taller than a short window, so they scroll with the page). */}
+            <ScoresPanel initial={liveMatches} sport={category?.split("/")[0]} />
+            {!category && (
+              <Suspense fallback={null}>
+                <HomeMedals />
+              </Suspense>
+            )}
+            <Suspense fallback={null}>
+              <HomeStandings sport={category} footballApiKey={standingsApiKey} />
+            </Suspense>
+            <Box sx={{ position: { md: "sticky" }, top: { md: 84 } }}>
             {/* The one deliberately chosen ad placement — see
                 DisplayAd.tsx's comment. Sits among this column's other
                 supplementary modules, not competing with headlines.
@@ -1268,6 +1174,7 @@ export async function HomeView({ category }: { category?: string }) {
             <Suspense fallback={null}>
               <AnalysisStrip category={category} />
             </Suspense>
+            </Box>
           </Box>
         )}
       </Box>
@@ -1348,8 +1255,8 @@ export async function HomeView({ category }: { category?: string }) {
                             position: "absolute",
                             right: 6,
                             bottom: 6,
-                            color: "rgba(255,255,255,0.4)",
-                            fontSize: 9,
+                            color: "rgba(255,255,255,0.85)",
+                            fontSize: 12,
                             lineHeight: 1.4,
                             textShadow: "0 1px 2px rgba(0,0,0,0.5)",
                             maxWidth: "calc(100% - 12px)",

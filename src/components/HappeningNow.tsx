@@ -50,7 +50,7 @@ export function HappeningNow({ competitions, medalLines = {} }: { competitions: 
               <EntityAvatar initials={c.initials} color={c.color} size={28} />
               <Box>
                 <Typography sx={{ fontSize: 14, fontWeight: 600, lineHeight: 1.2 }}>{c.name}</Typography>
-                <Typography sx={{ fontSize: 11, color: "text.secondary", lineHeight: 1.2 }}>{medalLines[c.slug] ?? c.subtitle}</Typography>
+                <Typography sx={{ fontSize: 12, color: "text.secondary", lineHeight: 1.2 }}>{medalLines[c.slug] ?? c.subtitle}</Typography>
               </Box>
             </Box>
           </Link>

@@ -7,10 +7,11 @@ import { ConferenceStandings } from "./standings/ConferenceStandings";
 // Playoff places: 7 per conference.
 const PLAYOFF_PLACES = 7;
 
-export function NflStandingsCarousel({ conferences }: { conferences: NflConferenceStandings[] }) {
+export function NflStandingsCarousel({ conferences, maxRows }: { conferences: NflConferenceStandings[]; maxRows?: number }) {
   return (
     <ConferenceStandings
       conferences={conferences}
+      maxRows={maxRows}
       columns={[{ label: "W", strong: true }, { label: "L" }]}
       toRow={(row) => ({
         id: row.teamId,

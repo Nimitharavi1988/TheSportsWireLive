@@ -167,7 +167,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
             // Same minimal treatment as the image-overlay credit badges —
             // still a real, clickable attribution link, just not visually
             // competing with the player's name/stats above it.
-            <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 10, display: "block", mb: 3 }}>
+            <Typography variant="caption" sx={{ color: "text.disabled", fontSize: 12, display: "block", mb: 3 }}>
               <a href={photo.creditUrl} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
                 {photo.credit}
               </a>

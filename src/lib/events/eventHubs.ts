@@ -6,6 +6,8 @@
  */
 export interface EventHub {
   eventKey: string;
+  // Name shown on the homepage medal card ("Asian Games").
+  label: string;
   // English Wikipedia page holding the event's medal table (see
   // medalTable.ts for why, and the checks every snapshot passes).
   medalTable?: { wikipediaPage: string };
@@ -16,6 +18,7 @@ export interface EventHub {
 export const EVENT_HUBS: Record<string, EventHub> = {
   "asian-games-2026": {
     eventKey: "asian-games-2026",
+    label: "Asian Games",
     medalTable: { wikipediaPage: "2026_Asian_Games_medal_table" },
     // Checked live 2026-09-26: group standings with M/W/L/NR/PT/NRR.
     cricketStandings: [{ label: "Men's cricket", espnLeagueId: "22547" }],

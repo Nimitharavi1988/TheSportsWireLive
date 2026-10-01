@@ -1,19 +1,23 @@
 "use client";
 
+import { useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import type { ScoreMatch } from "@/lib/scores/scoreboardModel";
 import { useLiveScores } from "./scores/useLiveScores";
 import { TICKER_SIZE } from "@/lib/scores/liveUpdates";
 import { MiniScoreCard } from "./scores/MiniScoreCard";
 
-// Site-wide score strip under the header. Mini versions of the standard
-// score card (src/components/scores/ScoreCard.tsx) from the same data and
-// live/final/upcoming rules as /scores (fetchLiveNow): live games first,
-// then the next kickoffs, then recent results. Was its own query and card
-// style, with "LIVE" guessed from kickoff time and no clock.
+// Site-wide score strip under the header, at every width. Same cards and
+// ordering as the homepage panel (most important first, see
+// lib/scores/priority.ts). A static snap-scrolling row, not a marquee: scores
+// that move can't be read or compared. Replaces the desktop-only marquee and
+// the separate phone row.
 const STRIP_BG = "#e9f1ec";
 
 // The sport of a section page (/sport/cricket, /sport/football/world-cup),
@@ -23,98 +27,66 @@ export function sectionSport(pathname: string | null): string | null {
   return m ? m[1] : null;
 }
 
+// One URL for the strip and the homepage panel, so the browser shares a
+// single response between them.
+export function liveListUrl(sport: string | null | undefined): string {
+  return `/api/scores/live?take=${TICKER_SIZE}${sport ? `&sport=${sport}` : ""}`;
+}
+
 export function LiveTicker({ initial }: { initial: ScoreMatch[] }) {
-  // On a sport's section the strip shows that sport's games (live first) —
-  // the server-rendered list is every sport's, so it's narrowed here and
-  // fetched for the section straight away. Updates in place while games are
-  // live; the strip is hidden on phones (xs, which have their own section
-  // score row), so it only polls from sm up.
+  // On a sport's section the strip shows that sport's games — the
+  // server-rendered list is every sport's, so it's narrowed here and fetched
+  // for the section straight away. Updates in place while games are live.
   const sport = sectionSport(usePathname());
   const start = sport ? initial.filter((m) => m.sport === sport) : initial;
-  const matches = useLiveScores(
-    start,
-    { mode: "list", url: `/api/scores/live?take=${TICKER_SIZE}${sport ? `&sport=${sport}` : ""}`, fetchOnStart: Boolean(sport) },
-    "sm-up"
-  );
+  const matches = useLiveScores(start, { mode: "list", url: liveListUrl(sport), fetchOnStart: Boolean(sport) });
+  const track = useRef<HTMLDivElement | null>(null);
   if (matches.length === 0) return null;
-  // Doubled so the -50% scroll loops seamlessly.
-  const doubled = [...matches, ...matches];
+  const liveCount = matches.filter((m) => m.state === "live").length;
+  const scroll = (dir: -1 | 1) => track.current?.scrollBy({ left: dir * track.current.clientWidth * 0.8, behavior: "smooth" });
 
   return (
-    <Box
-      sx={{
-        display: { xs: "none", sm: "block" },
-        bgcolor: STRIP_BG,
-        borderBottom: "1px solid",
-        borderColor: "divider",
-        overflow: "hidden",
-        position: "relative",
-      }}
-    >
-      <style>{`
-        @keyframes sw-ticker-scroll {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .sw-ticker-track { animation: none !important; }
-        }
-      `}</style>
-      {/* Right-edge fade so cards scroll out smoothly instead of being
-          hard-clipped by the container edge. */}
-      <Box
-        sx={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          right: 0,
-          width: 48,
-          zIndex: 2,
-          pointerEvents: "none",
-          background: `linear-gradient(to right, rgba(233,241,236,0), ${STRIP_BG})`,
-        }}
-      />
-      <Link href={sport ? `/scores?category=${sport}` : "/scores"} aria-label={sport ? `${categoryChipStyle(sport).label} scores` : "All scores"} style={{ position: "absolute", top: 0, bottom: 0, left: 0, zIndex: 3, display: "flex", textDecoration: "none" }}>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          pl: 2,
-          pr: 1.5,
-          background: "linear-gradient(135deg, #2f8a5c 0%, #17512f 100%)",
-        }}
+    <Box component="section" aria-label="Scores" sx={{ display: "flex", alignItems: "stretch", bgcolor: STRIP_BG, borderBottom: "1px solid", borderColor: "divider" }}>
+      <Link
+        href={sport ? `/scores?category=${sport}` : "/scores"}
+        aria-label={sport ? `${categoryChipStyle(sport).label} scores` : "All scores"}
+        style={{ display: "flex", textDecoration: "none", flexShrink: 0 }}
       >
-        <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#fff", mr: 1 }} />
-        <Box
-          component="span"
-          sx={{
-            fontFamily: "var(--font-heading)",
-            fontWeight: 700,
-            fontSize: 11.5,
-            letterSpacing: "0.07em",
-            textTransform: "uppercase",
-            color: "primary.contrastText",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {sport ? categoryChipStyle(sport).label : "Scores"}
+        <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center", px: { xs: 1.5, sm: 2 }, background: "linear-gradient(135deg, #25774d 0%, #17512f 100%)", color: "primary.contrastText" }}>
+          <Box component="span" sx={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: 12, letterSpacing: "0.07em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
+            {sport ? categoryChipStyle(sport).label : "Scores"}
+          </Box>
+          {liveCount > 0 && (
+            <Box component="span" sx={{ fontSize: 12, opacity: 1, whiteSpace: "nowrap" }}>
+              {liveCount} live
+            </Box>
+          )}
         </Box>
-      </Box>
       </Link>
+      <IconButton size="small" onClick={() => scroll(-1)} aria-label="Scroll scores left" sx={{ display: { xs: "none", md: "inline-flex" }, borderRadius: 0 }}>
+        <ChevronLeftIcon fontSize="small" />
+      </IconButton>
       <Box
-        className="sw-ticker-track"
+        ref={track}
         sx={{
+          flex: 1,
+          minWidth: 0,
           display: "flex",
-          width: "max-content",
-          animation: "sw-ticker-scroll 90s linear infinite",
-          pl: "120px",
-          "&:hover": { animationPlayState: "paused" },
+          overflowX: "auto",
+          scrollSnapType: "x proximity",
+          px: 0.6,
+          "&::-webkit-scrollbar": { height: 6 },
+          "&::-webkit-scrollbar-thumb": { backgroundColor: "divider", borderRadius: 3 },
+          "& > a": { flexShrink: 0, scrollSnapAlign: "start" },
         }}
       >
-        {doubled.map((match, i) => (
-          <MiniScoreCard key={`${match.id}-${i}`} match={match} />
+        {matches.map((match) => (
+          <MiniScoreCard key={match.id} match={match} />
         ))}
       </Box>
+      <IconButton size="small" onClick={() => scroll(1)} aria-label="Scroll scores right" sx={{ display: { xs: "none", md: "inline-flex" }, borderRadius: 0 }}>
+        <ChevronRightIcon fontSize="small" />
+      </IconButton>
     </Box>
   );
 }

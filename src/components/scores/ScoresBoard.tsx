@@ -4,13 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import type { ScoreMatch } from "@/lib/scores/scoreboardModel";
-import { LeagueScoresCard } from "./ScoreCard";
+import { EVENT_HOT_MS, detectEvents, matchPriority, type MatchEvent } from "@/lib/scores/priority";
+import { LeagueTiles } from "./LeagueTiles";
 import { useLiveScores } from "./useLiveScores";
 import { dayKey, useViewerTimeZone } from "./useViewerTimeZone";
 
 const DAY_MS = 86_400_000;
 
-const STATE_ORDER = { live: 0, paused: 1, started: 2, upcoming: 3, final: 4 } as const;
 const inPlay = (m: ScoreMatch) => m.state === "live" || m.state === "paused" || m.state === "started";
 
 function dayLabel(key: string, todayKey: string): string {
@@ -26,7 +26,10 @@ interface LeagueGroup {
   matches: ScoreMatch[];
 }
 
-function groupByLeague(matches: ScoreMatch[]): LeagueGroup[] {
+// Leagues ordered by their most important game (a live Premier League
+// match, or one that just had a goal, leads); games within a league the same
+// way. Ties fall back to kickoff time so the order is stable between polls.
+function groupByLeague(matches: ScoreMatch[], now: number, events: Map<string, MatchEvent>): LeagueGroup[] {
   const groups = new Map<string, ScoreMatch[]>();
   for (const m of matches) {
     const list = groups.get(m.leagueLabel) ?? [];
@@ -34,16 +37,10 @@ function groupByLeague(matches: ScoreMatch[]): LeagueGroup[] {
     groups.set(m.leagueLabel, list);
   }
   const kickoff = (m: ScoreMatch) => (m.kickoffAt ? Date.parse(m.kickoffAt) : 0);
+  const rank = (m: ScoreMatch) => matchPriority(m, now, events.get(m.id));
   return [...groups.entries()]
-    .map(([league, list]) => ({
-      league,
-      matches: list.sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || kickoff(a) - kickoff(b)),
-    }))
-    .sort((a, b) => {
-      const aLive = a.matches.some(inPlay) ? 0 : 1;
-      const bLive = b.matches.some(inPlay) ? 0 : 1;
-      return aLive - bLive || kickoff(a.matches[0]) - kickoff(b.matches[0]);
-    });
+    .map(([league, list]) => ({ league, matches: list.sort((a, b) => rank(b) - rank(a) || kickoff(a) - kickoff(b)) }))
+    .sort((a, b) => rank(b.matches[0]) - rank(a.matches[0]) || kickoff(a.matches[0]) - kickoff(b.matches[0]));
 }
 
 export function ScoresBoard({ matches: initial, emptyLabel }: { matches: ScoreMatch[]; emptyLabel: string }) {
@@ -51,6 +48,30 @@ export function ScoresBoard({ matches: initial, emptyLabel }: { matches: ScoreMa
   const matches = useLiveScores(initial, { mode: "merge" });
   const timeZone = useViewerTimeZone();
   const [picked, setPicked] = useState<string | null>(null);
+
+  // What just happened (goal, wicket, kick-off, full time), found by
+  // comparing each poll with the last. Events keep their game near the top
+  // for EVENT_HOT_MS, then expire.
+  const [events, setEvents] = useState<Map<string, MatchEvent>>(() => new Map());
+  const [clock, setClock] = useState(() => Date.now());
+  const previous = useRef(matches);
+  useEffect(() => {
+    const found = detectEvents(previous.current, matches, Date.now());
+    previous.current = matches;
+    if (found.size === 0) return;
+    // Syncing derived state from an external (polled) change.
+    setEvents((old) => new Map([...old, ...found]));
+    setClock(Date.now());
+  }, [matches]);
+  useEffect(() => {
+    if (events.size === 0) return;
+    const timer = setTimeout(() => {
+      const t = Date.now();
+      setClock(t);
+      setEvents((old) => new Map([...old].filter(([, e]) => t - e.at < EVENT_HOT_MS)));
+    }, EVENT_HOT_MS);
+    return () => clearTimeout(timer);
+  }, [events]);
 
   const { todayKey, byDay, days } = useMemo(() => {
     const todayKey = dayKey(new Date(), timeZone);
@@ -75,7 +96,7 @@ export function ScoresBoard({ matches: initial, emptyLabel }: { matches: ScoreMa
     [...days].reverse().find((d) => byDay.get(d)?.length) ??
     todayKey;
   const selected = picked && days.includes(picked) ? picked : defaultDay;
-  const groups = groupByLeague(byDay.get(selected) ?? []);
+  const groups = groupByLeague(byDay.get(selected) ?? [], clock, events);
 
   // On a phone the day strip scrolls sideways and starts at the earliest
   // day — keep the selected day (usually Today) in view.
@@ -133,10 +154,10 @@ export function ScoresBoard({ matches: initial, emptyLabel }: { matches: ScoreMa
       {groups.length === 0 ? (
         <Typography sx={{ color: "text.secondary", py: 5, textAlign: "center" }}>{emptyLabel}</Typography>
       ) : (
-        // One card per league (Google-style); two columns on wide screens.
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "repeat(2, minmax(0, 1fr))" }, gap: 2, alignItems: "start" }}>
+        // One section per league: its name over a grid of score tiles.
+        <Box>
           {groups.map((g) => (
-            <LeagueScoresCard key={g.league} league={g.league} matches={g.matches} />
+            <LeagueTiles key={g.league} league={g.league} matches={g.matches} events={events} />
           ))}
         </Box>
       )}

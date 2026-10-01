@@ -24,7 +24,7 @@ export async function GET(request: Request) {
       matches = await fetchLiveNow({ take, sport: sport && /^[a-z-]{1,30}$/.test(sport) ? sport : undefined });
     }
     // Short browser cache: several widgets/tabs polling at once share it.
-    return NextResponse.json({ matches }, { headers: { "Cache-Control": "public, max-age=20" } });
+    return NextResponse.json({ matches }, { headers: { "Cache-Control": "public, max-age=15" } });
   } catch (err) {
     console.error("live scores endpoint failed:", err);
     return NextResponse.json({ matches: [] }, { status: 500 });

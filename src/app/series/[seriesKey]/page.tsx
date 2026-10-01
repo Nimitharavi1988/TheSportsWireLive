@@ -1,6 +1,8 @@
 import { EVENT_HUBS } from "@/lib/events/eventHubs";
 import { eventLabel } from "@/lib/ingestion/eventTagging";
 import { getMedalTable } from "@/lib/events/queries";
+import { fetchSeriesScoreboard } from "@/lib/scores/scoreboard";
+import { LeagueTiles } from "@/components/scores/LeagueTiles";
 import type { CricketGroup } from "@/lib/events/cricketStandings";
 import { SNAPSHOT_KEYS, readSnapshot } from "@/lib/snapshots/read";
 import { MedalTableCard } from "@/components/events/MedalTableCard";
@@ -67,6 +69,10 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
     Promise.all((hub?.cricketStandings ?? []).map(async (s) => ({ label: s.label, groups: (await readSnapshot<CricketGroup[]>(SNAPSHOT_KEYS.cricketStandings(s.espnLeagueId))) ?? [] }))),
   ]);
 
+  // Only the multi-sport event hubs get a scores section here; a plain series
+  // page stays stories-only.
+  const matches = hub ? await fetchSeriesScoreboard(seriesKey).catch(() => []) : [];
+
   const [series, articles] = await Promise.all([
     findSeries(seriesKey),
     // Chronological, not trending — a series page is followed like a live
@@ -119,6 +125,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
           </Box>
         </Box>
       )}
+      {matches.length > 0 && <LeagueTiles league="Matches and results" matches={matches} />}
       <Box sx={{ mb: 3 }}>
         <FollowButton kind="series" slug={seriesKey} name={series.seriesLabel ?? "this series"} size="medium" />
       </Box>

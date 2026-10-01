@@ -5,10 +5,11 @@
  * matchDataSources.ts, not a per-sport list here.
  */
 import { db } from "@/db";
-import { article } from "@/db/schema";
+import { article, video } from "@/db/schema";
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, like, lte, ne, or, sql } from "drizzle-orm";
 import { MATCH_DATA_SOURCE_NAMES } from "../matchDataSources";
 import { findNewsBasedCricketMatches } from "../liveCricket";
+import { byPriority } from "./priority";
 import { CRICKET_STALE_MS, toScoreMatch, type MatchRow, type ScoreMatch } from "./scoreboardModel";
 
 // Enough for a busy weekend window across every sport, while keeping the
@@ -46,6 +47,26 @@ const MATCH_COLUMNS = {
   matchKey: article.matchKey,
 };
 
+// Links each finished match to its official highlights video, if any
+// (video.matchArticleId, set by youtubeSync). One query for the whole list;
+// a failed lookup just leaves the cards without highlights.
+async function withHighlights(matches: ScoreMatch[]): Promise<ScoreMatch[]> {
+  const ids = matches.filter((m) => m.state === "final").map((m) => m.id);
+  if (ids.length === 0) return matches;
+  try {
+    const rows = await db
+      .select({ articleId: video.matchArticleId, youtubeId: video.youtubeId, title: video.title })
+      .from(video)
+      .where(inArray(video.matchArticleId, ids))
+      .orderBy(asc(video.publishedAt));
+    const byArticle = new Map(rows.map((r) => [r.articleId, { youtubeId: r.youtubeId, title: r.title }]));
+    return matches.map((m) => (byArticle.has(m.id) ? { ...m, highlight: byArticle.get(m.id) } : m));
+  } catch (err) {
+    console.error("score highlights lookup failed:", err);
+    return matches;
+  }
+}
+
 // The match header on a story page: the same card data, as of now.
 export function currentScoreMatch(row: MatchRow): ScoreMatch | null {
   return toScoreMatch(row, new Date());
@@ -60,10 +81,10 @@ export async function fetchScoreMatchesByIds(ids: string[]): Promise<ScoreMatch[
     .select(MATCH_COLUMNS)
     .from(article)
     .where(and(eq(article.status, "published"), inArray(article.id, ids)));
-  return rows.flatMap((r) => {
+  return withHighlights(rows.flatMap((r) => {
     const m = toScoreMatch(r, now);
     return m ? [m] : [];
-  });
+  }));
 }
 
 // Games kicking off within `windowMs` either side of now, plus any cricket match still
@@ -102,7 +123,7 @@ export async function fetchScoreboard(opts: { windowMs: number; sport?: string }
   });
 
   const wantsCricket = !opts.sport || opts.sport === "cricket";
-  return wantsCricket ? [...(await newsDerivedCricket(matches, now)), ...matches] : matches;
+  return withHighlights(wantsCricket ? [...(await newsDerivedCricket(matches, now)), ...matches] : matches);
 }
 
 // Big internationals the free CricketData feed doesn't carry still get a
@@ -151,29 +172,21 @@ async function newsDerivedCricket(existing: ScoreMatch[], now: Date): Promise<Sc
     }));
 }
 
-const LIVE_NOW_WINDOW_MS = 36 * 60 * 60 * 1000;
-const STATE_RANK = { live: 0, paused: 1, started: 2, upcoming: 3, final: 4 } as const;
+// Four days either side: wide enough for a marquee fixture (an India Test
+// three days out) to be ranked into the strip. priority.ts penalises minor
+// games beyond 36 hours, so they do not crowd it.
+const LIVE_NOW_WINDOW_MS = 4 * 24 * 60 * 60 * 1000;
 
-// Homepage "Live now" box and the site-wide score strip: live games first,
-// then the soonest kickoffs, then the most recent results — the same cards
-// and live/final/upcoming rules as /scores, over a shorter window.
+
+// Homepage panel and the site-wide score strip: most important first
+// (priority.ts — live games and big competitions lead, then games starting
+// soon, then recent results), same cards and rules as /scores.
 export async function fetchLiveNow(opts: { take: number; sport?: string }): Promise<ScoreMatch[]> {
   const matches = await fetchScoreboard({ windowMs: LIVE_NOW_WINDOW_MS, sport: opts.sport });
-  const kickoff = (m: ScoreMatch) => (m.kickoffAt ? Date.parse(m.kickoffAt) : 0);
-  return matches
-    .sort((a, b) => {
-      const byState = STATE_RANK[a.state] - STATE_RANK[b.state];
-      if (byState !== 0) return byState;
-      // Among live games, ones with a real score/clock lead; headline-only
-      // cards (no score feed for that match) come after them.
-      if (a.state === "live") {
-        const detail = (m: ScoreMatch) => (m.home.score !== null || m.clock ? 0 : 1);
-        const byDetail = detail(a) - detail(b);
-        if (byDetail !== 0) return byDetail;
-      }
-      return a.state === "final" ? kickoff(b) - kickoff(a) : kickoff(a) - kickoff(b);
-    })
-    .slice(0, opts.take);
+  // Headline-only live cards (no score feed for that match) trail the rest.
+  const detail = (m: ScoreMatch) => (m.state === "live" && m.home.score === null && !m.clock ? 1 : 0);
+  const rank = byPriority(Date.now());
+  return matches.sort((a, b) => detail(a) - detail(b) || rank(a, b)).slice(0, opts.take);
 }
 
 // Matches at one ground (lib/venues.ts matchTerms against Article.venue,
@@ -215,6 +228,13 @@ export async function fetchSeriesMatches(seriesKey: string, limit = 12): Promise
     const m = toScoreMatch(r, now);
     return m ? [m] : [];
   });
+}
+
+// A series or event's matches for its hub page: live first, then the rest by
+// importance (priority.ts), with highlights where a video is linked.
+export async function fetchSeriesScoreboard(seriesKey: string, limit = 24): Promise<ScoreMatch[]> {
+  const matches = await fetchSeriesMatches(seriesKey, 80);
+  return withHighlights(matches.sort(byPriority(Date.now())).slice(0, limit));
 }
 
 // Matches between the given teams (either as home or away) within `days`

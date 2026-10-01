@@ -37,6 +37,16 @@ describe("medalTableProblem", () => {
     expect(medalTableProblem({ ...good, totals: { gold: 1, silver: 1, bronze: 1, total: 3 } }, null)).toMatch(/totals/);
   });
 
+  it("accepts a medal moving between columns while the total rises (reclassification)", () => {
+    const later = { ...good, rows: good.rows.map((r) => (r.nation === "China" ? { ...r, gold: r.gold - 1, silver: r.silver + 3, total: r.total + 2 } : r)), totals: null };
+    expect(medalTableProblem(later, good)).toBeNull();
+  });
+
+  it("rejects a column collapsing even when the total rises", () => {
+    const later = { ...good, rows: good.rows.map((r) => (r.nation === "China" ? { ...r, gold: r.gold - 30, silver: r.silver + 40, total: r.total + 10 } : r)), totals: null };
+    expect(medalTableProblem(later, good)).toMatch(/gold medals dropped/);
+  });
+
   it("rejects a snapshot where a nation's medals went down (vandalism)", () => {
     const later = { ...good, rows: good.rows.map((r) => (r.nation === "China" ? { ...r, gold: 98, total: 161 } : r)), totals: null };
     expect(medalTableProblem(later, good)).toMatch(/China's medals went down/);

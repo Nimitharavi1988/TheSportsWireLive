@@ -49,6 +49,8 @@ export interface ScoreMatch {
   // updated from it (ISO) — shown so readers can judge how current it is.
   source: string;
   updatedAt: string;
+  // Official highlights of a finished match (YouTube), when one is linked.
+  highlight?: { youtubeId: string; title: string } | null;
 }
 
 export interface MatchRow {

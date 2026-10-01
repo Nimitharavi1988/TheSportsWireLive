@@ -4,6 +4,9 @@ import Typography from "@mui/material/Typography";
 import type { ScoreMatch, ScoreSide } from "@/lib/scores/scoreboardModel";
 import { KickoffTime } from "./KickoffTime";
 import { CardSource } from "./DataFreshness";
+import { HighlightsToggle } from "./HighlightsToggle";
+import { splitScore } from "@/lib/scores/displayScore";
+import type { MatchEvent } from "@/lib/scores/priority";
 import { TeamCrest } from "@/components/TeamCrest";
 
 // Score list, modelled on Google's sports cards: one card per league, one
@@ -86,20 +89,51 @@ function StatusColumn({ match }: { match: ScoreMatch }) {
   return (
     <Box>
       {match.kickoffAt ? <KickoffTime iso={match.kickoffAt} /> : <span>Upcoming</span>}
-      {match.broadcast && <Box sx={{ fontSize: 11, color: "text.disabled" }}>{match.broadcast}</Box>}
+      {match.broadcast && <Box sx={{ fontSize: 12, color: "text.disabled" }}>{match.broadcast}</Box>}
     </Box>
   );
 }
 
-export function ScoreRow({ match }: { match: ScoreMatch }) {
+// Brief banner when something just happened in a game (goal, wicket, ...).
+// Keyed on the event time so each new event replays the flash.
+export function EventChip({ event }: { event: MatchEvent }) {
+  return (
+    <Box
+      key={event.at}
+      role="status"
+      sx={{
+        gridColumn: "1 / -1",
+        mt: 0.5,
+        px: 1,
+        py: 0.25,
+        borderRadius: 1,
+        fontSize: 12,
+        fontWeight: 700,
+        color: "#b71c1c",
+        bgcolor: "rgba(211,47,47,0.08)",
+        animation: "swlEventFlash 2.4s ease-out 1",
+        "@keyframes swlEventFlash": { from: { bgcolor: "rgba(211,47,47,0.35)" }, to: { bgcolor: "rgba(211,47,47,0.08)" } },
+        "@media (prefers-reduced-motion: reduce)": { animation: "none" },
+      }}
+    >
+      {event.label}
+    </Box>
+  );
+}
+
+export function ScoreRow({ match, event }: { match: ScoreMatch; event?: MatchEvent }) {
   const isFinal = match.state === "final";
   const hasScores = match.home.score !== null || match.away.score !== null;
   const score = (side: ScoreSide) => (
     <Typography component="div" sx={{ fontSize: 15, lineHeight: "28px", fontWeight: isFinal && side.winner ? 700 : 500, color: isFinal && !side.winner ? "text.secondary" : "text.primary", whiteSpace: "nowrap" }}>
-      {side.score ?? ""}
+      {splitScore(side.score).main}
+      {splitScore(side.score).detail && (
+        <Box component="span" sx={{ ml: 0.75, fontSize: 12, fontWeight: 400, color: "text.secondary" }}>{splitScore(side.score).detail}</Box>
+      )}
     </Typography>
   );
   return (
+    <>
     <Link href={`/article/${match.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
       <Box
         sx={{
@@ -130,6 +164,7 @@ export function ScoreRow({ match }: { match: ScoreMatch }) {
         <Box sx={{ alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "flex-end", textAlign: "right", pl: 1.5, borderLeft: "1px solid", borderColor: "divider", fontSize: 12, color: "text.secondary", lineHeight: 1.35 }}>
           <StatusColumn match={match} />
         </Box>
+        {event && <EventChip event={event} />}
         {match.note && (
           <Typography sx={{ gridColumn: "1 / -1", mt: 0.25, fontSize: 12, color: "text.secondary", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
             {match.note}
@@ -137,20 +172,23 @@ export function ScoreRow({ match }: { match: ScoreMatch }) {
         )}
       </Box>
     </Link>
+    {/* Outside the Link: a button inside an anchor is invalid HTML. */}
+    {isFinal && match.highlight && <HighlightsToggle youtubeId={match.highlight.youtubeId} title={match.highlight.title} />}
+    </>
   );
 }
 
 // One league's matches in a single card, with where the data comes from.
-export function LeagueScoresCard({ league, matches }: { league: string; matches: ScoreMatch[] }) {
+export function LeagueScoresCard({ league, matches, events }: { league: string; matches: ScoreMatch[]; events?: Map<string, MatchEvent> }) {
   return (
     <Box component="section" aria-label={league} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3, bgcolor: "background.paper", overflow: "hidden" }}>
       <Typography component="h2" sx={{ px: 2, py: 1.25, fontSize: 15, fontWeight: 700 }}>
         {league}
       </Typography>
       {matches.map((m) => (
-        <ScoreRow key={m.id} match={m} />
+        <ScoreRow key={m.id} match={m} event={events?.get(m.id)} />
       ))}
-      <Typography component="div" sx={{ px: 2, py: 0.75, fontSize: 11, color: "text.disabled", borderTop: "1px solid", borderColor: "divider" }}>
+      <Typography component="div" sx={{ px: 2, py: 0.75, fontSize: 12, color: "text.disabled", borderTop: "1px solid", borderColor: "divider" }}>
         <CardSource matches={matches} />
       </Typography>
     </Box>

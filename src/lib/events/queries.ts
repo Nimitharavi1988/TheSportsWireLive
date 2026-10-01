@@ -15,6 +15,13 @@ export async function getMedalTable(eventKey: string): Promise<StoredMedalTable 
   return row ? { table: row.data as MedalTable, sourceUrl: row.sourceUrl, fetchedAt: row.fetchedAt.toISOString() } : null;
 }
 
+// The medal table only if it was synced within `maxAgeMs` (null otherwise), so
+// a card built on it disappears by itself once the Games end and the sync stops.
+export async function getFreshMedalTable(eventKey: string, maxAgeMs: number): Promise<StoredMedalTable | null> {
+  const medals = await getMedalTable(eventKey);
+  return medals && medals.table.rows.length > 0 && Date.now() - Date.parse(medals.fetchedAt) <= maxAgeMs ? medals : null;
+}
+
 // "China 99 · Japan 29 · South Korea 13 gold" per event with a medal table,
 // for the compact "Happening now" tiles.
 export async function getMedalLeaderLines(): Promise<Record<string, string>> {
