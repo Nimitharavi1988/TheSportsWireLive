@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { matchRefreshValues, supersedingRefreshValues } from "./matchRefresh";
+import { matchRefreshValues, placeholderResolution, supersedingRefreshValues } from "./matchRefresh";
 import type { RawMatchItem } from "./footballData";
 
 const now = new Date("2026-09-27T19:00:00Z");
@@ -64,5 +64,67 @@ describe("supersedingRefreshValues", () => {
     const v = supersedingRefreshValues(espn, { homeTeam: "Essex" }, now);
     expect(v.homeScoreText).toBe("129 & 116/1 (35 ov) (f/o)");
     expect(v.awayScoreText).toBe("505");
+  });
+});
+
+// The Asian Games semi-finals, 2026-09-30: stored as "TBA v TBA" and rejected
+// as placeholders; ESPN later named India v Sri Lanka.
+describe("placeholder fixtures", () => {
+  const semi = (o: Partial<RawMatchItem> = {}) =>
+    item({
+      title: "India vs Sri Lanka, Asian Games Men's Cricket Competition",
+      summary: "India face Sri Lanka in the Asian Games Men's Cricket Competition on Oct 1.",
+      body: "India face Sri Lanka at Korogi Sports Park, Nisshin.",
+      sourceName: "ESPN Cricket",
+      category: "cricket",
+      homeTeam: "India",
+      awayTeam: "Sri Lanka",
+      homeCrestUrl: "https://crest/india.png",
+      awayCrestUrl: undefined,
+      dedupeKey: "espn-cricket-1552777",
+      ...o,
+    });
+  const rejectedTba = { homeTeam: "TBA", awayTeam: "TBA", status: "rejected", rejectionReason: "placeholder fixture (teams TBA)" };
+
+  it("gives the row its real teams, title and crests, and reopens it for auto-approve", () => {
+    const v = placeholderResolution(rejectedTba, semi(), now);
+    expect(v).toMatchObject({
+      homeTeam: "India",
+      awayTeam: "Sri Lanka",
+      title: "India vs Sri Lanka, Asian Games Men's Cricket Competition",
+      homeCrestUrl: "https://crest/india.png",
+      status: "pending_review",
+      rejectionReason: null,
+    });
+    // A slug naming the real teams (the rejected page was never public).
+    expect(v?.slug).toMatch(/^india-vs-sri-lanka-asian-games-men-s-cricket-competition-\d+$/);
+  });
+
+  it("is applied by matchRefreshValues alongside the score refresh", () => {
+    const v = matchRefreshValues(semi({ matchStatus: "scheduled" }), "scheduled", now, rejectedTba);
+    expect(v).toMatchObject({ homeTeam: "India", awayTeam: "Sri Lanka", status: "pending_review", matchStatus: "scheduled" });
+    expect(v.matchKey).toBe("cricket:2026-09-27:india-v-sri-lanka");
+  });
+
+  it("fixes the names but leaves the status of a row that was not rejected as a placeholder", () => {
+    const published = placeholderResolution({ ...rejectedTba, status: "published", rejectionReason: null }, semi(), now);
+    expect(published).toMatchObject({ homeTeam: "India", awayTeam: "Sri Lanka" });
+    expect(published).not.toHaveProperty("status");
+    expect(published).not.toHaveProperty("slug");
+    const other = placeholderResolution({ ...rejectedTba, rejectionReason: "profanity" }, semi(), now);
+    expect(other).not.toHaveProperty("status");
+  });
+
+  it("does nothing while the source still says TBA, or for a normal row", () => {
+    expect(placeholderResolution(rejectedTba, semi({ homeTeam: "TBA", awayTeam: "TBA" }), now)).toBeNull();
+    expect(placeholderResolution(rejectedTba, semi({ awayTeam: "TBC" }), now)).toBeNull();
+    expect(placeholderResolution({ homeTeam: "India", awayTeam: "Sri Lanka", status: "published", rejectionReason: null }, semi(), now)).toBeNull();
+    expect(placeholderResolution(undefined, semi(), now)).toBeNull();
+    // Non-match rows carry no teams at all.
+    expect(placeholderResolution({ homeTeam: null, awayTeam: null, status: "published", rejectionReason: null }, semi(), now)).toBeNull();
+  });
+
+  it("resolves a row where only one side was a placeholder", () => {
+    expect(placeholderResolution({ ...rejectedTba, homeTeam: "India" }, semi(), now)).toMatchObject({ awayTeam: "Sri Lanka", status: "pending_review" });
   });
 });

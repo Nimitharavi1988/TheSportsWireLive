@@ -140,13 +140,18 @@ export async function runLiveRefresh(now: Date = new Date()): Promise<LiveRefres
     const hashes = items.flatMap((i) => (i.dedupeKey ? [computeStableDedupeHash(i.dedupeKey)] : []));
     if (hashes.length === 0) continue;
     const existingRows = await db
-      .select({ id: article.id, dedupeHash: article.dedupeHash, matchStatus: article.matchStatus })
+      .select({
+        id: article.id, dedupeHash: article.dedupeHash, matchStatus: article.matchStatus,
+        homeTeam: article.homeTeam, awayTeam: article.awayTeam, status: article.status, rejectionReason: article.rejectionReason,
+      })
       .from(article)
       .where(inArray(article.dedupeHash, hashes));
     const existingByHash = new Map(existingRows.map((r) => [r.dedupeHash, r]));
 
     for (const { item, id, existingMatchStatus } of itemsToRefresh(items, existingByHash, now)) {
-      await db.update(article).set(matchRefreshValues(item, existingMatchStatus, now)).where(eq(article.id, id));
+      // The stored row, so a placeholder fixture whose teams are now known is fixed too.
+      const row = item.dedupeKey ? existingByHash.get(computeStableDedupeHash(item.dedupeKey)) : undefined;
+      await db.update(article).set(matchRefreshValues(item, existingMatchStatus, now, row)).where(eq(article.id, id));
       result.updated++;
       if (item.matchStatus === "finished") result.finished++;
     }
