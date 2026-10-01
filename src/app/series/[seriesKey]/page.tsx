@@ -2,6 +2,8 @@ import { EVENT_HUBS } from "@/lib/events/eventHubs";
 import { eventLabel } from "@/lib/ingestion/eventTagging";
 import { getMedalTable } from "@/lib/events/queries";
 import { fetchSeriesScoreboard } from "@/lib/scores/scoreboard";
+import { getMedalists } from "@/lib/events/athleteRead";
+import { GamesMedallists } from "@/components/events/GamesMedallists";
 import { LeagueTiles } from "@/components/scores/LeagueTiles";
 import type { CricketGroup } from "@/lib/events/cricketStandings";
 import { SNAPSHOT_KEYS, readSnapshot } from "@/lib/snapshots/read";
@@ -72,6 +74,8 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
   // Only the multi-sport event hubs get a scores section here; a plain series
   // page stays stories-only.
   const matches = hub ? await fetchSeriesScoreboard(seriesKey).catch(() => []) : [];
+  // The medallists of the Games, where the event has them (athleteSync.ts).
+  const medallists = hub?.athletes ? await getMedalists(seriesKey, hub.athletes.country) : null;
 
   const [series, articles] = await Promise.all([
     findSeries(seriesKey),
@@ -125,6 +129,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
           </Box>
         </Box>
       )}
+      {medallists && medallists.medals.length > 0 && <GamesMedallists list={medallists} />}
       {matches.length > 0 && <LeagueTiles league="Matches and results" matches={matches} />}
       <Box sx={{ mb: 3 }}>
         <FollowButton kind="series" slug={seriesKey} name={series.seriesLabel ?? "this series"} size="medium" />

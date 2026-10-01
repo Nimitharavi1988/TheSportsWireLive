@@ -10,6 +10,7 @@ import { eventData } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { EVENT_HUBS } from "./eventHubs";
 import { medalTableProblem, parseMedalTable, type MedalTable } from "./medalTable";
+import { syncAthletes } from "./athleteSync";
 
 // Wikimedia asks API clients to identify themselves.
 const USER_AGENT = "SportsWireLive/1.0 (https://sportswirelive.com; hyperianaillc@gmail.com)";
@@ -44,7 +45,8 @@ export async function syncEventData(): Promise<void> {
 }
 
 if (require.main === module) {
-  syncEventData().then(() => process.exit(0)).catch((err) => {
+  // The medal table, then the medallists and their profiles (same Wikipedia sync).
+  syncEventData().then(() => syncAthletes()).then(() => process.exit(0)).catch((err) => {
     console.error(err);
     process.exit(1);
   });

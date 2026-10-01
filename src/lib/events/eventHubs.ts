@@ -13,6 +13,9 @@ export interface EventHub {
   medalTable?: { wikipediaPage: string };
   // Group tables from ESPN's cricket standings (league id from ESPN).
   cricketStandings?: { label: string; espnLeagueId: string }[];
+  // A country's medallists and their profiles, from its Wikipedia page "X at the
+  // 2026 Asian Games" (athletes.ts, athleteSync.ts). One entry per country shown.
+  athletes?: { wikipediaPage: string; country: string };
 }
 
 export const EVENT_HUBS: Record<string, EventHub> = {
@@ -22,5 +25,7 @@ export const EVENT_HUBS: Record<string, EventHub> = {
     medalTable: { wikipediaPage: "2026_Asian_Games_medal_table" },
     // Checked live 2026-09-26: group standings with M/W/L/NR/PT/NRR.
     cricketStandings: [{ label: "Men's cricket", espnLeagueId: "22547" }],
+    // India first: the site's audience, and the page with the fullest medallist table (checked 2026-10-02: 63 medals).
+    athletes: { wikipediaPage: "India_at_the_2026_Asian_Games", country: "India" },
   },
 };
