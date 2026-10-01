@@ -12,12 +12,14 @@
  */
 import { espnFetch } from "../espnFetch";
 import { resolveEspnSoccerGame, SOCCER_LEAGUE_CODES } from "./espnSoccerLookup";
+import { fetchMlbBoxScore, mlbGamePk } from "./mlbBoxScore";
 
 export interface StatGroup {
   // "Passing", "Forwards", or "Players" when the sport has one table.
   title: string;
   labels: string[];
-  rows: { name: string; stats: string[] }[];
+  // `detail`: a line under the name (a baseball player's position).
+  rows: { name: string; stats: string[]; detail?: string }[];
   totals: string[] | null;
 }
 
@@ -40,7 +42,16 @@ export interface Lineup {
   bench: { jersey: string; name: string }[];
 }
 
+// Runs by inning with the R/H/E columns (baseball).
+export interface LineScore {
+  innings: string[];
+  rows: { team: string; values: string[]; totals: string[] }[];
+}
+
 export interface BoxScore {
+  // "ESPN", "MLB" — credited under the box score.
+  source: string;
+  lineScore?: LineScore;
   // The two teams named in `teamStats`, in column order.
   statTeams: [string, string];
   // Both teams' totals side by side: Possession 50.8 / 49.2.
@@ -125,7 +136,7 @@ function parseLineups(summary: any): Lineup[] {
 // Pure, unit-tested: ESPN summary -> what the page shows.
 export function parseBoxScore(summary: unknown): BoxScore {
   const names = (summary as any)?.boxscore?.teams?.map((t: any) => t.team?.displayName ?? "") ?? [];
-  return { statTeams: [names[0] ?? "", names[1] ?? ""], teamStats: parseTeamStats(summary), teams: parseTeams(summary), events: parseEvents(summary), lineups: parseLineups(summary) };
+  return { source: "ESPN", statTeams: [names[0] ?? "", names[1] ?? ""], teamStats: parseTeamStats(summary), teams: parseTeams(summary), events: parseEvents(summary), lineups: parseLineups(summary) };
 }
 
 // ESPN lists the away team first; the match header puts the home team on the
@@ -140,7 +151,7 @@ export function homeFirst(box: BoxScore, homeName: string): BoxScore {
 }
 
 export function hasBoxScore(b: BoxScore): boolean {
-  return b.teams.some((t) => t.groups.length > 0) || b.events.length > 0 || b.lineups.some((l) => l.starters.length > 0);
+  return b.teams.some((t) => t.groups.length > 0) || Boolean(b.lineScore) || b.events.length > 0 || b.lineups.some((l) => l.starters.length > 0);
 }
 
 // Live matches refresh quickly; finished ones barely change.
@@ -153,6 +164,12 @@ export interface MatchContext {
 }
 
 export async function fetchBoxScore(sourceUrl: string, leagueLabel: string, inPlay: boolean, match: MatchContext): Promise<BoxScore | null> {
+  // MLB games link to mlb.com and come from MLB's own API.
+  const pk = mlbGamePk(sourceUrl);
+  if (pk) {
+    const box = await fetchMlbBoxScore(pk, inPlay);
+    return box ? homeFirst(box, match.home) : null;
+  }
   const ref = espnGameRef(sourceUrl, leagueLabel) ?? (await resolveEspnSoccerGame(leagueLabel, match.kickoffAt, match.home, match.away));
   if (!ref) return null;
   try {

@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import { fetchBoxScore, type BoxScore, type MatchContext, type Lineup, type MatchEvent, type StatGroup } from "@/lib/scores/espnBoxScore";
+import { fetchBoxScore, type BoxScore, type LineScore, type MatchContext, type Lineup, type MatchEvent, type StatGroup } from "@/lib/scores/espnBoxScore";
 import { UnderlineTabs } from "./UnderlineTabs";
 
 // Box score under the match header (basketball, hockey, NFL, college
@@ -34,7 +34,10 @@ function StatTable({ group }: { group: StatGroup }) {
         <tbody>
           {group.rows.map((r, ri) => (
             <tr key={`${r.name}${ri}`}>
-              <Box component="td" sx={{ ...nameCell, fontWeight: 500 }}>{r.name}</Box>
+              <Box component="td" sx={{ ...nameCell, fontWeight: 500 }}>
+                {r.name}
+                {r.detail && <Box component="div" sx={{ fontSize: 12, fontWeight: 400, color: "text.secondary" }}>{r.detail}</Box>}
+              </Box>
               {r.stats.map((v, i) => (
                 <Box component="td" key={i} sx={{ ...cell, pr: i === r.stats.length - 1 ? 2 : 0.75 }}>{v}</Box>
               ))}
@@ -51,6 +54,43 @@ function StatTable({ group }: { group: StatGroup }) {
         </tbody>
       </Box>
     </Box>
+  );
+}
+
+// Runs by inning, then R, H, E — the heart of a baseball box score.
+function LineScoreCard({ line }: { line: LineScore }) {
+  const num = { px: 0.75, textAlign: "center" as const, fontVariantNumeric: "tabular-nums", minWidth: 26 };
+  return (
+    <Card title="Line score">
+      <Box sx={{ overflowX: "auto" }}>
+        <Box component="table" sx={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, "& td, & th": { py: 0.9 }, "& tbody tr": { borderTop: "1px solid", borderColor: "divider" } }}>
+          <thead>
+            <Box component="tr" sx={{ color: "text.secondary", fontSize: 12, bgcolor: "action.hover", "& th": { fontWeight: 600 } }}>
+              <Box component="th" sx={{ ...nameCell, bgcolor: "action.hover" }}>Team</Box>
+              {line.innings.map((n) => (
+                <Box component="th" key={n} sx={num}>{n}</Box>
+              ))}
+              {["R", "H", "E"].map((l) => (
+                <Box component="th" key={l} sx={{ ...num, borderLeft: l === "R" ? "1px solid" : undefined, borderColor: "divider" }}>{l}</Box>
+              ))}
+            </Box>
+          </thead>
+          <tbody>
+            {line.rows.map((r) => (
+              <tr key={r.team}>
+                <Box component="td" sx={{ ...nameCell, fontWeight: 600 }}>{r.team}</Box>
+                {r.values.map((v, i) => (
+                  <Box component="td" key={i} sx={num}>{v}</Box>
+                ))}
+                {r.totals.map((v, i) => (
+                  <Box component="td" key={i} sx={{ ...num, fontWeight: i === 0 ? 800 : 500, borderLeft: i === 0 ? "1px solid" : undefined, borderColor: "divider" }}>{v}</Box>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </Box>
+      </Box>
+    </Card>
   );
 }
 
@@ -143,6 +183,7 @@ export async function MatchBoxScore({ sourceUrl, leagueLabel, inPlay, match }: {
   return (
     <Box component="section" aria-label="Box score" sx={{ mb: 3 }}>
       <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700, mb: 1 }}>Match stats</Typography>
+      {box.lineScore && <LineScoreCard line={box.lineScore} />}
       {box.events.length > 0 && <Events events={box.events} />}
       {box.teamStats.length > 0 && <TeamStats box={box} />}
       {playerTabs.length > 0 && <UnderlineTabs tabs={playerTabs} label="Player stats by team" />}
@@ -151,7 +192,7 @@ export async function MatchBoxScore({ sourceUrl, leagueLabel, inPlay, match }: {
           <UnderlineTabs tabs={lineupTabs} label="Lineups by team" />
         </Box>
       )}
-      <Typography component="div" sx={{ fontSize: 12, color: "text.disabled" }}>Source: ESPN</Typography>
+      <Typography component="div" sx={{ fontSize: 12, color: "text.disabled" }}>Source: {box.source}</Typography>
     </Box>
   );
 }
