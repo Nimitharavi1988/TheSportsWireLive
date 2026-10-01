@@ -63,4 +63,25 @@ export const YOUTUBE_CHANNELS: YouTubeChannel[] = [
   // highlights (Sky doesn't put those on YouTube). Channel page read
   // 2026-09-30: @SkySportsF1, 1.03M subscribers.
   { id: "UC3kxJQ9RfaS5CKeYbbFMi4Q", title: "Sky Sports F1", category: "formula-1" },
+  // Rugby. Each channel page was read 2026-09-30 and 8 of 8 recent uploads
+  // played in an embedded player on every one. Not listed on purpose: Rugby
+  // Australia (@rugbyaustralia: 6 subscribers) is not the real channel; Super
+  // Rugby Pacific (off-season, "classic" re-uploads) and All Blacks (mostly
+  // archive full games) can be added when they carry current matches.
+  // World Rugby: Rugby Championship and Pacific Nations Cup highlights, 2.05M.
+  { id: "UCE28rwYoaV7jvU6GVzdu_GQ", title: "World Rugby", category: "rugby" },
+  // "The official home of the URC on YouTube" (the SMULE-named URC account is
+  // not it): match highlights every round, 259K.
+  { id: "UC-S6cXyil4qbIPfb2hrcH4w", title: "United Rugby Championship", category: "rugby" },
+  // "The official rugby channel of the Six Nations", 320K.
+  { id: "UCL5bAcVfbxSAs-UM5f5ncWg", title: "Six Nations Rugby", category: "rugby" },
+  // England Rugby: Red Roses and Championship highlights, 338K.
+  { id: "UCmi7CahP3G3YySOAFOfSnkw", title: "England Rugby", category: "rugby" },
+  // Athletics. Same checks, 8 of 8 embeddable on each. Not listed: "athletics
+  // India" (@AthleticsIndia: 4 subscribers) is not an official channel;
+  // European Athletics is mostly age-group championships.
+  // World Athletics: championship finals and the Sydney Marathon, 2.52M.
+  { id: "UCQk7fWv15ChjMJLCRVmtApw", title: "World Athletics", category: "athletics" },
+  // Wanda Diamond League: meeting and final highlights, 1.08M.
+  { id: "UC6PZm2HZT3uOL1Z9F203K4g", title: "Wanda Diamond League", category: "athletics" },
 ];

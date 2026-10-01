@@ -30,6 +30,15 @@ describe("YOUTUBE_CHANNELS", () => {
     expect(YOUTUBE_CHANNELS.filter((c) => c.category === "formula-1").map((c) => c.title)).toEqual(["Sky Sports F1"]);
     expect(YOUTUBE_CHANNELS.map((c) => c.id)).not.toContain("UCB_qr75-ydFVKSF9Dmo6izg");
   });
+  it("lists rugby and athletics channels, and not the look-alike accounts", () => {
+    const titles = (cat: string) => YOUTUBE_CHANNELS.filter((c) => c.category === cat).map((c) => c.title);
+    expect(titles("rugby")).toEqual(["World Rugby", "United Rugby Championship", "Six Nations Rugby", "England Rugby"]);
+    expect(titles("athletics")).toEqual(["World Athletics", "Wanda Diamond League"]);
+    // The SMULE-named URC account, Rugby Australia (6 subscribers) and athletics India (4).
+    for (const bad of ["UC7eShIHKvX-Zx8Ws5iBGNbA", "UC1_OYKGCxMuLqk7uo_TEwSQ", "UCcVzioDuz20kQ6Jk6qJ6QbA"]) {
+      expect(YOUTUBE_CHANNELS.map((c) => c.id)).not.toContain(bad);
+    }
+  });
   it("includes the West Indies and Cricket Australia channels for cricket", () => {
     const cricket = YOUTUBE_CHANNELS.filter((c) => c.category === "cricket").map((c) => c.title);
     expect(cricket).toEqual(expect.arrayContaining(["Windies Cricket", "cricket.com.au"]));
