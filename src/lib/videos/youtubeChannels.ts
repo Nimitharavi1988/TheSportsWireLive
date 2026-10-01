@@ -19,7 +19,11 @@ export interface YouTubeChannel {
 
 // Cricket titles on a multi-sport channel: a fixture tag (#INDvWI), the
 // word cricket, or a format.
-export const CRICKET_TITLE = /#[A-Z]{2,3}v[A-Z]{2,3}\b|cricket|\b(ODIs?|T20Is?|T20|IPL|WPL|Test match)\b/i;
+// League names as plain words (#CPL 2026, WBBL) and sponsor-prefixed hashtags
+// (#TATAWPL, #TATAIPL — no word boundary inside those, so the plain \bWPL\b
+// missed them: a Star Sports WPL video was filtered out 2026-09-30).
+export const CRICKET_TITLE =
+  /#[A-Z]{2,3}v[A-Z]{2,3}\b|cricket|\b(ODIs?|T20Is?|T20|IPL|WPL|CPL|BBL|WBBL|PSL|SA20|ILT20|MLC|Test match)\b|#TATA(IPL|WPL)\b/i;
 
 export const YOUTUBE_CHANNELS: YouTubeChannel[] = [
   { id: "UCDVYQ4Zhbm3S2dlz7P1GBDg", title: "NFL", category: "american-football" },
@@ -39,4 +43,15 @@ export const YOUTUBE_CHANNELS: YouTubeChannel[] = [
   // "Star Sports", daily uploads, embeddable). It also posts football and
   // other sports, hence the filter.
   { id: "UCmqfX0S3x0I3uwLkPdpX03w", title: "Star Sports", category: "cricket", include: CRICKET_TITLE },
+  // Star Sports posts reactions and shows for India's home series, but not the
+  // match highlights (those are on JioHotstar), so the Videos page had no
+  // India v West Indies highlights at all. The West Indies' own channel has
+  // them: "Legends Do Battle | West Indies v India ODI" (1.2M views) and the
+  // full match. Channel page read 2026-09-30: "The Official channel of the
+  // WINDIES international cricket teams", @WindiesCricket, 4.46M subscribers.
+  { id: "UC2MHTOXktfTK26aDKyQs3cQ", title: "Windies Cricket", category: "cricket" },
+  // Cricket Australia's video channel: Australia's internationals (the South
+  // Africa tour) and the BBL/WBBL. Channel page read 2026-09-30: "The official
+  // YouTube channel of cricket.com.au", @cricketcomau, 10.5M subscribers.
+  { id: "UCkBY0aHJP9BwjZLDYxAQrKg", title: "cricket.com.au", category: "cricket" },
 ];
