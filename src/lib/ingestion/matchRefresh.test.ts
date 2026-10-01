@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { matchRefreshValues, placeholderResolution, supersedingRefreshValues } from "./matchRefresh";
+import { matchRefreshValues, placeholderResolution, rescheduledKickoff, supersedingRefreshValues } from "./matchRefresh";
 import type { RawMatchItem } from "./footballData";
 
 const now = new Date("2026-09-27T19:00:00Z");
@@ -126,5 +126,34 @@ describe("placeholder fixtures", () => {
 
   it("resolves a row where only one side was a placeholder", () => {
     expect(placeholderResolution({ ...rejectedTba, homeTeam: "India" }, semi(), now)).toMatchObject({ awayTeam: "Sri Lanka", status: "pending_review" });
+  });
+});
+
+// The Asian Games semi-final stored for 05:00 UTC that ESPN moved to 04:30.
+describe("rescheduled matches", () => {
+  const stored = (kickoffAt: Date | null): { homeTeam: string; awayTeam: string; status: string; rejectionReason: null; kickoffAt: Date | null } => ({
+    homeTeam: "India", awayTeam: "Sri Lanka", status: "published", rejectionReason: null, kickoffAt,
+  });
+  const at = (iso: string) => new Date(iso);
+  const game = (o: Partial<RawMatchItem> = {}) => item({ homeTeam: "India", awayTeam: "Sri Lanka", category: "cricket", sourceName: "ESPN Cricket", kickoffAt: at("2026-10-01T04:30:00Z"), matchStatus: "scheduled", ...o });
+
+  it("takes the source's new start time while the match has not finished", () => {
+    expect(rescheduledKickoff(stored(at("2026-10-01T05:00:00Z")), game(), "scheduled")).toEqual(at("2026-10-01T04:30:00Z"));
+    const v = matchRefreshValues(game(), "scheduled", now, stored(at("2026-10-01T05:00:00Z")));
+    expect(v).toMatchObject({ kickoffAt: at("2026-10-01T04:30:00Z") });
+  });
+  it("ignores second-level jitter", () => {
+    expect(rescheduledKickoff(stored(at("2026-10-01T04:30:20Z")), game(), "scheduled")).toBeNull();
+    expect(matchRefreshValues(game(), "scheduled", now, stored(at("2026-10-01T04:30:20Z")))).not.toHaveProperty("kickoffAt");
+  });
+  it("leaves a finished match's date alone", () => {
+    expect(rescheduledKickoff(stored(at("2026-10-01T05:00:00Z")), game(), "finished")).toBeNull();
+    expect(rescheduledKickoff(stored(at("2026-10-01T05:00:00Z")), game({ matchStatus: "finished" }), "scheduled")).toBeNull();
+  });
+  it("does nothing without a stored row or a start time to compare", () => {
+    expect(rescheduledKickoff(undefined, game(), "scheduled")).toBeNull();
+    expect(rescheduledKickoff(stored(null), game(), "scheduled")).toBeNull();
+    expect(rescheduledKickoff(stored(at("2026-10-01T05:00:00Z")), game({ kickoffAt: undefined as never }), "scheduled")).toBeNull();
+    expect(matchRefreshValues(game(), "scheduled", now)).not.toHaveProperty("kickoffAt");
   });
 });

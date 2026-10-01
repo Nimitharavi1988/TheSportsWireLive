@@ -142,7 +142,7 @@ export async function runLiveRefresh(now: Date = new Date()): Promise<LiveRefres
     const existingRows = await db
       .select({
         id: article.id, dedupeHash: article.dedupeHash, matchStatus: article.matchStatus,
-        homeTeam: article.homeTeam, awayTeam: article.awayTeam, status: article.status, rejectionReason: article.rejectionReason,
+        homeTeam: article.homeTeam, awayTeam: article.awayTeam, status: article.status, rejectionReason: article.rejectionReason, kickoffAt: article.kickoffAt,
       })
       .from(article)
       .where(inArray(article.dedupeHash, hashes));

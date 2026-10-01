@@ -16,6 +16,20 @@ export interface ExistingMatchRow {
   awayTeam: string | null;
   status: string | null;
   rejectionReason: string | null;
+  // The stored start time (see rescheduledKickoff).
+  kickoffAt?: Date | null;
+}
+
+// A match can move: the Asian Games semi-final India v Sri Lanka was stored
+// for 05:00 UTC and ESPN later gave 04:30, but the stored start was never
+// touched, so a game already being played showed as "upcoming" until the old
+// time passed. While a match has not finished, the source's start time wins
+// when it differs by more than a couple of minutes (feeds jitter by seconds).
+// Finished matches keep theirs: a result's date should not wander.
+const RESCHEDULE_THRESHOLD_MS = 2 * 60 * 1000;
+export function rescheduledKickoff(existing: ExistingMatchRow | undefined, item: RawMatchItem, existingMatchStatus: string | null): Date | null {
+  if (!existing?.kickoffAt || !item.kickoffAt || existingMatchStatus === "finished" || item.matchStatus === "finished") return null;
+  return Math.abs(item.kickoffAt.getTime() - existing.kickoffAt.getTime()) > RESCHEDULE_THRESHOLD_MS ? item.kickoffAt : null;
 }
 
 // Pure, unit-tested. null unless the stored row has a placeholder team and the
@@ -73,6 +87,7 @@ export function matchRefreshValues(item: RawMatchItem, existingMatchStatus: stri
     ...(isCricketData || justFinished ? { summary: item.summary, body: item.body } : {}),
     ...(justFinished && !isCricketData ? { title: item.title } : {}),
     ...placeholderResolution(existing, item, now),
+    ...(rescheduledKickoff(existing, item, existingMatchStatus) ? { kickoffAt: item.kickoffAt } : {}),
     updatedAt: now,
   };
 }

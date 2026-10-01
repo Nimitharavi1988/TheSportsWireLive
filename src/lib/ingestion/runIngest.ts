@@ -331,7 +331,7 @@ export async function runIngest() {
             id: article.id, dedupeHash: article.dedupeHash, body: article.body, heroImageUrl: article.heroImageUrl,
             matchStatus: article.matchStatus, status: article.status, slug: article.slug, scoreSource: article.scoreSource,
             sourceUrl: article.sourceUrl, rejectionReason: article.rejectionReason,
-            homeTeam: article.homeTeam, awayTeam: article.awayTeam,
+            homeTeam: article.homeTeam, awayTeam: article.awayTeam, kickoffAt: article.kickoffAt,
           }).from(article).where(inArray(article.dedupeHash, allHashes))
     ).map((a) => [a.dedupeHash, a])
   );
@@ -900,7 +900,7 @@ export async function runIngest() {
     // story appearing twice in one run (two sources reporting it) trying
     // to create it a second time.
     for (const k of keysFor(item)) matchOwners.set(k, { id: created.id, sourceName: item.sourceName, homeTeam: created.homeTeam, matchStatus: created.matchStatus });
-    existingArticles.set(dedupeHash, { id: created.id, dedupeHash, body: created.body, heroImageUrl: created.heroImageUrl, matchStatus: created.matchStatus, status: created.status, slug: created.slug, scoreSource: created.scoreSource, homeTeam: created.homeTeam, awayTeam: created.awayTeam, sourceUrl: created.sourceUrl, rejectionReason: created.rejectionReason });
+    existingArticles.set(dedupeHash, { id: created.id, dedupeHash, body: created.body, heroImageUrl: created.heroImageUrl, matchStatus: created.matchStatus, status: created.status, slug: created.slug, scoreSource: created.scoreSource, homeTeam: created.homeTeam, awayTeam: created.awayTeam, kickoffAt: created.kickoffAt, sourceUrl: created.sourceUrl, rejectionReason: created.rejectionReason });
 
     ingested++;
     if (!quality.passed) flagged++;
