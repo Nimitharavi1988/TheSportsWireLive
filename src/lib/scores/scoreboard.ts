@@ -6,10 +6,11 @@
  */
 import { db } from "@/db";
 import { article, video } from "@/db/schema";
-import { and, asc, desc, eq, gt, gte, inArray, isNotNull, like, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, ilike, inArray, isNotNull, like, lte, ne, or, sql } from "drizzle-orm";
 import { MATCH_DATA_SOURCE_NAMES } from "../matchDataSources";
 import { findNewsBasedCricketMatches } from "../liveCricket";
 import { byPriority } from "./priority";
+import { dayWindow, type MatchQuery } from "./matchQuery";
 import { CRICKET_STALE_MS, toScoreMatch, type MatchRow, type ScoreMatch } from "./scoreboardModel";
 
 // Enough for a busy weekend window across every sport, while keeping the
@@ -228,6 +229,57 @@ export async function fetchSeriesMatches(seriesKey: string, limit = 12): Promise
     const m = toScoreMatch(r, now);
     return m ? [m] : [];
   });
+}
+
+// Matches for a search (matchQuery.ts): teams or competitions by name, narrowed
+// by state, day or sport, most important first. Looks a week back and two weeks
+// ahead unless a day word sets the window — wide enough for "India fixtures",
+// narrow enough to stay current.
+const SEARCH_BACK_MS = 7 * 24 * 60 * 60 * 1000;
+const SEARCH_AHEAD_MS = 14 * 24 * 60 * 60 * 1000;
+const likeEscape = (w: string) => w.replace(/[\\%_]/g, "\\$&");
+
+export async function searchMatches(query: MatchQuery, take = 8): Promise<ScoreMatch[]> {
+  const nowDate = new Date();
+  const now = nowDate.getTime();
+  const win = query.day ? dayWindow(query.day, now) : { from: now - SEARCH_BACK_MS, to: now + SEARCH_AHEAD_MS };
+  // Each word must start a word in the home team, away team or competition:
+  // "man" finds Manchester, not Romania.
+  const wordMatches = query.words.map((w) => {
+    const esc = likeEscape(w);
+    const cols = [article.homeTeam, article.awayTeam, article.leagueLabel, article.seriesLabel];
+    return or(...cols.flatMap((c) => [ilike(c, `${esc}%`), ilike(c, `% ${esc}%`)]));
+  });
+
+  const rows = await db
+    .select(MATCH_COLUMNS)
+    .from(article)
+    .where(and(
+      eq(article.status, "published"),
+      inArray(article.sourceName, MATCH_DATA_SOURCE_NAMES),
+      isNotNull(article.homeTeam),
+      isNotNull(article.awayTeam),
+      ...(query.sport ? [like(article.category, `${query.sport}%`)] : []),
+      ...wordMatches,
+      or(
+        and(gte(article.kickoffAt, new Date(win.from)), lte(article.kickoffAt, new Date(win.to))),
+        // A multi-day cricket match still being updated is on today whatever its start.
+        query.day === "today" || query.state === "live"
+          ? and(like(article.category, "cricket%"), ne(article.matchStatus, "finished"), gt(article.updatedAt, new Date(now - CRICKET_STALE_MS)))
+          : undefined
+      )
+    ))
+    .orderBy(asc(article.kickoffAt))
+    .limit(200);
+
+  const inPlay = (m: ScoreMatch) => m.state === "live" || m.state === "paused" || m.state === "started";
+  const wanted = (m: ScoreMatch) =>
+    !query.state || (query.state === "live" ? inPlay(m) : query.state === "upcoming" ? m.state === "upcoming" : m.state === "final");
+  const matches = rows.flatMap((r) => {
+    const m = toScoreMatch(r, nowDate);
+    return m && wanted(m) ? [m] : [];
+  });
+  return withHighlights(matches.sort(byPriority(now)).slice(0, take));
 }
 
 // A series or event's matches for its hub page: live first, then the rest by

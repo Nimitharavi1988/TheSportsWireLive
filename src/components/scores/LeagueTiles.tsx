@@ -11,13 +11,13 @@ import { MiniScoreCard } from "./MiniScoreCard";
 // tiles the homepage uses (MiniScoreCard), three across on a wide screen.
 // A tile that just had a goal or wicket carries the event banner beneath it,
 // and a finished match with highlights gets the "Watch highlights" toggle.
-export function LeagueTiles({ league, matches, events }: { league: string; matches: ScoreMatch[]; events?: Map<string, MatchEvent> }) {
+export function LeagueTiles({ league, matches, events, columns = 3 }: { league: string; matches: ScoreMatch[]; events?: Map<string, MatchEvent>; columns?: 2 | 3 }) {
   return (
     <Box component="section" aria-label={league} sx={{ mb: 3 }}>
       <Typography component="h2" sx={{ fontSize: 16, fontWeight: 700, mb: 1 }}>
         {league}
       </Typography>
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }, gap: 1.25, alignItems: "start" }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))", lg: `repeat(${columns}, minmax(0, 1fr))` }, gap: 1.25, alignItems: "start" }}>
         {matches.map((m) => {
           const event = events?.get(m.id);
           return (

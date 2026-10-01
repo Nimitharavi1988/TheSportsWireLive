@@ -8,6 +8,9 @@ import { FollowButton } from "@/components/FollowButton";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
 import { popularEntities, searchEntities, type EntityResult } from "@/lib/entitySearch";
+import { fetchLiveNow, searchMatches } from "@/lib/scores/scoreboard";
+import { parseMatchQuery } from "@/lib/scores/matchQuery";
+import { LeagueTiles } from "@/components/scores/LeagueTiles";
 import { happeningNowEntities, competitionSearchItems } from "@/lib/competitions";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
@@ -74,6 +77,13 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     : [];
   const entities = query ? searchEntities(query, 6, await competitionSearchItems()) : [];
   const live = query ? [] : await happeningNowEntities(4);
+  // Scores for a team/competition search; the games in play for an empty one.
+  const matchQuery = query ? parseMatchQuery(query) : null;
+  const matches = matchQuery
+    ? await searchMatches(matchQuery, 8).catch(() => [])
+    : query
+      ? []
+      : (await fetchLiveNow({ take: 12 }).catch(() => [])).filter((m) => m.state === "live").slice(0, 6);
 
   const sportCounts = new Map<string, number>();
   for (const row of rows) {
@@ -112,7 +122,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           <InputBase
             name="q"
             defaultValue={query}
-            placeholder="Search teams, players, stories"
+            placeholder="Search teams, players, scores, stories"
             autoFocus={!query}
             sx={{ flex: 1, fontSize: 17 }}
             inputProps={{ "aria-label": "Search Sports Wire Live", enterKeyHint: "search" }}
@@ -127,6 +137,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             </Box>
           </Box>
         )}
+
+        {!query && matches.length > 0 && <LeagueTiles league="Live now" matches={matches} columns={2} />}
 
         {!query && (
           <>
@@ -146,7 +158,9 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           </Box>
         )}
 
-        {query && rows.length === 0 && (
+        {query && matches.length > 0 && <LeagueTiles league="Matches" matches={matches} columns={2} />}
+
+        {query && rows.length === 0 && matches.length === 0 && (
           <Box sx={{ py: 4 }}>
             <Typography sx={{ fontWeight: 600, mb: 0.5 }}>No stories match &ldquo;{query}&rdquo;</Typography>
             <Typography sx={{ color: "text.secondary", fontSize: 14 }}>

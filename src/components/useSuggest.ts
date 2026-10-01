@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { EntityResult } from "@/lib/entitySearch";
+import type { ScoreMatch } from "@/lib/scores/scoreboardModel";
 
 export interface SuggestStory {
   id: string;
@@ -14,6 +15,8 @@ export interface SuggestStory {
 export interface SuggestResponse {
   entities: EntityResult[];
   stories: SuggestStory[];
+  // Games matching the query — or, for an empty box, the games in play now.
+  matches?: ScoreMatch[];
   // Competitions running now (empty query only).
   live?: EntityResult[];
   popular: EntityResult[];

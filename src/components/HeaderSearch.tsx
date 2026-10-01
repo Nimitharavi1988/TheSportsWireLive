@@ -20,6 +20,8 @@ import { relativeTime } from "@/lib/relativeTime";
 import { EntityAvatar } from "./EntityAvatar";
 import { FollowButton } from "./FollowButton";
 import { useSuggest, type SuggestStory } from "./useSuggest";
+import type { ScoreMatch } from "@/lib/scores/scoreboardModel";
+import { MiniScoreCard } from "./scores/MiniScoreCard";
 
 // Header search, replacing the old icon-that-links-to-/search. Follows the
 // pattern the big sports sites share (ESPN, The Athletic, FotMob): search
@@ -72,6 +74,7 @@ type Item =
   | { type: "recent"; query: string; href: string }
   | { type: "entity"; entity: EntityResult; href: string; group?: "live" }
   | { type: "story"; story: SuggestStory; href: string }
+  | { type: "match"; match: ScoreMatch; href: string }
   | { type: "all"; href: string };
 
 const searchHref = (q: string) => `/search?q=${encodeURIComponent(q.trim())}`;
@@ -119,8 +122,29 @@ function SearchPanel({
   const liveItems = items.map((it, i) => ({ it, i })).filter(({ it }) => it.type === "entity" && it.group === "live");
   const entityItems = items.map((it, i) => ({ it, i })).filter(({ it }) => it.type === "entity" && it.group !== "live");
   const storyItems = items.map((it, i) => ({ it, i })).filter(({ it }) => it.type === "story");
+  const matchItems = items.map((it, i) => ({ it, i })).filter(({ it }) => it.type === "match");
   const allIndex = items.findIndex((it) => it.type === "all");
   const isEmptyQuery = query.trim().length < MIN_QUERY;
+
+  // Scores that match the query — or, in an empty box, the games in play now.
+  // The same tile as the scoreboard, so a result reads like the page it opens.
+  const matchesBlock = matchItems.length > 0 && (
+    <>
+      <Typography sx={SECTION_LABEL_SX}>{isEmptyQuery ? "Live now" : "Matches"}</Typography>
+      {matchItems.map(({ it, i }) => it.type === "match" && (
+        <Box
+          key={it.match.id}
+          id={optionId(i)}
+          role="option"
+          aria-selected={i === activeIndex}
+          onClick={() => onNavigate(it)}
+          sx={{ px: 1, py: 0.5, borderRadius: 1, bgcolor: i === activeIndex ? "action.hover" : "transparent" }}
+        >
+          <MiniScoreCard match={it.match} fluid />
+        </Box>
+      ))}
+    </>
+  );
 
   return (
     <Box id={listboxId} role="listbox" aria-label="Search suggestions" sx={{ pb: 1 }}>
@@ -155,6 +179,8 @@ function SearchPanel({
         </>
       )}
 
+      {isEmptyQuery && matchesBlock}
+
       {[
         { label: "Series & events", rows: liveItems },
         { label: isEmptyQuery ? "Popular" : "Teams, players and competitions", rows: entityItems },
@@ -180,6 +206,8 @@ function SearchPanel({
           ))}
         </Box>
       ))}
+
+      {!isEmptyQuery && matchesBlock}
 
       {storyItems.length > 0 && (
         <>
@@ -211,7 +239,7 @@ function SearchPanel({
         </>
       )}
 
-      {!isEmptyQuery && hasData && entityItems.length === 0 && storyItems.length === 0 && !loading && (
+      {!isEmptyQuery && hasData && entityItems.length === 0 && storyItems.length === 0 && matchItems.length === 0 && !loading && (
         <Typography sx={{ fontSize: 14, color: "text.secondary", px: 1.5, py: 2 }}>
           No quick matches for &ldquo;{query.trim()}&rdquo;. Try a team, player, competition or sport.
         </Typography>
@@ -263,12 +291,14 @@ function SearchBox({ variant, onClose }: { variant: "popover" | "dialog"; onClos
     if (isEmptyQuery) {
       return [
         ...recent.map((q): Item => ({ type: "recent", query: q, href: searchHref(q) })),
+        ...(data?.matches ?? []).map((match): Item => ({ type: "match", match, href: `/article/${match.slug}` })),
         ...(data?.live ?? []).map((entity): Item => ({ type: "entity", entity, href: entity.href, group: "live" })),
         ...(data?.popular ?? []).map((entity): Item => ({ type: "entity", entity, href: entity.href })),
       ];
     }
     return [
       ...(data?.entities ?? []).map((entity): Item => ({ type: "entity", entity, href: entity.href })),
+      ...(data?.matches ?? []).map((match): Item => ({ type: "match", match, href: `/article/${match.slug}` })),
       ...(data?.stories ?? []).map((story): Item => ({ type: "story", story, href: `/article/${story.slug}` })),
       { type: "all", href: searchHref(query) },
     ];
@@ -314,7 +344,7 @@ function SearchBox({ variant, onClose }: { variant: "popover" | "dialog"; onClos
             value={query}
             onChange={(e) => updateQuery(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Search teams, players, stories"
+            placeholder="Search teams, players, scores, stories"
             autoFocus
             sx={{ flex: 1, fontSize: 15 }}
             inputProps={{
