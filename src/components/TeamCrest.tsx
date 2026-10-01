@@ -50,14 +50,17 @@ export function TeamCrest({ name, crestUrl, size, alt = "" }: { name?: string | 
         color: "text.primary",
         border: "1px solid",
         borderColor: "grey.300",
-        fontSize: Math.max(8, Math.round(size * 0.38)),
+        // 10px at the smallest crest (22px): 8px initials read as an empty circle.
+        fontSize: Math.max(10, Math.round(size * 0.42)),
+        lineHeight: 1,
+        letterSpacing: "0.02em",
         fontWeight: 700,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      {name ? playerInitials(name).slice(0, 2) : null}
+      {name ? playerInitials(name).slice(0, size < 20 ? 1 : 2) : null}
     </Box>
   );
 }

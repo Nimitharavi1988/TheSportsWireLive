@@ -130,6 +130,36 @@ async function fetchHeaderEvents(url: string): Promise<{ event: EspnCricketEvent
   return out;
 }
 
+// ESPN lists a logo URL for teams it has no image for — 27 of 47 distinct
+// cricket logos returned 404 when checked 2026-09-30, mostly women's, A and
+// youth sides. A dead URL stored with the match draws a broken image until the
+// page hydrates and swaps in initials, so each distinct logo is checked once
+// and a dead one is not stored (the match then shows initials straight away,
+// and the story can use its stock photo instead of a crest that isn't there).
+// Only a definite 404/410 counts as dead: a timeout or error keeps the URL.
+export function withoutDeadLogos<T extends { homeCrestUrl?: string; awayCrestUrl?: string }>(items: T[], dead: Set<string>): T[] {
+  return items.map((i) => ({
+    ...i,
+    homeCrestUrl: i.homeCrestUrl && dead.has(i.homeCrestUrl) ? undefined : i.homeCrestUrl,
+    awayCrestUrl: i.awayCrestUrl && dead.has(i.awayCrestUrl) ? undefined : i.awayCrestUrl,
+  }));
+}
+
+async function findDeadLogos(urls: string[]): Promise<Set<string>> {
+  const dead = new Set<string>();
+  await Promise.all(
+    urls.map(async (url) => {
+      try {
+        const res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(8000) });
+        if (res.status === 404 || res.status === 410) dead.add(url);
+      } catch {
+        // Unreachable right now is not the same as missing — keep it.
+      }
+    })
+  );
+  return dead;
+}
+
 export async function fetchEspnCricketData(daysAhead = 0, now: Date = new Date()): Promise<RawMatchItem[]> {
   const urls = [HEADER_URL];
   for (let d = 1; d <= daysAhead; d++) urls.push(`${HEADER_URL}&dates=${dayParam(new Date(now.getTime() + d * 24 * 60 * 60 * 1000))}`);
@@ -147,6 +177,12 @@ export async function fetchEspnCricketData(daysAhead = 0, now: Date = new Date()
       const item = espnCricketEventToItem(event, leagueName);
       if (item) items.push(item);
     }
+  }
+  // Full ingestion only (it looks ahead). The 2-minute live refresh just
+  // updates scores of matches already stored, so it skips the extra requests.
+  if (daysAhead > 0) {
+    const urls = [...new Set(items.flatMap((i) => [i.homeCrestUrl, i.awayCrestUrl]).filter((u): u is string => Boolean(u)))];
+    return withoutDeadLogos(items, await findDeadLogos(urls));
   }
   return items;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { espnCricketEventToItem, type EspnCricketEvent } from "./espnCricketData";
+import { espnCricketEventToItem, withoutDeadLogos, type EspnCricketEvent } from "./espnCricketData";
 
 // Shapes as returned live by ESPN on 2026-09-26.
 const asianGames: EspnCricketEvent = {
@@ -76,5 +76,17 @@ describe("espnCricketEventToItem edge cases (seen live 2026-09-26)", () => {
     expect(item.homeScoreText).toBeUndefined();
     expect(item.matchStatus).toBe("scheduled");
     expect(item.matchNote).toBe("Match scheduled to begin at 14:00 local time (13:00 GMT)");
+  });
+});
+
+describe("withoutDeadLogos", () => {
+  it("drops only the logos known dead, keeping live ones and matches without logos", () => {
+    const items = [
+      { id: "a", homeCrestUrl: "https://x/1.png", awayCrestUrl: "https://x/dead.png" },
+      { id: "b", homeCrestUrl: undefined, awayCrestUrl: "https://x/1.png" },
+    ];
+    const out = withoutDeadLogos(items, new Set(["https://x/dead.png"]));
+    expect(out[0]).toEqual({ id: "a", homeCrestUrl: "https://x/1.png", awayCrestUrl: undefined });
+    expect(out[1]).toEqual({ id: "b", homeCrestUrl: undefined, awayCrestUrl: "https://x/1.png" });
   });
 });
