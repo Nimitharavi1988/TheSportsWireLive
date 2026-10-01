@@ -9,6 +9,7 @@ import { TRACKED_COUNTRIES } from "@/lib/countries";
 import { CATEGORY_META } from "@/lib/categoryMeta";
 import { MATCH_DATA_SOURCE_NAMES } from "@/lib/matchDataSources";
 import { VENUES } from "@/lib/venues";
+import { listAthleteSlugs } from "@/lib/events/athleteRead";
 
 export const revalidate = 3600;
 
@@ -94,6 +95,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       })),
   ];
 
+  // Athletes who medalled at a Games (athleteSync.ts): one page each. Empty
+  // until the sync has stored a list; a failed read never breaks the sitemap.
+  const athleteRoutes: MetadataRoute.Sitemap = (await listAthleteSlugs().catch(() => [] as string[])).map((slug) => ({
+    url: `${siteUrl}/athlete/${slug}`,
+    changeFrequency: "weekly" as const,
+    priority: 0.5,
+  }));
+
   const articleRoutes: MetadataRoute.Sitemap = articles.map((article) => ({
     url: `${siteUrl}/article/${article.slug}`,
     // updatedAt, not publishedAt — a match-data article's content really
@@ -107,5 +116,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [...staticRoutes, ...articleRoutes];
+  return [...staticRoutes, ...athleteRoutes, ...articleRoutes];
 }

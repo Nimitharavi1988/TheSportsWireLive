@@ -1,7 +1,7 @@
 import { readSnapshot } from "../snapshots/read";
 import { EVENT_HUBS } from "./eventHubs";
 import { athleteSlug, type GamesMedal } from "./athletes";
-import { medalistsKey, profileKey, type AthleteProfile, type MedalistsSnapshot } from "./athleteStore";
+import { athleteSlugsOf, medalistsKey, profileKey, type AthleteProfile, type MedalistsSnapshot } from "./athleteStore";
 
 // What the athlete pages show, read from the stored copies the sync keeps
 // (athleteSync.ts).
@@ -12,6 +12,18 @@ export async function getMedalists(eventKey: string, country: string): Promise<M
 
 export async function getAthleteProfile(slug: string): Promise<AthleteProfile | null> {
   return readSnapshot<AthleteProfile>(profileKey(slug));
+}
+
+// Slugs of every athlete page that exists (for the sitemap), across all the
+// Games with a stored medallists list.
+export async function listAthleteSlugs(): Promise<string[]> {
+  const slugs = new Set<string>();
+  for (const hub of Object.values(EVENT_HUBS)) {
+    if (!hub.athletes) continue;
+    const list = await getMedalists(hub.eventKey, hub.athletes.country);
+    if (list) for (const s of athleteSlugsOf(list)) slugs.add(s);
+  }
+  return [...slugs];
 }
 
 export interface AthleteAtGames {

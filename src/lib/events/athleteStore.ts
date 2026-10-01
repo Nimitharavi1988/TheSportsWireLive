@@ -1,4 +1,4 @@
-import type { GamesMedal } from "./athletes";
+import { athleteSlug, type GamesMedal } from "./athletes";
 
 // What the athlete sync stores (DataSnapshot rows, athleteSync.ts) and the
 // pages read (athleteRead.ts). Types and keys only — no database import, so
@@ -23,6 +23,14 @@ export interface AthleteProfile {
   extract: string | null;
   thumbnail: string | null;
   pageUrl: string;
+}
+
+// Each athlete with a Wikipedia article once, in the order they first appear —
+// the ones who get a page (athlete/[slug]).
+export function athleteSlugsOf(list: Pick<MedalistsSnapshot, "medals">): string[] {
+  const seen = new Set<string>();
+  for (const m of list.medals) for (const a of m.athletes) if (a.title) seen.add(athleteSlug(a.title));
+  return [...seen];
 }
 
 export const medalistsKey = (eventKey: string, country: string) => `athletes:${eventKey}:${country.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { athleteSlug, medalistsProblem, parseMedalists, plainName, type GamesMedal } from "./athletes";
+import { athleteSlugsOf } from "./athleteStore";
 
 // Wikipedia's Medalists table as served on 2026-10-02 (trimmed): a team with its
 // squad, a pair, a single athlete, and a red link (no article yet).
@@ -69,5 +70,21 @@ describe("athleteSlug and plainName", () => {
   it("folds accents and punctuation", () => {
     expect(athleteSlug("Arjun_M._R.")).toBe("arjun-m-r");
     expect(athleteSlug("Jos%C3%A9_Mu%C3%B1oz")).toBe("jose-munoz");
+  });
+});
+
+describe("athleteSlugsOf", () => {
+  const entry = (athletes: { name: string; title: string | null }[]): GamesMedal => ({ medal: "gold", team: null, athletes, sport: "S", event: "E", date: "1 Oct" });
+  it("lists each athlete with an article once, skipping those without", () => {
+    const list = {
+      medals: [
+        entry([{ name: "Neeru Dhanda", title: "Neeru_Dhanda" }, { name: "Kamaljeet", title: "Kamaljeet_(sport_shooter)" }]),
+        entry([{ name: "Neeru Dhanda", title: "Neeru_Dhanda" }, { name: "Hariharan Amsakarunan", title: null }]),
+      ],
+    };
+    expect(athleteSlugsOf(list)).toEqual(["neeru-dhanda", "kamaljeet-sport-shooter"]);
+  });
+  it("is empty for an empty list", () => {
+    expect(athleteSlugsOf({ medals: [] })).toEqual([]);
   });
 });
