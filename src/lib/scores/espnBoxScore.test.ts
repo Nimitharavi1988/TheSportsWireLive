@@ -8,7 +8,8 @@ describe("espnGameRef", () => {
   });
   it("takes the soccer league from the label, and skips unknown ones", () => {
     expect(espnGameRef("https://www.espn.com/soccer/match/_/gameId/401884788", "Bundesliga")).toEqual({ path: "soccer/ger.1", id: "401884788" });
-    expect(espnGameRef("https://www.espn.com/soccer/match/_/gameId/1", "Premier League")).toBeNull();
+    expect(espnGameRef("https://www.espn.com/soccer/match/_/gameId/1", "Premier League")).toEqual({ path: "soccer/eng.1", id: "1" });
+    expect(espnGameRef("https://www.espn.com/soccer/match/_/gameId/1", "Some Local Cup")).toBeNull();
   });
   it("is null for other providers", () => {
     expect(espnGameRef("https://www.mlb.com/gameday/849848", "MLB")).toBeNull();
@@ -68,6 +69,10 @@ describe("parseBoxScore", () => {
   });
   it("pairs team stats", () => {
     expect(box.teamStats).toEqual([{ label: "Possession", home: "50.8", away: "49.2" }, { label: "Fouls", home: "14", away: "9" }]);
+  });
+  it("uses the full sentence for a substitution", () => {
+    const b = parseBoxScore({ keyEvents: [{ type: { type: "substitution" }, clock: { displayValue: "71'" }, shortText: "Kevin Substitution", text: "Substitution, Fulham. Kevin replaces Alex Iwobi.", team: { displayName: "Fulham" } }] });
+    expect(b.events[0].text).toBe("Substitution, Fulham. Kevin replaces Alex Iwobi.");
   });
   it("keeps goals and cards, not kick-off", () => {
     expect(box.events.map((e) => e.kind)).toEqual(["yellow", "goal"]);

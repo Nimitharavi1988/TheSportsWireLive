@@ -422,7 +422,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
           )}
           {!article.category.startsWith("cricket") && scoreMatch.state !== "upcoming" && (
             <Suspense fallback={null}>
-              <MatchBoxScore sourceUrl={article.sourceUrl} leagueLabel={scoreMatch.leagueLabel} homeName={scoreMatch.home.name} inPlay={scoreMatch.state === "live" || scoreMatch.state === "paused"} />
+              <MatchBoxScore sourceUrl={article.sourceUrl} leagueLabel={scoreMatch.leagueLabel} match={{ home: scoreMatch.home.name, away: scoreMatch.away.name, kickoffAt: scoreMatch.kickoffAt }} inPlay={scoreMatch.state === "live" || scoreMatch.state === "paused"} />
             </Suspense>
           )}
         </>

@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import { fetchBoxScore, type BoxScore, type Lineup, type MatchEvent, type StatGroup } from "@/lib/scores/espnBoxScore";
+import { fetchBoxScore, type BoxScore, type MatchContext, type Lineup, type MatchEvent, type StatGroup } from "@/lib/scores/espnBoxScore";
 import { UnderlineTabs } from "./UnderlineTabs";
 
 // Box score under the match header (basketball, hockey, NFL, college
@@ -95,6 +95,7 @@ function Events({ events }: { events: MatchEvent[] }) {
           <Box component="span" sx={{ width: 40, color: "text.secondary", fontVariantNumeric: "tabular-nums" }}>{e.clock}</Box>
           <Box component="span" role="img" aria-label={EVENT_MARK[e.kind].label} sx={{ width: 20 }}>{EVENT_MARK[e.kind].icon}</Box>
           <Box component="span" sx={{ flex: 1, minWidth: 0 }}>{e.text}</Box>
+          {e.team && <Box component="span" sx={{ flexShrink: 0, maxWidth: "35%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, color: "text.secondary" }}>{e.team}</Box>}
         </Box>
       ))}
     </Card>
@@ -120,8 +121,8 @@ function LineupCard({ lineup }: { lineup: Lineup }) {
   );
 }
 
-export async function MatchBoxScore({ sourceUrl, leagueLabel, inPlay, homeName }: { sourceUrl: string; leagueLabel: string; inPlay: boolean; homeName: string }) {
-  const box = await fetchBoxScore(sourceUrl, leagueLabel, inPlay, homeName);
+export async function MatchBoxScore({ sourceUrl, leagueLabel, inPlay, match }: { sourceUrl: string; leagueLabel: string; inPlay: boolean; match: MatchContext }) {
+  const box = await fetchBoxScore(sourceUrl, leagueLabel, inPlay, match);
   if (!box) return null;
   const playerTabs = box.teams
     .filter((t) => t.groups.length > 0)

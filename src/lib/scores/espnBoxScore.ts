@@ -11,6 +11,7 @@
  * own API) have no ESPN link and so no box score.
  */
 import { espnFetch } from "../espnFetch";
+import { resolveEspnSoccerGame, SOCCER_LEAGUE_CODES } from "./espnSoccerLookup";
 
 export interface StatGroup {
   // "Passing", "Forwards", or "Players" when the sport has one table.
@@ -57,13 +58,12 @@ const PATHS: Record<string, string> = {
   nfl: "football/nfl",
   "college-football": "football/college-football",
 };
-const SOCCER_LEAGUES: Record<string, string> = { Bundesliga: "ger.1", "Serie A": "ita.1", "Ligue 1": "fra.1", MLS: "usa.1" };
 
 export function espnGameRef(sourceUrl: string, leagueLabel: string): { path: string; id: string } | null {
   const m = sourceUrl.match(/espn\.[a-z.]+\/([a-z-]+)\/(?:game|match)\/_\/gameId\/(\d+)/i);
   if (!m) return null;
   if (m[1] === "soccer") {
-    const code = SOCCER_LEAGUES[leagueLabel];
+    const code = SOCCER_LEAGUE_CODES[leagueLabel];
     return code ? { path: `soccer/${code}`, id: m[2] } : null;
   }
   const path = PATHS[m[1]];
@@ -103,7 +103,9 @@ const EVENT_KINDS: Record<string, MatchEvent["kind"]> = {
 function parseEvents(summary: any): MatchEvent[] {
   return (summary?.keyEvents ?? []).flatMap((e: any): MatchEvent[] => {
     const kind = EVENT_KINDS[e.type?.type];
-    const text = e.shortText || e.text;
+    // ESPN's short text for a substitution is just the player coming on
+    // ("Kevin Substitution"); the full sentence says who he replaced.
+    const text = kind === "sub" ? e.text || e.shortText : e.shortText || e.text;
     return kind && text ? [{ clock: e.clock?.displayValue ?? "", kind, team: e.team?.displayName ?? "", text }] : [];
   });
 }
@@ -142,14 +144,22 @@ export function hasBoxScore(b: BoxScore): boolean {
 }
 
 // Live matches refresh quickly; finished ones barely change.
-export async function fetchBoxScore(sourceUrl: string, leagueLabel: string, inPlay: boolean, homeName?: string): Promise<BoxScore | null> {
-  const ref = espnGameRef(sourceUrl, leagueLabel);
+// The match as the page knows it: used to find the ESPN game when the stored
+// link isn't an ESPN one (football-data.org rows), and to put the home team first.
+export interface MatchContext {
+  home: string;
+  away: string;
+  kickoffAt: string | null;
+}
+
+export async function fetchBoxScore(sourceUrl: string, leagueLabel: string, inPlay: boolean, match: MatchContext): Promise<BoxScore | null> {
+  const ref = espnGameRef(sourceUrl, leagueLabel) ?? (await resolveEspnSoccerGame(leagueLabel, match.kickoffAt, match.home, match.away));
   if (!ref) return null;
   try {
     const res = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/${ref.path}/summary?event=${ref.id}`, { next: { revalidate: inPlay ? 30 : 900 } });
     if (!res.ok) return null;
     const box = parseBoxScore(await res.json());
-    return hasBoxScore(box) ? (homeName ? homeFirst(box, homeName) : box) : null;
+    return hasBoxScore(box) ? homeFirst(box, match.home) : null;
   } catch {
     // A box score is a bonus — never an error page.
     return null;
