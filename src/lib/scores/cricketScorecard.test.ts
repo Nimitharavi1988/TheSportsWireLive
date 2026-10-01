@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { espnCricketIds, parseCricketScorecard, parseInningsFromRosters, type EspnCricketSummary } from "./cricketScorecard";
+import { espnCricketIds, parseCricketScorecard, parseInningsFromRosters, parseYetToBat, type EspnCricketSummary } from "./cricketScorecard";
 
 const summary: EspnCricketSummary = {
   rosters: [{ team: { abbreviation: "IND-A Women", displayName: "India A Women" } }],
@@ -95,5 +95,25 @@ describe("parseInningsFromRosters", () => {
   it("takes bowling figures from the fielding side's players", () => {
     expect(innings[0].bowling).toEqual([{ name: "Pat Cummins", overs: "10", maidens: "1", runs: "30", wickets: "4", economy: "3.00" }]);
     expect(innings[1].bowling[0]).toMatchObject({ name: "Jasprit Bumrah", wickets: "2" });
+  });
+});
+
+describe("parseYetToBat", () => {
+  const live: EspnCricketSummary = {
+    header: { competitions: [{ competitors: [{ team: { displayName: "India" } }, { team: { displayName: "Sri Lanka" } }] }] },
+    rosters: [
+      { team: { displayName: "India" }, roster: [{ athlete: { displayName: "Abhishek Sharma" } }] },
+      { team: { displayName: "Sri Lanka" }, roster: [{ athlete: { displayName: "Pathum Nissanka" } }, { athlete: { displayName: "Kusal Mendis" } }, { athlete: {} }] },
+    ],
+  };
+  const india = [{ number: 1, team: "India" }] as never;
+  it("names the side that has not batted, with its players", () => {
+    expect(parseYetToBat(live, india)).toEqual([{ team: "Sri Lanka", players: ["Pathum Nissanka", "Kusal Mendis"] }]);
+  });
+  it("has nothing once both sides have batted", () => {
+    expect(parseYetToBat(live, [{ number: 1, team: "India" }, { number: 2, team: "Sri Lanka" }] as never)).toEqual([]);
+  });
+  it("is empty without a header to read teams from", () => {
+    expect(parseYetToBat({ rosters: live.rosters }, india)).toEqual([]);
   });
 });

@@ -23,7 +23,7 @@ import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standing
 import { StandingsCarousel } from "@/components/StandingsCarousel";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
-import { CricketScorecard } from "@/components/scores/CricketScorecard";
+import { CricketScorecard, ScorecardJump } from "@/components/scores/CricketScorecard";
 import { MatchBoxScore } from "@/components/scores/MatchBoxScore";
 import { InFeedAd } from "@/components/InFeedAd";
 import { TRACKED_PLAYERS } from "@/lib/players";
@@ -412,17 +412,22 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
       {scoreMatch ? (
         <>
           <MatchHeader match={scoreMatch} />
+          {article.category.startsWith("cricket") && (
+            <Suspense fallback={null}>
+              <ScorecardJump articleId={article.id} inPlay={scoreMatch.state === "live" || scoreMatch.state === "paused"} />
+            </Suspense>
+          )}
           <Suspense fallback={null}>
             <MatchHighlightsForArticle articleId={article.id} />
           </Suspense>
           {article.category.startsWith("cricket") && (
             <Suspense fallback={null}>
-              <CricketScorecard sourceUrl={article.sourceUrl} teams={[scoreMatch.home.name, scoreMatch.away.name]} inPlay={scoreMatch.state === "live" || scoreMatch.state === "paused"} />
+              <CricketScorecard articleId={article.id} teams={[scoreMatch.home.name, scoreMatch.away.name]} inPlay={scoreMatch.state === "live" || scoreMatch.state === "paused"} />
             </Suspense>
           )}
           {!article.category.startsWith("cricket") && scoreMatch.state !== "upcoming" && (
             <Suspense fallback={null}>
-              <MatchBoxScore sourceUrl={article.sourceUrl} leagueLabel={scoreMatch.leagueLabel} match={{ home: scoreMatch.home.name, away: scoreMatch.away.name, kickoffAt: scoreMatch.kickoffAt }} inPlay={scoreMatch.state === "live" || scoreMatch.state === "paused"} />
+              <MatchBoxScore articleId={article.id} sourceUrl={article.sourceUrl} match={{ home: scoreMatch.home.name, away: scoreMatch.away.name, kickoffAt: scoreMatch.kickoffAt }} inPlay={scoreMatch.state === "live" || scoreMatch.state === "paused"} />
             </Suspense>
           )}
         </>

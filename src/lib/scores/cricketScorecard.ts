@@ -240,24 +240,52 @@ export function parseInningsFromRosters(summary: EspnCricketSummary): Innings[] 
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
+export interface YetToBat {
+  team: string;
+  // The side's players, for a team that has not batted yet.
+  players: string[];
+}
+
+export interface Scorecard {
+  innings: Innings[];
+  yetToBat: YetToBat[];
+}
+
+const EMPTY: Scorecard = { innings: [], yetToBat: [] };
+
+// Sides in the match with no innings yet — shown as "yet to bat" with their
+// team while play is on, so the second side has a place on the scorecard before
+// it has faced a ball. Pure, unit-tested.
+export function parseYetToBat(summary: EspnCricketSummary, innings: Innings[]): YetToBat[] {
+  const names = (summary.header?.competitions?.[0]?.competitors ?? []).map((c) => c.team?.displayName).filter((n): n is string => Boolean(n));
+  const have = new Set(innings.map((i) => i.team.toLowerCase()));
+  return names
+    .filter((n) => !have.has(n.toLowerCase()))
+    .map((team) => ({
+      team,
+      players: (summary.rosters?.find((r) => r.team?.displayName === team)?.roster ?? []).map((p) => p.athlete?.displayName ?? "").filter(Boolean),
+    }));
+}
+
 // Live matches refresh quickly; finished ones barely change.
-export async function fetchCricketScorecard(sourceUrl: string, inPlay: boolean): Promise<Innings[]> {
-  const ids = espnCricketIds(sourceUrl);
-  if (!ids) return [];
+export async function fetchScorecardByIds(series: string, game: string, inPlay: boolean): Promise<Scorecard> {
   try {
-    const res = await espnFetch(
-      `https://site.api.espn.com/apis/site/v2/sports/cricket/${ids.series}/summary?event=${ids.game}`,
-      { next: { revalidate: inPlay ? 30 : 900 } }
-    );
-    if (!res.ok) return [];
+    const res = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/cricket/${series}/summary?event=${game}`, { next: { revalidate: inPlay ? 30 : 900 } });
+    if (!res.ok) return EMPTY;
     const summary = (await res.json()) as EspnCricketSummary;
     // The full per-innings build, unless ESPN's roster data is missing and
     // the latest-innings cards say more.
     const full = parseInningsFromRosters(summary);
     const latest = parseCricketScorecard(summary);
-    return full.length >= latest.length ? full : latest;
+    const innings = full.length >= latest.length ? full : latest;
+    return { innings, yetToBat: parseYetToBat(summary, innings) };
   } catch {
     // A scorecard is a bonus — never an error page.
-    return [];
+    return EMPTY;
   }
+}
+
+export async function fetchCricketScorecard(sourceUrl: string, inPlay: boolean): Promise<Scorecard> {
+  const ids = espnCricketIds(sourceUrl);
+  return ids ? fetchScorecardByIds(ids.series, ids.game, inPlay) : EMPTY;
 }

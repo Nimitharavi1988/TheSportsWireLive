@@ -1,6 +1,8 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import { fetchBoxScore, type BoxScore, type LineScore, type MatchContext, type Lineup, type MatchEvent, type StatGroup } from "@/lib/scores/espnBoxScore";
+import { homeFirst, type BoxScore, type LineScore, type MatchContext, type Lineup, type MatchEvent, type StatGroup } from "@/lib/scores/espnBoxScore";
+import { fetchMlbBoxScore, mlbGamePk } from "@/lib/scores/mlbBoxScore";
+import { readMatchDetail } from "@/lib/scores/matchDetailRead";
 import { UnderlineTabs } from "./UnderlineTabs";
 
 // Box score under the match header (basketball, hockey, NFL, college
@@ -161,8 +163,21 @@ function LineupCard({ lineup }: { lineup: Lineup }) {
   );
 }
 
-export async function MatchBoxScore({ sourceUrl, leagueLabel, inPlay, match }: { sourceUrl: string; leagueLabel: string; inPlay: boolean; match: MatchContext }) {
-  const box = await fetchBoxScore(sourceUrl, leagueLabel, inPlay, match);
+// MLB's own API answers the live site, so it is read directly. Everything else
+// comes from ESPN, which the live site's servers can't rely on: the scheduled
+// job stores it (matchDetailSync.ts) and it is read back here.
+async function loadBox(articleId: string, sourceUrl: string, inPlay: boolean, match: MatchContext): Promise<BoxScore | null> {
+  const pk = mlbGamePk(sourceUrl);
+  if (pk) {
+    const box = await fetchMlbBoxScore(pk, inPlay);
+    return box ? homeFirst(box, match.home) : null;
+  }
+  const detail = await readMatchDetail(articleId);
+  return detail?.kind === "box" ? detail.box : null;
+}
+
+export async function MatchBoxScore({ articleId, sourceUrl, inPlay, match }: { articleId: string; sourceUrl: string; inPlay: boolean; match: MatchContext }) {
+  const box = await loadBox(articleId, sourceUrl, inPlay, match);
   if (!box) return null;
   const playerTabs = box.teams
     .filter((t) => t.groups.length > 0)

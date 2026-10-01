@@ -14,8 +14,15 @@ export interface UnderlineTab {
   node: ReactNode;
 }
 
-export function UnderlineTabs({ tabs, initialKey, label }: { tabs: UnderlineTab[]; initialKey?: string; label: string }) {
+// `follow`: the tab that tracks "now" (the innings in play). When it moves on
+// to a new tab and the reader was on the old one, the view moves with it.
+export function UnderlineTabs({ tabs, initialKey, label, follow }: { tabs: UnderlineTab[]; initialKey?: string; label: string; follow?: string }) {
   const [active, setActive] = useState(initialKey ?? tabs[0]?.key);
+  const [prevFollow, setPrevFollow] = useState(follow);
+  if (follow !== prevFollow) {
+    setPrevFollow(follow);
+    if (follow && active === prevFollow) setActive(follow);
+  }
   if (tabs.length === 0) return null;
   const current = tabs.find((t) => t.key === active) ?? tabs[0];
   return (
