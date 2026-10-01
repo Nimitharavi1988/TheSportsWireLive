@@ -26,6 +26,22 @@ export async function listAthleteSlugs(): Promise<string[]> {
   return [...slugs];
 }
 
+// Names of the athletes with a page, in one sport, as { name, href } — for
+// linking names elsewhere (the cricket scorecard). Sport as the medallists list
+// writes it ("Cricket"), so a shooter can't match a cricketer of the same name.
+export async function listAthleteNames(sport: string): Promise<{ name: string; href: string }[]> {
+  const out: { name: string; href: string }[] = [];
+  for (const hub of Object.values(EVENT_HUBS)) {
+    if (!hub.athletes) continue;
+    const list = await getMedalists(hub.eventKey, hub.athletes.country);
+    for (const m of list?.medals ?? []) {
+      if (m.sport.toLowerCase() !== sport.toLowerCase()) continue;
+      for (const a of m.athletes) if (a.title) out.push({ name: a.name, href: `/athlete/${athleteSlug(a.title)}` });
+    }
+  }
+  return out;
+}
+
 export interface AthleteAtGames {
   slug: string;
   name: string;

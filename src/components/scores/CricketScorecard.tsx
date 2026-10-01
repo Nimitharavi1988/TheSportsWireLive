@@ -1,5 +1,6 @@
 import Box from "@mui/material/Box";
 import { readMatchDetail } from "@/lib/scores/matchDetailRead";
+import { resolveScorecardLinks } from "@/lib/scores/playerLinksRead";
 import type { Scorecard } from "@/lib/scores/cricketScorecard";
 import { CricketScorecardView } from "./CricketScorecardView";
 
@@ -18,7 +19,7 @@ export async function CricketScorecard({ articleId, inPlay, teams }: { articleId
   const card = await storedScorecard(articleId);
   // A live match still has a tab to show (the side yet to bat) before an innings exists.
   if (!card || !hasContent(card, inPlay)) return null;
-  return <CricketScorecardView initial={card} articleId={articleId} inPlay={inPlay} teams={teams} />;
+  return <CricketScorecardView initial={card} initialLinks={await resolveScorecardLinks(card)} articleId={articleId} inPlay={inPlay} teams={teams} />;
 }
 
 // "Full scorecard" under the match header. The scorecard sits below the score
