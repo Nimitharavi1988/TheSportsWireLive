@@ -19,6 +19,7 @@ import { createId } from "@paralleldrive/cuid2";
 import { MATCH_DATA_SOURCE_NAMES } from "../matchDataSources";
 import { YOUTUBE_CHANNELS } from "./youtubeChannels";
 import { HIGHLIGHTS_MAX_DELAY_MS, isHighlightsTitle, isPlayableInEmbed, parseYouTubeFeed, pickMatchForVideo } from "./youtubeFeed";
+import { isThrowbackTitle } from "./videoStrip";
 
 const FEED_URL = "https://www.youtube.com/feeds/videos.xml?channel_id=";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -61,7 +62,7 @@ export async function syncYouTubeVideos(now: Date = new Date()): Promise<YouTube
     }
     result.channels++;
 
-    const entries = parseYouTubeFeed(xml).filter((e) => !e.isShort && (!channel.include || channel.include.test(e.title)));
+    const entries = parseYouTubeFeed(xml).filter((e) => !e.isShort && !isThrowbackTitle(e.title) && (!channel.include || channel.include.test(e.title)));
     if (entries.length === 0) continue;
     const known = new Set(
       (await db.select({ youtubeId: video.youtubeId }).from(video).where(inArray(video.youtubeId, entries.map((e) => e.youtubeId)))).map(

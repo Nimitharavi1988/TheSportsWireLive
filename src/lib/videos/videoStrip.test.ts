@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { MAX_PER_CHANNEL, pickVideoStrip, splitLibrary, videoSearchWords } from "./videoStrip";
+import { MAX_PER_CHANNEL, isThrowbackTitle, pickVideoStrip, splitLibrary, videoSearchWords } from "./videoStrip";
 import { CRICKET_TITLE } from "./youtubeChannels";
 
 const v = (channelTitle: string, hoursAgo: number, isHighlights = false) => ({
@@ -59,5 +59,21 @@ describe("CRICKET_TITLE (Star Sports filter)", () => {
     expect(CRICKET_TITLE.test("Another Milestone. Another Kohli Masterclass | #INDvWI")).toBe(true);
     expect(CRICKET_TITLE.test("Rohit-Kohli are back! | #CricketKaKeeda Ep 4")).toBe(true);
     expect(CRICKET_TITLE.test("Florian Wirtz & Jeremie Frimpong draft their dream Liverpool team | #PLonJioStar")).toBe(false);
+  });
+});
+
+describe("throwback uploads", () => {
+  it("recognises re-uploaded old matches", () => {
+    expect(isThrowbackTitle("SASSUOLO-MILAN 2-0 | CLASSIC HIGHLIGHTS SERIE A 2025/26")).toBe(true);
+    expect(isThrowbackTitle("Throwback: Gerrard v Milan, 2005")).toBe(true);
+    expect(isThrowbackTitle("Braves take Wild Card Series in 3 games! Full 2026 Wild Card Series Highlights")).toBe(false);
+    expect(isThrowbackTitle("Classico preview")).toBe(false);
+  });
+  it("keeps them out of the strip", () => {
+    const rows = [
+      { ...v("Serie A", 1, true), title: "SASSUOLO-MILAN 2-0 | CLASSIC HIGHLIGHTS SERIE A 2025/26" },
+      { ...v("Serie A", 2, true), title: "JUVENTUS-NAPOLI | HIGHLIGHTS | SERIE A 2026/27" },
+    ];
+    expect(pickVideoStrip(rows, 5).map((r) => r.title)).toEqual(["JUVENTUS-NAPOLI | HIGHLIGHTS | SERIE A 2026/27"]);
   });
 });
