@@ -61,7 +61,7 @@ export function slugFromTitle(title: string, uniqueSuffix: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 80)
+    .replace(/^(.{1,80})(?:-.*)?$/, "$1") // cut at a word boundary, never mid-word
     .replace(/-+$/g, "");
   return `${base || "articulo"}-${uniqueSuffix}`;
 }
