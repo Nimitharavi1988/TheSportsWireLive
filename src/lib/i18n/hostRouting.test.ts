@@ -10,6 +10,22 @@ describe("localeForHost", () => {
   });
 });
 
+describe("preview hosts (*.workers.dev)", () => {
+  const H = "feature-x-thesportswirelive.acct.workers.dev";
+  it("show English by default and never redirect to es.", () => {
+    expect(routeForHost(H, "/")).toEqual({ kind: "next" });
+    expect(routeForHost(H, "/es")).toEqual({ kind: "next" });
+  });
+  it("serve the Spanish site when the preview cookie says so, English for untranslated pages", () => {
+    expect(routeForHost(H, "/", "es")).toEqual({ kind: "rewrite", pathname: "/es" });
+    expect(routeForHost(H, "/article/x", "es")).toEqual({ kind: "rewrite", pathname: "/es/article/x" });
+    expect(routeForHost(H, "/scores", "es")).toEqual({ kind: "next" });
+  });
+  it("ignores the cookie on real hosts", () => {
+    expect(routeForHost("sportswirelive.com", "/", "es")).toEqual({ kind: "next" });
+  });
+});
+
 describe("routeForHost", () => {
   it("rewrites supported Spanish-host paths into the internal /es tree", () => {
     expect(routeForHost("es.sportswirelive.com", "/")).toEqual({ kind: "rewrite", pathname: "/es" });

@@ -17,6 +17,11 @@ export interface LocaleConfig {
   // clubs/leagues/players), so the best-fit stories are translated first
   // when the per-run cap bites.
   priorityTerms: string[];
+  // Max NEW translations per sport per rolling 24h. The English site publishes
+  // ~700 stories a day in these sports (about half NFL), far more than a
+  // Spanish front page needs; caps keep the site balanced across sports and
+  // bound the Gemini spend. A sport not listed is uncapped.
+  dailyCaps: Record<string, number>;
 }
 
 export const LOCALES: Record<string, LocaleConfig> = {
@@ -32,6 +37,7 @@ export const LOCALES: Record<string, LocaleConfig> = {
       'Never write "Los Los Angeles": team names that already start with "Los"/"Las"/"El" take no extra article',
       "Keep clock times and time zones as written (e.g. 7:00 PM UTC); translate month names (Oct -> oct.)",
     ],
+    dailyCaps: { football: 120, "football/world-cup": 40, basketball: 60, "formula-1": 40, athletics: 20, baseball: 40, "american-football": 60 },
     priorityTerms: [
       "la liga", "real madrid", "barcelona", "barça", "atlético", "atletico", "sevilla", "valencia", "villarreal", "athletic club",
       "liga mx", "mexico", "méxico", "argentina", "brazil", "brasil", "colombia", "uruguay", "chile",

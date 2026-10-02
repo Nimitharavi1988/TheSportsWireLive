@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { MAIN_HOST, routeForHost } from "@/lib/i18n/hostRouting";
+import { MAIN_HOST, isPreviewHost, routeForHost } from "@/lib/i18n/hostRouting";
 
 // Confirmed live (2026-09-16): www.sportswirelive.com and
 // sportswirelive.com both served the same content with HTTP 200 and no
@@ -39,7 +39,15 @@ export function middleware(request: NextRequest) {
   }
   // Language subdomains (es.sportswirelive.com): serve the internal /es tree
   // under clean URLs, and keep that tree off the main host. See hostRouting.ts.
-  const action = routeForHost(hostname, request.nextUrl.pathname);
+  // Preview deployments (*.workers.dev) only: /__lang/es and /__lang/en switch
+  // which site the preview shows, since a preview has no es. subdomain.
+  if (isPreviewHost(hostname) && request.nextUrl.pathname.startsWith("/__lang/")) {
+    const choice = request.nextUrl.pathname.slice("/__lang/".length);
+    const res = NextResponse.redirect(new URL("/", request.url), 307);
+    res.cookies.set("swl_preview_lang", choice === "es" ? "es" : "", { path: "/", maxAge: choice === "es" ? 3600 : 0 });
+    return res;
+  }
+  const action = routeForHost(hostname, request.nextUrl.pathname, request.cookies.get("swl_preview_lang")?.value);
   if (action.kind === "rewrite") {
     const url = request.nextUrl.clone();
     url.pathname = action.pathname;

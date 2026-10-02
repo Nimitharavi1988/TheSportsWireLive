@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkTranslation, sourceHash, slugFromTitle, priorityScore } from "./checks";
+import { checkTranslation, sourceHash, slugFromTitle, priorityScore, applyDailyCaps } from "./checks";
 
 const src = {
   title: "Brown scores twice as Northern Ireland win 3-0",
@@ -42,5 +42,17 @@ describe("helpers", () => {
   });
   it("priorityScore boosts audience terms", () => {
     expect(priorityScore(5, "Real Madrid win", ["real madrid"])).toBeGreaterThan(priorityScore(500, "Burnley win", ["real madrid"]));
+  });
+});
+
+describe("applyDailyCaps", () => {
+  const mk = (category: string, isNew = true) => ({ category, isNew });
+  it("stops a sport at its cap, counting what was already translated today", () => {
+    const out = applyDailyCaps([mk("nfl"), mk("nfl"), mk("nfl"), mk("fut")], { nfl: 1 }, { nfl: 2 });
+    expect(out.map((x) => x.category)).toEqual(["nfl", "fut"]);
+  });
+  it("never caps re-translations or uncapped sports", () => {
+    const out = applyDailyCaps([mk("nfl", false), mk("nfl", false), mk("other"), mk("other")], { nfl: 99 }, { nfl: 1 });
+    expect(out.length).toBe(4);
   });
 });

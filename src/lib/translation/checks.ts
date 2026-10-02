@@ -72,3 +72,23 @@ export function priorityScore(trendingScore: number, title: string, priorityTerm
   const t = title.toLowerCase();
   return trendingScore + (priorityTerms.some((p) => t.includes(p)) ? 1000 : 0);
 }
+
+// Applies per-sport daily limits to an already priority-sorted list: a new
+// translation is kept only while its sport is under its cap (counting what was
+// already translated in the last 24h). Re-translations of changed articles
+// (isNew false) are never capped. A sport without a cap is unlimited.
+export function applyDailyCaps<T extends { category: string; isNew: boolean }>(
+  items: T[],
+  usedToday: Record<string, number>,
+  caps: Record<string, number>,
+): T[] {
+  const used = { ...usedToday };
+  return items.filter((it) => {
+    if (!it.isNew) return true;
+    const cap = caps[it.category];
+    if (cap === undefined) return true;
+    if ((used[it.category] ?? 0) >= cap) return false;
+    used[it.category] = (used[it.category] ?? 0) + 1;
+    return true;
+  });
+}

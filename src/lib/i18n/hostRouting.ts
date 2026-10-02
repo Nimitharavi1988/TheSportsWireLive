@@ -30,10 +30,19 @@ export type HostAction =
   | { kind: "rewrite"; pathname: string }
   | { kind: "redirect"; host: string; pathname: string };
 
-export function routeForHost(hostname: string, pathname: string): HostAction {
-  const locale = localeForHost(hostname);
+/** *.workers.dev: Cloudflare build previews, which cannot have an es. subdomain. */
+export function isPreviewHost(hostname: string): boolean {
+  return hostname.toLowerCase().endsWith(".workers.dev");
+}
+
+// previewLocale: on a preview host only, a cookie (set via /__lang/es) picks the
+// Spanish site so it can be browsed without the real subdomain.
+export function routeForHost(hostname: string, pathname: string, previewLocale?: string | null): HostAction {
+  const preview = isPreviewHost(hostname);
+  const locale = localeForHost(hostname) ?? (preview && previewLocale && previewLocale in LOCALES ? previewLocale : null);
 
   if (!locale) {
+    if (preview) return { kind: "next" };
     // /es/... exists only as the internal route tree; on the main host it would
     // be a duplicate of the Spanish site, so send it there.
     for (const l of Object.values(LOCALES)) {
@@ -48,6 +57,8 @@ export function routeForHost(hostname: string, pathname: string): HostAction {
   const first = pathname.split("/")[1] ?? "";
   if (first === locale) return { kind: "next" }; // already internal (e.g. a rewritten request re-entering)
   if (first !== "" && !SUPPORTED_PREFIXES.has(first)) {
+    // A preview host has no separate English host to send to: show the English page.
+    if (preview) return { kind: "next" };
     return { kind: "redirect", host: MAIN_HOST, pathname };
   }
   return { kind: "rewrite", pathname: `/${locale}${pathname === "/" ? "" : pathname}` };

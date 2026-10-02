@@ -1,10 +1,10 @@
 import { db } from "@/db";
 import { article, articleTranslation } from "@/db/schema";
-import { and, eq, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
+import { and, count, eq, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { callGemini, aiUnavailableReason, MODEL } from "../ingestion/commentary";
 import { enabledLocales, type LocaleConfig } from "../i18n/locales";
-import { checkTranslation, priorityScore, slugFromTitle, sourceHash, type Fields } from "./checks";
+import { applyDailyCaps, checkTranslation, priorityScore, slugFromTitle, sourceHash, type Fields } from "./checks";
 import { reviewTranslation, type Review } from "./review";
 import { submitToIndexNow } from "../indexNow";
 import { ES_ORIGIN, esSiteEnabled } from "../i18n/esSite";
@@ -72,7 +72,7 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
   for (const locale of locales) {
     const candidates = await db
       .select({
-        id: article.id, title: article.title, summary: article.summary, body: article.body,
+        id: article.id, category: article.category, title: article.title, summary: article.summary, body: article.body,
         trendingScore: article.trendingScore,
       })
       .from(article)
@@ -103,7 +103,21 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
     }
     const byArticle = new Map(existing.map((e) => [e.articleId, e]));
 
-    const todo = candidates
+    // New translations already made in the last 24h, per sport (for the daily caps).
+    const usedToday: Record<string, number> = {};
+    try {
+      const rows = await db
+        .select({ category: article.category, n: count() })
+        .from(articleTranslation)
+        .innerJoin(article, eq(article.id, articleTranslation.articleId))
+        .where(and(eq(articleTranslation.locale, locale.code), eq(articleTranslation.status, "translated"), gte(articleTranslation.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000))))
+        .groupBy(article.category);
+      for (const r of rows) usedToday[r.category] = r.n;
+    } catch (err) {
+      if (!opts.dryRun) throw err;
+    }
+
+    const ranked = candidates
       .filter((c) => (c.body ?? "").length >= MIN_BODY_CHARS)
       .map((c) => ({ ...c, fields: { title: c.title.trim(), summary: c.summary.trim(), body: c.body!.trim() } }))
       .map((c) => ({ ...c, hash: sourceHash(c.fields), prev: byArticle.get(c.id) }))
@@ -114,7 +128,8 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
         return c.prev.status === "failed";
       })
       .sort((a, b) => priorityScore(b.trendingScore, b.title, locale.priorityTerms) - priorityScore(a.trendingScore, a.title, locale.priorityTerms))
-      .slice(0, maxPerRun);
+      .map((c) => ({ ...c, isNew: !c.prev }));
+    const todo = applyDailyCaps(ranked, usedToday, locale.dailyCaps).slice(0, maxPerRun);
 
     console.log(`Translation [${locale.code}]: ${candidates.length} recent published, ${todo.length} to translate (cap ${maxPerRun})${opts.dryRun ? " [dry-run]" : ""}`);
 
