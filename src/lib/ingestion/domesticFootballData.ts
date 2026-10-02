@@ -29,7 +29,34 @@ import { espnFetch } from "../espnFetch";
 // weekly league needs, but international windows play a round every day or two
 // and a Saturday match (England v Croatia, 2026-10-03) had no page until the
 // morning it was played.
-const LEAGUES: { code: string; label: string; days?: { back: number; ahead: number } }[] = [
+interface LeagueConfig {
+  code: string;
+  label: string;
+  days?: { back: number; ahead: number };
+  /** National-team boards list every match, down to Vanuatu v Fiji: keep a
+   *  game only when one side is a nation the audience follows. */
+  notableOnly?: boolean;
+  /** ESPN names women's national teams like the men's ("England"); this
+   *  keeps the two apart on our pages. */
+  teamSuffix?: string;
+}
+
+// Nations whose games get a page on the international boards (either side).
+// Lower-cased ESPN display names.
+export const NOTABLE_NATIONS = new Set([
+  "england", "france", "germany", "spain", "italy", "portugal", "netherlands", "belgium", "croatia", "scotland", "wales",
+  "republic of ireland", "northern ireland", "sweden", "denmark", "norway", "switzerland", "austria", "poland", "türkiye", "turkey",
+  "serbia", "ukraine", "czechia", "greece", "brazil", "argentina", "uruguay", "colombia", "ecuador", "chile", "peru", "paraguay",
+  "venezuela", "united states", "mexico", "canada", "jamaica", "costa rica", "panama", "haiti", "honduras", "japan", "south korea",
+  "australia", "iran", "saudi arabia", "qatar", "india", "morocco", "senegal", "nigeria", "egypt", "ghana", "ivory coast",
+  "cameroon", "algeria", "tunisia", "south africa",
+]);
+
+export function isNotableMatch(homeTeam: string, awayTeam: string): boolean {
+  return NOTABLE_NATIONS.has(homeTeam.toLowerCase()) || NOTABLE_NATIONS.has(awayTeam.toLowerCase());
+}
+
+const LEAGUES: LeagueConfig[] = [
   { code: "ger.1", label: "Bundesliga" },
   { code: "ita.1", label: "Serie A" },
   { code: "fra.1", label: "Ligue 1" },
@@ -40,6 +67,13 @@ const LEAGUES: { code: string; label: string; days?: { back: number; ahead: numb
   // free tier has no Nations League. It is idle outside the windows, so it
   // costs nothing then.
   { code: "uefa.nations", label: "UEFA Nations League", days: { back: 1, ahead: 2 } },
+  // Other national-team fixtures (2026-10-02, explicit request): men's and
+  // women's friendlies and the CONCACAF Nations League. Checked live: the
+  // 2026 qualifier boards (UEFA/CONMEBOL/CAF/AFC) and the Euro/Women's Euro
+  // boards are empty in this window.
+  { code: "fifa.friendly", label: "International Friendly", days: { back: 1, ahead: 2 }, notableOnly: true },
+  { code: "fifa.friendly.w", label: "Women's International Friendly", days: { back: 1, ahead: 2 }, notableOnly: true, teamSuffix: " Women" },
+  { code: "concacaf.nations.league", label: "CONCACAF Nations League", days: { back: 1, ahead: 2 }, notableOnly: true },
 ];
 
 interface EspnTeam {
@@ -72,7 +106,7 @@ export function espnDay(now: Date, offset: number): string {
   return new Date(now.getTime() + offset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, "");
 }
 
-async function fetchLeague(league: { code: string; label: string }, date?: string): Promise<RawMatchItem[]> {
+async function fetchLeague(league: LeagueConfig, date?: string): Promise<RawMatchItem[]> {
   const res = await espnFetch(
     `https://site.api.espn.com/apis/site/v2/sports/soccer/${league.code}/scoreboard${date ? `?dates=${date}` : ""}`
   ).catch((err) => {
@@ -108,8 +142,9 @@ async function fetchLeague(league: { code: string; label: string }, date?: strin
       ? [venueInfo.fullName, venueInfo.address?.city, venueInfo.address?.country].filter(Boolean).join(", ")
       : undefined;
 
-    const homeTeam = home.team.displayName;
-    const awayTeam = away.team.displayName;
+    if (league.notableOnly && !isNotableMatch(home.team.displayName, away.team.displayName)) continue;
+    const homeTeam = home.team.displayName + (league.teamSuffix ?? "");
+    const awayTeam = away.team.displayName + (league.teamSuffix ?? "");
 
     let title: string;
     let summary: string;

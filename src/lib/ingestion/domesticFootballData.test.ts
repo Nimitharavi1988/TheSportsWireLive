@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { espnDay } from "./domesticFootballData";
+import { espnDay, isNotableMatch } from "./domesticFootballData";
 
 describe("espnDay", () => {
   const now = new Date("2026-10-02T21:30:00Z");
@@ -11,5 +11,17 @@ describe("espnDay", () => {
   });
   it("rolls over month ends", () => {
     expect(espnDay(new Date("2026-10-31T12:00:00Z"), 1)).toBe("20261101");
+  });
+});
+
+describe("isNotableMatch", () => {
+  it("keeps a game when either side is a followed nation", () => {
+    expect(isNotableMatch("India", "Brazil")).toBe(true);
+    expect(isNotableMatch("Vanuatu", "Fiji")).toBe(false);
+    expect(isNotableMatch("Djibouti", "Sri Lanka")).toBe(false);
+    expect(isNotableMatch("Dominica", "United States")).toBe(true);
+  });
+  it("matches names case-insensitively", () => {
+    expect(isNotableMatch("ENGLAND", "Andorra")).toBe(true);
   });
 });
