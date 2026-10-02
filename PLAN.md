@@ -17,6 +17,64 @@ Why this shape (from the current code): ingestion runs on GitHub Actions, the si
 - **Phase 0 results (2026-10-02, 18 real articles across 6 sports)**: gemini-flash-lite-latest: 17/18 good, avg 337 in / 220 out tokens, ~1.2s; failure mode = body returned UNTRANSLATED (2/18; deterministic check must compare against source, not only count English words) plus small term slips ("Los Los Angeles", "long runs" -> wrong term) -> glossary. gemini-flash-latest: 0 flagged but ~5.5s/article. Decision: lite first, retry flagged items once on flash. Previews use the same title/body template -> translate with consistent "Previa".
 - Cost: Gemini per-token (measured: ~550 tokens/article -> well under $1/month at 100 articles/day on lite); est. a few dollars/month at ~100 articles/day — measure with one real run in Phase 0.
 
+## Spanish site — feature parity roadmap (2026-10-02)
+
+Goal (user): make the Spanish site similar to the English one and feature rich. Reviewed the English site's pages, home sections, article page, header and site-wide features; status of each on the Spanish site below. Principle: reuse the English selection logic and components (locale-aware via a dictionary / `locale` prop) rather than rebuilding; only translated articles are shown; data-heavy pages (scores, standings) need UI-label translation only because names/numbers are language-neutral.
+
+Legend: DONE built · PORT reuse English logic/component with Spanish labels · NEW needs new work · EN-ONLY stays English (linked out) for now.
+
+### Home page
+| English feature | Spanish status |
+|---|---|
+| Hero carousel (lead stories) | PARTIAL: single lead + 3 side stories (done); PORT the carousel |
+| Live match ticker under header (crests, scores, FT/preview) | PORT (labels: FT / Previa / En vivo) |
+| Section nav (desktop header + mobile scroll row) | PARTIAL: sport row (done); NEW mobile sticky row, "Más deportes" menu, Scores/Videos/Standings links |
+| Transfers & Big News (highlight picks) | PORT: run English highlight selection on Article, show Spanish text ("Fichajes y noticias destacadas") |
+| Match Results & Previews / NFL Scores & Previews | PORT ("Resultados y previas") |
+| Just In list, By Category blocks | DONE (list + by sport) |
+| Player News strip (tracked players, photos) | PORT ("Noticias de jugadores") |
+| Latest Videos strip | PORT (video titles stay original; labels Spanish) |
+| Standings carousels (league tables, NFL/NBA/MLB/NHL) | PORT (labels only) |
+| Quotes strip, Analysis strip, Happening Now | PORT (needs translated quotes/analysis) |
+| For You strip + /for-you (follows) | PORT (follows are language-neutral) |
+| Install-app / notification banners | NEW Spanish copy + Spanish web manifest |
+| Display ads / in-feed ads | HOLD: AdSense policy review before enabling on es |
+
+### Article page
+| English feature | Spanish status |
+|---|---|
+| Headline, hero photo + credit, date, chip, share buttons, original-source credit | DONE |
+| Machine-translation notice + English link + report-error link | DONE (Spanish-only) |
+| hreflang/canonical, NewsArticle JSON-LD (inLanguage), noindex for match cards | DONE |
+| Related stories (same sport) | DONE; PORT "tagged" related (by team/player/series) |
+| Entity links (player / club names -> pages) | NEW: needs Spanish player/club pages first (else link to English) |
+| Match header + box score / cricket scorecard / SportsEvent JSON-LD | PORT (labels) |
+| Up Next, Videos strip, Fan reactions + polls (FanEngagementHub), Follow us | PORT (same article id, Spanish labels) |
+| Breadcrumbs (+ BreadcrumbList JSON-LD) | PORT |
+| Standings widget / quotes in sidebar, venue chips | PORT |
+| Open Graph image (opengraph-image) | NEW for es (Spanish title on image) |
+
+### Other pages
+| Page | Spanish status |
+|---|---|
+| /sport/<sport> section pages | DONE (basic list); PORT full section home (hero, standings, videos) |
+| /search + live suggestions (teams, players, stories) | PARTIAL: results done; PORT suggestions dropdown |
+| /scores (live scoreboard), match pages | PORT (labels) — big, high value |
+| /standings, /series, /venue, /club, /player, /country, /athlete | PORT (labels; names unchanged); bios/descriptions need translation |
+| /videos, /analysis, /author | PORT |
+| /about, /contact, /privacy, /terms | EN-ONLY (legal text should be human-translated; linked out) |
+
+### Engagement and retention
+Spanish push notifications (needs locale on PushSubscription), Spanish web manifest/install, follows/For You in Spanish, Spanish Facebook/Instagram page (second Vertical row), native Spanish sources (ESPN Deportes, Marca, AS), Spanish newsletter, GA events by language.
+
+### Build order
+1. Foundation: locale-aware shared components (`t()` dictionary + `locale` prop), overlay helper that swaps English rows for their Spanish translation and filters untranslated.
+2. Home parity: ticker, hero carousel, highlight/results/NFL/player-news/videos/standings sections, full nav + mobile row.
+3. Article parity: engagement hub, up next, videos, breadcrumbs, match header/box score, OG image, tagged related.
+4. Data pages: scores, standings, series, venue, clubs/players/countries, videos, For You.
+5. Engagement: Spanish push, manifest/install banner, search suggestions.
+6. Later: Spanish social pages, native Spanish sources, ads after policy review.
+
 ## Status snapshot (2026-09-06)
 
 ### Architectural push: player pages + analytics (2026-09-06)
