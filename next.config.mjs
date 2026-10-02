@@ -16,6 +16,8 @@ const useImageResizing = process.env.IMAGE_RESIZING
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Two root layouts ((en), (es)) -> a standalone 404 for unmatched URLs.
+  experimental: { globalNotFound: true },
   env: {
     NEXT_PUBLIC_IMAGE_RESIZING: useImageResizing ? "1" : "0",
   },

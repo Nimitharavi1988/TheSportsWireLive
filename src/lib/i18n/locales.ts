@@ -28,7 +28,7 @@ export const LOCALES: Record<string, LocaleConfig> = {
     glossary: [
       'soccer -> "fútbol"; NFL / American football -> "fútbol americano"; baseball -> "béisbol"; basketball -> "baloncesto"',
       'match preview articles ("Preview: A vs B — date") -> "Previa: A vs B — date" (always "Previa", feminine)',
-      '"long runs" (F1) -> "tandas largas"; "pole position" stays "pole position"; "Grand Prix" -> "Gran Premio"',
+      'Formula 1 -> "Fórmula 1" (with accent); "long runs" (F1) -> "tandas largas"; "pole position" stays "pole position"; "Grand Prix" -> "Gran Premio"',
       'Never write "Los Los Angeles": team names that already start with "Los"/"Las"/"El" take no extra article',
       "Keep clock times and time zones as written (e.g. 7:00 PM UTC); translate month names (Oct -> oct.)",
     ],
