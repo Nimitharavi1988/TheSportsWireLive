@@ -310,6 +310,12 @@ export const TRACKED_PLAYERS: TrackedPlayer[] = [
   { slug: "prasidh-krishna", name: "Prasidh Krishna", searchTerms: ["Prasidh"], sport: "cricket", newsSearch: false },
   { slug: "arshdeep-singh", name: "Arshdeep Singh", searchTerms: ["Arshdeep"], sport: "cricket", newsSearch: false },
   { slug: "axar-patel", name: "Axar Patel", searchTerms: ["Axar"], sport: "cricket", newsSearch: false },
+  // India's Asian Games squad, from the 2026-10-02 semi-final scorecard (Cricinfo ids
+  // 1170265, 714451, 719715). Full names only: "Tilak", "Sundar" and "Washington"
+  // alone would match unrelated people and places.
+  { slug: "tilak-varma", name: "Tilak Varma", searchTerms: ["Tilak Varma"], sport: "cricket", newsSearch: false },
+  { slug: "shivam-dube", name: "Shivam Dube", searchTerms: ["Shivam Dube"], sport: "cricket", newsSearch: false },
+  { slug: "washington-sundar", name: "Washington Sundar", searchTerms: ["Washington Sundar"], sport: "cricket", newsSearch: false },
   { slug: "naman-dhir", name: "Naman Dhir", searchTerms: ["Naman Dhir"], sport: "cricket", newsSearch: false },
   { slug: "dhruv-jurel", name: "Dhruv Jurel", searchTerms: ["Jurel"], sport: "cricket", newsSearch: false },
   { slug: "smriti-mandhana", name: "Smriti Mandhana", searchTerms: ["Mandhana"], sport: "cricket", newsSearch: false },
