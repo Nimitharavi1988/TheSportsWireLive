@@ -464,6 +464,52 @@ export async function HomeView({ category }: { category?: string }) {
     .filter((a) => Boolean(a.heroImageUrl) || Boolean(a.homeCrestUrl && a.awayCrestUrl))
     .slice(0, 3);
 
+  // Rendered in two places: first in the lg sticky sidebar, and under the hero
+  // below lg. As the sidebar's 4th module it sat below the viewport (the
+  // sidebar is sticky with no inner scroll) and, on mobile, at the very
+  // bottom of the page under the category tiles.
+  const justInPanel = justIn.length > 0 && (
+    <Paper component="section" variant="outlined" sx={{ p: 2, ...BELOW_FOLD_SX }}>
+      <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 1.5 }}>
+        <AccessTimeIcon sx={{ fontSize: 15, color: "primary.main" }} />
+        <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, lineHeight: 1 }}>
+          Just In
+        </Typography>
+      </Stack>
+      <Stack spacing={1.25}>
+        {justIn.map((article, i) => (
+          <Box key={article.id}>
+            {i > 0 && <Divider sx={{ mb: 1.25 }} />}
+            <Link href={`/article/${article.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
+              <Stack direction="row" spacing={1.25} sx={{ alignItems: "flex-start" }}>
+                <ArticleThumb article={article} size={40} />
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: 12.5,
+                      fontWeight: 500,
+                      lineHeight: 1.35,
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {article.title}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                    {relativeTime(article.publishedAt!)}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Link>
+          </Box>
+        ))}
+      </Stack>
+    </Paper>
+  );
+
   // "By Category" sidebar tiles: one representative story per sport, so
   // Cricket/World Cup still get real homepage visibility on the "All" view
   // even when they don't happen to rank highly enough for the trending
@@ -777,6 +823,8 @@ export async function HomeView({ category }: { category?: string }) {
               // fine fallback.
             }}
           >
+            {justInPanel && <Box sx={{ display: { xs: "none", lg: "block" }, mb: 3 }}>{justInPanel}</Box>}
+
             {categoryTiles.length > 0 && (
               <Paper component="section" variant="outlined" sx={{ p: 2, ...BELOW_FOLD_SX }}>
                 <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, mb: 1, display: "block" }}>
@@ -882,52 +930,6 @@ export async function HomeView({ category }: { category?: string }) {
 
             <SentimentLeaderboard />
 
-            {justIn.length > 0 && (
-              <Paper component="section" variant="outlined" sx={{ p: 2, mt: 3, ...BELOW_FOLD_SX }}>
-                <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 1.5 }}>
-                  <AccessTimeIcon sx={{ fontSize: 15, color: "primary.main" }} />
-                  <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, lineHeight: 1 }}>
-                    Just In
-                  </Typography>
-                </Stack>
-                <Stack spacing={1.25}>
-                  {justIn.map((article, i) => (
-                    <Box key={article.id}>
-                      {i > 0 && <Divider sx={{ mb: 1.25 }} />}
-                      <Link href={`/article/${article.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
-                        {/* flex-start, not center — this row has a secondary
-                            timestamp line below the title, which pulls the
-                            true vertical center down and makes a centered
-                            thumbnail look misaligned with the headline. */}
-                        <Stack direction="row" spacing={1.25} sx={{ alignItems: "flex-start" }}>
-                          <ArticleThumb article={article} size={40} />
-                          <Box sx={{ minWidth: 0 }}>
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                fontSize: 12.5,
-                                fontWeight: 500,
-                                lineHeight: 1.35,
-                                display: "-webkit-box",
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: "vertical",
-                                overflow: "hidden",
-                              }}
-                            >
-                              {article.title}
-                            </Typography>
-                            <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                              {relativeTime(article.publishedAt!)}
-                            </Typography>
-                          </Box>
-                        </Stack>
-                      </Link>
-                    </Box>
-                  ))}
-                </Stack>
-              </Paper>
-            )}
-
             {PLAYER_QUOTES.length > 0 && (
               <Box sx={{ mt: 3 }}>
                 <QuotesStrip quotes={PLAYER_QUOTES} />
@@ -986,6 +988,8 @@ export async function HomeView({ category }: { category?: string }) {
             />
           </Box>
         )}
+
+        {justInPanel && <Box sx={{ display: { xs: "block", lg: "none" }, minWidth: 0 }}>{justInPanel}</Box>}
 
         <Box component="main" sx={{ minWidth: 0 }}>
           <HappeningNow competitions={activeCompetitions} medalLines={medalLines} />
