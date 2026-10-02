@@ -365,9 +365,15 @@ export async function HomeView({ category }: { category?: string }) {
     // justInRaw) so the best fresh stories still surface first; the
     // isHighlightWorthy/real-image/match-data-exclusion filters stay in JS
     // below, unchanged.
+    // Match-data pages are excluded IN the query (they're dropped from this
+    // section anyway): on 2026-10-02 they filled 57 of football's 60 slots,
+    // leaving 3 news stories and no "Transfers & Big News" section at all
+    // while 40 fresh news stories existed — same crowding fetchFreshRanked
+    // fixed for the main list.
     db.select().from(articleTable)
       .where(and(
         ...baseConditions,
+        notInArray(articleTable.sourceName, MATCH_DATA_SOURCE_NAMES),
         gte(articleTable.publishedAt, new Date(Date.now() - HIGHLIGHT_MAX_AGE_DAYS * 24 * 60 * 60 * 1000))
       ))
       .orderBy(desc(articleTable.trendingScore))
