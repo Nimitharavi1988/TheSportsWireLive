@@ -995,26 +995,39 @@ export async function HomeView({ category }: { category?: string }) {
           </Box>
         )}
 
-        {justInPanel && <Box sx={{ display: { xs: "block", lg: "none" }, minWidth: 0 }}>{justInPanel}</Box>}
+        {/* Below lg the sections are reordered with flex `order` (lg and up
+            keep the DOM order: series, Player News, Videos, Transfers...).
+            Mobile order, per explicit request 2026-10-02: Player News, All
+            series and events, Just In, Transfers & Big News, Videos, then
+            the match sections. */}
+        <Box component="main" sx={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
+          <Box sx={{ order: { xs: 2, lg: 0 } }}>
+            <HappeningNow competitions={activeCompetitions} medalLines={medalLines} />
+          </Box>
 
-        <Box component="main" sx={{ minWidth: 0 }}>
-          <HappeningNow competitions={activeCompetitions} medalLines={medalLines} />
+          {justInPanel && (
+            <Box sx={{ order: 3, display: { xs: "block", lg: "none" }, minWidth: 0, mb: 4 }}>{justInPanel}</Box>
+          )}
 
           {playerNewsMatches.length > 0 && (
-            <Suspense fallback={<PlayerNewsSkeleton />}>
-              <PlayerNewsSection playerNewsMatches={playerNewsMatches} />
-            </Suspense>
+            <Box sx={{ order: { xs: 1, lg: 0 } }}>
+              <Suspense fallback={<PlayerNewsSkeleton />}>
+                <PlayerNewsSection playerNewsMatches={playerNewsMatches} />
+              </Suspense>
+            </Box>
           )}
 
           {/* Official league/broadcaster videos (src/lib/videos/), filtered
               to the current sport; its own Suspense so the query never
               delays the news below. */}
-          <Suspense fallback={<VideoStripSkeleton headingSx={SECTION_HEADING_SX} />}>
-            <LatestVideos category={category} headingSx={SECTION_HEADING_SX} />
-          </Suspense>
+          <Box sx={{ order: { xs: 5, lg: 0 } }}>
+            <Suspense fallback={<VideoStripSkeleton headingSx={SECTION_HEADING_SX} />}>
+              <LatestVideos category={category} headingSx={SECTION_HEADING_SX} />
+            </Suspense>
+          </Box>
 
           {highlightArticles.length > 0 && (
-            <Box component="section" sx={{ mb: 4, ...BELOW_FOLD_SX }}>
+            <Box component="section" sx={{ order: { xs: 4, lg: 0 }, mb: 4, ...BELOW_FOLD_SX }}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <SwapHorizIcon sx={{ color: "warning.main" }} />
                 <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>Transfers &amp; Big News</Typography>
@@ -1028,7 +1041,7 @@ export async function HomeView({ category }: { category?: string }) {
           )}
 
           {matchArticles.length > 0 && (
-            <Box component="section" sx={BELOW_FOLD_SX}>
+            <Box component="section" sx={{ order: { xs: 6, lg: 0 }, ...BELOW_FOLD_SX }}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <ScoreboardIcon sx={{ color: "primary.main" }} />
                 <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>Match Results &amp; Previews</Typography>
@@ -1042,7 +1055,7 @@ export async function HomeView({ category }: { category?: string }) {
           )}
 
           {nflArticles.length > 0 && (
-            <Box component="section" sx={{ mt: matchArticles.length > 0 ? 4 : 0, ...BELOW_FOLD_SX }}>
+            <Box component="section" sx={{ order: { xs: 7, lg: 0 }, mt: matchArticles.length > 0 ? 4 : 0, ...BELOW_FOLD_SX }}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <SportsFootballIcon sx={{ color: categoryChipStyle("american-football").color }} />
                 <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>NFL Scores &amp; Previews</Typography>
