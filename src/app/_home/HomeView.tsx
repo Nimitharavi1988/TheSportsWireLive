@@ -6,7 +6,7 @@ import { CATEGORY_META } from "@/lib/categoryMeta";
 import { Suspense } from "react";
 import { db } from "@/db";
 import { article as articleTable } from "@/db/schema";
-import { and, eq, like, isNotNull, isNull, ne, notInArray, or, desc, gte, type SQL } from "drizzle-orm";
+import { and, eq, like, inArray, isNotNull, isNull, lte, ne, notInArray, or, desc, gte, type SQL } from "drizzle-orm";
 import { ForYouStrip } from "@/components/ForYouStrip";
 import { HappeningNow } from "@/components/HappeningNow";
 import { LatestVideos, VideoStripSkeleton } from "@/components/videos/VideoStrip";
@@ -56,6 +56,7 @@ import { CollapsibleAdBox } from "@/components/CollapsibleAdBox";
 import { MoreHeadlinesAdTile } from "@/components/MoreHeadlinesAdTile";
 import { HomeBanners } from "@/components/HomeBanners";
 import { fetchLiveNow } from "@/lib/scores/scoreboard";
+import { pickHomeMatches } from "@/lib/homeMatches";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import StarIcon from "@mui/icons-material/Star";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
@@ -304,7 +305,7 @@ export async function HomeView({ category }: { category?: string }) {
   // decision was silently getting overridden by a score cutoff instead of
   // actually taking priority. Capped at 5 (the same cap `featureArticle`
   // itself enforces), so this can never balloon the query.
-  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeCompetitions, medalLines, justInRaw, highlightCandidatesRaw, matchCandidatesRaw] = await Promise.all([
+  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeCompetitions, medalLines, justInRaw, highlightCandidatesRaw, matchCandidatesRaw, matchWindowRaw] = await Promise.all([
     // Main trending list, limited to fresh stories — see heroConfig.ts's
     // FRESH_NEWS_* for why (trendingScore never decays: on 2026-09-25 an
     // 11-day-old story with score 175 was still leading the hero).
@@ -396,6 +397,22 @@ export async function HomeView({ category }: { category?: string }) {
       ))
       .orderBy(desc(articleTable.trendingScore))
       .limit(100),
+    // All-sports page only: the games in the next 48 hours and the last 36, for
+    // "Match Results & Previews" (pickHomeMatches). The trending-ordered pool
+    // above can't feed it: a game's trending score says nothing about whether
+    // it matters (tonight's NHL games score near zero, women's cricket high),
+    // and it also holds fixtures weeks away.
+    category
+      ? Promise.resolve([] as (typeof articleTable.$inferSelect)[])
+      : db.select().from(articleTable)
+          .where(and(
+            eq(articleTable.status, "published"),
+            inArray(articleTable.sourceName, MATCH_DATA_SOURCE_NAMES),
+            gte(articleTable.kickoffAt, new Date(Date.now() - 36 * 60 * 60 * 1000)),
+            lte(articleTable.kickoffAt, new Date(Date.now() + 48 * 60 * 60 * 1000))
+          ))
+          .orderBy(desc(articleTable.trendingScore))
+          .limit(300),
   ]);
   const rankedIds = new Set(articlesRanked.map((a) => a.id));
   const articlesWithDupes = [...manuallyFeaturedRaw.filter((a) => !rankedIds.has(a.id)), ...articlesRanked];
@@ -704,7 +721,19 @@ export async function HomeView({ category }: { category?: string }) {
   const allNflArticles = allMatchArticles.filter((a) => a.sourceName === "ESPN NFL");
   const allFootballCricketArticles = allMatchArticles.filter((a) => a.sourceName !== "ESPN NFL");
 
-  const matchArticles = allFootballCricketArticles.slice(0, 10);
+  // On the all-sports page: most important first (the scoreboard's ranking) with
+  // at most 3 per sport, so one busy sport can't fill the list. A sport page keeps
+  // its own order.
+  const matchArticles = category
+    ? allFootballCricketArticles.slice(0, 10)
+    : pickHomeMatches(
+        matchWindowRaw.filter((a) => a.sourceName !== "ESPN NFL" && !heroIds.has(a.id) && !excludedFromMatchPool.has(a.id)),
+        10,
+        new Date(),
+        3,
+        // NCAA volleyball plays dozens of games a day and is the lowest-profile of these.
+        { volleyball: 1 }
+      );
   const nflArticles = allNflArticles.slice(0, 10);
   // Was allFootballCricketArticles.slice(10, 25) — that pool is genuine
   // match-data sources only (football-data.org/CricketData.org), which is

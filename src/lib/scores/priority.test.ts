@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectEvent, detectEvents, leagueWeight, matchPriority, EVENT_HOT_MS } from "./priority";
+import { detectEvent, detectEvents, leagueWeight, matchPriority, usAudienceBoost, EVENT_HOT_MS } from "./priority";
 import type { ScoreMatch } from "./scoreboardModel";
 
 const NOW = Date.parse("2026-09-30T18:00:00Z");
@@ -105,5 +105,36 @@ describe("detectEvents", () => {
   it("only reports cards present in both polls", () => {
     const found = detectEvents([m({ id: "a" })], [m({ id: "a", home: side("Arsenal", "2") }), m({ id: "new" })], NOW);
     expect([...found.keys()]).toEqual(["a"]);
+  });
+});
+
+// 2026-10-02: tonight's NHL and college football games ranked below a live
+// minor cricket or volleyball game on the home scores strip.
+describe("US audience", () => {
+  const SOON = "2026-09-30T19:30:00Z"; // 90 minutes after NOW
+  const nhl = m({ id: "nhl", sport: "hockey", leagueLabel: "NHL", state: "upcoming", kickoffAt: SOON, home: side("Detroit Red Wings", null), away: side("New York Rangers", null) });
+  const cfb = m({ id: "cfb", sport: "college-football", leagueLabel: "College Football", state: "upcoming", kickoffAt: SOON });
+  const minorLive = m({ id: "vb", sport: "volleyball", leagueLabel: "NCAA Women's Volleyball" });
+  const domesticLive = m({ id: "dom", sport: "cricket", leagueLabel: "President's Trophy", home: side("Pakistan Television", "153"), away: side("Sui Northern", "347") });
+
+  it("lifts an NHL or college football game starting soon above a live minor game", () => {
+    expect(matchPriority(nhl, NOW)).toBeGreaterThan(matchPriority(minorLive, NOW));
+    expect(matchPriority(nhl, NOW)).toBeGreaterThan(matchPriority(domesticLive, NOW));
+    expect(matchPriority(cfb, NOW)).toBeGreaterThan(matchPriority(minorLive, NOW));
+  });
+  it("does not lift games more than 36 hours away, old results, other sports or minor leagues", () => {
+    expect(usAudienceBoost({ ...nhl, kickoffAt: "2026-10-03T12:00:00Z" }, NOW)).toBe(0);
+    expect(usAudienceBoost(m({ id: "old", sport: "hockey", leagueLabel: "NHL", state: "final", kickoffAt: "2026-09-29T20:00:00Z" }), NOW)).toBe(0);
+    expect(usAudienceBoost(m({ id: "f", sport: "football", state: "upcoming", kickoffAt: SOON }), NOW)).toBe(0);
+    expect(usAudienceBoost(m({ id: "minor", sport: "hockey", leagueLabel: "Some Minor League", state: "upcoming", kickoffAt: SOON }), NOW)).toBe(0);
+  });
+  it("gives a result from the last 12 hours a smaller lift and a live game none", () => {
+    const fresh = m({ id: "r", sport: "baseball", leagueLabel: "MLB", state: "final", kickoffAt: "2026-09-30T10:00:00Z" });
+    expect(usAudienceBoost(fresh, NOW)).toBeGreaterThan(0);
+    expect(usAudienceBoost(fresh, NOW)).toBeLessThan(usAudienceBoost(nhl, NOW));
+    expect(usAudienceBoost(m({ id: "l", sport: "baseball", leagueLabel: "MLB" }), NOW)).toBe(0);
+  });
+  it("counts the Nations League as a top competition", () => {
+    expect(leagueWeight("UEFA Nations League")).toBe(300);
   });
 });
