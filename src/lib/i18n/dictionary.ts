@@ -63,7 +63,13 @@ export interface Dict {
     originalSource: string;
     related: string;
     share: string;
+    by: string;
+    upNext: string;
+    relatedStories: string;
+    trending: string;
+    watch: string;
   };
+  engagement: { question: string; hype: string; panic: string; neutral: string; votes: (n: number) => string };
   section: { moreIn: string; empty: string };
   search: { title: string; results: string; none: string; prompt: string };
   footer: { rights: string; about: string; contact: string; privacy: string; terms: string; englishNote: string };

@@ -9,7 +9,7 @@ import { UpNextCard, type UpNextArticle } from "./UpNextCard";
 // as read. The server renders the first candidate, so the card is there
 // immediately (and pages stay cacheable — the choice happens here, in the
 // browser); it only changes if that one was already read.
-export function UpNext({ currentSlug, candidates }: { currentSlug: string; candidates: UpNextArticle[] }) {
+export function UpNext({ currentSlug, candidates, locale }: { currentSlug: string; candidates: UpNextArticle[]; locale?: string }) {
   const [chosen, setChosen] = useState(candidates[0] ?? null);
 
   useEffect(() => {
@@ -22,5 +22,5 @@ export function UpNext({ currentSlug, candidates }: { currentSlug: string; candi
     if (next && next.slug !== candidates[0]?.slug) setChosen(next);
   }, [currentSlug, candidates]);
 
-  return chosen ? <UpNextCard article={chosen} /> : null;
+  return chosen ? <UpNextCard article={chosen} locale={locale} /> : null;
 }

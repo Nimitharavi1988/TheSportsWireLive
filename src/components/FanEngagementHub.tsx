@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getDict } from "@/lib/i18n/dictionary";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
@@ -26,10 +27,10 @@ interface EngagementState {
   };
 }
 
-const REACTIONS: { type: ReactionType; emoji: string; label: string }[] = [
-  { type: "hype", emoji: "🔥", label: "Hype" },
-  { type: "panic", emoji: "🚨", label: "Panic" },
-  { type: "neutral", emoji: "🥶", label: "Neutral" },
+const REACTIONS: { type: ReactionType; emoji: string }[] = [
+  { type: "hype", emoji: "🔥" },
+  { type: "panic", emoji: "🚨" },
+  { type: "neutral", emoji: "🥶" },
 ];
 
 // Pure engagement — polls and Hype/Panic/Neutral reactions. Anonymous,
@@ -37,7 +38,8 @@ const REACTIONS: { type: ReactionType; emoji: string; label: string }[] = [
 // Deliberately does NOT touch any ad unit or trigger any ad-related
 // behavior on vote/react (only a local state update, same as any other
 // interactive element) — kept strictly separate from AdSense concerns.
-export function FanEngagementHub({ articleId }: { articleId: string }) {
+export function FanEngagementHub({ articleId, locale }: { articleId: string; locale?: string }) {
+  const t = getDict(locale).engagement;
   const [state, setState] = useState<EngagementState | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -134,7 +136,7 @@ export function FanEngagementHub({ articleId }: { articleId: string }) {
           </Stack>
           {state.poll.votedOptionId !== null && (
             <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mt: 1 }}>
-              {state.poll.totalVotes} vote{state.poll.totalVotes === 1 ? "" : "s"}
+              {t.votes(state.poll.totalVotes)}
             </Typography>
           )}
         </Box>
@@ -142,7 +144,7 @@ export function FanEngagementHub({ articleId }: { articleId: string }) {
 
       <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: "space-between" }}>
         <Typography variant="subtitle2" sx={{ color: "text.secondary", flexShrink: 0 }} noWrap>
-          How are you feeling about this?
+          {t.question}
         </Typography>
         {/* Icon + count only (label moves to the tooltip) — was a
             heading line above a button row with the full "emoji Label
@@ -152,7 +154,8 @@ export function FanEngagementHub({ articleId }: { articleId: string }) {
             width, matching the icon-row treatment ShareButtons/FollowUs
             already use elsewhere. */}
         <Stack direction="row" spacing={0.5}>
-          {REACTIONS.map(({ type, emoji, label }) => {
+          {REACTIONS.map(({ type, emoji }) => {
+            const label = t[type];
             const isMine = state.reactions.myReaction === type;
             return (
               <Tooltip key={type} title={label}>

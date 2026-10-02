@@ -5,6 +5,8 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import { getDict } from "@/lib/i18n/dictionary";
+import { categoryLabel } from "@/lib/i18n/helpers";
 import { ArticleThumb } from "@/components/ArticleThumb";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { isHeroQualityImage } from "@/lib/imageQuality";
@@ -28,11 +30,13 @@ export type UpNextArticle = {
 // smaller than the article's own hero, so it doesn't read as the start of
 // another article. Otherwise a compact row with the usual thumbnail. The
 // whole card is the link.
-export function UpNextCard({ article }: { article: UpNextArticle }) {
-  const chip = categoryChipStyle(article.category);
+export function UpNextCard({ article, locale }: { article: UpNextArticle; locale?: string }) {
+  const t = getDict(locale);
+  const base = categoryChipStyle(article.category);
+  const chip = locale ? { ...base, label: categoryLabel(article.category, t) } : base;
   const bigImage = isHeroQualityImage(article.heroImageUrl);
   return (
-    <Box component="section" aria-label="Up next" sx={{ mb: 3 }}>
+    <Box component="section" aria-label={t.article.upNext} sx={{ mb: 3 }}>
       <Link href={`/article/${article.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
         <Paper
           variant="outlined"
@@ -55,7 +59,7 @@ export function UpNextCard({ article }: { article: UpNextArticle }) {
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5 }}>
                 <Typography variant="overline" sx={{ color: "primary.main", fontWeight: 700, lineHeight: 1.2 }}>
-                  Up next
+                  {t.article.upNext}
                 </Typography>
                 <Typography variant="caption" sx={{ color: chip.color, fontWeight: 700 }}>
                   {chip.label}
