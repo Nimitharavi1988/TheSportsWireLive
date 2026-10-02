@@ -551,6 +551,61 @@ export async function HomeView({ category }: { category?: string }) {
         })
         .filter((entry): entry is { category: string; article: (typeof articles)[number] } => entry !== null);
 
+  // By Category tiles, rendered in two places like Just In: in the lg sidebar and, below lg,
+  // in the main column before Videos (it sat at the very bottom of the page on a phone).
+  const categoryPanel = categoryTiles.length > 0 && (
+        <Paper component="section" variant="outlined" sx={{ p: 2, ...BELOW_FOLD_SX }}>
+          <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, mb: 1, display: "block" }}>
+            By Category
+          </Typography>
+          <Stack spacing={1.25}>
+            {categoryTiles.map(({ category: cat, article }) => (
+              <Link
+                key={cat}
+                href={`/article/${article.slug}`}
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+                <Stack
+                  direction="row"
+                  spacing={1.25}
+                  sx={{
+                    alignItems: "center",
+                    p: 0.75,
+                    borderRadius: 2,
+                    transition: "background-color 0.15s",
+                    "&:hover": { bgcolor: "action.hover" },
+                  }}
+                >
+                  <ArticleThumb article={article} size={48} fallbackColor={categoryChipStyle(cat).color} />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ color: categoryChipStyle(cat).color, fontWeight: 700, display: "block" }}
+                    >
+                      {categoryChipStyle(cat).label}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontSize: 12.5,
+                        lineHeight: 1.3,
+                        fontWeight: 500,
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {article.title}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Link>
+            ))}
+          </Stack>
+        </Paper>
+  );
+
   // "By Competition" sidebar tiles — same idea and same visual pattern as By
   // Category, one level more specific (Premier League, La Liga, Champions
   // League, etc. instead of just "Football"). Competition name is parsed out
@@ -860,58 +915,7 @@ export async function HomeView({ category }: { category?: string }) {
           >
             {justInPanel && <Box sx={{ display: { xs: "none", lg: "block" }, mb: 3 }}>{justInPanel}</Box>}
 
-            {categoryTiles.length > 0 && (
-              <Paper component="section" variant="outlined" sx={{ p: 2, ...BELOW_FOLD_SX }}>
-                <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, mb: 1, display: "block" }}>
-                  By Category
-                </Typography>
-                <Stack spacing={1.25}>
-                  {categoryTiles.map(({ category: cat, article }) => (
-                    <Link
-                      key={cat}
-                      href={`/article/${article.slug}`}
-                      style={{ textDecoration: "none", color: "inherit" }}
-                    >
-                      <Stack
-                        direction="row"
-                        spacing={1.25}
-                        sx={{
-                          alignItems: "center",
-                          p: 0.75,
-                          borderRadius: 2,
-                          transition: "background-color 0.15s",
-                          "&:hover": { bgcolor: "action.hover" },
-                        }}
-                      >
-                        <ArticleThumb article={article} size={48} fallbackColor={categoryChipStyle(cat).color} />
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography
-                            variant="caption"
-                            sx={{ color: categoryChipStyle(cat).color, fontWeight: 700, display: "block" }}
-                          >
-                            {categoryChipStyle(cat).label}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              fontSize: 12.5,
-                              lineHeight: 1.3,
-                              fontWeight: 500,
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                            }}
-                          >
-                            {article.title}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </Link>
-                  ))}
-                </Stack>
-              </Paper>
-            )}
+            {categoryPanel && <Box sx={{ display: { xs: "none", lg: "block" } }}>{categoryPanel}</Box>}
 
             {competitionTiles.length > 0 && (
               <Paper component="section" variant="outlined" sx={{ p: 2, mt: 3, ...BELOW_FOLD_SX }}>
@@ -1026,11 +1030,11 @@ export async function HomeView({ category }: { category?: string }) {
 
         {/* Below lg the sections are reordered with flex `order` (lg and up
             keep the DOM order: series, Player News, Videos, Transfers...).
-            Mobile order, per explicit request 2026-10-02: Player News, All
-            series and events, Just In, Transfers & Big News, Videos, then
+            Mobile order, per explicit request 2026-10-02: Player News, Just In,
+            Transfers & Big News, By Category, Videos, Series & events, then
             the match sections. */}
         <Box component="main" sx={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
-          <Box sx={{ order: { xs: 2, lg: 0 } }}>
+          <Box sx={{ order: { xs: 7, lg: 0 } }}>
             <HappeningNow competitions={activeCompetitions} medalLines={medalLines} />
           </Box>
 
@@ -1049,7 +1053,11 @@ export async function HomeView({ category }: { category?: string }) {
           {/* Official league/broadcaster videos (src/lib/videos/), filtered
               to the current sport; its own Suspense so the query never
               delays the news below. */}
-          <Box sx={{ order: { xs: 5, lg: 0 } }}>
+          {categoryPanel && (
+            <Box sx={{ order: 5, display: { xs: "block", lg: "none" }, minWidth: 0, mb: 4 }}>{categoryPanel}</Box>
+          )}
+
+          <Box sx={{ order: { xs: 6, lg: 0 } }}>
             <Suspense fallback={<VideoStripSkeleton headingSx={SECTION_HEADING_SX} />}>
               <LatestVideos category={category} headingSx={SECTION_HEADING_SX} />
             </Suspense>
@@ -1070,7 +1078,7 @@ export async function HomeView({ category }: { category?: string }) {
           )}
 
           {matchArticles.length > 0 && (
-            <Box component="section" sx={{ order: { xs: 6, lg: 0 }, ...BELOW_FOLD_SX }}>
+            <Box component="section" sx={{ order: { xs: 8, lg: 0 }, ...BELOW_FOLD_SX }}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <ScoreboardIcon sx={{ color: "primary.main" }} />
                 <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>Match Results &amp; Previews</Typography>
@@ -1084,7 +1092,7 @@ export async function HomeView({ category }: { category?: string }) {
           )}
 
           {nflArticles.length > 0 && (
-            <Box component="section" sx={{ order: { xs: 7, lg: 0 }, mt: matchArticles.length > 0 ? 4 : 0, ...BELOW_FOLD_SX }}>
+            <Box component="section" sx={{ order: { xs: 9, lg: 0 }, mt: matchArticles.length > 0 ? 4 : 0, ...BELOW_FOLD_SX }}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <SportsFootballIcon sx={{ color: categoryChipStyle("american-football").color }} />
                 <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>NFL Scores &amp; Previews</Typography>
