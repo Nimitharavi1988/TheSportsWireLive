@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createEntityLinker } from "./entityLinks";
+import { SCOPED_ROSTER } from "./rosterPlayersScoped";
 import type { ReactNode } from "react";
 import type { ReactElement } from "react";
 
@@ -98,5 +99,28 @@ describe("createEntityLinker", () => {
     const linkNode = nodes.find(isLinkElement);
     expect(linkNode).toBeDefined();
     expect(linkNode!.props.href).toBe("/player/kyler-murray");
+  });
+});
+
+describe("createEntityLinker with a sport (scoped rosters)", () => {
+  const cricketName = SCOPED_ROSTER["cricket"][0];
+  const hrefOf = (nodes: ReactNode[]) => nodes.find(isLinkElement)?.props.href;
+
+  it("links a cricket-only name inside cricket articles", () => {
+    const nodes = createEntityLinker("cricket")(`${cricketName} took two wickets.`);
+    expect(hrefOf(nodes)).toBe(`/search?q=${encodeURIComponent(cricketName)}`);
+  });
+
+  it("does not link it in another sport's article, or with no sport", () => {
+    expect(hrefOf(createEntityLinker("football")(`${cricketName} took two wickets.`))).toBeUndefined();
+    expect(hrefOf(createEntityLinker()(`${cricketName} took two wickets.`))).toBeUndefined();
+  });
+
+  it("still links tracked players first inside a sport", () => {
+    expect(hrefOf(createEntityLinker("cricket")("Kohli scored a century."))).toBe("/player/virat-kohli");
+  });
+
+  it("falls back to the shared terms for a sport with no scoped names", () => {
+    expect(hrefOf(createEntityLinker("tennis")("Kohli scored a century."))).toBe("/player/virat-kohli");
   });
 });

@@ -575,7 +575,8 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         // One linker per render — its `linked` set is shared across every
         // paragraph below, so a player/club name only gets turned into a
         // link on its first mention in the article, not every repeat.
-        const linkifyEntities = createEntityLinker();
+        // The article's sport, so its own sport's player names link too (entityLinks.tsx).
+        const linkifyEntities = createEntityLinker(article.category.split("/")[0]);
         // splitIntoParagraphs (not a plain \n split) guarantees readable-
         // sized chunks even when the source text comes back as one long
         // unbroken block — confirmed live: a dense 4-6 sentence wall of
