@@ -21,4 +21,12 @@ export const EVENT_KEYWORDS = [
   // they'd miss isHighlightWorthy entirely despite being exactly the kind
   // of high-interest, high-traffic content this list exists to surface.
   "ind vs afg", "india vs afghanistan", "afghanistan t20i", "afghanistan t20",
+  // Public statements and disputes (added 2026-10-01 for reach): what big
+  // names say about each other and the game, controversies, discipline.
+  // Deliberately NOT included: allegation/accused/investigation (legal
+  // risk), reportedly/insider (rumour), and "fired" (matches "backfired").
+  "slams", "blasts", "lashes out", "hits out", "calls out", "fires back",
+  "breaks silence", "backlash", "controvers", "feud", "apolog", "outrage",
+  "snub", "blames", "ultimatum", "criticis", "admits", "reveals",
+  "suspended", "suspension", "sacked",
 ];
