@@ -5,6 +5,7 @@ import { createId } from "@paralleldrive/cuid2";
 import { callGemini, aiUnavailableReason, MODEL } from "../ingestion/commentary";
 import { enabledLocales, type LocaleConfig } from "../i18n/locales";
 import { checkTranslation, priorityScore, slugFromTitle, sourceHash, type Fields } from "./checks";
+import { reviewTranslation, type Review } from "./review";
 
 // Translation stage of the Spanish site (PLAN.md). Runs on the GitHub Actions
 // runner right after auto-approve, as its own step: translating at request
@@ -21,7 +22,7 @@ const RETRY_MODEL = "gemini-flash-latest"; // lite first (cheaper); flagged item
 const MAX_ATTEMPTS = 3;
 const MIN_BODY_CHARS = 200;
 
-function buildPrompt(locale: LocaleConfig, f: Fields): string {
+function buildPrompt(locale: LocaleConfig, f: Fields, feedback: string[] = []): string {
   return `You are a professional sports-news translator. Translate the article below from English into ${locale.promptName}.
 
 Rules:
@@ -31,7 +32,7 @@ Rules:
 - Translate EVERY field completely, including the whole body.
 ${locale.glossary.map((g) => `- ${g}`).join("\n")}
 - Return JSON with title, summary, body.
-
+${feedback.length ? "\nA previous attempt at this translation was rejected for these problems — avoid them:\n" + feedback.map((x) => `- ${x}`).join("\n") + "\n" : ""}
 TITLE: ${f.title}
 
 SUMMARY: ${f.summary}
@@ -40,8 +41,8 @@ BODY:
 ${f.body}`;
 }
 
-async function translateOnce(locale: LocaleConfig, f: Fields, model?: string): Promise<Fields | null> {
-  const parsed = await callGemini(buildPrompt(locale, f), {
+async function translateOnce(locale: LocaleConfig, f: Fields, model?: string, feedback: string[] = []): Promise<Fields | null> {
+  const parsed = await callGemini(buildPrompt(locale, f, feedback), {
     ...(model ? { model } : {}),
     temperature: 0.2,
     maxOutputTokens: 8192,
@@ -117,14 +118,29 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
     for (const c of todo) {
       if (aiUnavailableReason()) { console.log(`Translation: stopping — ${aiUnavailableReason()}`); break; }
 
+      // Attempt 1 on the cheap lite model; if the deterministic checks or the
+      // second-opinion review reject it, one retry on Flash with the problems
+      // spelled out. A "minor" review still publishes (notes kept for the admin).
+      type Outcome = { out: Fields | null; ok: boolean; reason: string; review: Review | null };
+      const attempt = async (model: string | undefined, feedback: string[]): Promise<Outcome> => {
+        const out = await translateOnce(locale, c.fields, model, feedback);
+        if (!out) return { out, ok: false, reason: "no response", review: null };
+        const check = checkTranslation(c.fields, out);
+        if (!check.ok) return { out, ok: false, reason: check.reason, review: null };
+        const review = await reviewTranslation(locale, c.fields, out);
+        return review.verdict === "major"
+          ? { out, ok: false, reason: `review: ${review.issues.join("; ") || "major"}`, review }
+          : { out, ok: true, reason: review.issues.join("; "), review };
+      };
+
       let model = MODEL;
-      let out = await translateOnce(locale, c.fields);
-      let verdict = out ? checkTranslation(c.fields, out) : ({ ok: false, reason: "no response" } as const);
-      if (!verdict.ok) {
+      let res = await attempt(undefined, []);
+      if (!res.ok) {
         model = RETRY_MODEL;
-        out = await translateOnce(locale, c.fields, RETRY_MODEL);
-        verdict = out ? checkTranslation(c.fields, out) : ({ ok: false, reason: "no response (retry)" } as const);
+        res = await attempt(RETRY_MODEL, [res.reason]);
       }
+      const out = res.out;
+      const verdict = res.ok ? ({ ok: true } as const) : ({ ok: false, reason: res.reason } as const);
 
       if (opts.dryRun) {
         console.log(`${verdict.ok ? "ok  " : "FAIL"} (${model}) ${c.title.slice(0, 60)} -> ${verdict.ok ? out!.title.slice(0, 60) : verdict.reason}`);
@@ -138,24 +154,27 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
         const slug = c.prev?.slug ?? slugFromTitle(out.title, c.id.slice(-6));
         await db.insert(articleTranslation).values({
           id: createId(), articleId: c.id, locale: locale.code, ...out, slug, sourceHash: c.hash,
-          status: "translated", attempts: 0, lastError: null, model, updatedAt: now,
+          status: "translated", attempts: 0, lastError: res.reason || null, model, updatedAt: now,
         }).onConflictDoUpdate({
           target: [articleTranslation.articleId, articleTranslation.locale],
-          set: { ...out, slug, sourceHash: c.hash, status: "translated", attempts: 0, lastError: null, model, updatedAt: now },
+          set: { ...out, slug, sourceHash: c.hash, status: "translated", attempts: 0, lastError: res.reason || null, model, updatedAt: now },
         });
         translated++;
       } else {
         const reason = verdict.ok ? "unknown" : verdict.reason;
+        // Held back by the second-opinion review (not retried automatically; the
+        // reviewer's notes are in lastError) vs. failed outright.
+        const heldStatus = reason.startsWith("review:") ? "needs_review" : "failed";
         await db.insert(articleTranslation).values({
           id: createId(), articleId: c.id, locale: locale.code, sourceHash: c.hash,
-          status: "failed", attempts: 1, lastError: reason, model, updatedAt: now,
+          status: heldStatus, attempts: 1, lastError: reason, model, updatedAt: now,
         }).onConflictDoUpdate({
           target: [articleTranslation.articleId, articleTranslation.locale],
           // Keep any earlier good translation visible (status stays what it was
           // if it was 'translated'); only count the failed attempt.
           set: c.prev?.status === "translated"
             ? { lastError: reason, attempts: sql`${articleTranslation.attempts} + 1`, updatedAt: now }
-            : { sourceHash: c.hash, status: "failed", attempts: sql`${articleTranslation.attempts} + 1`, lastError: reason, model, updatedAt: now },
+            : { sourceHash: c.hash, status: heldStatus, attempts: sql`${articleTranslation.attempts} + 1`, lastError: reason, model, updatedAt: now },
         });
         failed++;
       }

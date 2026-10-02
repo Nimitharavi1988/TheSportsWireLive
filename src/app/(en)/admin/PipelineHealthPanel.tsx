@@ -55,7 +55,7 @@ export function PipelineHealthPanel({ health }: { health: PipelineHealth }) {
         />
         {health.translation && (
           <StatBlock
-            label="Spanish translations (24h / failed)"
+            label="Spanish translations (24h / failed or held for review)"
             value={`${health.translation.translated24h} / ${health.translation.failed}`}
             warn={health.translation.failed > 0}
           />

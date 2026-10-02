@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { article, articleTranslation, socialPost } from "@/db/schema";
-import { and, eq, gte, lt, count, isNotNull, sql, asc } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, count, isNotNull, sql, asc } from "drizzle-orm";
 import { hasRealImage, isAutoApprovable } from "./contentQuality";
 import { STALE_NO_IMAGE_HOURS, STALE_NO_BODY_HOURS } from "./ingestion/autoApprove";
 
@@ -30,7 +30,7 @@ async function translationHealth(): Promise<PipelineHealth["translation"]> {
     const [[ok], [bad]] = await Promise.all([
       db.select({ value: count() }).from(articleTranslation)
         .where(and(eq(articleTranslation.status, "translated"), gte(articleTranslation.updatedAt, since))),
-      db.select({ value: count() }).from(articleTranslation).where(eq(articleTranslation.status, "failed")),
+      db.select({ value: count() }).from(articleTranslation).where(inArray(articleTranslation.status, ["failed", "needs_review"])),
     ]);
     return { translated24h: ok.value, failed: bad.value };
   } catch {
