@@ -17,9 +17,10 @@ export function SpanishHero({ lead, side }: { lead: SpanishStory; side: SpanishS
   const chip = categoryChipStyle(lead.category);
   return (
     <Box component="section" aria-label={ES.home.topStory} sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "minmax(0, 2fr) minmax(0, 1fr)" }, mb: 5 }}>
-      <Box component={Link} href={`/article/${lead.slug}`} sx={{ textDecoration: "none", color: "inherit", display: "block", border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden", bgcolor: "background.paper", "&:hover .hero-title": { color: "primary.main" } }}>
+      <Link href={`/article/${lead.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+      <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden", bgcolor: "background.paper", "&:hover .hero-title": { color: "primary.main" } }}>
         <Box sx={{ position: "relative", width: "100%", aspectRatio: "16 / 9", bgcolor: "action.hover" }}>
-          <Box component={Image} src={lead.heroImageUrl!} alt={lead.title} fill priority fetchPriority="high" sizes="(max-width: 900px) 100vw, 700px" sx={{ objectFit: "cover", objectPosition: "center 20%" }} />
+          <Image src={lead.heroImageUrl!} alt={lead.title} fill priority fetchPriority="high" sizes="(max-width: 900px) 100vw, 700px" style={{ objectFit: "cover", objectPosition: "center 20%" }} />
         </Box>
         <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
@@ -38,6 +39,7 @@ export function SpanishHero({ lead, side }: { lead: SpanishStory; side: SpanishS
           </Typography>
         </Box>
       </Box>
+      </Link>
       {side.length > 0 && (
         <Stack spacing={1.5}>
           {side.map((a) => (
