@@ -45,6 +45,7 @@ import { fetchStoryTags } from "@/lib/tags";
 import { matchVenue } from "@/lib/venues";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import { relativeTime } from "@/lib/relativeTime";
+import { ES_ORIGIN, spanishSlugFor } from "@/lib/i18n/esSite";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import WhatshotIcon from "@mui/icons-material/Whatshot";
 
@@ -140,11 +141,16 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
   // the actual article image, a real hit to click-through on shared links.
   const shareImage = article.heroImageUrl ?? article.homeCrestUrl ?? undefined;
   const writer = await getAuthor(article.authorSlug);
+  const esSlug = await spanishSlugFor(article.id);
   return {
     title: article.title,
     description,
     ...(writer ? { authors: [{ name: writer.name, url: `/author/${writer.slug}` }] } : {}),
-    alternates: { canonical: `/article/${article.slug}` },
+    alternates: {
+      canonical: `/article/${article.slug}`,
+      // hreflang pair with the Spanish translation, only when one is live.
+      ...(esSlug ? { languages: { en: `/article/${article.slug}`, es: `${ES_ORIGIN}/article/${esSlug}` } } : {}),
+    },
     // Match rows are templated score cards (a couple of hundred characters
     // each, ~2,100 of them) — kept for readers, but not offered to search
     // engines as articles: at that volume thin pages can weigh on how the
@@ -170,6 +176,7 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
   const params = await props.params;
   const article = await getArticle(params.slug);
   if (!article || article.status !== "published") notFound();
+  const esSlug = await spanishSlugFor(article.id);
   const writer = await getAuthor(article.authorSlug);
   // Match stories get the standard scoreboard header (src/lib/scores/)
   // instead of the plain crest-vs-crest row.
@@ -493,6 +500,13 @@ export default async function ArticlePage(props: { params: Promise<{ slug: strin
         </Box>
       ) : null}
 
+      {esSlug && (
+        <Box sx={{ mb: 1 }}>
+          <a href={`${ES_ORIGIN}/article/${esSlug}`} hrefLang="es" lang="es" style={{ fontSize: 13, fontWeight: 600, textDecoration: "none", color: "inherit" }}>
+            🌐 Leer en español →
+          </a>
+        </Box>
+      )}
       <Chip
         label={categoryChipStyle(article.category).label}
         size="small"

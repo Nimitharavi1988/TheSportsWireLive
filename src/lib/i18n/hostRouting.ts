@@ -9,10 +9,12 @@ export const MAIN_HOST = "sportswirelive.com";
 // the Spanish host (scores, clubs, players...) is not translated yet, so it
 // falls back to the English page rather than 404ing. Grow this list as pages
 // get Spanish versions.
-const SUPPORTED_PREFIXES = new Set(["article", "sport", "search"]);
+// robots/sitemaps/feed are per host: the Spanish host serves its own (the files
+// live under /es/ in the internal tree).
+const SUPPORTED_PREFIXES = new Set(["article", "sport", "search", "robots.txt", "sitemap.xml", "news-sitemap.xml", "feed.xml"]);
 
 // Served identically on every host (route handlers, assets, key files).
-const PASS_THROUGH = /^\/(api|_next|media|social-posters|icon|icon-192|icon-512|manifest\.webmanifest|favicon\.ico|robots\.txt|sitemap\.xml|news-sitemap\.xml|feed\.xml|[a-f0-9]{32}\.txt)(\/|$|\.)/;
+const PASS_THROUGH = /^\/(api|_next|media|social-posters|icon|icon-192|icon-512|manifest\.webmanifest|favicon\.ico|[a-f0-9]{32}\.txt)(\/|$|\.)/;
 
 /** "es.sportswirelive.com" -> "es"; "es.localhost" (dev) -> "es"; main host -> null. */
 export function localeForHost(hostname: string): string | null {

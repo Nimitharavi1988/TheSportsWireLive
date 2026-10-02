@@ -1,4 +1,5 @@
 import GoogleAdSense from "@/components/GoogleAdSense";
+import { esSiteEnabled, esSportUrl, ES_ORIGIN } from "@/lib/i18n/esSite";
 import { StoryCard } from "@/components/StoryCard";
 import { AnalysisStrip } from "@/components/AnalysisStrip";
 import { TeamCrest } from "@/components/TeamCrest";
@@ -109,11 +110,15 @@ export function homeMetadata(category?: string) {
   // including its RSS feed `types` entry — so it has to be repeated here
   // rather than relying on the layout default to survive.
   const rssTypes = { types: { "application/rss+xml": "/feed.xml" } };
-  if (!meta) return { alternates: { canonical: "/", ...rssTypes } };
+  // hreflang to the Spanish site (only once it is switched on, and only for
+  // sports it covers) — see lib/i18n/esSite.ts.
+  const esUrl = !esSiteEnabled() ? null : category ? esSportUrl(category) : `${ES_ORIGIN}/`;
+  const languages = esUrl ? { languages: { en: category ? `/sport/${category}` : "/", es: esUrl } } : {};
+  if (!meta) return { alternates: { canonical: "/", ...languages, ...rssTypes } };
   return {
     title: meta.title,
     description: meta.description,
-    alternates: { canonical: `/sport/${category}`, ...rssTypes },
+    alternates: { canonical: `/sport/${category}`, ...languages, ...rssTypes },
     openGraph: { title: meta.title, description: meta.description },
     twitter: { title: meta.title, description: meta.description },
   };

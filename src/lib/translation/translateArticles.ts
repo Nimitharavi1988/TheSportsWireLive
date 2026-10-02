@@ -6,6 +6,8 @@ import { callGemini, aiUnavailableReason, MODEL } from "../ingestion/commentary"
 import { enabledLocales, type LocaleConfig } from "../i18n/locales";
 import { checkTranslation, priorityScore, slugFromTitle, sourceHash, type Fields } from "./checks";
 import { reviewTranslation, type Review } from "./review";
+import { submitToIndexNow } from "../indexNow";
+import { ES_ORIGIN, esSiteEnabled } from "../i18n/esSite";
 
 // Translation stage of the Spanish site (PLAN.md). Runs on the GitHub Actions
 // runner right after auto-approve, as its own step: translating at request
@@ -65,6 +67,7 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
   const maxPerRun = Number(process.env.TRANSLATE_MAX_PER_RUN ?? 30);
   const windowStart = new Date(Date.now() - Number(process.env.TRANSLATE_WINDOW_HOURS ?? 48) * 60 * 60 * 1000);
   let translated = 0, failed = 0, skipped = 0;
+  const newUrls: string[] = []; // Spanish URLs to ping IndexNow with once the run is done
 
   for (const locale of locales) {
     const candidates = await db
@@ -160,6 +163,7 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
           set: { ...out, slug, sourceHash: c.hash, status: "translated", attempts: 0, lastError: res.reason || null, model, updatedAt: now },
         });
         translated++;
+        if (!c.prev) newUrls.push(`${ES_ORIGIN}/article/${slug}`);
       } else {
         const reason = verdict.ok ? "unknown" : verdict.reason;
         // Held back by the second-opinion review (not retried automatically; the
@@ -181,6 +185,8 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
     }
     skipped += candidates.length - todo.length;
   }
+  // Best-effort, only once the Spanish site is live (same key file is served on every host).
+  if (!opts.dryRun && esSiteEnabled() && newUrls.length > 0) await submitToIndexNow(newUrls, ES_ORIGIN);
   console.log(`Translation: ${translated} translated, ${failed} failed, ${skipped} skipped.`);
   return { translated, failed, skipped };
 }

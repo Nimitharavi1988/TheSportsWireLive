@@ -7,6 +7,9 @@ import MatchTicker from "@/components/MatchTicker";
 import SiteFooter from "@/components/SiteFooter";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { LanguageSuggestion } from "@/components/LanguageSuggestion";
+import { ES_ORIGIN, esSiteEnabled } from "@/lib/i18n/esSite";
+import { ES_SPORTS } from "@/lib/i18n/es";
 import "../globals.css";
 
 export const metadata = {
@@ -79,6 +82,8 @@ export const viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Spanish-site hooks in the English chrome, all off until ES_SITE_ENABLED=1.
+  const es = esSiteEnabled() ? { origin: ES_ORIGIN, categories: ES_SPORTS.map((s) => s.category) } : null;
   return (
     <html lang="en" className={`${poppins.variable} ${inter.variable}`}>
       <head>
@@ -94,11 +99,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ServiceWorkerRegister />
         <ThemeRegistry>
           <NavigationProgress />
-          <SiteHeader />
+          <SiteHeader es={es} />
           <MobileSectionNav />
           <MatchTicker />
           {children}
           <SiteFooter />
+          {es && <LanguageSuggestion origin={es.origin} />}
         </ThemeRegistry>
       </body>
     </html>

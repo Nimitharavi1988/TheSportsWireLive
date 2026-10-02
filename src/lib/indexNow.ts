@@ -13,11 +13,13 @@ const INDEXNOW_ENDPOINT = "https://api.indexnow.org/indexnow";
 // Best-effort only — same precedent as postArticleToFacebook (admin/actions.ts):
 // a failed ping here should never block or fail the publish itself, since
 // this is a nice-to-have distribution channel, not core functionality.
-export async function submitToIndexNow(urls: string[]): Promise<void> {
+// siteUrl: the host the URLs belong to (default: the main site). The Spanish
+// subdomain passes its own; the same key file is served on every host.
+export async function submitToIndexNow(urls: string[], siteUrlOverride?: string): Promise<void> {
   const key = process.env.INDEXNOW_KEY;
   if (!key || urls.length === 0) return;
 
-  const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
+  const siteUrl = siteUrlOverride ?? process.env.SITE_URL ?? "http://localhost:3000";
   const host = new URL(siteUrl).host;
 
   try {

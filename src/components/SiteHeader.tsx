@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
+import { LanguageSwitch } from "@/components/LanguageSwitch";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AppBar from "@mui/material/AppBar";
@@ -468,7 +469,7 @@ function NavLinksFallback() {
   );
 }
 
-export default function SiteHeader() {
+export default function SiteHeader({ es }: { es?: { origin: string; categories: string[] } | null }) {
   return (
     <AppBar
       position="sticky"
@@ -509,6 +510,7 @@ export default function SiteHeader() {
           </Suspense>
           {/* Search icon: popover on desktop, full-screen on phones — see
               HeaderSearch.tsx. */}
+          {es && <LanguageSwitch origin={es.origin} categories={es.categories} />}
           <HeaderSearch />
         </Box>
       </Toolbar>

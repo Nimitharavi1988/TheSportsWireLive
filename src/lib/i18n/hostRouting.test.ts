@@ -21,9 +21,15 @@ describe("routeForHost", () => {
     expect(routeForHost("es.sportswirelive.com", "/admin")).toEqual({ kind: "redirect", host: "sportswirelive.com", pathname: "/admin" });
   });
   it("leaves shared assets and route handlers alone", () => {
-    for (const p of ["/api/search/suggest", "/_next/static/x.js", "/media/a.jpg", "/robots.txt", "/icon-192"]) {
+    for (const p of ["/api/search/suggest", "/_next/static/x.js", "/media/a.jpg", "/icon-192", "/0a4732c758299384738c62c377da0ad7.txt"]) {
       expect(routeForHost("es.sportswirelive.com", p)).toEqual({ kind: "next" });
     }
+  });
+  it("serves its own robots, sitemaps and feed from the internal /es tree", () => {
+    expect(routeForHost("es.sportswirelive.com", "/robots.txt")).toEqual({ kind: "rewrite", pathname: "/es/robots.txt" });
+    expect(routeForHost("es.sportswirelive.com", "/sitemap.xml")).toEqual({ kind: "rewrite", pathname: "/es/sitemap.xml" });
+    expect(routeForHost("es.sportswirelive.com", "/news-sitemap.xml")).toEqual({ kind: "rewrite", pathname: "/es/news-sitemap.xml" });
+    expect(routeForHost("es.sportswirelive.com", "/feed.xml")).toEqual({ kind: "rewrite", pathname: "/es/feed.xml" });
   });
   it("blocks the internal /es tree on the main host", () => {
     expect(routeForHost("sportswirelive.com", "/es")).toEqual({ kind: "redirect", host: "es.sportswirelive.com", pathname: "/" });

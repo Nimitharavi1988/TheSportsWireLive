@@ -12,6 +12,11 @@
   // localhost:3000.
   "vars": {
     "SITE_URL": "https://sportswirelive.com",
+    // Spanish site (es.sportswirelive.com, PLAN.md): "1" turns on the English
+    // side's Spanish hooks — header link, "Leer en español" on articles,
+    // hreflang tags, the one-time suggestion banner. Leave "0" until the
+    // subdomain is attached to this Worker and has translated content.
+    "ES_SITE_ENABLED": "0",
     // Not secret — a Page ID is publicly visible on the Page itself. The
     // access token is the actual secret and must never go here (this file
     // is committed to git); it's set as a Cloudflare secret instead, via
