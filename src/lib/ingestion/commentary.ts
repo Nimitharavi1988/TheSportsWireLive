@@ -69,7 +69,18 @@ Write a short, original recap (roughly 4-7 sentences, 2 short paragraphs at most
 
 interface GeminiCallOptions {
   responseSchema: object;
+  // Per-call overrides. Default is the lite model at temperature 0.3 — right
+  // for faithful summarization; the short, high-value Instagram copy below
+  // opts into the standard Flash model and a little more creativity.
+  model?: string;
+  temperature?: number;
+  maxOutputTokens?: number;
 }
+
+// Standard Flash for the Instagram hook/caption writing (2026-10-01): a few
+// short lines per post where writing quality drives reach, so the extra cost
+// per call is tiny next to the lite model used for bulk summarization.
+const COPY_MODEL = "gemini-flash-latest";
 
 // Set when Gemini says it can't serve requests at all (out of credits,
 // rate-limited, auth or server errors) — as opposed to answering and
@@ -95,7 +106,7 @@ async function callGemini(prompt: string, options: GeminiCallOptions): Promise<a
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${options.model ?? MODEL}:generateContent`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-goog-api-key": apiKey },
@@ -109,6 +120,9 @@ async function callGemini(prompt: string, options: GeminiCallOptions): Promise<a
             // model shows no separate hidden reasoning-token cost anyway
             // (totalTokenCount == promptTokenCount + candidatesTokenCount in
             // every test call), so there's nothing to disable here.
+            // Standard Flash spends output tokens on hidden reasoning unless told
+            // not to, which truncated the JSON at the 1-2k cap (seen live).
+            ...(options.model ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
             responseMimeType: "application/json",
             responseSchema: options.responseSchema,
             // Low, not zero — a little variation keeps prose from feeling
@@ -116,11 +130,11 @@ async function callGemini(prompt: string, options: GeminiCallOptions): Promise<a
             // of every prompt here is "stay faithful to the given facts,
             // never invent," so a high-creativity default fights that goal.
             // Free to set, no cost impact either way.
-            temperature: 0.3,
+            temperature: options.temperature ?? 0.3,
             // Every prompt here asks for a couple short paragraphs at most —
             // this caps worst-case cost on an occasional runaway response
             // rather than silently paying for output nobody wants.
-            maxOutputTokens: 1024,
+            maxOutputTokens: options.maxOutputTokens ?? 1024,
           },
         }),
       }
@@ -258,9 +272,10 @@ FACEBOOK caption:
 - Do not repeat the headline verbatim at the top.
 
 INSTAGRAM caption:
-- Longer than the Facebook version, with a captivating hook as the very first sentence.
-- Use 1-3 emojis as visual breaks between short paragraphs (not decorative clutter — each one should mark a real break in the text).
-- End with a call to action telling readers to click the link in the bio to read the full story (your own wording).
+- Longer than the Facebook version. Instagram cuts the caption off after roughly the first 100 characters behind a "...more" button, so the FIRST LINE must stand alone, be under 100 characters, and make someone want to tap: lead with the most surprising or consequential real fact (a name, number or result) or the tension in the story, not scene-setting and not the team's name alone.
+- Then 2-3 short paragraphs of real detail from the facts, with 1-3 emojis as visual breaks (not decorative clutter — each one should mark a real break in the text).
+- Second to last line: one genuine engagement question or pick-a-side prompt that people can answer in a comment in a few words (e.g. "Who takes it?", "Fair call or not?"). It must be about something the facts actually raise, never generic ("What do you think?") and never a claim.
+- Last line: a short note that the full story is linked in the bio (your own wording).
 - Do not include any hashtags — those are added separately.
 - Do not repeat the headline verbatim at the top.
 
@@ -276,6 +291,9 @@ export async function generateSocialCaptions(title: string, body: string): Promi
   if (!body || body.trim().length < 40) return null;
 
   const parsed = await callGemini(buildSocialCaptionsPrompt(title, body), {
+    model: COPY_MODEL,
+    temperature: 0.6,
+    maxOutputTokens: 2048,
     responseSchema: {
       type: "OBJECT",
       properties: {
@@ -306,7 +324,7 @@ ${body}
 
 Produce:
 - eyebrow: a short all-caps category/context label, 2-4 words (e.g. "MANCHESTER DERBY", "TRANSFER NEWS", "MATCH REPORT"). No punctuation.
-- hook: a bold, attention-grabbing headline for the poster, under 10 words, that is strictly true to the article. Lead with the single most surprising or consequential fact, preferring a specific name, number or result over generic drama ("Salah scores 3 in 20 minutes", not "A stunning night at Anfield"). Dramatic phrasing is fine, but never state anything not actually supported by the text. Do not use clickbait that misrepresents the facts (e.g. don't imply a twist that didn't happen).
+- hook: the first thing a stranger sees while scrolling, and the reason they stop or keep watching. Under 10 words, strictly true to the article. Lead with the single most surprising or consequential real fact (a specific name, number or result), then add stakes or tension when the text supports it: what it means, what's now on the line, the unexpected part, or a clear question the story answers. Prefer a concrete claim to a label. Good: "Salah scores 3 in 20 minutes", "Eagles lose Hurts for the season?" (only if the text says so), "296 chased with 8 overs to spare". Bad: "A stunning night at Anfield", "Big news in the NFL", "You won't believe this". A curiosity gap is fine only when the answer is actually in the article; never state or imply anything the text doesn't support, and never imply a twist that didn't happen.
 - rows: 3 to 5 short label/value pairs, a quick-read fact summary of the story (e.g. score, key name, key stat, outcome) — every value must be a real fact stated in the article text above, never invented or estimated. label is 1-3 words, value is under 8 words. Fewer, real rows are better than padding with invented or vague ones. Order rows most important first.
 - Every row must be about the headline's own story: the same game, teams and people. Articles often end with other results, a roundup of other games, or related links; never take a row from those parts, even if the numbers look impressive. Don't repeat the hook in a row.
 - Every row must ADD something a reader can't already see in the headline and hook: a number, a score, a stat, a record, a name not yet mentioned, a quote, a date, or what happens next. A row that just restates who or what the headline already names ("Player: Jalen Hurts", "Team: Philadelphia Eagles" under a headline about them) is wrong. Prefer concrete facts like "296 runs chased with 8 overs to spare" over labels. If fewer than 3 rows add something new, return fewer rows.
@@ -350,6 +368,9 @@ export async function generatePosterContent(title: string, body: string): Promis
   if (!body || body.trim().length < 40) return null;
 
   const parsed = await callGemini(buildPosterPrompt(title, body), {
+    model: COPY_MODEL,
+    temperature: 0.5,
+    maxOutputTokens: 2048,
     responseSchema: {
       type: "OBJECT",
       properties: {
