@@ -13,6 +13,8 @@ import { FeaturedScore } from "./FeaturedScore";
 import { LIVE_RED } from "./ScoreCard";
 import { MiniScoreCard } from "./MiniScoreCard";
 import { useLiveScores } from "./useLiveScores";
+import { useDict, useLocale } from "@/lib/i18n/LocaleContext";
+import { categoryLabel } from "@/lib/i18n/helpers";
 
 // Scores panel for the homepage and sport sections (right column, md+): the
 // lead game as a featured card, then the next few, with chips to focus on one
@@ -52,6 +54,9 @@ function Chip({ label, on, onClick }: { label: string; on: boolean; onClick: () 
 }
 
 export function ScoresPanel({ initial, sport }: { initial: ScoreMatch[]; sport?: string }) {
+  const dict = useDict();
+  const t = dict.scores;
+  const locale = useLocale();
   // null = every sport. A sport section is already narrowed, so no chips there.
   const [picked, setPicked] = useState<string | null>(sport ?? null);
   const chips = sport ? [] : SPORT_ORDER.filter((s) => initial.some((m) => m.sport === s));
@@ -65,38 +70,38 @@ export function ScoresPanel({ initial, sport }: { initial: ScoreMatch[]; sport?:
   const href = picked ? `/scores?category=${picked}` : "/scores";
 
   return (
-    <Box component="section" aria-label="Scores" sx={{ display: { xs: "none", md: "block" }, mb: 3, minWidth: 0 }}>
+    <Box component="section" aria-label={t.title} sx={{ display: { xs: "none", md: "block" }, mb: 3, minWidth: 0 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
         <Typography component="h2" variant="h6" sx={{ flex: 1 }}>
-          Scores
+          {t.title}
         </Typography>
         {liveCount > 0 && (
           <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, fontSize: 13, fontWeight: 700, color: "#b71c1c" }}>
             <Box aria-hidden component="span" sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: LIVE_RED }} />
-            {liveCount} live
+            {t.liveCount(liveCount)}
           </Box>
         )}
       </Box>
 
       {chips.length > 1 && (
-        <Box role="group" aria-label="Filter scores by sport" sx={{ display: "flex", gap: 0.75, overflowX: "auto", pb: 0.5, mb: 1, "&::-webkit-scrollbar": { height: 0 } }}>
-          <Chip label="All" on={picked === null} onClick={() => setPicked(null)} />
+        <Box role="group" aria-label={t.filterBySport} sx={{ display: "flex", gap: 0.75, overflowX: "auto", pb: 0.5, mb: 1, "&::-webkit-scrollbar": { height: 0 } }}>
+          <Chip label={t.all} on={picked === null} onClick={() => setPicked(null)} />
           {chips.map((s) => (
-            <Chip key={s} label={categoryChipStyle(s).label} on={picked === s} onClick={() => setPicked(s)} />
+            <Chip key={s} label={locale ? categoryLabel(s, dict) : categoryChipStyle(s).label} on={picked === s} onClick={() => setPicked(s)} />
           ))}
         </Box>
       )}
 
       {lead ? (
         <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 1 }}>
-          <FeaturedScore match={lead} />
+          <FeaturedScore match={lead} locale={locale} />
           {rest.slice(0, MORE).map((m) => (
-            <MiniScoreCard key={m.id} match={m} fluid />
+            <MiniScoreCard key={m.id} match={m} fluid locale={locale} />
           ))}
         </Box>
       ) : (
         <Typography sx={{ py: 3, textAlign: "center", fontSize: 14, color: "text.secondary", border: "1px dashed", borderColor: "divider", borderRadius: 3 }}>
-          No games right now.
+          {t.noGames}
         </Typography>
       )}
 
@@ -106,7 +111,7 @@ export function ScoresPanel({ initial, sport }: { initial: ScoreMatch[]; sport?:
         </Typography>
         <Link href={href} style={{ textDecoration: "none" }}>
           <Typography component="span" sx={{ fontSize: 13, fontWeight: 600, color: "primary.main", display: "inline-flex", alignItems: "center" }}>
-            All scores <ChevronRightIcon sx={{ fontSize: 16 }} />
+            {t.allScores} <ChevronRightIcon sx={{ fontSize: 16 }} />
           </Typography>
         </Link>
       </Box>

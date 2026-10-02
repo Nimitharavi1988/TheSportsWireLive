@@ -11,7 +11,7 @@ import { MiniScoreCard } from "./MiniScoreCard";
 // tiles the homepage uses (MiniScoreCard), three across on a wide screen.
 // A tile that just had a goal or wicket carries the event banner beneath it,
 // and a finished match with highlights gets the "Watch highlights" toggle.
-export function LeagueTiles({ league, matches, events, columns = 3 }: { league: string; matches: ScoreMatch[]; events?: Map<string, MatchEvent>; columns?: 2 | 3 }) {
+export function LeagueTiles({ league, matches, events, columns = 3, locale }: { league: string; matches: ScoreMatch[]; events?: Map<string, MatchEvent>; columns?: 2 | 3; locale?: string }) {
   return (
     <Box component="section" aria-label={league} sx={{ mb: 3 }}>
       <Typography component="h2" sx={{ fontSize: 16, fontWeight: 700, mb: 1 }}>
@@ -22,7 +22,7 @@ export function LeagueTiles({ league, matches, events, columns = 3 }: { league: 
           const event = events?.get(m.id);
           return (
             <Box key={m.id}>
-              <MiniScoreCard match={m} fluid showLeague={false} />
+              <MiniScoreCard match={m} fluid showLeague={false} locale={locale} />
               {event && <EventChip event={event} />}
               {m.state === "final" && m.highlight && <HighlightsToggle youtubeId={m.highlight.youtubeId} title={m.highlight.title} />}
             </Box>

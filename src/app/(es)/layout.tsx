@@ -4,6 +4,8 @@ import SiteHeader from "@/components/SiteHeader";
 import { MobileSectionNav } from "@/components/MobileSectionNav";
 import SiteFooter from "@/components/SiteFooter";
 import { NavigationProgress } from "@/components/NavigationProgress";
+import MatchTicker from "@/components/MatchTicker";
+import { LocaleProvider } from "@/lib/i18n/LocaleContext";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import { ES } from "@/lib/i18n/es";
 import { LOCALES } from "@/lib/i18n/locales";
@@ -40,11 +42,14 @@ export default function SpanishRootLayout({ children }: { children: React.ReactN
       <body>
         <GoogleAnalytics />
         <ThemeRegistry>
-          <NavigationProgress />
-          <SiteHeader locale={LOCALE} otherSite={otherSite} />
-          <MobileSectionNav locale={LOCALE} />
-          {children}
-          <SiteFooter locale={LOCALE} />
+          <LocaleProvider locale={LOCALE}>
+            <NavigationProgress />
+            <SiteHeader locale={LOCALE} otherSite={otherSite} />
+            <MobileSectionNav locale={LOCALE} />
+            <MatchTicker locale={LOCALE} />
+            {children}
+            <SiteFooter locale={LOCALE} />
+          </LocaleProvider>
         </ThemeRegistry>
       </body>
     </html>

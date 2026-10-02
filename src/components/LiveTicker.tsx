@@ -12,6 +12,8 @@ import type { ScoreMatch } from "@/lib/scores/scoreboardModel";
 import { useLiveScores } from "./scores/useLiveScores";
 import { TICKER_SIZE } from "@/lib/scores/liveUpdates";
 import { MiniScoreCard } from "./scores/MiniScoreCard";
+import { useDict, useLocale } from "@/lib/i18n/LocaleContext";
+import { categoryLabel } from "@/lib/i18n/helpers";
 
 // Site-wide score strip under the header, at every width. Same cards and
 // ordering as the homepage panel (most important first, see
@@ -34,6 +36,10 @@ export function liveListUrl(sport: string | null | undefined): string {
 }
 
 export function LiveTicker({ initial }: { initial: ScoreMatch[] }) {
+  const dict = useDict();
+  const t = dict.scores;
+  const locale = useLocale();
+  const sportName = (s: string) => (locale ? categoryLabel(s, dict) : categoryChipStyle(s).label);
   // On a sport's section the strip shows that sport's games — the
   // server-rendered list is every sport's, so it's narrowed here and fetched
   // for the section straight away. Updates in place while games are live.
@@ -46,24 +52,24 @@ export function LiveTicker({ initial }: { initial: ScoreMatch[] }) {
   const scroll = (dir: -1 | 1) => track.current?.scrollBy({ left: dir * track.current.clientWidth * 0.8, behavior: "smooth" });
 
   return (
-    <Box component="section" aria-label="Scores" sx={{ display: "flex", alignItems: "stretch", bgcolor: STRIP_BG, borderBottom: "1px solid", borderColor: "divider" }}>
+    <Box component="section" aria-label={t.title} sx={{ display: "flex", alignItems: "stretch", bgcolor: STRIP_BG, borderBottom: "1px solid", borderColor: "divider" }}>
       <Link
         href={sport ? `/scores?category=${sport}` : "/scores"}
-        aria-label={sport ? `${categoryChipStyle(sport).label} scores` : "All scores"}
+        aria-label={sport ? t.sportScores(sportName(sport)) : t.allScores}
         style={{ display: "flex", textDecoration: "none", flexShrink: 0 }}
       >
         <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center", px: { xs: 1.5, sm: 2 }, background: "linear-gradient(135deg, #25774d 0%, #17512f 100%)", color: "primary.contrastText" }}>
           <Box component="span" sx={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: 12, letterSpacing: "0.07em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
-            {sport ? categoryChipStyle(sport).label : "Scores"}
+            {sport ? sportName(sport) : t.title}
           </Box>
           {liveCount > 0 && (
             <Box component="span" sx={{ fontSize: 12, opacity: 1, whiteSpace: "nowrap" }}>
-              {liveCount} live
+              {t.liveCount(liveCount)}
             </Box>
           )}
         </Box>
       </Link>
-      <IconButton size="small" onClick={() => scroll(-1)} aria-label="Scroll scores left" sx={{ display: { xs: "none", md: "inline-flex" }, borderRadius: 0 }}>
+      <IconButton size="small" onClick={() => scroll(-1)} aria-label={t.scrollLeft} sx={{ display: { xs: "none", md: "inline-flex" }, borderRadius: 0 }}>
         <ChevronLeftIcon fontSize="small" />
       </IconButton>
       <Box
@@ -81,10 +87,10 @@ export function LiveTicker({ initial }: { initial: ScoreMatch[] }) {
         }}
       >
         {matches.map((match) => (
-          <MiniScoreCard key={match.id} match={match} />
+          <MiniScoreCard key={match.id} match={match} locale={locale} />
         ))}
       </Box>
-      <IconButton size="small" onClick={() => scroll(1)} aria-label="Scroll scores right" sx={{ display: { xs: "none", md: "inline-flex" }, borderRadius: 0 }}>
+      <IconButton size="small" onClick={() => scroll(1)} aria-label={t.scrollRight} sx={{ display: { xs: "none", md: "inline-flex" }, borderRadius: 0 }}>
         <ChevronRightIcon fontSize="small" />
       </IconButton>
     </Box>

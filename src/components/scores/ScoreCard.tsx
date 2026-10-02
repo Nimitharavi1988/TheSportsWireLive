@@ -8,6 +8,7 @@ import { HighlightsToggle } from "./HighlightsToggle";
 import { splitScore } from "@/lib/scores/displayScore";
 import type { MatchEvent } from "@/lib/scores/priority";
 import { TeamCrest } from "@/components/TeamCrest";
+import { getDict } from "@/lib/i18n/dictionary";
 
 // Score list, modelled on Google's sports cards: one card per league, one
 // row per match — both teams stacked on the left (crest, name, record),
@@ -19,7 +20,8 @@ import { TeamCrest } from "@/components/TeamCrest";
 
 export const LIVE_RED = "#d32f2f";
 
-export function LiveBadge({ label }: { label: string | null }) {
+export function LiveBadge({ label, locale }: { label: string | null; locale?: string }) {
+  const live = getDict(locale).scores.live;
   return (
     <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, color: LIVE_RED, fontWeight: 700 }}>
       <Box
@@ -35,28 +37,28 @@ export function LiveBadge({ label }: { label: string | null }) {
           "@media (prefers-reduced-motion: reduce)": { animation: "none" },
         }}
       />
-      <span>{label ? `LIVE · ${label}` : "LIVE"}</span>
+      <span>{label ? `${live} · ${label}` : live}</span>
     </Box>
   );
 }
 
 // A started game in a break (cricket stumps/lunch/tea): muted, no pulse —
 // nothing is happening, so it shouldn't read as LIVE.
-export function PausedBadge({ label }: { label: string | null }) {
+export function PausedBadge({ label, locale }: { label: string | null; locale?: string }) {
   return (
     <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, color: "text.secondary", fontWeight: 700 }}>
       <Box component="span" aria-hidden sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "text.disabled" }} />
-      <span>{label ?? "Paused"}</span>
+      <span>{label ?? getDict(locale).scores.paused}</span>
     </Box>
   );
 }
 
 // Past its start with no live data to show (see ScoreState "started").
-export function StartedBadge() {
+export function StartedBadge({ locale }: { locale?: string }) {
   return (
     <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, color: "text.secondary", fontWeight: 700 }}>
       <Box component="span" aria-hidden sx={{ width: 7, height: 7, borderRadius: "50%", border: "1.5px solid", borderColor: "text.disabled" }} />
-      <span>In progress</span>
+      <span>{getDict(locale).scores.inProgress}</span>
     </Box>
   );
 }
@@ -74,21 +76,22 @@ function Team({ side, muted, bold }: { side: ScoreSide; muted: boolean; bold: bo
 }
 
 // Right-hand status column.
-function StatusColumn({ match }: { match: ScoreMatch }) {
+function StatusColumn({ match, locale }: { match: ScoreMatch; locale?: string }) {
+  const t = getDict(locale).scores;
   if (match.state === "live") {
     return (
       <Box sx={{ color: LIVE_RED, fontWeight: 700 }}>
-        <div>LIVE</div>
+        <div>{t.live}</div>
         {match.clock && <Box sx={{ fontWeight: 500 }}>{match.clock}</Box>}
       </Box>
     );
   }
-  if (match.state === "paused") return <span>{match.clock ?? "Break"}</span>;
-  if (match.state === "started") return <span>In progress</span>;
-  if (match.state === "final") return <Box component="span" sx={{ color: "text.primary", fontWeight: 500 }}>Final</Box>;
+  if (match.state === "paused") return <span>{match.clock ?? t.breakLabel}</span>;
+  if (match.state === "started") return <span>{t.inProgress}</span>;
+  if (match.state === "final") return <Box component="span" sx={{ color: "text.primary", fontWeight: 500 }}>{t.final}</Box>;
   return (
     <Box>
-      {match.kickoffAt ? <KickoffTime iso={match.kickoffAt} /> : <span>Upcoming</span>}
+      {match.kickoffAt ? <KickoffTime iso={match.kickoffAt} /> : <span>{t.upcoming}</span>}
       {match.broadcast && <Box sx={{ fontSize: 12, color: "text.disabled" }}>{match.broadcast}</Box>}
     </Box>
   );
@@ -121,7 +124,7 @@ export function EventChip({ event }: { event: MatchEvent }) {
   );
 }
 
-export function ScoreRow({ match, event }: { match: ScoreMatch; event?: MatchEvent }) {
+export function ScoreRow({ match, event, locale }: { match: ScoreMatch; event?: MatchEvent; locale?: string }) {
   const isFinal = match.state === "final";
   const hasScores = match.home.score !== null || match.away.score !== null;
   const score = (side: ScoreSide) => (
@@ -162,7 +165,7 @@ export function ScoreRow({ match, event }: { match: ScoreMatch; event?: MatchEve
           )}
         </Box>
         <Box sx={{ alignSelf: "stretch", display: "flex", alignItems: "center", justifyContent: "flex-end", textAlign: "right", pl: 1.5, borderLeft: "1px solid", borderColor: "divider", fontSize: 12, color: "text.secondary", lineHeight: 1.35 }}>
-          <StatusColumn match={match} />
+          <StatusColumn match={match} locale={locale} />
         </Box>
         {event && <EventChip event={event} />}
         {match.note && (
@@ -179,14 +182,14 @@ export function ScoreRow({ match, event }: { match: ScoreMatch; event?: MatchEve
 }
 
 // One league's matches in a single card, with where the data comes from.
-export function LeagueScoresCard({ league, matches, events }: { league: string; matches: ScoreMatch[]; events?: Map<string, MatchEvent> }) {
+export function LeagueScoresCard({ league, matches, events, locale }: { league: string; matches: ScoreMatch[]; events?: Map<string, MatchEvent>; locale?: string }) {
   return (
     <Box component="section" aria-label={league} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3, bgcolor: "background.paper", overflow: "hidden" }}>
       <Typography component="h2" sx={{ px: 2, py: 1.25, fontSize: 15, fontWeight: 700 }}>
         {league}
       </Typography>
       {matches.map((m) => (
-        <ScoreRow key={m.id} match={m} event={events?.get(m.id)} />
+        <ScoreRow key={m.id} match={m} event={events?.get(m.id)} locale={locale} />
       ))}
       <Typography component="div" sx={{ px: 2, py: 0.75, fontSize: 12, color: "text.disabled", borderTop: "1px solid", borderColor: "divider" }}>
         <CardSource matches={matches} />

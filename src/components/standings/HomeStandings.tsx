@@ -12,6 +12,8 @@ import { NbaStandingsCarousel } from "../NbaStandingsCarousel";
 import { MlbStandingsCarousel } from "../MlbStandingsCarousel";
 import { NhlStandingsCarousel } from "../NhlStandingsCarousel";
 import { SportTabs } from "./SportTabs";
+import { getDict } from "@/lib/i18n/dictionary";
+import { categoryLabel } from "@/lib/i18n/helpers";
 
 // Standings for the homepage and sport sections, one design (StandingsCard)
 // for every sport. "All" gets a tab per sport that has data; a sport page
@@ -47,11 +49,14 @@ async function build(key: Key, footballKey?: string): Promise<ReactNode | null> 
   }
 }
 
-export async function HomeStandings({ sport, footballApiKey }: { sport?: string; footballApiKey?: string }) {
-  const keys = sport ? ORDER.filter((k) => k === sport) : ORDER;
+export async function HomeStandings({ sport, footballApiKey, locale }: { sport?: string; footballApiKey?: string; locale?: string }) {
+  const t = getDict(locale);
+  // A language edition lists only the sports it covers.
+  const edition = locale ? ORDER.filter((k) => t.sports.some((s) => s.category === k)) : ORDER;
+  const keys = sport ? edition.filter((k) => k === sport) : edition;
   if (keys.length === 0) return null;
   const nodes = await Promise.all(keys.map((k) => build(k, footballApiKey).catch(() => null)));
-  const tabs = keys.flatMap((k, i) => (nodes[i] ? [{ key: k, label: LABELS[k], node: nodes[i] }] : []));
+  const tabs = keys.flatMap((k, i) => (nodes[i] ? [{ key: k, label: locale ? categoryLabel(k, t) : LABELS[k], node: nodes[i] }] : []));
   if (tabs.length === 0) return null;
   return (
     <Box sx={{ mb: 3 }}>

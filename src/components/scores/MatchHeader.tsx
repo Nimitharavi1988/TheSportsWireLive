@@ -8,6 +8,7 @@ import { LiveBadge, PausedBadge, StartedBadge } from "./ScoreCard";
 import { TeamCrest } from "@/components/TeamCrest";
 import { DataSource } from "./DataFreshness";
 import { useLiveScores } from "./useLiveScores";
+import { useDict, useLocale } from "@/lib/i18n/LocaleContext";
 
 // Large form of the score card, shown at the top of a match story (the
 // "match page"): league and status, big crests, score, records, the
@@ -25,6 +26,8 @@ function Side({ side, isFinal }: { side: ScoreSide; isFinal: boolean }) {
 }
 
 export function MatchHeader({ match: initial }: { match: ScoreMatch }) {
+  const t = useDict().scores;
+  const locale = useLocale();
   const [match] = useLiveScores([initial], { mode: "merge" }).concat(initial);
   const isFinal = match.state === "final";
   const hasScores = match.home.score !== null || match.away.score !== null;
@@ -34,7 +37,7 @@ export function MatchHeader({ match: initial }: { match: ScoreMatch }) {
   return (
     <Box
       component="section"
-      aria-label="Match score"
+      aria-label={t.matchScore}
       sx={{ border: "1px solid", borderColor: match.state === "live" ? "rgba(211, 47, 47, 0.35)" : "divider", borderRadius: 2, p: { xs: 2, sm: 2.5 }, mb: 2.5, bgcolor: "background.paper" }}
     >
       <Typography sx={{ textAlign: "center", fontSize: 13, color: "text.secondary", mb: 2 }}>{match.leagueLabel}</Typography>
@@ -62,17 +65,17 @@ export function MatchHeader({ match: initial }: { match: ScoreMatch }) {
           {/* Status under the score, as on Google's match cards. */}
           <Box sx={{ mt: 1, fontSize: 13, color: "text.secondary", display: "flex", justifyContent: "center" }}>
         {match.state === "live" ? (
-          <LiveBadge label={match.clock} />
+          <LiveBadge label={match.clock} locale={locale} />
         ) : match.state === "paused" ? (
-          <PausedBadge label={match.clock} />
+          <PausedBadge label={match.clock} locale={locale} />
         ) : match.state === "started" ? (
-          <StartedBadge />
+          <StartedBadge locale={locale} />
         ) : isFinal ? (
-          <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>Final</Box>
+          <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>{t.final}</Box>
         ) : match.kickoffAt ? (
           <KickoffTime iso={match.kickoffAt} withDate />
         ) : (
-          <span>Upcoming</span>
+          <span>{t.upcoming}</span>
         )}
           </Box>
         </Box>
@@ -82,11 +85,11 @@ export function MatchHeader({ match: initial }: { match: ScoreMatch }) {
       {match.note && <Typography sx={{ mt: 2, fontSize: 14, textAlign: "center", fontWeight: 600 }}>{match.note}</Typography>}
       {(match.venue || match.broadcast) && (
         <Typography sx={{ mt: 1, fontSize: 12, textAlign: "center", color: "text.secondary" }}>
-          {[match.venue, match.broadcast ? `TV: ${match.broadcast}` : null].filter(Boolean).join(" · ")}
+          {[match.venue, match.broadcast ? `${t.tv}: ${match.broadcast}` : null].filter(Boolean).join(" · ")}
         </Typography>
       )}
       <Typography component="div" sx={{ mt: 1, fontSize: 12, textAlign: "center", color: "text.disabled" }}>
-        Source: <DataSource match={match} />
+        {t.source}: <DataSource match={match} />
       </Typography>
     </Box>
   );

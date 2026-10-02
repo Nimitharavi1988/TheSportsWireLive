@@ -1,13 +1,15 @@
 "use client";
 
 import { useViewerTimeZone } from "./useViewerTimeZone";
+import { useDict } from "@/lib/i18n/LocaleContext";
 
 // Kickoff time in the viewer's own time zone ("3:25 PM"; with the date
 // too when `withDate`). See useViewerTimeZone for the UTC-first render.
 export function KickoffTime({ iso, withDate = false }: { iso: string; withDate?: boolean }) {
   const timeZone = useViewerTimeZone();
+  const dateLocale = useDict().dateLocale;
   const date = new Date(iso);
-  const text = date.toLocaleString("en-US", {
+  const text = date.toLocaleString(dateLocale, {
     timeZone,
     hour: "numeric",
     minute: "2-digit",

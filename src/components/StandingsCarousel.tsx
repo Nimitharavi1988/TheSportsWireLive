@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useDict } from "@/lib/i18n/LocaleContext";
 import Link from "next/link";
 import Typography from "@mui/material/Typography";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -27,6 +28,7 @@ export function StandingsCarousel({
   initialCode: string;
   initialTable: StandingsTableData;
 }) {
+  const dict = useDict().standings;
   const [index, setIndex] = useState(Math.max(0, leagues.findIndex((l) => l.code === initialCode)));
   const [cache, setCache] = useState<Record<string, StandingsTableData | null>>({ [initialCode]: initialTable });
   const [loadingCode, setLoadingCode] = useState<string | null>(null);
@@ -56,7 +58,7 @@ export function StandingsCarousel({
   return (
     <StandingsCard
       title={current.name}
-      groupLabel={leagues.length > 1 ? `${index + 1} of ${leagues.length}` : undefined}
+      groupLabel={leagues.length > 1 ? dict.of(index + 1, leagues.length) : undefined}
       onPrev={leagues.length > 1 ? () => go(-1) : undefined}
       onNext={leagues.length > 1 ? () => go(1) : undefined}
       switchLabel="league"

@@ -12,17 +12,19 @@ import { matchFits, parseMatchQuery } from "@/lib/scores/matchQuery";
 import { LeagueTiles } from "./LeagueTiles";
 import { useLiveScores } from "./useLiveScores";
 import { dayKey, useViewerTimeZone } from "./useViewerTimeZone";
+import { useDict, useLocale } from "@/lib/i18n/LocaleContext";
+import type { Dict } from "@/lib/i18n/dictionary";
 
 const DAY_MS = 86_400_000;
 
 const inPlay = (m: ScoreMatch) => m.state === "live" || m.state === "paused" || m.state === "started";
 
-function dayLabel(key: string, todayKey: string): string {
+function dayLabel(key: string, todayKey: string, t: Dict): string {
   const offsetDays = Math.round((Date.parse(`${key}T12:00:00Z`) - Date.parse(`${todayKey}T12:00:00Z`)) / DAY_MS);
-  if (offsetDays === 0) return "Today";
-  if (offsetDays === -1) return "Yesterday";
-  if (offsetDays === 1) return "Tomorrow";
-  return new Date(`${key}T12:00:00Z`).toLocaleDateString("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" });
+  if (offsetDays === 0) return t.scores.today;
+  if (offsetDays === -1) return t.scores.yesterday;
+  if (offsetDays === 1) return t.scores.tomorrow;
+  return new Date(`${key}T12:00:00Z`).toLocaleDateString(t.dateLocale, { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" });
 }
 
 interface LeagueGroup {
@@ -48,6 +50,9 @@ function groupByLeague(matches: ScoreMatch[], now: number, events: Map<string, M
 }
 
 export function ScoresBoard({ matches: initial, emptyLabel }: { matches: ScoreMatch[]; emptyLabel: string }) {
+  const dict = useDict();
+  const t = dict.scores;
+  const locale = useLocale();
   // Scores move in place while anything is live (see useLiveScores).
   const matches = useLiveScores(initial, { mode: "merge" });
   const timeZone = useViewerTimeZone();
@@ -126,12 +131,12 @@ export function ScoresBoard({ matches: initial, emptyLabel }: { matches: ScoreMa
         <InputBase
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filter by team, competition or sport — try “india”, “live”, “nba”"
+          placeholder={t.filterPlaceholder}
           sx={{ flex: 1, fontSize: 14 }}
-          inputProps={{ "aria-label": "Filter scores", enterKeyHint: "search" }}
+          inputProps={{ "aria-label": t.filterAria, enterKeyHint: "search" }}
         />
         {filter && (
-          <Box component="button" type="button" aria-label="Clear filter" onClick={() => setFilter("")} sx={{ display: "flex", border: 0, bgcolor: "transparent", p: 0.5, cursor: "pointer", color: "text.secondary", "&:hover": { color: "text.primary" } }}>
+          <Box component="button" type="button" aria-label={t.clearFilter} onClick={() => setFilter("")} sx={{ display: "flex", border: 0, bgcolor: "transparent", p: 0.5, cursor: "pointer", color: "text.secondary", "&:hover": { color: "text.primary" } }}>
             <CloseIcon sx={{ fontSize: 18 }} />
           </Box>
         )}
@@ -139,7 +144,7 @@ export function ScoresBoard({ matches: initial, emptyLabel }: { matches: ScoreMa
 
       <Box
         role="tablist"
-        aria-label="Choose a day"
+        aria-label={t.chooseDay}
         sx={{ display: "flex", gap: 0.5, borderBottom: "1px solid", borderColor: "divider", mb: 2, overflowX: "auto" }}
       >
         {days.map((d) => {
@@ -170,7 +175,7 @@ export function ScoresBoard({ matches: initial, emptyLabel }: { matches: ScoreMa
                 "&:hover": { color: "text.primary" },
               }}
             >
-              {dayLabel(d, todayKey)}
+              {dayLabel(d, todayKey, dict)}
               {count > 0 && (
                 <Box component="span" sx={{ ml: 0.75, fontSize: 12, color: "text.secondary", fontWeight: 400 }}>
                   {count}
@@ -183,13 +188,13 @@ export function ScoresBoard({ matches: initial, emptyLabel }: { matches: ScoreMa
 
       {groups.length === 0 ? (
         <Typography sx={{ color: "text.secondary", py: 5, textAlign: "center" }}>
-          {filterQuery ? `No games match “${filter.trim()}”${visible.length === 0 ? "" : " on this day"}.` : emptyLabel}
+          {filterQuery ? t.noMatch(filter.trim(), visible.length !== 0) : emptyLabel}
         </Typography>
       ) : (
         // One section per league: its name over a grid of score tiles.
         <Box>
           {groups.map((g) => (
-            <LeagueTiles key={g.league} league={g.league} matches={g.matches} events={events} />
+            <LeagueTiles key={g.league} league={g.league} matches={g.matches} events={events} locale={locale} />
           ))}
         </Box>
       )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useDict } from "@/lib/i18n/LocaleContext";
 import { ZONE_COLORS } from "@/lib/ingestion/standings";
 import { StandingsCard, type StandingsColumn, type StandingsRow } from "./StandingsCard";
 
@@ -29,6 +30,7 @@ export function ConferenceStandings<T>({
   maxRows?: number;
   switchLabel?: string;
 }) {
+  const dict = useDict().standings;
   const [index, setIndex] = useState(0);
   if (conferences.length === 0) return null;
   const current = conferences[Math.min(index, conferences.length - 1)];
@@ -38,7 +40,7 @@ export function ConferenceStandings<T>({
   return (
     <StandingsCard
       title={current.conferenceName}
-      groupLabel={many ? `${index + 1} of ${conferences.length}` : undefined}
+      groupLabel={many ? dict.of(index + 1, conferences.length) : undefined}
       onPrev={many ? () => go(-1) : undefined}
       onNext={many ? () => go(1) : undefined}
       switchLabel={switchLabel}

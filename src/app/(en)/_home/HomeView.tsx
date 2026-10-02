@@ -308,6 +308,8 @@ export async function HomeView({ category, locale }: { category?: string; locale
   // English-only modules (player quotes) are left out of the Spanish home.
   const quotes = loc ? [] : PLAYER_QUOTES;
 
+  // Scores are language-neutral data, but an edition shows only its own sports.
+  const editionSports = locale ? LOCALES[locale].categories : null;
   const baseConditions = [
     eq(articleTable.status, "published"),
     ...(category ? [like(articleTable.category, `${category}%`)] : []),
@@ -1126,15 +1128,15 @@ export async function HomeView({ category, locale }: { category?: string; locale
           >
             {/* Scores and standings: one design each, above the sticky part (they
                 are taller than a short window, so they scroll with the page). */}
-            {!loc && <ScoresPanel initial={liveMatches} sport={category?.split("/")[0]} />}
+            <ScoresPanel initial={editionSports ? liveMatches.filter((m) => editionSports.some((c) => c === m.sport || c.startsWith(m.sport + "/"))) : liveMatches} sport={category?.split("/")[0]} />
             {!category && !loc && (
               <Suspense fallback={null}>
                 <HomeMedals />
               </Suspense>
             )}
-            {!loc && (
+            {(
             <Suspense fallback={null}>
-              <HomeStandings sport={category} footballApiKey={standingsApiKey} />
+              <HomeStandings sport={category} footballApiKey={standingsApiKey} locale={locale} />
             </Suspense>
             )}
             <Box sx={{ position: { md: "sticky" }, top: { md: 84 } }}>

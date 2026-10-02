@@ -4,6 +4,7 @@ import { homeFirst, type BoxScore, type LineScore, type MatchContext, type Lineu
 import { fetchMlbBoxScore, mlbGamePk } from "@/lib/scores/mlbBoxScore";
 import { readMatchDetail } from "@/lib/scores/matchDetailRead";
 import { UnderlineTabs } from "./UnderlineTabs";
+import { getDict, type Dict } from "@/lib/i18n/dictionary";
 
 // Box score under the match header (basketball, hockey, NFL, college
 // football, soccer). Same card style as the score, standings and cricket
@@ -21,7 +22,7 @@ function Card({ title, children, label }: { title: string; children: React.React
   );
 }
 
-function StatTable({ group }: { group: StatGroup }) {
+function StatTable({ group, t }: { group: StatGroup; t: Dict }) {
   return (
     <Box sx={{ overflowX: "auto" }}>
       <Box component="table" sx={{ width: "100%", borderCollapse: "collapse", fontSize: 13, "& td": { py: 0.8 }, "& tbody tr": { borderTop: "1px solid", borderColor: "divider" } }}>
@@ -47,7 +48,7 @@ function StatTable({ group }: { group: StatGroup }) {
           ))}
           {group.totals && (
             <Box component="tr" sx={{ fontWeight: 700 }}>
-              <Box component="td" sx={nameCell}>Total</Box>
+              <Box component="td" sx={nameCell}>{t.boxScore.total}</Box>
               {group.totals.map((v, i) => (
                 <Box component="td" key={i} sx={{ ...cell, pr: i === group.totals!.length - 1 ? 2 : 0.75 }}>{v}</Box>
               ))}
@@ -60,15 +61,15 @@ function StatTable({ group }: { group: StatGroup }) {
 }
 
 // Runs by inning, then R, H, E — the heart of a baseball box score.
-function LineScoreCard({ line }: { line: LineScore }) {
+function LineScoreCard({ line, t }: { line: LineScore; t: Dict }) {
   const num = { px: 0.75, textAlign: "center" as const, fontVariantNumeric: "tabular-nums", minWidth: 26 };
   return (
-    <Card title="Line score">
+    <Card title={t.boxScore.lineScore}>
       <Box sx={{ overflowX: "auto" }}>
         <Box component="table" sx={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, "& td, & th": { py: 0.9 }, "& tbody tr": { borderTop: "1px solid", borderColor: "divider" } }}>
           <thead>
             <Box component="tr" sx={{ color: "text.secondary", fontSize: 12, bgcolor: "action.hover", "& th": { fontWeight: 600 } }}>
-              <Box component="th" sx={{ ...nameCell, bgcolor: "action.hover" }}>Team</Box>
+              <Box component="th" sx={{ ...nameCell, bgcolor: "action.hover" }}>{t.boxScore.team}</Box>
               {line.innings.map((n) => (
                 <Box component="th" key={n} sx={num}>{n}</Box>
               ))}
@@ -96,10 +97,10 @@ function LineScoreCard({ line }: { line: LineScore }) {
   );
 }
 
-function TeamStats({ box }: { box: BoxScore }) {
+function TeamStats({ box, t }: { box: BoxScore; t: Dict }) {
   const [a, b] = box.statTeams;
   return (
-    <Card title="Team stats">
+    <Card title={t.boxScore.teamStats}>
       <Box component="table" sx={{ width: "100%", borderCollapse: "collapse", fontSize: 13, "& td, & th": { py: 0.8, px: 2 }, "& tbody tr": { borderTop: "1px solid", borderColor: "divider" } }}>
         <thead>
           <Box component="tr" sx={{ color: "text.secondary", fontSize: 12, "& th": { fontWeight: 500 } }}>
@@ -122,20 +123,15 @@ function TeamStats({ box }: { box: BoxScore }) {
   );
 }
 
-const EVENT_MARK: Record<MatchEvent["kind"], { icon: string; label: string }> = {
-  goal: { icon: "⚽", label: "Goal" },
-  yellow: { icon: "🟨", label: "Yellow card" },
-  red: { icon: "🟥", label: "Red card" },
-  sub: { icon: "⇄", label: "Substitution" },
-};
+const EVENT_ICON: Record<MatchEvent["kind"], string> = { goal: "⚽", yellow: "🟨", red: "🟥", sub: "⇄" };
 
-function Events({ events }: { events: MatchEvent[] }) {
+function Events({ events, t }: { events: MatchEvent[]; t: Dict }) {
   return (
-    <Card title="Match events">
+    <Card title={t.boxScore.matchEvents}>
       {events.map((e, i) => (
         <Box key={i} sx={{ display: "flex", gap: 1.5, px: 2, py: 0.9, borderTop: i ? "1px solid" : "none", borderColor: "divider", fontSize: 13 }}>
           <Box component="span" sx={{ width: 40, color: "text.secondary", fontVariantNumeric: "tabular-nums" }}>{e.clock}</Box>
-          <Box component="span" role="img" aria-label={EVENT_MARK[e.kind].label} sx={{ width: 20 }}>{EVENT_MARK[e.kind].icon}</Box>
+          <Box component="span" role="img" aria-label={t.boxScore.events[e.kind]} sx={{ width: 20 }}>{EVENT_ICON[e.kind]}</Box>
           <Box component="span" sx={{ flex: 1, minWidth: 0 }}>{e.text}</Box>
           {e.team && <Box component="span" sx={{ flexShrink: 0, maxWidth: "35%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, color: "text.secondary" }}>{e.team}</Box>}
         </Box>
@@ -144,9 +140,9 @@ function Events({ events }: { events: MatchEvent[] }) {
   );
 }
 
-function LineupCard({ lineup }: { lineup: Lineup }) {
+function LineupCard({ lineup, t }: { lineup: Lineup; t: Dict }) {
   return (
-    <Card title={lineup.formation ? `${lineup.team} · ${lineup.formation}` : lineup.team} label={`${lineup.team} lineup`}>
+    <Card title={lineup.formation ? `${lineup.team} · ${lineup.formation}` : lineup.team} label={`${lineup.team} ${t.boxScore.lineup}`}>
       {lineup.starters.map((p, i) => (
         <Box key={`${p.name}${i}`} sx={{ display: "flex", gap: 1.5, px: 2, py: 0.7, borderTop: i ? "1px solid" : "none", borderColor: "divider", fontSize: 13 }}>
           <Box component="span" sx={{ width: 24, color: "text.secondary", fontVariantNumeric: "tabular-nums" }}>{p.jersey}</Box>
@@ -156,7 +152,7 @@ function LineupCard({ lineup }: { lineup: Lineup }) {
       ))}
       {lineup.bench.length > 0 && (
         <Box sx={{ px: 2, py: 1, borderTop: "1px solid", borderColor: "divider", fontSize: 12, color: "text.secondary" }}>
-          Bench: {lineup.bench.map((p) => `${p.jersey ? `${p.jersey} ` : ""}${p.name}`).join(", ")}
+          {t.boxScore.bench}: {lineup.bench.map((p) => `${p.jersey ? `${p.jersey} ` : ""}${p.name}`).join(", ")}
         </Box>
       )}
     </Card>
@@ -176,38 +172,39 @@ async function loadBox(articleId: string, sourceUrl: string, inPlay: boolean, ma
   return detail?.kind === "box" ? detail.box : null;
 }
 
-export async function MatchBoxScore({ articleId, sourceUrl, inPlay, match }: { articleId: string; sourceUrl: string; inPlay: boolean; match: MatchContext }) {
+export async function MatchBoxScore({ articleId, sourceUrl, inPlay, match, locale }: { articleId: string; sourceUrl: string; inPlay: boolean; match: MatchContext; locale?: string }) {
+  const t = getDict(locale);
   const box = await loadBox(articleId, sourceUrl, inPlay, match);
   if (!box) return null;
   const playerTabs = box.teams
-    .filter((t) => t.groups.length > 0)
-    .map((t, i) => ({
+    .filter((team) => team.groups.length > 0)
+    .map((team, i) => ({
       key: `p${i}`,
-      label: t.team,
+      label: team.team,
       node: (
-        <Card title={`${t.team} · Player stats`} label={`${t.team} player stats`}>
-          {t.groups.map((g, gi) => (
+        <Card title={`${team.team} · ${t.boxScore.playerStats}`} label={`${team.team} ${t.boxScore.playerStats}`}>
+          {team.groups.map((g, gi) => (
             <Box key={g.title + gi} sx={{ borderTop: gi ? "1px solid" : "none", borderColor: "divider" }}>
-              <StatTable group={g} />
+              <StatTable group={g} t={t} />
             </Box>
           ))}
         </Card>
       ),
     }));
-  const lineupTabs = box.lineups.filter((l) => l.starters.length > 0).map((l, i) => ({ key: `l${i}`, label: l.team, node: <LineupCard lineup={l} /> }));
+  const lineupTabs = box.lineups.filter((l) => l.starters.length > 0).map((l, i) => ({ key: `l${i}`, label: l.team, node: <LineupCard lineup={l} t={t} /> }));
   return (
-    <Box component="section" aria-label="Box score" sx={{ mb: 3 }}>
-      <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700, mb: 1 }}>Match stats</Typography>
-      {box.lineScore && <LineScoreCard line={box.lineScore} />}
-      {box.events.length > 0 && <Events events={box.events} />}
-      {box.teamStats.length > 0 && <TeamStats box={box} />}
-      {playerTabs.length > 0 && <UnderlineTabs tabs={playerTabs} label="Player stats by team" />}
+    <Box component="section" aria-label={t.boxScore.heading} sx={{ mb: 3 }}>
+      <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700, mb: 1 }}>{t.boxScore.heading}</Typography>
+      {box.lineScore && <LineScoreCard line={box.lineScore} t={t} />}
+      {box.events.length > 0 && <Events events={box.events} t={t} />}
+      {box.teamStats.length > 0 && <TeamStats box={box} t={t} />}
+      {playerTabs.length > 0 && <UnderlineTabs tabs={playerTabs} label={t.boxScore.playerStatsByTeam} />}
       {lineupTabs.length > 0 && (
         <Box sx={{ mt: 2 }}>
-          <UnderlineTabs tabs={lineupTabs} label="Lineups by team" />
+          <UnderlineTabs tabs={lineupTabs} label={t.boxScore.lineupsByTeam} />
         </Box>
       )}
-      <Typography component="div" sx={{ fontSize: 12, color: "text.disabled" }}>Source: {box.source}</Typography>
+      <Typography component="div" sx={{ fontSize: 12, color: "text.disabled" }}>{t.scores.source}: {box.source}</Typography>
     </Box>
   );
 }

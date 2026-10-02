@@ -5,6 +5,7 @@ import { splitScore } from "@/lib/scores/displayScore";
 import { LiveBadge, PausedBadge, StartedBadge } from "./ScoreCard";
 import { TeamCrest } from "@/components/TeamCrest";
 import { KickoffTime } from "./KickoffTime";
+import { getDict } from "@/lib/i18n/dictionary";
 
 // The score tile, modelled on Google's: the competition and status on one
 // line, then one row per team — crest, name, score right-aligned in its own
@@ -44,16 +45,17 @@ function Row({ side, muted, fluid }: { side: ScoreSide; muted: boolean; fluid: b
   );
 }
 
-export function Status({ match }: { match: ScoreMatch }) {
-  if (match.state === "live") return <LiveBadge label={match.clock} />;
-  if (match.state === "started") return <StartedBadge />;
-  if (match.state === "paused") return <PausedBadge label={match.clock} />;
-  if (match.state === "final") return <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>Final</Box>;
-  return match.kickoffAt ? <KickoffTime iso={match.kickoffAt} withDate /> : <span>Upcoming</span>;
+export function Status({ match, locale }: { match: ScoreMatch; locale?: string }) {
+  const t = getDict(locale).scores;
+  if (match.state === "live") return <LiveBadge label={match.clock} locale={locale} />;
+  if (match.state === "started") return <StartedBadge locale={locale} />;
+  if (match.state === "paused") return <PausedBadge label={match.clock} locale={locale} />;
+  if (match.state === "final") return <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>{t.final}</Box>;
+  return match.kickoffAt ? <KickoffTime iso={match.kickoffAt} withDate /> : <span>{t.upcoming}</span>;
 }
 
 // `showLeague` off under a league heading (/scores), where the name would repeat.
-export function MiniScoreCard({ match, fluid = false, showLeague = true }: { match: ScoreMatch; fluid?: boolean; showLeague?: boolean }) {
+export function MiniScoreCard({ match, fluid = false, showLeague = true, locale }: { match: ScoreMatch; fluid?: boolean; showLeague?: boolean; locale?: string }) {
   const isFinal = match.state === "final";
   const live = match.state === "live";
   return (
@@ -81,7 +83,7 @@ export function MiniScoreCard({ match, fluid = false, showLeague = true }: { mat
             </Box>
           )}
           <Box component="span" sx={{ flexShrink: 0, whiteSpace: "nowrap", fontWeight: 500 }}>
-            <Status match={match} />
+            <Status match={match} locale={locale} />
           </Box>
         </Box>
         <Row side={match.home} muted={isFinal && !match.home.winner} fluid={fluid} />

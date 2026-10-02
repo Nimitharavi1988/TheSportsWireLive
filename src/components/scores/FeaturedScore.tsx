@@ -5,6 +5,7 @@ import type { ScoreMatch, ScoreSide } from "@/lib/scores/scoreboardModel";
 import { splitScore } from "@/lib/scores/displayScore";
 import { TeamCrest } from "@/components/TeamCrest";
 import { shortLeague, Status } from "./MiniScoreCard";
+import { getDict } from "@/lib/i18n/dictionary";
 
 // The lead game in the homepage panel: the same tile language as
 // MiniScoreCard at a larger scale — bigger crests and scores, the result or
@@ -33,7 +34,8 @@ function Team({ side, muted }: { side: ScoreSide; muted: boolean }) {
   );
 }
 
-export function FeaturedScore({ match }: { match: ScoreMatch }) {
+export function FeaturedScore({ match, locale }: { match: ScoreMatch; locale?: string }) {
+  const t = getDict(locale).scores;
   const isFinal = match.state === "final";
   const live = match.state === "live";
   const where = [match.venue, match.broadcast].filter(Boolean).join(" · ");
@@ -58,7 +60,7 @@ export function FeaturedScore({ match }: { match: ScoreMatch }) {
             {shortLeague(match.leagueLabel)}
           </Box>
           <Box component="span" sx={{ flexShrink: 0, whiteSpace: "nowrap", fontWeight: 600 }}>
-            <Status match={match} />
+            <Status match={match} locale={locale} />
           </Box>
         </Box>
         <Team side={match.home} muted={isFinal && !match.home.winner} />
@@ -69,7 +71,7 @@ export function FeaturedScore({ match }: { match: ScoreMatch }) {
         <Box sx={{ mt: 1, display: "flex", alignItems: "center", gap: 1, fontSize: 12, color: "text.secondary" }}>
           <Box component="span" sx={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{where}</Box>
           <Box component="span" sx={{ flexShrink: 0, display: "inline-flex", alignItems: "center", color: "primary.main", fontSize: 13, fontWeight: 700 }}>
-            {isFinal || live ? "Match centre" : "Preview"}
+            {isFinal || live ? t.matchCentre : t.preview}
             <ChevronRightIcon sx={{ fontSize: 16 }} />
           </Box>
         </Box>

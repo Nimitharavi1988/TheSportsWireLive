@@ -7,6 +7,7 @@ import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { useDict } from "@/lib/i18n/LocaleContext";
 
 // The one standings design, modelled on Google's sports tables: a titled
 // card, a plain table with hairline row dividers, small grey column labels,
@@ -66,6 +67,8 @@ export function StandingsCard({
   full?: boolean;
   footer?: ReactNode;
 }) {
+  const t = useDict().standings;
+  const what = t.switchLabels[switchLabel] ?? switchLabel;
   const zoneColor = new Map(zones.map((z) => [z.key, z.color]));
   const usedZones = zones.filter((z) => rows.some((r) => r.zone === z.key));
   const colWidth = full ? 40 : 28;
@@ -74,7 +77,7 @@ export function StandingsCard({
   const sticky = full ? { position: "sticky" as const, bgcolor: "background.paper", zIndex: 1 } : {};
 
   return (
-    <Box component="section" aria-label={`${title} standings`} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3, bgcolor: "background.paper", overflow: "hidden" }}>
+    <Box component="section" aria-label={t.sectionAria(title)} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3, bgcolor: "background.paper", overflow: "hidden" }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, px: 2, py: 1.25, borderBottom: "1px solid", borderColor: "divider" }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography component="h2" noWrap sx={{ fontSize: 15, fontWeight: 700, lineHeight: 1.3 }}>
@@ -83,31 +86,31 @@ export function StandingsCard({
           {groupLabel && <Typography sx={{ fontSize: 12, color: "text.secondary", lineHeight: 1.2 }}>{groupLabel}</Typography>}
         </Box>
         {onPrev && (
-          <IconButton size="small" onClick={onPrev} aria-label={`Previous ${switchLabel}`}>
+          <IconButton size="small" onClick={onPrev} aria-label={t.previous(what)}>
             <ChevronLeftIcon fontSize="small" />
           </IconButton>
         )}
         {onNext && (
-          <IconButton size="small" onClick={onNext} aria-label={`Next ${switchLabel}`}>
+          <IconButton size="small" onClick={onNext} aria-label={t.next(what)}>
             <ChevronRightIcon fontSize="small" />
           </IconButton>
         )}
       </Box>
 
       {loading ? (
-        <Typography sx={{ fontSize: 13, color: "text.secondary", textAlign: "center", py: 4 }}>Loading…</Typography>
+        <Typography sx={{ fontSize: 13, color: "text.secondary", textAlign: "center", py: 4 }}>{t.loading}</Typography>
       ) : rows.length === 0 ? (
-        <Typography sx={{ fontSize: 13, color: "text.secondary", px: 2, py: 3 }}>Standings unavailable right now.</Typography>
+        <Typography sx={{ fontSize: 13, color: "text.secondary", px: 2, py: 3 }}>{t.unavailable}</Typography>
       ) : (
         <Box sx={{ overflowX: full ? "auto" : "visible" }}>
           <Box component="table" sx={{ width: "100%", borderCollapse: "collapse", fontSize: full ? 14 : 13, "& td, & th": { py: 1 } }}>
             <thead>
               <Box component="tr" sx={{ color: "text.secondary", fontSize: 12, "& th": { fontWeight: 500 } }}>
                 <Box component="th" scope="col" sx={{ ...sticky, left: 0, textAlign: "left", pl: 2, pr: 0.5, width: 28 }}>#</Box>
-                <Box component="th" scope="col" sx={{ ...sticky, left: 28 + 16, textAlign: "left", px: 0.5 }}>{full ? "Club" : "Team"}</Box>
+                <Box component="th" scope="col" sx={{ ...sticky, left: 28 + 16, textAlign: "left", px: 0.5 }}>{full ? t.club : t.team}</Box>
                 {columns.map((c, i) => (
                   <Box component="th" scope="col" key={c.label} sx={{ ...cell, width: colWidth, pr: i === columns.length - 1 ? 2 : 0.5 }}>
-                    {c.label}
+                    {t.cols[c.label] ?? c.label}
                   </Box>
                 ))}
               </Box>
@@ -153,7 +156,7 @@ export function StandingsCard({
           {usedZones.map((z) => (
             <Box key={z.key} component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
               <Box component="span" aria-hidden sx={{ width: 3, height: 12, bgcolor: z.color }} />
-              {z.label}
+              {t.zones[z.label] ?? z.label}
             </Box>
           ))}
         </Box>

@@ -481,7 +481,7 @@ export async function ArticleView({ slug, locale }: { slug: string; locale?: str
           )}
           {!article.category.startsWith("cricket") && scoreMatch.state !== "upcoming" && (
             <Suspense fallback={null}>
-              <MatchBoxScore articleId={article.id} sourceUrl={article.sourceUrl} match={{ home: scoreMatch.home.name, away: scoreMatch.away.name, kickoffAt: scoreMatch.kickoffAt }} inPlay={scoreMatch.state === "live" || scoreMatch.state === "paused"} />
+              <MatchBoxScore articleId={article.id} sourceUrl={article.sourceUrl} match={{ home: scoreMatch.home.name, away: scoreMatch.away.name, kickoffAt: scoreMatch.kickoffAt }} inPlay={scoreMatch.state === "live" || scoreMatch.state === "paused"} locale={locale} />
             </Suspense>
           )}
         </>

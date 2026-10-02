@@ -19,7 +19,7 @@ describe("preview hosts (*.workers.dev)", () => {
   it("serve the Spanish site when the preview cookie says so, English for untranslated pages", () => {
     expect(routeForHost(H, "/", "es")).toEqual({ kind: "rewrite", pathname: "/es" });
     expect(routeForHost(H, "/article/x", "es")).toEqual({ kind: "rewrite", pathname: "/es/article/x" });
-    expect(routeForHost(H, "/scores", "es")).toEqual({ kind: "next" });
+    expect(routeForHost(H, "/club", "es")).toEqual({ kind: "next" });
   });
   it("ignores the cookie on real hosts", () => {
     expect(routeForHost("sportswirelive.com", "/", "es")).toEqual({ kind: "next" });
@@ -33,7 +33,7 @@ describe("routeForHost", () => {
     expect(routeForHost("es.localhost", "/sport/football")).toEqual({ kind: "rewrite", pathname: "/es/sport/football" });
   });
   it("sends untranslated pages to the English site", () => {
-    expect(routeForHost("es.sportswirelive.com", "/scores")).toEqual({ kind: "redirect", host: "sportswirelive.com", pathname: "/scores" });
+    expect(routeForHost("es.sportswirelive.com", "/club")).toEqual({ kind: "redirect", host: "sportswirelive.com", pathname: "/club" });
     expect(routeForHost("es.sportswirelive.com", "/admin")).toEqual({ kind: "redirect", host: "sportswirelive.com", pathname: "/admin" });
   });
   it("leaves shared assets and route handlers alone", () => {
