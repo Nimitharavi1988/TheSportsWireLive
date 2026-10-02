@@ -236,6 +236,13 @@ const INTERNATIONAL_WINDOW_UTC_START_HOUR = 3;
 const INTERNATIONAL_WINDOW_UTC_END_HOUR = 11; // exclusive
 const AMERICAN_FOOTBALL_INTERNATIONAL_WINDOW_MULTIPLIER = 0.5;
 
+// US waking/evening hours, 12:00-06:00 UTC (ET morning through PT late evening).
+const CRICKET_US_HOURS_MULTIPLIER = 0.6;
+function isUsAudienceHours(now: Date): boolean {
+  const hour = now.getUTCHours();
+  return hour >= 12 || hour < 6;
+}
+
 function isInternationalAudienceWindow(now: Date): boolean {
   const hour = now.getUTCHours();
   return hour >= INTERNATIONAL_WINDOW_UTC_START_HOUR && hour < INTERNATIONAL_WINDOW_UTC_END_HOUR;
@@ -376,6 +383,9 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     if (a.category === "american-football" && isInternationalAudienceWindow(now)) {
       return a.trendingScore * AMERICAN_FOOTBALL_INTERNATIONAL_WINDOW_MULTIPLIER;
     }
+    if (a.category === "cricket" && isUsAudienceHours(now)) {
+      return a.trendingScore * CRICKET_US_HOURS_MULTIPLIER;
+    }
     return a.trendingScore;
   }
 
@@ -410,7 +420,14 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     // americanFootballReservedSlots above) and zero most of the time, unlike
     // the always-1 entries in RESERVED_CATEGORIES, so it's appended here
     // rather than living in that static array.
-    const reservations = [{ category: "american-football", slots: americanFootballReservedSlots(now) }, ...RESERVED_CATEGORIES];
+    // US hours (12:00-06:00 UTC): cricket gives up its reserved slot (explicit
+    // request 2026-10-01, US reach) and competes on score only, down-weighted
+    // in socialSelectionScore. The India cricket Page covers it meanwhile.
+    const usHours = isUsAudienceHours(now);
+    const reservations = [
+      { category: "american-football", slots: americanFootballReservedSlots(now) },
+      ...RESERVED_CATEGORIES.filter((r) => !(usHours && r.category === "cricket")),
+    ];
     for (const { category, slots } of reserve ? reservations : []) {
       const matches = byTrending.filter((a) => a.category === category);
       let added = 0;
