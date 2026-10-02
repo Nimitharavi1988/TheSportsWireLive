@@ -24,11 +24,22 @@ import { espnFetch } from "../espnFetch";
 // who's actually reading. Frees the budget for the other four leagues,
 // which map onto the real audience far better (MLS for the US directly,
 // Bundesliga/Serie A/Ligue 1 for general European-football crossover).
-const LEAGUES: { code: string; label: string }[] = [
+// `days`: also fetch each of those days' own scoreboards (offsets from today,
+// UTC). ESPN's default scoreboard is just the current matchday, which is all a
+// weekly league needs, but international windows play a round every day or two
+// and a Saturday match (England v Croatia, 2026-10-03) had no page until the
+// morning it was played.
+const LEAGUES: { code: string; label: string; days?: { back: number; ahead: number } }[] = [
   { code: "ger.1", label: "Bundesliga" },
   { code: "ita.1", label: "Serie A" },
   { code: "fra.1", label: "Ligue 1" },
   { code: "usa.1", label: "MLS" },
+  // International break (2026-10-02: this weekend's football
+  // is the Nations League — England v Croatia, Germany v Greece, Belgium v
+  // France — and the site had no match pages for any of it). Football-data.org's
+  // free tier has no Nations League. It is idle outside the windows, so it
+  // costs nothing then.
+  { code: "uefa.nations", label: "UEFA Nations League", days: { back: 1, ahead: 2 } },
 ];
 
 interface EspnTeam {
@@ -56,9 +67,14 @@ interface EspnEvent {
   competitions: { competitors: EspnCompetitor[]; venue?: EspnVenue; broadcasts?: { names?: string[] }[] }[];
 }
 
-async function fetchLeague(league: { code: string; label: string }): Promise<RawMatchItem[]> {
+// YYYYMMDD (UTC) for a day `offset` days from `now`.
+export function espnDay(now: Date, offset: number): string {
+  return new Date(now.getTime() + offset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, "");
+}
+
+async function fetchLeague(league: { code: string; label: string }, date?: string): Promise<RawMatchItem[]> {
   const res = await espnFetch(
-    `https://site.api.espn.com/apis/site/v2/sports/soccer/${league.code}/scoreboard`
+    `https://site.api.espn.com/apis/site/v2/sports/soccer/${league.code}/scoreboard${date ? `?dates=${date}` : ""}`
   ).catch((err) => {
     console.error(`ESPN ${league.label} scoreboard fetch failed:`, err);
     return null;
@@ -164,7 +180,18 @@ async function fetchLeague(league: { code: string; label: string }): Promise<Raw
   return items;
 }
 
-export async function fetchDomesticFootballData(): Promise<RawMatchItem[]> {
-  const results = await Promise.all(LEAGUES.map(fetchLeague));
+export async function fetchDomesticFootballData(now: Date = new Date()): Promise<RawMatchItem[]> {
+  const results = await Promise.all(
+    LEAGUES.map(async (league) => {
+      const calls = [fetchLeague(league)];
+      if (league.days) {
+        for (let offset = -league.days.back; offset <= league.days.ahead; offset++) calls.push(fetchLeague(league, espnDay(now, offset)));
+      }
+      // The same match can come back from several days' boards; its dedupeKey
+      // is the same, so keep one.
+      const seen = new Set<string>();
+      return (await Promise.all(calls)).flat().filter((i) => (i.dedupeKey && seen.has(i.dedupeKey) ? false : (i.dedupeKey && seen.add(i.dedupeKey), true)));
+    })
+  );
   return results.flat();
 }
