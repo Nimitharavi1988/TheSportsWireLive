@@ -130,3 +130,13 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SITE_URL: ${{ vars.SITE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # Spanish site (src/lib/translation/translateArticles.ts, see PLAN.md):
+      # translates newly published articles. Dormant until the repo variable
+      # TRANSLATION_LOCALES is set (e.g. "es") -- unset = the step does nothing.
+      # Own step so it can never affect ingestion or posting.
+      - if: ${{ !cancelled() }}
+        run: npx tsx src/lib/translation/translateArticles.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TRANSLATION_LOCALES: ${{ vars.TRANSLATION_LOCALES }}

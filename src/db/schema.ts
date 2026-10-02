@@ -134,6 +134,33 @@ export const article = pgTable("Article", {
   index("Article_matchKey_idx").on(t.matchKey),
 ]);
 
+// Per-language copy of a published article (Spanish site, see PLAN.md). Created
+// 2026-10-02 via scripts/sql/2026-10-02-article-translation.sql. The table also
+// has a generated "searchVector" tsvector column (per-locale text-search
+// config) that, like Article's, is only queried via raw sql.
+// title/summary/body/slug are null on a failed row; only status 'translated'
+// rows are ever shown. sourceHash = hash of the English text it was made from.
+export const articleTranslation = pgTable("ArticleTranslation", {
+  id: text("id").primaryKey(),
+  articleId: text("articleId").notNull().references(() => article.id, { onDelete: "cascade" }),
+  locale: text("locale").notNull(),
+  title: text("title"),
+  summary: text("summary"),
+  body: text("body"),
+  slug: text("slug"),
+  sourceHash: text("sourceHash").notNull(),
+  status: text("status").notNull().default("translated"),
+  attempts: integer("attempts").notNull().default(0),
+  lastError: text("lastError"),
+  model: text("model"),
+  createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("ArticleTranslation_articleId_locale_key").on(t.articleId, t.locale),
+  uniqueIndex("ArticleTranslation_locale_slug_key").on(t.locale, t.slug),
+  index("ArticleTranslation_locale_status_idx").on(t.locale, t.status),
+]);
+
 export const socialPost = pgTable("SocialPost", {
   id: text("id").primaryKey(),
   articleId: text("articleId").notNull(),

@@ -1,0 +1,176 @@
+import { db } from "@/db";
+import { article, articleTranslation } from "@/db/schema";
+import { and, eq, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
+import { createId } from "@paralleldrive/cuid2";
+import { callGemini, aiUnavailableReason, MODEL } from "../ingestion/commentary";
+import { enabledLocales, type LocaleConfig } from "../i18n/locales";
+import { checkTranslation, priorityScore, slugFromTitle, sourceHash, type Fields } from "./checks";
+
+// Translation stage of the Spanish site (PLAN.md). Runs on the GitHub Actions
+// runner right after auto-approve, as its own step: translating at request
+// time is impossible on the Worker's 10ms CPU budget, and a failure here must
+// never touch ingestion or posting. Only PUBLISHED articles are translated, so
+// rejected items never cost anything.
+//
+//   TRANSLATION_LOCALES=es npx tsx src/lib/translation/translateArticles.ts [--dry-run]
+//
+// Env: TRANSLATION_LOCALES (kill switch; unset = no-op), TRANSLATE_MAX_PER_RUN
+// (default 30), TRANSLATE_WINDOW_HOURS (default 48: new articles, plus matches kicking off from window start to +72h -- no backlog backfill).
+
+const RETRY_MODEL = "gemini-flash-latest"; // lite first (cheaper); flagged items retry once here
+const MAX_ATTEMPTS = 3;
+const MIN_BODY_CHARS = 200;
+
+function buildPrompt(locale: LocaleConfig, f: Fields): string {
+  return `You are a professional sports-news translator. Translate the article below from English into ${locale.promptName}.
+
+Rules:
+- Faithful translation only: do not add, drop, or change any fact, number, score, date, quote or name. Do not summarise.
+- Keep names of people, teams, clubs, leagues, venues and competitions as they are normally written (do not translate "Manchester United", "Lakers", etc.).
+- Keep the paragraph structure (blank lines) of the body exactly.
+- Translate EVERY field completely, including the whole body.
+${locale.glossary.map((g) => `- ${g}`).join("\n")}
+- Return JSON with title, summary, body.
+
+TITLE: ${f.title}
+
+SUMMARY: ${f.summary}
+
+BODY:
+${f.body}`;
+}
+
+async function translateOnce(locale: LocaleConfig, f: Fields, model?: string): Promise<Fields | null> {
+  const parsed = await callGemini(buildPrompt(locale, f), {
+    ...(model ? { model } : {}),
+    temperature: 0.2,
+    maxOutputTokens: 8192,
+    responseSchema: {
+      type: "OBJECT",
+      properties: { title: { type: "STRING" }, summary: { type: "STRING" }, body: { type: "STRING" } },
+      required: ["title", "summary", "body"],
+    },
+  });
+  if (!parsed || typeof parsed.title !== "string" || typeof parsed.summary !== "string" || typeof parsed.body !== "string") return null;
+  return { title: parsed.title.trim(), summary: parsed.summary.trim(), body: parsed.body.trim() };
+}
+
+export async function translateArticles(opts: { dryRun?: boolean } = {}): Promise<{ translated: number; failed: number; skipped: number }> {
+  const locales = enabledLocales();
+  if (locales.length === 0) {
+    console.log("Translation: TRANSLATION_LOCALES not set — nothing to do.");
+    return { translated: 0, failed: 0, skipped: 0 };
+  }
+  const maxPerRun = Number(process.env.TRANSLATE_MAX_PER_RUN ?? 30);
+  const windowStart = new Date(Date.now() - Number(process.env.TRANSLATE_WINDOW_HOURS ?? 48) * 60 * 60 * 1000);
+  let translated = 0, failed = 0, skipped = 0;
+
+  for (const locale of locales) {
+    const candidates = await db
+      .select({
+        id: article.id, title: article.title, summary: article.summary, body: article.body,
+        trendingScore: article.trendingScore,
+      })
+      .from(article)
+      .where(and(
+        eq(article.status, "published"),
+        inArray(article.category, locale.categories),
+        isNotNull(article.body),
+        // New articles in the window, plus match articles whose kickoff is within
+        // [window start, +72h] (previews becoming results). NOT plain updatedAt: that is
+        // bumped across the whole archive and would turn this into a backlog backfill.
+        or(gte(article.createdAt, windowStart), and(gte(article.kickoffAt, windowStart), lte(article.kickoffAt, new Date(Date.now() + 72 * 60 * 60 * 1000)))),
+      ));
+
+    // Existing rows, read separately (and tolerantly in dry-run, so the job can
+    // be previewed before the table exists).
+    let existing: { articleId: string; sourceHash: string; status: string; attempts: number; slug: string | null }[] = [];
+    try {
+      existing = candidates.length === 0 ? [] : await db
+        .select({
+          articleId: articleTranslation.articleId, sourceHash: articleTranslation.sourceHash,
+          status: articleTranslation.status, attempts: articleTranslation.attempts, slug: articleTranslation.slug,
+        })
+        .from(articleTranslation)
+        .where(and(eq(articleTranslation.locale, locale.code), inArray(articleTranslation.articleId, candidates.map((c) => c.id))));
+    } catch (err) {
+      if (!opts.dryRun) throw err;
+      console.log("Translation: ArticleTranslation table not found (dry-run) — treating as empty.");
+    }
+    const byArticle = new Map(existing.map((e) => [e.articleId, e]));
+
+    const todo = candidates
+      .filter((c) => (c.body ?? "").length >= MIN_BODY_CHARS)
+      .map((c) => ({ ...c, fields: { title: c.title.trim(), summary: c.summary.trim(), body: c.body!.trim() } }))
+      .map((c) => ({ ...c, hash: sourceHash(c.fields), prev: byArticle.get(c.id) }))
+      .filter((c) => {
+        if (!c.prev) return true;
+        if (c.prev.attempts >= MAX_ATTEMPTS) return false; // gave up; a success resets attempts
+        if (c.prev.sourceHash !== c.hash) return true; // English changed -> re-translate
+        return c.prev.status === "failed";
+      })
+      .sort((a, b) => priorityScore(b.trendingScore, b.title, locale.priorityTerms) - priorityScore(a.trendingScore, a.title, locale.priorityTerms))
+      .slice(0, maxPerRun);
+
+    console.log(`Translation [${locale.code}]: ${candidates.length} recent published, ${todo.length} to translate (cap ${maxPerRun})${opts.dryRun ? " [dry-run]" : ""}`);
+
+    for (const c of todo) {
+      if (aiUnavailableReason()) { console.log(`Translation: stopping — ${aiUnavailableReason()}`); break; }
+
+      let model = MODEL;
+      let out = await translateOnce(locale, c.fields);
+      let verdict = out ? checkTranslation(c.fields, out) : ({ ok: false, reason: "no response" } as const);
+      if (!verdict.ok) {
+        model = RETRY_MODEL;
+        out = await translateOnce(locale, c.fields, RETRY_MODEL);
+        verdict = out ? checkTranslation(c.fields, out) : ({ ok: false, reason: "no response (retry)" } as const);
+      }
+
+      if (opts.dryRun) {
+        console.log(`${verdict.ok ? "ok  " : "FAIL"} (${model}) ${c.title.slice(0, 60)} -> ${verdict.ok ? out!.title.slice(0, 60) : verdict.reason}`);
+        verdict.ok ? translated++ : failed++;
+        continue;
+      }
+
+      const now = new Date();
+      if (verdict.ok && out) {
+        // A re-translation keeps its existing slug so URLs never change.
+        const slug = c.prev?.slug ?? slugFromTitle(out.title, c.id.slice(-6));
+        await db.insert(articleTranslation).values({
+          id: createId(), articleId: c.id, locale: locale.code, ...out, slug, sourceHash: c.hash,
+          status: "translated", attempts: 0, lastError: null, model, updatedAt: now,
+        }).onConflictDoUpdate({
+          target: [articleTranslation.articleId, articleTranslation.locale],
+          set: { ...out, slug, sourceHash: c.hash, status: "translated", attempts: 0, lastError: null, model, updatedAt: now },
+        });
+        translated++;
+      } else {
+        const reason = verdict.ok ? "unknown" : verdict.reason;
+        await db.insert(articleTranslation).values({
+          id: createId(), articleId: c.id, locale: locale.code, sourceHash: c.hash,
+          status: "failed", attempts: 1, lastError: reason, model, updatedAt: now,
+        }).onConflictDoUpdate({
+          target: [articleTranslation.articleId, articleTranslation.locale],
+          // Keep any earlier good translation visible (status stays what it was
+          // if it was 'translated'); only count the failed attempt.
+          set: c.prev?.status === "translated"
+            ? { lastError: reason, attempts: sql`${articleTranslation.attempts} + 1`, updatedAt: now }
+            : { sourceHash: c.hash, status: "failed", attempts: sql`${articleTranslation.attempts} + 1`, lastError: reason, model, updatedAt: now },
+        });
+        failed++;
+      }
+    }
+    skipped += candidates.length - todo.length;
+  }
+  console.log(`Translation: ${translated} translated, ${failed} failed, ${skipped} skipped.`);
+  return { translated, failed, skipped };
+}
+
+if (require.main === module) {
+  translateArticles({ dryRun: process.argv.includes("--dry-run") })
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error("Translation run failed:", err);
+      process.exit(1);
+    });
+}

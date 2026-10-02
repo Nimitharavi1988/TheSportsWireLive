@@ -53,6 +53,13 @@ export function PipelineHealthPanel({ health }: { health: PipelineHealth }) {
           value={String(health.imageSanityIssues)}
           warn={health.imageSanityIssues > 0}
         />
+        {health.translation && (
+          <StatBlock
+            label="Spanish translations (24h / failed)"
+            value={`${health.translation.translated24h} / ${health.translation.failed}`}
+            warn={health.translation.failed > 0}
+          />
+        )}
       </Stack>
       {health.bulkActionAnomalies.length > 0 && (
         <Box sx={{ mt: 2 }}>

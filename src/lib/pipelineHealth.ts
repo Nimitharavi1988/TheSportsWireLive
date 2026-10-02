@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { article, socialPost } from "@/db/schema";
+import { article, articleTranslation, socialPost } from "@/db/schema";
 import { and, eq, gte, lt, count, isNotNull, sql, asc } from "drizzle-orm";
 import { hasRealImage, isAutoApprovable } from "./contentQuality";
 import { STALE_NO_IMAGE_HOURS, STALE_NO_BODY_HOURS } from "./ingestion/autoApprove";
@@ -19,6 +19,23 @@ export interface PipelineHealth {
   pendingQueue: { total: number; oldestAgeHours: number | null; dueForStaleRejectSoon: number };
   bulkActionAnomalies: { reviewedBy: string; reviewedAt: string; count: number }[];
   imageSanityIssues: number;
+  // Spanish-site translation job (translation/translateArticles.ts); null until
+  // the ArticleTranslation table exists.
+  translation: { translated24h: number; failed: number } | null;
+}
+
+async function translationHealth(): Promise<PipelineHealth["translation"]> {
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [[ok], [bad]] = await Promise.all([
+      db.select({ value: count() }).from(articleTranslation)
+        .where(and(eq(articleTranslation.status, "translated"), gte(articleTranslation.updatedAt, since))),
+      db.select({ value: count() }).from(articleTranslation).where(eq(articleTranslation.status, "failed")),
+    ]);
+    return { translated24h: ok.value, failed: bad.value };
+  } catch {
+    return null;
+  }
 }
 
 async function socialPace(platform: "facebook" | "instagram") {
@@ -97,5 +114,6 @@ export async function getPipelineHealth(): Promise<PipelineHealth> {
       count: r.value,
     })),
     imageSanityIssues,
+    translation: await translationHealth(),
   };
 }

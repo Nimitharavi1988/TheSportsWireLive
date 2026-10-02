@@ -96,7 +96,7 @@ export function aiUnavailableReason(): string | null {
 
 const UNAVAILABLE_STATUSES = new Set([401, 402, 403, 429, 500, 502, 503, 504]);
 
-async function callGemini(prompt: string, options: GeminiCallOptions): Promise<any | null> {
+export async function callGemini(prompt: string, options: GeminiCallOptions): Promise<any | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     unavailable = "AI not configured (GEMINI_API_KEY unset)";

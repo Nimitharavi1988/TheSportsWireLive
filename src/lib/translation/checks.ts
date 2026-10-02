@@ -1,0 +1,74 @@
+import { createHash } from "node:crypto";
+
+// Pure helpers for the translation job (no DB/network) so the quality gate is
+// unit-tested. Measured in the Phase 0 spike (PLAN.md): the lite model's real
+// failure mode is returning the BODY untranslated, plus rare slips in numbers.
+
+export interface Fields { title: string; summary: string; body: string }
+
+// Fingerprint of the English text a translation was made from. When it changes
+// (match articles are rewritten as scores come in; admin edits) the job
+// re-translates.
+export function sourceHash(f: Fields): string {
+  return createHash("sha256").update(`${f.title}\u0000${f.summary}\u0000${f.body}`).digest("hex").slice(0, 32);
+}
+
+// "1,200" and "1.200" and "1200" must compare equal across languages, so
+// strip separators inside a number ("2.5" and "2,5" both become "25" — only
+// equality matters here, not the value).
+function numbers(s: string): string[] {
+  return (s.match(/\d+(?:[.,]\d+)*/g) ?? []).map((n) => n.replace(/[.,]/g, ""));
+}
+
+// Words that occur in English prose and (almost) never in Spanish. Names and
+// quoted English are rare enough that a few hits are fine; a body that is
+// still English hits dozens.
+const ENGLISH_MARKERS = /\b(the|and|with|has|have|will|said|was|were|from|that|this|his|her|their|but|after|before)\b/gi;
+
+export type CheckResult = { ok: true } | { ok: false; reason: string };
+
+export function checkTranslation(src: Fields, out: Partial<Fields> | null | undefined): CheckResult {
+  if (!out || !out.title?.trim() || !out.summary?.trim() || !out.body?.trim()) return { ok: false, reason: "empty field" };
+
+  const words = out.body.split(/\s+/).filter(Boolean).length || 1;
+  const englishHits = (out.body.match(ENGLISH_MARKERS) ?? []).length;
+  if (englishHits >= 3 && englishHits / words > 0.03) return { ok: false, reason: `body looks untranslated (${englishHits} English words)` };
+  if (out.body.slice(0, 120).trim() === src.body.slice(0, 120).trim()) return { ok: false, reason: "body identical to source" };
+
+  const ratio = out.body.length / Math.max(1, src.body.length);
+  if (ratio < 0.7 || ratio > 1.7) return { ok: false, reason: `length ratio ${ratio.toFixed(2)}` };
+
+  // Per field: a score present in the English headline must be in the Spanish
+  // headline, not merely somewhere else in the article.
+  for (const k of ["title", "summary", "body"] as const) {
+    const have = new Set(numbers(out[k]!));
+    const missing = [...new Set(numbers(src[k]))].filter((n) => !have.has(n));
+    if (missing.length > 0) return { ok: false, reason: `numbers missing in ${k}: ${missing.slice(0, 5).join(",")}` };
+  }
+
+  const srcParas = src.body.split(/\n\s*\n/).length;
+  const outParas = out.body.split(/\n\s*\n/).length;
+  if (Math.abs(srcParas - outParas) > 1) return { ok: false, reason: `paragraphs ${srcParas} -> ${outParas}` };
+
+  return { ok: true };
+}
+
+// URL slug from a translated title: lower-case, accents folded, a-z0-9 only.
+export function slugFromTitle(title: string, uniqueSuffix: string): string {
+  const base = title
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80)
+    .replace(/-+$/g, "");
+  return `${base || "articulo"}-${uniqueSuffix}`;
+}
+
+// Higher = translate sooner (trending story, boosted when it matches the
+// audience's clubs/leagues/players).
+export function priorityScore(trendingScore: number, title: string, priorityTerms: string[]): number {
+  const t = title.toLowerCase();
+  return trendingScore + (priorityTerms.some((p) => t.includes(p)) ? 1000 : 0);
+}
