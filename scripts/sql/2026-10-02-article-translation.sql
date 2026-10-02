@@ -29,9 +29,9 @@ CREATE INDEX IF NOT EXISTS "ArticleTranslation_locale_status_idx" ON "ArticleTra
 -- locale; a new language adds a WHEN branch here.
 ALTER TABLE "ArticleTranslation" ADD COLUMN IF NOT EXISTS "searchVector" tsvector
   GENERATED ALWAYS AS (
-    to_tsvector(
-      (CASE "locale" WHEN 'es' THEN 'spanish' ELSE 'simple' END)::regconfig,
-      coalesce("title", '') || ' ' || coalesce("summary", '') || ' ' || coalesce("body", '')
-    )
+    CASE "locale"
+      WHEN 'es' THEN to_tsvector('spanish'::regconfig, coalesce("title", '') || ' ' || coalesce("summary", '') || ' ' || coalesce("body", ''))
+      ELSE to_tsvector('simple'::regconfig, coalesce("title", '') || ' ' || coalesce("summary", '') || ' ' || coalesce("body", ''))
+    END
   ) STORED;
 CREATE INDEX IF NOT EXISTS "ArticleTranslation_searchVector_idx" ON "ArticleTranslation" USING GIN ("searchVector");
