@@ -146,6 +146,19 @@ const CRICKET_HEADLINE =
 // Fantasy/betting/prediction pieces some cricket sites publish daily — not news.
 const FANTASY_OR_BETTING = /\b(dream11|fantasy|predictions?|predicted xi|betting|odds|who will win|today'?s match)\b/i;
 
+// US-sport headline filters for mixed-sport feeds (league name or a team).
+const NFL_HEADLINE =
+  /\b(nfl|super bowl|quarterbacks?|touchdown|chiefs|eagles|cowboys|packers|patriots|bills|ravens|bengals|steelers|browns|texans|colts|jaguars|titans|broncos|raiders|chargers|dolphins|jets|commanders|lions|bears|vikings|saints|falcons|panthers|buccaneers|49ers|seahawks|rams|mahomes|hurts|burrow|lamar jackson|josh allen)\b/i;
+const NBA_HEADLINE =
+  /\b(nba|lakers|celtics|knicks|warriors|bucks|sixers|76ers|bulls|cavaliers|pistons|pacers|hawks|hornets|wizards|raptors|clippers|nuggets|timberwolves|thunder|spurs|mavericks|mavs|grizzlies|pelicans|trail blazers|wembanyama|lebron|curry|doncic|jokic)\b/i;
+const MLB_HEADLINE =
+  /\b(mlb|world series|yankees|red sox|dodgers|phillies|braves|mets|cubs|astros|padres|white sox|guardians|orioles|rays|blue jays|mariners|royals|brewers|pirates|nationals|marlins|diamondbacks|rockies|angels|aaron judge|ohtani)\b/i;
+const CFB_HEADLINE =
+  /\b(college football|cfp|ncaa football|ohio state|alabama|notre dame|usc|lsu|clemson|penn state|oklahoma|florida state|tennessee|auburn|saban|lincoln riley|deion sanders)\b/i;
+
+// Sportsbook promos, odds and picks (Fox Sports runs several a day) — not news.
+const BETTING_PROMO = /\b(promo codes?|bonus(es)?|odds|parlays?|best bets?|betting|sportsbook|kalshi|polymarket|prediction markets?|picks?)\b/i;
+
 const FEEDS: RssFeed[] = [
   // No structured race-data source exists on any free tier (confirmed live:
   // api-sports.io's Formula-1 API free plan rejects the current season
@@ -307,6 +320,20 @@ const FEEDS: RssFeed[] = [
   // the team-crest/stock fallback like any photo-less item).
   { url: "https://sports.yahoo.com/college-football/rss/", category: "college-football", sourceName: "Yahoo Sports" },
   { url: "https://sports.yahoo.com/wnba/rss/", category: "wnba", sourceName: "Yahoo Sports" },
+  // Opinion/insider/what-they-said sources (added 2026-10-01, US reach).
+  // Checked live: all four fresh within 36h with photos in the feed. The two
+  // general feeds (Awful Announcing, Fox Sports) are mixed-sport, so each
+  // sport's section takes only its own headlines via the include filters.
+  { url: "https://profootballtalk.nbcsports.com/feed/", category: "american-football", sourceName: "Pro Football Talk" },
+  { url: "https://www.cbssports.com/rss/headlines/college-football/", category: "college-football", sourceName: "CBS Sports" },
+  { url: "https://awfulannouncing.com/feed", category: "american-football", sourceName: "Awful Announcing", include: NFL_HEADLINE, exclude: BETTING_PROMO },
+  { url: "https://awfulannouncing.com/feed", category: "basketball", sourceName: "Awful Announcing", include: NBA_HEADLINE, exclude: BETTING_PROMO },
+  { url: "https://awfulannouncing.com/feed", category: "baseball", sourceName: "Awful Announcing", include: MLB_HEADLINE, exclude: BETTING_PROMO },
+  { url: "https://awfulannouncing.com/feed", category: "college-football", sourceName: "Awful Announcing", include: CFB_HEADLINE, exclude: BETTING_PROMO },
+  { url: "https://www.foxsports.com/feedout/syndicatedContent?categoryId=0", category: "american-football", sourceName: "Fox Sports", include: NFL_HEADLINE, exclude: BETTING_PROMO },
+  { url: "https://www.foxsports.com/feedout/syndicatedContent?categoryId=0", category: "basketball", sourceName: "Fox Sports", include: NBA_HEADLINE, exclude: BETTING_PROMO },
+  { url: "https://www.foxsports.com/feedout/syndicatedContent?categoryId=0", category: "baseball", sourceName: "Fox Sports", include: MLB_HEADLINE, exclude: BETTING_PROMO },
+  { url: "https://www.foxsports.com/feedout/syndicatedContent?categoryId=0", category: "college-football", sourceName: "Fox Sports", include: CFB_HEADLINE, exclude: BETTING_PROMO },
   // Athletics/track and field — news-only section (no structured match-data
   // source exists the way football-data.org/CricketData.org/ESPN NFL do for
   // the others; athletics is start-list/results based, not "matches"), per
