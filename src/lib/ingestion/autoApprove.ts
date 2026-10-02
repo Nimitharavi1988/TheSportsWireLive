@@ -197,15 +197,22 @@ const RESERVED_CATEGORIES: { category: string; slots: number }[] = [
 // (06:00-11:00 UTC) and every hour outside the window entirely, where
 // american-football isn't down-weighted at all and doesn't need a floor —
 // it already wins slots on its own there.
-const AMERICAN_FOOTBALL_RESERVED_UTC_START_HOUR = 3;
-const AMERICAN_FOOTBALL_RESERVED_UTC_END_HOUR = 6; // exclusive
+//
+// Widened 2026-10-01 (explicit request: US Facebook visits fell ~50%). Live
+// data: NFL went from 124-173 main-Page posts/day (9/21-25) to 34-72 after
+// 9/26 with the daily total flat at ~260. Two causes: the reservation only
+// existed 03:00-06:00 UTC, and it was filled AFTER the always-on cricket/
+// hockey/formula-1 reservations, which already used all ~3 slots of a
+// typical run. Now: 2 slots in US evening/night (22:00-06:00 UTC), 1 slot
+// through US daytime (12:00-22:00 UTC), still zero in the dead of night
+// (06:00-12:00 UTC), and filled FIRST (see selectTopN).
 const AMERICAN_FOOTBALL_RESERVED_SLOTS = 2;
 
 function americanFootballReservedSlots(now: Date): number {
   const hour = now.getUTCHours();
-  return hour >= AMERICAN_FOOTBALL_RESERVED_UTC_START_HOUR && hour < AMERICAN_FOOTBALL_RESERVED_UTC_END_HOUR
-    ? AMERICAN_FOOTBALL_RESERVED_SLOTS
-    : 0;
+  if (hour >= 22 || hour < 6) return AMERICAN_FOOTBALL_RESERVED_SLOTS;
+  if (hour >= 12) return 1;
+  return 0;
 }
 
 // Time-of-day category weighting constants — added 2026-09-22, explicit
@@ -403,7 +410,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     // americanFootballReservedSlots above) and zero most of the time, unlike
     // the always-1 entries in RESERVED_CATEGORIES, so it's appended here
     // rather than living in that static array.
-    const reservations = [...RESERVED_CATEGORIES, { category: "american-football", slots: americanFootballReservedSlots(now) }];
+    const reservations = [{ category: "american-football", slots: americanFootballReservedSlots(now) }, ...RESERVED_CATEGORIES];
     for (const { category, slots } of reserve ? reservations : []) {
       const matches = byTrending.filter((a) => a.category === category);
       let added = 0;
