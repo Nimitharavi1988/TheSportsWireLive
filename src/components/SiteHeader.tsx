@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
+import { getDict } from "@/lib/i18n/dictionary";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -111,6 +112,29 @@ const MORE_SPORTS_LINKS: { href: string; label: string; category: string | null;
   { href: "/sport/formula-1", label: "Formula 1", category: "formula-1", icon: SportsMotorsportsIcon },
 ];
 
+type NavItem = { href: string; label: string; category: string | null; icon: SvgIconComponent; wideOnly?: boolean };
+
+// The links one edition shows. English: the two lists above, unchanged. Another
+// language: Home, the sports that edition covers (labels and order from its
+// dictionary) and any extra pages listed in its dictionary (nav.pages), all
+// top-level — no "More Sports" menu. Pages that edition does not have yet are
+// simply not listed, so the menu never links to a dead end.
+function navFor(locale?: string): { top: NavItem[]; more: NavItem[] } {
+  if (!locale) return { top: NAV_LINKS, more: MORE_SPORTS_LINKS };
+  const t = getDict(locale);
+  const all: NavItem[] = [...NAV_LINKS, ...MORE_SPORTS_LINKS];
+  const home: NavItem = { ...NAV_LINKS[0], label: t.nav.home };
+  const sports = t.sports.flatMap((s) => {
+    const base = all.find((l) => l.category === s.category);
+    return base ? [{ ...base, label: s.label, wideOnly: false }] : [];
+  });
+  const pages = Object.entries(t.nav.pages).flatMap(([href, label]) => {
+    const base = all.find((l) => l.href === href);
+    return base ? [{ ...base, label, wideOnly: false }] : [];
+  });
+  return { top: [home, ...sports, ...pages], more: [] };
+}
+
 // Brand green tint for the active-nav pill — deliberately not MUI's default
 // "success" palette, which is a visibly different green from the site's own
 // primary (#1d6b3f) and would look inconsistent sitting next to it.
@@ -133,7 +157,9 @@ const MENU_ICON_SIZE = 18;
 // page, including statically-prerendered ones like /admin/login), or the
 // production build fails outright ("should be wrapped in a suspense
 // boundary"). The static wordmark stays outside so it never has to wait.
-function NavLinks() {
+function NavLinks({ locale }: { locale?: string }) {
+  const t = getDict(locale);
+  const { top, more } = navFor(locale);
   const pathname = usePathname();
   const activeCategory = pathname.startsWith("/sport/") ? pathname.slice("/sport/".length) : null;
   const [moreOpen, setMoreOpen] = useState(false);
@@ -142,9 +168,8 @@ function NavLinks() {
   // (no /sport/ section), marking "More Sports" active with
   // nothing actually selected from it.
   const isMoreActive =
-    MORE_SPORTS_LINKS.some((l) => l.category !== null && l.category === activeCategory) ||
-    pathname.startsWith("/standings") ||
-    pathname.startsWith("/series");
+    more.some((l) => l.category !== null && l.category === activeCategory) ||
+    (!locale && (pathname.startsWith("/standings") || pathname.startsWith("/series")));
 
   // Confirmed live (real mouse, not simulated): MUI's Menu/Popover renders
   // via a React Portal, so the trigger and the dropdown live in different
@@ -207,7 +232,7 @@ function NavLinks() {
           sports to list (13 total). */}
       <Box sx={{ display: { xs: "none", sm: "block" } }}>
         <ScrollRow gap={0.5} wrapFrom="sm">
-          {NAV_LINKS.map((link) => {
+          {top.map((link) => {
             const isActive = isLinkActive(link);
             const Icon = link.icon;
             return (
@@ -242,6 +267,7 @@ function NavLinks() {
               not a portal) — see the moreOpen state comment above for why
               this replaced an MUI Menu. position:relative here, the
               dropdown below is absolutely positioned against it. */}
+          {more.length > 0 && (
           <Box
             ref={moreContainerRef}
             sx={{ position: "relative", flexShrink: 0 }}
@@ -284,7 +310,7 @@ function NavLinks() {
                   transition: "transform 0.15s",
                 }}
               />
-              More Sports
+              {t.nav.moreSports}
             </Box>
             {moreOpen && (
               <Box
@@ -303,7 +329,7 @@ function NavLinks() {
                   boxShadow: "0 6px 20px rgba(0,0,0,0.12)",
                 }}
               >
-                {[...NAV_LINKS.filter((l) => l.wideOnly), ...MORE_SPORTS_LINKS].map((link) => {
+                {[...top.filter((l) => l.wideOnly), ...more].map((link) => {
                   const Icon = link.icon;
                   const isActive = isLinkActive(link);
                   const wideOnly = "wideOnly" in link && link.wideOnly;
@@ -336,6 +362,7 @@ function NavLinks() {
               </Box>
             )}
           </Box>
+          )}
         </ScrollRow>
       </Box>
 
@@ -344,7 +371,7 @@ function NavLinks() {
           reads better on a phone than scrolling sideways through 13 items. */}
       <IconButton
         onClick={() => setDrawerOpen(true)}
-        aria-label="Open menu"
+        aria-label={t.nav.openMenu}
         sx={{ display: { xs: "flex", sm: "none" }, color: "text.secondary" }}
       >
         <MenuIcon />
@@ -352,7 +379,7 @@ function NavLinks() {
       <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Box sx={{ width: 270 }} role="presentation">
           <List>
-            {NAV_LINKS.map((link) => {
+            {top.map((link) => {
               const Icon = link.icon;
               const isActive = isLinkActive(link);
               return (
@@ -372,15 +399,17 @@ function NavLinks() {
               );
             })}
           </List>
+          {more.length > 0 && (
+          <>
           <Divider />
           <List
             subheader={
               <Box sx={{ px: 2, py: 1, fontSize: 12, fontWeight: 700, letterSpacing: 0.5, color: "text.secondary" }}>
-                MORE SPORTS
+                {t.nav.moreSports.toUpperCase()}
               </Box>
             }
           >
-            {MORE_SPORTS_LINKS.map((link) => {
+            {more.map((link) => {
               const Icon = link.icon;
               const isActive = isLinkActive(link);
               return (
@@ -400,6 +429,8 @@ function NavLinks() {
               );
             })}
           </List>
+          </>
+          )}
         </Box>
       </Drawer>
     </>
@@ -409,12 +440,14 @@ function NavLinks() {
 // Plain, un-highlighted nav shown only for the instant before the client
 // hooks resolve (effectively never visible on a real navigation) — keeps the
 // nav's own width/shape identical to the real thing so nothing shifts.
-function NavLinksFallback() {
+function NavLinksFallback({ locale }: { locale?: string }) {
+  const t = getDict(locale);
+  const { top, more } = navFor(locale);
   return (
     <>
       <Box sx={{ display: { xs: "none", sm: "block" } }}>
         <ScrollRow gap={0.5} wrapFrom="sm">
-          {NAV_LINKS.map((link) => {
+          {top.map((link) => {
             const Icon = link.icon;
             return (
               <Box
@@ -442,6 +475,7 @@ function NavLinksFallback() {
               </Box>
             );
           })}
+          {more.length > 0 && (
           <Box
             sx={{
               display: "flex",
@@ -458,18 +492,31 @@ function NavLinksFallback() {
             }}
           >
             <ExpandMoreIcon sx={{ fontSize: MENU_ICON_SIZE }} />
-            More Sports
+            {t.nav.moreSports}
           </Box>
+          )}
         </ScrollRow>
       </Box>
-      <IconButton aria-label="Open menu" sx={{ display: { xs: "flex", sm: "none" }, color: "text.secondary" }}>
+      <IconButton aria-label={t.nav.openMenu} sx={{ display: { xs: "flex", sm: "none" }, color: "text.secondary" }}>
         <MenuIcon />
       </IconButton>
     </>
   );
 }
 
-export default function SiteHeader({ es }: { es?: { origin: string; categories: string[] } | null }) {
+// es: English edition only — link to the Spanish edition. locale + otherSite: a
+// language edition — its dictionary drives the menu, and otherSite links back to
+// the English edition. (Props, not env reads: this is a client component.)
+export default function SiteHeader({
+  es,
+  locale,
+  otherSite,
+}: {
+  es?: { origin: string; categories: string[] } | null;
+  locale?: string;
+  otherSite?: { href: string; label: string } | null;
+}) {
+  const t = getDict(locale);
   return (
     <AppBar
       position="sticky"
@@ -505,13 +552,31 @@ export default function SiteHeader({ es }: { es?: { origin: string; categories: 
             logo they move to the second row together, so the search icon is
             never left alone on a row of its own. */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-          <Suspense fallback={<NavLinksFallback />}>
-            <NavLinks />
+          <Suspense fallback={<NavLinksFallback locale={locale} />}>
+            <NavLinks locale={locale} />
           </Suspense>
           {/* Search icon: popover on desktop, full-screen on phones — see
               HeaderSearch.tsx. */}
           {es && <LanguageSwitch origin={es.origin} categories={es.categories} />}
-          <HeaderSearch />
+          {otherSite && (
+            <Box component="a" href={otherSite.href} hrefLang="en" lang="en" sx={{ fontSize: 14, fontWeight: 600, color: "text.secondary", textDecoration: "none", px: 1, "&:hover": { color: "primary.main" } }}>
+              {otherSite.label}
+            </Box>
+          )}
+          {locale ? (
+            <Box component="form" action="/search" method="get" role="search" sx={{ display: "flex", gap: 0.75 }}>
+              <Box
+                component="input"
+                name="q"
+                type="search"
+                placeholder={t.nav.searchPlaceholder}
+                aria-label={t.nav.searchPlaceholder}
+                sx={{ font: "inherit", fontSize: 14, px: 1.5, py: 0.75, width: { xs: 120, sm: 170 }, border: "1px solid", borderColor: "divider", borderRadius: 5, bgcolor: "background.paper", color: "text.primary" }}
+              />
+            </Box>
+          ) : (
+            <HeaderSearch />
+          )}
         </Box>
       </Toolbar>
     </AppBar>

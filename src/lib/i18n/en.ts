@@ -1,0 +1,66 @@
+import type { Dict } from "./dictionary";
+
+// Reference dictionary: the English strings the localizable components render.
+// Keep values identical to what the English site shows today.
+export const EN: Dict = {
+  htmlLang: "en",
+  ogLocale: "en_US",
+  dateLocale: "en-US",
+  siteName: "Sports Wire Live",
+  tagline: "Sports news, scores and analysis, updated around the clock.",
+  metaTitle: "Sports Wire Live — Live Football, Cricket & NFL News",
+  metaDescription:
+    "Breaking football, cricket, NFL, NBA, and NHL news, live scores, transfer updates, and match reports from Sports Wire Live — automatically updated around the clock.",
+  otherSiteLabel: "English",
+  nav: { home: "All", searchPlaceholder: "Search news", searchButton: "Search", sections: "Sections", moreSports: "More Sports", openMenu: "Open menu", pages: {} },
+  sports: [],
+  categoryLabels: {},
+  time: {
+    justNow: "just now",
+    minutes: (n) => `${n}m ago`,
+    hours: (n) => `${n}h ago`,
+    days: (n) => `${n}d ago`,
+  },
+  home: {
+    topStory: "Top story",
+    justIn: "Just In",
+    byCategory: "By Category",
+    byCompetition: "By Competition",
+    transfers: "Transfers & Big News",
+    matchResults: "Match Results & Previews",
+    nflScores: "NFL Scores & Previews",
+    playerNews: "Player News",
+    alsoInNews: "Also in the News",
+    alsoInNewsCaption: "Quick links to coverage from around the web — click through for the full story.",
+    moreHeadlines: "More Headlines",
+    editorsPick: "📌 Editor's pick",
+    latest: "Latest news",
+    bySport: "By sport",
+    empty: "No articles here yet",
+    emptyCategory: "Nothing published in this category yet — check back soon.",
+    emptyAdmin: "No articles published yet — approve some in /admin to see them here.",
+    noWorldCup: "No World Cup coverage right now",
+    noWorldCupHint:
+      "The tournament only runs every four years — check back closer to the next one, or see what's happening in Football and Cricket right now.",
+  },
+  hero: {
+    topStory: "Top Story",
+    previous: "Previous top story",
+    next: "Next top story",
+    goTo: (i, n) => `Go to story ${i} of ${n}`,
+  },
+  article: {
+    published: "Published",
+    machineTranslated: "Machine-translated from English.",
+    readOriginal: "Read the original",
+    reportIssue: "Spot a translation error? Tell us",
+    originalSource: "Original source",
+    related: "More in",
+    share: "Share",
+  },
+  section: { moreIn: "More in", empty: "No stories for this sport yet." },
+  search: { title: "Search", results: "Results for", none: "No results for", prompt: "Type what you want to search for." },
+  footer: { rights: "All rights reserved.", about: "About", contact: "Contact", privacy: "Privacy Policy", terms: "Terms of Service", englishNote: "" },
+  notFound: { title: "Page not found", body: "The page you're looking for doesn't exist, or the article may have been removed.", back: "Back to Sports Wire Live" },
+  error: { title: "Something went wrong", body: "This page hit an unexpected error.", retry: "Try again" },
+};

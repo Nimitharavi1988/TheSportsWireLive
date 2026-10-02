@@ -7,7 +7,8 @@ import Typography from "@mui/material/Typography";
 import { ArticleThumb } from "@/components/ArticleThumb";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
-import { categoryLabelEs, formatDateEs } from "@/lib/i18n/es";
+import { getDict } from "@/lib/i18n/dictionary";
+import { categoryLabel, formatShortDate } from "@/lib/i18n/helpers";
 
 export type StoryCardArticle = Parameters<typeof displaySummary>[0] & {
   slug: string;
@@ -34,19 +35,21 @@ const clamp = (lines: number) => ({ display: "-webkit-box", WebkitLineClamp: lin
 // text over the picture). Wider screens: larger photo, the summary capped
 // at 2 lines so cards keep an even height.
 // accent: border colour (a theme token such as "warning.main" is fine).
-// locale "es": the Spanish site renders the same card with a Spanish sport label
-// and date; `article` then carries the translated title/body, and the link is
-// the same /article/<slug> path (the Spanish host serves it from its own tree).
-export function StoryCard({ article, accent, showSummary = false, locale = "en" }: { article: StoryCardArticle; accent?: string; showSummary?: boolean; locale?: "en" | "es" }) {
+// locale (e.g. "es"): a language edition renders the same card with that
+// language's sport label and date; `article` then carries the translated
+// title/body, and the link is the same /article/<slug> path (each edition's host
+// serves it from its own tree).
+export function StoryCard({ article, accent, showSummary = false, locale = "en" }: { article: StoryCardArticle; accent?: string; showSummary?: boolean; locale?: string }) {
+  const t = getDict(locale);
   const base = categoryChipStyle(article.category);
-  const chip = locale === "es" ? { ...base, label: categoryLabelEs(article.category) } : base;
+  const chip = locale ? { ...base, label: categoryLabel(article.category, t) } : base;
   const meta = (
     <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 0.5 }}>
       <Chip label={chip.label} size="small" variant="outlined" sx={{ color: chip.color, borderColor: chip.color, fontWeight: 600 }} />
-      {article.highlighted && <Chip label="📌 Editor's pick" size="small" sx={{ color: "warning.contrastText", bgcolor: "warning.main" }} />}
+      {article.highlighted && <Chip label={t.home.editorsPick} size="small" sx={{ color: "warning.contrastText", bgcolor: "warning.main" }} />}
       {article.publishedAt && (
         <Typography variant="caption" sx={{ color: "text.secondary" }}>
-          {locale === "es" ? formatDateEs(article.publishedAt) : article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          {locale ? formatShortDate(article.publishedAt, t) : article.publishedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
         </Typography>
       )}
     </Stack>

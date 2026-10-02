@@ -6,8 +6,11 @@ import { TeamCrest } from "@/components/TeamCrest";
 import { CATEGORY_META } from "@/lib/categoryMeta";
 import { Suspense } from "react";
 import { db } from "@/db";
-import { article as articleTable } from "@/db/schema";
-import { and, eq, like, isNotNull, isNull, ne, notInArray, or, desc, gte, type SQL } from "drizzle-orm";
+import { article as articleTable, articleTranslation } from "@/db/schema";
+import { getDict } from "@/lib/i18n/dictionary";
+import { categoryLabel } from "@/lib/i18n/helpers";
+import { LOCALES } from "@/lib/i18n/locales";
+import { and, eq, inArray, like, isNotNull, isNull, ne, notInArray, or, desc, gte, sql, type SQL } from "drizzle-orm";
 import { ForYouStrip } from "@/components/ForYouStrip";
 import { HappeningNow } from "@/components/HappeningNow";
 import { LatestVideos, VideoStripSkeleton } from "@/components/videos/VideoStrip";
@@ -131,7 +134,9 @@ export function homeMetadata(category?: string) {
 // isolating it means the rest of the page no longer waits on it.
 async function PlayerNewsSection({
   playerNewsMatches,
+  locale,
 }: {
+  locale?: string;
   playerNewsMatches: { player: TrackedPlayer; article: { slug: string; title: string }; articleIndex: number }[];
 }) {
   const playerNewsPhotos = await Promise.all(
@@ -145,7 +150,7 @@ async function PlayerNewsSection({
     <Box component="section" sx={{ mb: 4 }}>
       <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
         <StarIcon sx={{ fontSize: 20, color: "primary.main" }} />
-        <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>Player News</Typography>
+        <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>{getDict(locale).home.playerNews}</Typography>
       </Stack>
       <ScrollRow>
         {playerNews.map(({ player, article, photo }) => (
@@ -243,12 +248,12 @@ async function PlayerNewsSection({
 // Lightweight placeholder matching PlayerNewsSection's approximate shape —
 // shown while the Wikipedia photo lookups above are still in flight, so
 // the layout doesn't jump once the real section streams in.
-function PlayerNewsSkeleton() {
+function PlayerNewsSkeleton({ locale }: { locale?: string }) {
   return (
     <Box component="section" sx={{ mb: 4 }}>
       <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
         <StarIcon sx={{ fontSize: 20, color: "primary.main" }} />
-        <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>Player News</Typography>
+        <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>{getDict(locale).home.playerNews}</Typography>
       </Stack>
       <ScrollRow>
         {[...Array(4)].map((_, i) => (
@@ -292,11 +297,26 @@ async function fetchFreshRanked(baseConditions: SQL[]) {
 
 // The homepage for all sports (category undefined) or one sport section.
 // Rendered by src/app/page.tsx and src/app/sport/[...category]/page.tsx.
-export async function HomeView({ category }: { category?: string }) {
+// locale "es": the Spanish site (es. host, see lib/i18n/hostRouting.ts). The
+// SAME selection logic runs on the English rows (highlight keywords, player
+// matching and hero quality rules all read English text), restricted to the
+// Spanish sports and to articles that have a translated row; only the text
+// shown (title/summary/body/slug) is swapped for the translation at the end.
+export async function HomeView({ category, locale }: { category?: string; locale?: string }) {
+  const t = getDict(locale);
+  const loc = Boolean(locale);
+  // English-only modules (player quotes) are left out of the Spanish home.
+  const quotes = loc ? [] : PLAYER_QUOTES;
 
   const baseConditions = [
     eq(articleTable.status, "published"),
     ...(category ? [like(articleTable.category, `${category}%`)] : []),
+    ...(locale
+      ? [
+          or(...LOCALES[locale].categories.map((c) => like(articleTable.category, `${c}%`)))!,
+          sql`exists (select 1 from "ArticleTranslation" t where t."articleId" = "Article"."id" and t.locale = ${locale} and t.status = 'translated')`,
+        ]
+      : []),
   ];
 
   // Fetched as two separate queries and merged, rather than relying on the
@@ -396,6 +416,21 @@ export async function HomeView({ category }: { category?: string }) {
       .orderBy(desc(articleTable.trendingScore))
       .limit(100),
   ]);
+  // Spanish: one lookup of the translated text for every candidate row.
+  const trMap = new Map<string, { title: string; summary: string; body: string | null; slug: string }>();
+  if (locale) {
+    const ids = [...new Set([...articlesRanked, ...manuallyFeaturedRaw, ...justInRaw, ...highlightCandidatesRaw, ...matchCandidatesRaw].map((a) => a.id))];
+    const rows = ids.length === 0 ? [] : await db
+      .select({ articleId: articleTranslation.articleId, title: articleTranslation.title, summary: articleTranslation.summary, body: articleTranslation.body, slug: articleTranslation.slug })
+      .from(articleTranslation)
+      .where(and(eq(articleTranslation.locale, locale), eq(articleTranslation.status, "translated"), inArray(articleTranslation.articleId, ids)));
+    for (const r of rows) if (r.title && r.summary && r.slug) trMap.set(r.articleId, { title: r.title, summary: r.summary, body: r.body, slug: r.slug });
+  }
+  // Swap in the Spanish text for display (no-op on the English site).
+  const L = <T extends { id: string; title: string; summary: string; body: string | null; slug: string }>(a: T): T => {
+    const t = trMap.get(a.id);
+    return t ? { ...a, title: t.title, summary: t.summary, body: t.body, slug: t.slug } : a;
+  };
   const rankedIds = new Set(articlesRanked.map((a) => a.id));
   const articlesWithDupes = [...manuallyFeaturedRaw.filter((a) => !rankedIds.has(a.id)), ...articlesRanked];
 
@@ -453,7 +488,8 @@ export async function HomeView({ category }: { category?: string }) {
   const MAX_PLAYER_NEWS = 10;
   const playerNewsMatches = allPlayerNewsMatches
     .sort((a, b) => a.articleIndex - b.articleIndex)
-    .slice(0, MAX_PLAYER_NEWS);
+    .slice(0, MAX_PLAYER_NEWS)
+    .map((e) => ({ ...e, article: L(e.article) }));
 
   // "Just In": pure recency, unlike everything else on this page (which is
   // trending-sorted, category-grouped, or player-matched) — a plain
@@ -467,7 +503,8 @@ export async function HomeView({ category }: { category?: string }) {
   // bare line with no photo or crest at all.
   const justIn = justInRaw
     .filter((a) => Boolean(a.heroImageUrl) || Boolean(a.homeCrestUrl && a.awayCrestUrl))
-    .slice(0, 3);
+    .slice(0, 3)
+    .map(L);
 
   // Rendered in two places: first in the lg sticky sidebar, and under the hero
   // below lg. As the sidebar's 4th module it sat below the viewport (the
@@ -478,7 +515,7 @@ export async function HomeView({ category }: { category?: string }) {
       <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 1.5 }}>
         <AccessTimeIcon sx={{ fontSize: 15, color: "primary.main" }} />
         <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, lineHeight: 1 }}>
-          Just In
+          {t.home.justIn}
         </Typography>
       </Stack>
       <Stack spacing={1.25}>
@@ -504,7 +541,7 @@ export async function HomeView({ category }: { category?: string }) {
                     {article.title}
                   </Typography>
                   <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                    {relativeTime(article.publishedAt!)}
+                    {relativeTime(article.publishedAt!, locale)}
                   </Typography>
                 </Box>
               </Stack>
@@ -524,12 +561,12 @@ export async function HomeView({ category }: { category?: string }) {
   // actually has an image, since the whole point is a visual tile.
   const categoryTiles = category
     ? []
-    : Object.keys(CATEGORY_META)
+    : (loc ? t.sports.map((s) => s.category) : Object.keys(CATEGORY_META))
         .map((cat) => {
           const inCategory = articles.filter((a) => a.category === cat);
           const withImage = inCategory.find((a) => a.heroImageUrl || (a.homeCrestUrl && a.awayCrestUrl));
           const chosen = withImage ?? inCategory[0];
-          return chosen ? { category: cat, article: chosen } : null;
+          return chosen ? { category: cat, article: L(chosen) } : null;
         })
         .filter((entry): entry is { category: string; article: (typeof articles)[number] } => entry !== null);
 
@@ -549,7 +586,7 @@ export async function HomeView({ category }: { category?: string }) {
           const competition = competitionFromSummary(a.summary);
           if (competition && !seen.has(competition)) seen.set(competition, a);
         }
-        return [...seen.entries()].slice(0, 4).map(([competition, article]) => ({ competition, article }));
+        return [...seen.entries()].slice(0, 4).map(([competition, article]) => ({ competition, article: L(article) }));
       })();
 
   // Manually-picked hero articles (set from /admin) always win the first
@@ -634,7 +671,7 @@ export async function HomeView({ category }: { category?: string }) {
   const heroCandidates = [...manuallyFeatured, ...heroMergedPool];
   // On the all-sports page at most HERO_MAX_PER_SPORT automatic slides come
   // from one sport (see pickHeroArticles); a sport page is unrestricted.
-  const heroArticles = pickHeroArticles(heroCandidates, manuallyFeaturedIds, category ? null : HERO_MAX_PER_SPORT);
+  const heroArticles = pickHeroArticles(heroCandidates, manuallyFeaturedIds, category ? null : HERO_MAX_PER_SPORT).map(L);
   const heroIds = new Set(heroArticles.map((a) => a.id));
   const allMatchArticles = allMatchArticlesFull.filter((a) => !heroIds.has(a.id));
   const allBriefArticles = allBriefArticlesFull.filter((a) => !heroIds.has(a.id));
@@ -682,7 +719,7 @@ export async function HomeView({ category }: { category?: string }) {
   const highlightFallbackPicks = highlightEligiblePool.filter((a) => !isHighlightWorthy(a.title));
   const automaticHighlights = [...highlightWorthyPicks, ...highlightFallbackPicks]
     .slice(0, Math.max(0, 4 - manuallyHighlighted.length));
-  const highlightArticles = [...manuallyHighlighted, ...automaticHighlights];
+  const highlightArticles = [...manuallyHighlighted, ...automaticHighlights].map(L);
   const highlightIds = new Set(highlightArticles.map((a) => a.id));
   // Was completely uncapped — every RSS article not already used as a hero
   // or highlight pick landed here, which could genuinely be 30+ items,
@@ -691,7 +728,7 @@ export async function HomeView({ category }: { category?: string }) {
   // scrolling past the main column's real content into visually empty
   // space before this one's is exhausted too). Capped to match the scale
   // of every other sidebar list module ("Just In" caps at 3).
-  const briefArticles = allBriefArticles.filter((a) => !highlightIds.has(a.id)).slice(0, 8);
+  const briefArticles = allBriefArticles.filter((a) => !highlightIds.has(a.id)).slice(0, 8).map(L);
 
   // NFL gets its own section rather than being mixed into the generic
   // football/cricket match list — three different sports sharing one
@@ -703,8 +740,8 @@ export async function HomeView({ category }: { category?: string }) {
   const allNflArticles = allMatchArticles.filter((a) => a.sourceName === "ESPN NFL");
   const allFootballCricketArticles = allMatchArticles.filter((a) => a.sourceName !== "ESPN NFL");
 
-  const matchArticles = allFootballCricketArticles.slice(0, 10);
-  const nflArticles = allNflArticles.slice(0, 10);
+  const matchArticles = allFootballCricketArticles.slice(0, 10).map(L);
+  const nflArticles = allNflArticles.slice(0, 10).map(L);
   // Was allFootballCricketArticles.slice(10, 25) — that pool is genuine
   // match-data sources only (football-data.org/CricketData.org), which is
   // correct for "Match Results & Previews" above but far too small a pool
@@ -717,7 +754,7 @@ export async function HomeView({ category }: { category?: string }) {
   // (same source as "Also in the News"), excluding whatever's already
   // shown in Transfers & Big News / Also in the News just above it.
   const usedBriefIds = new Set([...highlightIds, ...briefArticles.map((a) => a.id)]);
-  const moreArticles = allBriefArticles.filter((a) => !usedBriefIds.has(a.id)).slice(0, 15);
+  const moreArticles = allBriefArticles.filter((a) => !usedBriefIds.has(a.id)).slice(0, 15).map(L);
 
   const standingsApiKey = process.env.FOOTBALL_DATA_API_KEY;
 
@@ -747,22 +784,22 @@ export async function HomeView({ category }: { category?: string }) {
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* AdSense loads only on pages of the site's own stories (home, sport
           sections, news articles) — see GoogleAdSense.tsx. */}
-      <GoogleAdSense />
-      <HomeBanners />
-      {!category && <ForYouStrip />}
+      {!loc && <GoogleAdSense />}
+      {!loc && <HomeBanners />}
+      {!category && !loc && <ForYouStrip />}
       {articles.length === 0 && (
         <Box sx={{ textAlign: "center", py: 8 }}>
           <Typography variant="h6" gutterBottom>
             {category === "football/world-cup"
-              ? "No World Cup coverage right now"
-              : "No articles here yet"}
+              ? t.home.noWorldCup
+              : t.home.empty}
           </Typography>
           <Typography sx={{ color: "text.secondary", mb: 3 }}>
             {category === "football/world-cup"
-              ? "The tournament only runs every four years — check back closer to the next one, or see what's happening in Football and Cricket right now."
+              ? t.home.noWorldCupHint
               : category
-                ? "Nothing published in this category yet — check back soon."
-                : "No articles published yet — approve some in /admin to see them here."}
+                ? t.home.emptyCategory
+                : t.home.emptyAdmin}
           </Typography>
           {category === "football/world-cup" && (
             <Stack direction="row" spacing={1.5} sx={{ justifyContent: "center" }}>
@@ -788,12 +825,12 @@ export async function HomeView({ category }: { category?: string }) {
         {/* Standings widgets are now streamed independently (see below), so
             this container no longer knows synchronously whether they'll
             have content — always shows when any of the fast/sync sections
-            do, which in practice is virtually always true (PLAYER_QUOTES is
+            do, which in practice is virtually always true (quotes is
             a non-empty static list). The rare page with none of these but
             real standings data would just show a container with only the
             streamed widget in it once it resolves — a fine tradeoff for not
             blocking the whole sidebar on the same slow calls being deferred. */}
-        {(categoryTiles.length > 0 || justIn.length > 0 || PLAYER_QUOTES.length > 0) && (
+        {(categoryTiles.length > 0 || justIn.length > 0 || quotes.length > 0) && (
           <Box
             component="aside"
             sx={{
@@ -833,7 +870,7 @@ export async function HomeView({ category }: { category?: string }) {
             {categoryTiles.length > 0 && (
               <Paper component="section" variant="outlined" sx={{ p: 2, ...BELOW_FOLD_SX }}>
                 <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, mb: 1, display: "block" }}>
-                  By Category
+                  {t.home.byCategory}
                 </Typography>
                 <Stack spacing={1.25}>
                   {categoryTiles.map(({ category: cat, article }) => (
@@ -859,7 +896,7 @@ export async function HomeView({ category }: { category?: string }) {
                             variant="caption"
                             sx={{ color: categoryChipStyle(cat).color, fontWeight: 700, display: "block" }}
                           >
-                            {categoryChipStyle(cat).label}
+                            {loc ? categoryLabel(cat, t) : categoryChipStyle(cat).label}
                           </Typography>
                           <Typography
                             variant="body2"
@@ -886,7 +923,7 @@ export async function HomeView({ category }: { category?: string }) {
             {competitionTiles.length > 0 && (
               <Paper component="section" variant="outlined" sx={{ p: 2, mt: 3, ...BELOW_FOLD_SX }}>
                 <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, mb: 1, display: "block" }}>
-                  By Competition
+                  {t.home.byCompetition}
                 </Typography>
                 <Stack spacing={1.25}>
                   {competitionTiles.map(({ competition, article }) => (
@@ -933,11 +970,11 @@ export async function HomeView({ category }: { category?: string }) {
               </Paper>
             )}
 
-            <SentimentLeaderboard />
+            {!loc && <SentimentLeaderboard />}
 
-            {PLAYER_QUOTES.length > 0 && (
+            {quotes.length > 0 && (
               <Box sx={{ mt: 3 }}>
-                <QuotesStrip quotes={PLAYER_QUOTES} />
+                <QuotesStrip quotes={quotes} />
               </Box>
             )}
           </Box>
@@ -979,6 +1016,7 @@ export async function HomeView({ category }: { category?: string }) {
         {heroSlides.length > 0 && (
           <Box sx={{ minWidth: 0 }}>
             <HeroCarousel
+              locale={locale}
               slides={heroSlides.map(({ article, banner }) => ({
                 slug: article.slug,
                 title: article.title,
@@ -997,30 +1035,32 @@ export async function HomeView({ category }: { category?: string }) {
         {justInPanel && <Box sx={{ display: { xs: "block", lg: "none" }, minWidth: 0 }}>{justInPanel}</Box>}
 
         <Box component="main" sx={{ minWidth: 0 }}>
-          <HappeningNow competitions={activeCompetitions} medalLines={medalLines} />
+          {!loc && <HappeningNow competitions={activeCompetitions} medalLines={medalLines} />}
 
           {playerNewsMatches.length > 0 && (
-            <Suspense fallback={<PlayerNewsSkeleton />}>
-              <PlayerNewsSection playerNewsMatches={playerNewsMatches} />
+            <Suspense fallback={<PlayerNewsSkeleton locale={locale} />}>
+              <PlayerNewsSection playerNewsMatches={playerNewsMatches} locale={locale} />
             </Suspense>
           )}
 
           {/* Official league/broadcaster videos (src/lib/videos/), filtered
               to the current sport; its own Suspense so the query never
               delays the news below. */}
+          {!loc && (
           <Suspense fallback={<VideoStripSkeleton headingSx={SECTION_HEADING_SX} />}>
             <LatestVideos category={category} headingSx={SECTION_HEADING_SX} />
           </Suspense>
+          )}
 
           {highlightArticles.length > 0 && (
             <Box component="section" sx={{ mb: 4, ...BELOW_FOLD_SX }}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <SwapHorizIcon sx={{ color: "warning.main" }} />
-                <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>Transfers &amp; Big News</Typography>
+                <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>{t.home.transfers}</Typography>
               </Stack>
               <Stack spacing={2}>
                 {highlightArticles.map((article) => (
-                  <StoryCard key={article.id} article={article} accent="warning.main" />
+                  <StoryCard key={article.id} article={article} accent="warning.main" locale={locale} />
                 ))}
               </Stack>
             </Box>
@@ -1030,11 +1070,11 @@ export async function HomeView({ category }: { category?: string }) {
             <Box component="section" sx={BELOW_FOLD_SX}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <ScoreboardIcon sx={{ color: "primary.main" }} />
-                <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>Match Results &amp; Previews</Typography>
+                <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>{t.home.matchResults}</Typography>
               </Stack>
               <Stack spacing={2}>
                 {matchArticles.map((article) => (
-                  <StoryCard key={article.id} article={article} showSummary />
+                  <StoryCard key={article.id} article={article} showSummary locale={locale} />
                 ))}
               </Stack>
             </Box>
@@ -1044,11 +1084,11 @@ export async function HomeView({ category }: { category?: string }) {
             <Box component="section" sx={{ mt: matchArticles.length > 0 ? 4 : 0, ...BELOW_FOLD_SX }}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <SportsFootballIcon sx={{ color: categoryChipStyle("american-football").color }} />
-                <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>NFL Scores &amp; Previews</Typography>
+                <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>{t.home.nflScores}</Typography>
               </Stack>
               <Stack spacing={2}>
                 {nflArticles.map((article) => (
-                  <StoryCard key={article.id} article={article} showSummary />
+                  <StoryCard key={article.id} article={article} showSummary locale={locale} />
                 ))}
               </Stack>
             </Box>
@@ -1056,7 +1096,7 @@ export async function HomeView({ category }: { category?: string }) {
         </Box>
         </Box>
 
-        {(briefArticles.length > 0 || PLAYER_QUOTES.length > 0) && (
+        {(briefArticles.length > 0 || quotes.length > 0) && (
           // Both modules share ONE sticky wrapper, same pattern as the left
           // rail's multiple stacked modules — two independent
           // position:"sticky" siblings at the same top offset was the actual
@@ -1086,15 +1126,17 @@ export async function HomeView({ category }: { category?: string }) {
           >
             {/* Scores and standings: one design each, above the sticky part (they
                 are taller than a short window, so they scroll with the page). */}
-            <ScoresPanel initial={liveMatches} sport={category?.split("/")[0]} />
-            {!category && (
+            {!loc && <ScoresPanel initial={liveMatches} sport={category?.split("/")[0]} />}
+            {!category && !loc && (
               <Suspense fallback={null}>
                 <HomeMedals />
               </Suspense>
             )}
+            {!loc && (
             <Suspense fallback={null}>
               <HomeStandings sport={category} footballApiKey={standingsApiKey} />
             </Suspense>
+            )}
             <Box sx={{ position: { md: "sticky" }, top: { md: 84 } }}>
             {/* The one deliberately chosen ad placement — see
                 DisplayAd.tsx's comment. Sits among this column's other
@@ -1109,9 +1151,11 @@ export async function HomeView({ category }: { category?: string }) {
                 live that an empty ad's own margin was otherwise leaving a
                 visible gap between Live Now and Also in the News with no
                 ad content to show for it. */}
+            {!loc && (
             <Box sx={{ display: { xs: "none", md: "block" } }}>
               <CollapsibleAdBox slot="9489682012" sx={{ mb: 3 }} />
             </Box>
+            )}
 
             {briefArticles.length > 0 && (
               <Paper
@@ -1122,7 +1166,7 @@ export async function HomeView({ category }: { category?: string }) {
             <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 0.5 }}>
               <ArticleIcon sx={{ fontSize: 18, color: "primary.main" }} />
               <Typography variant="h6" component="h2">
-                Also in the News
+                {t.home.alsoInNews}
               </Typography>
             </Stack>
             <Typography
@@ -1132,7 +1176,7 @@ export async function HomeView({ category }: { category?: string }) {
                 display: "block",
                 mb: 2
               }}>
-              Quick links to coverage from around the web — click through for the full story.
+              {t.home.alsoInNewsCaption}
             </Typography>
             <Stack spacing={1.5}>
               {briefArticles.map((article, index) => (
@@ -1175,14 +1219,16 @@ export async function HomeView({ category }: { category?: string }) {
                 ESPN's own feed down to a single item) can genuinely have
                 neither a live cricket match nor any brief articles, and
                 previously that meant nothing rendered here at all. */}
-            {briefArticles.length === 0 && PLAYER_QUOTES.length > 0 && (
-              <QuotesStrip quotes={PLAYER_QUOTES} />
+            {briefArticles.length === 0 && quotes.length > 0 && (
+              <QuotesStrip quotes={quotes} />
             )}
             {/* Our writers' pieces while there are only a few (see
                 AnalysisStrip's placement). */}
+            {!loc && (
             <Suspense fallback={null}>
               <AnalysisStrip category={category} />
             </Suspense>
+            )}
             </Box>
           </Box>
         )}
@@ -1191,7 +1237,7 @@ export async function HomeView({ category }: { category?: string }) {
       {moreArticles.length > 0 && (
         <Box component="section" sx={{ mt: 5, ...BELOW_FOLD_SX }}>
           <Typography variant="h5" component="h2" sx={{ ...SECTION_HEADING_SX, mb: 2 }}>
-            More Headlines
+            {t.home.moreHeadlines}
           </Typography>
           <ScrollRow gap={2}>
             {/* One native-feeling ad tile, matching the real cards'
@@ -1201,7 +1247,7 @@ export async function HomeView({ category }: { category?: string }) {
                 "Advertisement" for transparency, same as any other ad.
                 Collapses out of the row entirely when there's nothing to
                 fill (e.g. pre-approval) — see MoreHeadlinesAdTile.tsx. */}
-            <MoreHeadlinesAdTile slot="3029496703" />
+            {!loc && <MoreHeadlinesAdTile slot="3029496703" />}
             {moreArticles.map((article) => (
               <Link
                 key={article.id}

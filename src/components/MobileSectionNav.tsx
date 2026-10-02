@@ -5,6 +5,7 @@ import Link from "next/link";
 import Box from "@mui/material/Box";
 import { usePathname } from "next/navigation";
 import { ScrollRow } from "@/components/ScrollRow";
+import { getDict } from "@/lib/i18n/dictionary";
 
 // Phone-only row of the site's sections under the header. Below sm the
 // header's own nav collapses into the ☰ drawer (a wrapped nav ate ~140px),
@@ -39,11 +40,26 @@ const SECTIONS: { href: string; label: string; category: string | null }[] = [
 // 0.07 (was 0.1): primary-green text on it keeps 4.5:1 contrast (4.49 at 0.1).
 const ACTIVE_TINT = "rgba(29, 107, 63, 0.07)";
 
-function Row({ isActive }: { isActive: (s: (typeof SECTIONS)[number]) => boolean }) {
+type Section = (typeof SECTIONS)[number];
+
+// English: the list above. Another language: Home, the sports that edition
+// covers and any extra pages in its dictionary (nav.pages), in dictionary order.
+function sectionsFor(locale?: string): Section[] {
+  if (!locale) return SECTIONS;
+  const t = getDict(locale);
+  return [
+    { href: "/", label: t.nav.home, category: null },
+    ...t.sports.map((s) => ({ href: `/sport/${s.category}`, label: s.label, category: s.category })),
+    ...Object.entries(t.nav.pages).map(([href, label]) => ({ href, label, category: null })),
+  ];
+}
+
+function Row({ isActive, locale }: { isActive: (s: Section) => boolean; locale?: string }) {
+  const sections = sectionsFor(locale);
   return (
     <Box
       component="nav"
-      aria-label="Sections"
+      aria-label={getDict(locale).nav.sections}
       sx={{
         display: { xs: "block", sm: "none" },
         position: "relative",
@@ -55,7 +71,7 @@ function Row({ isActive }: { isActive: (s: (typeof SECTIONS)[number]) => boolean
       }}
     >
       <ScrollRow gap={0.75} sx={{ px: 1.5, py: 0.75, pb: 0.75, "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}>
-        {SECTIONS.map((s) => {
+        {sections.map((s) => {
           const active = isActive(s);
           return (
             <Box
@@ -85,18 +101,19 @@ function Row({ isActive }: { isActive: (s: (typeof SECTIONS)[number]) => boolean
   );
 }
 
-function ActiveRow() {
+function ActiveRow({ locale }: { locale?: string }) {
   const pathname = usePathname();
   // Bring the current section into view when it sits past the first
   // screenful (NHL, For You). Sets the row's own scrollLeft, so the page
   // itself never scrolls.
   useEffect(() => {
-    const active = document.querySelector<HTMLElement>('nav[aria-label="Sections"] a[aria-current="page"]');
+    const active = document.querySelector<HTMLElement>('nav[aria-label] a[aria-current="page"]');
     const row = active?.parentElement;
     if (active && row) row.scrollLeft += active.getBoundingClientRect().left - row.getBoundingClientRect().left - (row.clientWidth - active.offsetWidth) / 2;
   }, [pathname]);
   return (
     <Row
+      locale={locale}
       isActive={(s) =>
         s.href === "/" ? pathname === "/" : pathname === s.href || pathname.startsWith(`${s.href}/`)
       }
@@ -106,10 +123,10 @@ function ActiveRow() {
 
 // useSearchParams needs a Suspense boundary; the fallback is the same row
 // unhighlighted, so nothing shifts.
-export function MobileSectionNav() {
+export function MobileSectionNav({ locale }: { locale?: string }) {
   return (
-    <Suspense fallback={<Row isActive={() => false} />}>
-      <ActiveRow />
+    <Suspense fallback={<Row isActive={() => false} locale={locale} />}>
+      <ActiveRow locale={locale} />
     </Suspense>
   );
 }

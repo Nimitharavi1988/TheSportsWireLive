@@ -1,5 +1,6 @@
 "use client";
 
+import { getDict } from "@/lib/i18n/dictionary";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -48,7 +49,8 @@ const AUTO_ADVANCE_MS = 8000;
 // cover.
 const HERO_ASPECT_RATIO = "4 / 3";
 
-export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
+export function HeroCarousel({ slides, locale }: { slides: HeroSlideData[]; locale?: string }) {
+  const t = getDict(locale);
   const [index, setIndex] = useState(0);
 
   // Rotation starts on the reader's first scroll, tap or key, not at load:
@@ -146,7 +148,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                   jumping at MUI's fixed breakpoints. */}
               <Box sx={{ position: "absolute", left: 0, right: 0, bottom: 0, p: { xs: 2, sm: 3 }, maxHeight: "78%", overflow: "hidden" }}>
                 <Chip
-                  label="Top Story"
+                  label={t.hero.topStory}
                   size="small"
                   sx={{ bgcolor: "primary.main", color: "primary.contrastText", fontWeight: 700, mb: 1.25 }}
                 />
@@ -251,7 +253,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                 variant's bottom-anchored text overlay instead of the whole
                 block just sitting vertically centered as one unit. */}
             <CardContent sx={{ p: 3, mt: "auto" }}>
-              <Chip label="Top Story" size="small" sx={{ color: "primary", mb: 1 }} />
+              <Chip label={t.hero.topStory} size="small" sx={{ color: "primary", mb: 1 }} />
               <Typography variant="h4" component="h2" gutterBottom>
                 {slide.title}
               </Typography>
@@ -267,7 +269,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
         <>
           <IconButton
             onClick={() => go(-1)}
-            aria-label="Previous top story"
+            aria-label={t.hero.previous}
             sx={{
               position: "absolute",
               left: 8,
@@ -282,7 +284,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
           </IconButton>
           <IconButton
             onClick={() => go(1)}
-            aria-label="Next top story"
+            aria-label={t.hero.next}
             sx={{
               position: "absolute",
               right: 8,
@@ -313,7 +315,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlideData[] }) {
                 key={s.slug}
                 type="button"
                 onClick={() => setIndex(i)}
-                aria-label={`Go to story ${i + 1} of ${slides.length}`}
+                aria-label={t.hero.goTo(i + 1, slides.length)}
                 aria-current={i === safeIndex}
                 // 24px tap target (accessibility minimum) around a 7px dot.
                 sx={{
