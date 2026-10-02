@@ -21,7 +21,7 @@ export const metadata = { title: "Stories", robots: { index: false } };
 export default async function StoriesPage() {
   if (!(await getSession())) redirect("/admin/login");
   const rows = await db
-    .select({ id: article.id, title: article.title, status: article.status, category: article.category, sourceName: article.sourceName, updatedAt: article.updatedAt, slug: article.slug, authorName: author.name })
+    .select({ id: article.id, title: article.title, status: article.status, category: article.category, sourceName: article.sourceName, updatedAt: article.updatedAt, reviewedBy: article.reviewedBy, slug: article.slug, authorName: author.name })
     .from(article)
     .leftJoin(author, eq(author.slug, article.authorSlug))
     .where(and(
@@ -52,6 +52,7 @@ export default async function StoriesPage() {
               <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5, flexWrap: "wrap", gap: 0.5 }}>
                 <Chip size="small" label={r.status === "draft" ? "Draft" : "Published"} color={r.status === "draft" ? "default" : "success"} />
                 <Chip size="small" variant="outlined" label={categoryChipStyle(r.category).label} />
+                {r.status === "draft" && !r.reviewedBy && r.sourceName === ORIGINAL_SOURCE && <Chip size="small" color="info" variant="outlined" label="Auto-draft · needs review" />}
                 {r.sourceName !== ORIGINAL_SOURCE && <Chip size="small" variant="outlined" label={`Rewrite of ${r.sourceName}`} />}
                 <Typography variant="caption" sx={{ color: "text.secondary" }}>
                   {r.authorName ? `${r.authorName} · ` : ""}{r.updatedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}

@@ -7,6 +7,9 @@
  * as an [ADD: …] note for the writer, and publishing is blocked until those
  * are gone (lib/stories.ts publishProblems).
  *
+ * The same drafts are also made automatically (stories/autoDraft.ts) for the
+ * open Story ideas, saved as unpublished drafts for a writer to finish.
+ *
  * Same Gemini model and key as the automatic write-ups (commentary.ts), but
  * its own call: that one stops calling for the rest of a run after one
  * failure, which suits a 15-minute batch job, not an editor.
@@ -33,10 +36,10 @@ export interface AiDraft {
 
 const SHAPE: Record<string, string> = {
   Preview: "what's at stake, form and recent results, the ground and conditions, likely selection questions, what to watch for",
-  Analysis: "the key question, the evidence from the facts, the counter-view, a clear conclusion",
+  Analysis: "a lead that states the key question or argument, the evidence from the facts, the counter-view, a clear conclusion",
   Opinion: "a clear argument, reasons backed by the facts, the strongest counter-argument, a firm close",
   Feature: "a strong opening, background, the people and places involved, why it matters now",
-  "Match report": "the result up front, how the match turned, standout performances from the facts, what it means next",
+  "Match report": "the result up front, how the match turned, standout performances from the facts, then analysis of what it means next",
 };
 
 // The prompt (pure, unit-tested).
@@ -64,6 +67,7 @@ Rules:
 - Everything in your own words: never copy or closely paraphrase sentences from the facts (the ground notes come from Wikipedia, the recent coverage from other stories).
 - The ground is background: use one or two details that matter to the match, not its history or awards. Focus on the brief.
 - Where the piece needs a fact you don't have, write a note in square brackets for the writer, e.g. [ADD: pitch report from the curator] or [ADD: confirmed XI].
+- Write it as an editorial, not a wire report: the headline states an angle or asks the real question (e.g. "Why the opening slot is the real selection puzzle"), not just the fixture or a name; open on the point, not the scene; take a position the facts support and say what it means. A viewpoint is fine, an invented fact never is.
 - Clear, specific sports-journalism English; vary sentence length; no clichés, no hype, no filler.
 - 450-700 words if the facts support it; shorter is better than padding.
 - "blocks": the story in order, one paragraph per item; up to three subheadings, each its own item (short, no "##").

@@ -2,9 +2,11 @@
  * Story Ideas (admin): pieces worth writing now, suggested from data the
  * site already has — big matches just finished (match report), big matches
  * coming up (preview), and players/teams many sources are covering today
- * (analysis). Nothing is written or posted automatically: an idea opens the
- * story editor prefilled (sport, kind, series, tags, a brief for the
- * optional AI draft), and the writer does the rest under their own name.
+ * (analysis). Nothing is published automatically: an idea opens the story
+ * editor prefilled (sport, kind, series, tags, a brief for the optional AI
+ * draft), and the writer does the rest under their own name. The ingest
+ * workflow also turns open ideas into unpublished drafts (stories/autoDraft.ts)
+ * that wait in admin for a writer.
  *
  * This file is pure (unit-tested); the database side is storyIdeasData.ts.
  */
