@@ -4,6 +4,9 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
 import { StoryCard } from "@/components/StoryCard";
+import { SpanishHero } from "@/components/es/SpanishHero";
+import { hasRealImage } from "@/lib/contentQuality";
+import { isMatchDataSource } from "@/lib/matchDataSources";
 import { ES, ES_SPORTS } from "@/lib/i18n/es";
 import { listSpanishStories } from "@/lib/i18n/spanishArticles";
 
@@ -21,7 +24,12 @@ export const metadata: Metadata = {
 
 export default async function SpanishHome() {
   const stories = await listSpanishStories({ limit: 80 });
-  const latest = stories.slice(0, 12);
+  // Lead = the newest editorial story (not a templated score card) with a real
+  // photo; the next three stories sit beside it. Neither repeats in the list below.
+  const lead = stories.find((a) => a.heroImageUrl && hasRealImage(a) && !isMatchDataSource(a.sourceName)) ?? null;
+  const side = lead ? stories.filter((a) => a.id !== lead.id).slice(0, 3) : [];
+  const shown = new Set([lead?.id, ...side.map((a) => a.id)]);
+  const latest = stories.filter((a) => !shown.has(a.id)).slice(0, 12);
 
   const sections = ES_SPORTS.map((s) => ({ ...s, items: stories.filter((a) => a.category === s.category || a.category.startsWith(`${s.category}/`)).slice(0, 4) })).filter(
     (s) => s.items.length > 0,
@@ -38,6 +46,7 @@ export default async function SpanishHome() {
         <Typography sx={{ color: "text.secondary" }}>{ES.home.empty}</Typography>
       ) : (
         <>
+          {lead && <SpanishHero lead={lead} side={side} />}
           <Typography variant="h2" sx={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.3rem", mb: 1.5 }}>
             {ES.home.latest}
           </Typography>
