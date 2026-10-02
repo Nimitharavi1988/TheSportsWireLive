@@ -157,3 +157,51 @@ describe("rescheduled matches", () => {
     expect(matchRefreshValues(game(), "scheduled", now)).not.toHaveProperty("kickoffAt");
   });
 });
+
+// MLB Division Series rows created while the Wild Card round was undecided.
+describe("undecided playoff slots", () => {
+  const mlb = (o: Partial<RawMatchItem> = {}) =>
+    item({
+      title: "Preview: Milwaukee Brewers vs San Diego Padres — Oct 4",
+      summary: "Milwaukee Brewers face San Diego Padres in MLB on Oct 4.",
+      body: "Milwaukee Brewers face San Diego Padres in MLB.",
+      sourceName: "MLB Stats API",
+      category: "baseball",
+      homeTeam: "Milwaukee Brewers",
+      awayTeam: "San Diego Padres",
+      publishedAt: new Date("2026-10-04T00:30:00Z"),
+      kickoffAt: new Date("2026-10-04T00:30:00Z"),
+      dedupeKey: "mlb-849830",
+      ...o,
+    });
+  const stored = {
+    homeTeam: "Milwaukee Brewers",
+    awayTeam: "SD/CHC",
+    status: "published",
+    rejectionReason: null,
+    kickoffAt: new Date("2026-10-03T08:33:00Z"),
+  };
+
+  it("replaces a candidates placeholder (SD/CHC) with the real team, title and text", () => {
+    const v = placeholderResolution(stored, mlb(), now);
+    expect(v).toMatchObject({ awayTeam: "San Diego Padres", title: "Preview: Milwaukee Brewers vs San Diego Padres — Oct 4" });
+    expect(v).not.toHaveProperty("status");
+    expect(v).not.toHaveProperty("slug");
+  });
+
+  it("also moves the page date with the corrected start time", () => {
+    const v = matchRefreshValues(mlb(), "scheduled", now, stored);
+    expect(v).toMatchObject({ awayTeam: "San Diego Padres", kickoffAt: new Date("2026-10-04T00:30:00Z"), publishedAt: new Date("2026-10-04T00:30:00Z") });
+  });
+
+  it("leaves publishedAt alone when the source dates its page differently from kickoff", () => {
+    const v = matchRefreshValues(mlb({ publishedAt: new Date("2026-10-02T12:00:00Z") }), "scheduled", now, stored);
+    expect(v).toHaveProperty("kickoffAt");
+    expect(v).not.toHaveProperty("publishedAt");
+  });
+
+  it("does not treat a real team name or a still-undecided source as resolved", () => {
+    expect(placeholderResolution({ ...stored, awayTeam: "San Diego Padres" }, mlb(), now)).toBeNull();
+    expect(placeholderResolution(stored, mlb({ awayTeam: "SD/CHC" }), now)).toBeNull();
+  });
+});

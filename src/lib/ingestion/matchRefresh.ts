@@ -9,7 +9,12 @@ import { buildMatchKey, slugifyTeam } from "../scores/matchKey";
 // Lanka stayed "TBA vs TBA" and rejected, and was missing from the scoreboard
 // while it was being played.
 const PLACEHOLDER_TEAM = /^(tba|tbc|tbd)$/i;
-const isPlaceholderName = (n: string | null | undefined): boolean => Boolean(n) && PLACEHOLDER_TEAM.test(n!.trim());
+// An undecided playoff slot named by its candidates: MLB's Division Series
+// listed "SD/CHC", "ATL/PHI", "NYY/BOS" until the Wild Card round was over
+// (2026-10-02) and the rows kept those names, and a Saturday start time
+// that was a placeholder too, after the teams were known.
+const UNDECIDED_SLOT = /^[A-Z]{2,4}(\/[A-Z]{2,4})+$/;
+const isPlaceholderName = (n: string | null | undefined): boolean => Boolean(n) && (PLACEHOLDER_TEAM.test(n!.trim()) || UNDECIDED_SLOT.test(n!.trim()));
 
 export interface ExistingMatchRow {
   homeTeam: string | null;
@@ -68,6 +73,10 @@ export function placeholderResolution(existing: ExistingMatchRow | undefined, it
 export function matchRefreshValues(item: RawMatchItem, existingMatchStatus: string | null, now: Date = new Date(), existing?: ExistingMatchRow) {
   const justFinished = existingMatchStatus !== "finished" && item.matchStatus === "finished";
   const isCricketData = item.sourceName === "CricketData.org";
+  // A scheduled match's page date is its start time for the sources that
+  // set publishedAt = kickoff, so it moves with it (otherwise the match stays
+  // filed under, and sorted by, the old date).
+  const moved = rescheduledKickoff(existing, item, existingMatchStatus);
   return {
     matchStatus: item.matchStatus,
     homeScore: item.homeScore,
@@ -87,7 +96,7 @@ export function matchRefreshValues(item: RawMatchItem, existingMatchStatus: stri
     ...(isCricketData || justFinished ? { summary: item.summary, body: item.body } : {}),
     ...(justFinished && !isCricketData ? { title: item.title } : {}),
     ...placeholderResolution(existing, item, now),
-    ...(rescheduledKickoff(existing, item, existingMatchStatus) ? { kickoffAt: item.kickoffAt } : {}),
+    ...(moved ? { kickoffAt: moved, ...(item.publishedAt.getTime() === moved.getTime() ? { publishedAt: moved } : {}) } : {}),
     updatedAt: now,
   };
 }
