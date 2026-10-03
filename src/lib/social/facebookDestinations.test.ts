@@ -29,30 +29,29 @@ describe("isCricketOrAsianGames", () => {
   });
 });
 
-describe("destinationRunCap (30/day over 7:00-23:00 IST — fixed fixture, independent of the live caps)", () => {
-  const PAGE = { dailyCap: 30, perRunCap: 3, activeHours: INDIA_CRICKET_PAGE.activeHours };
+describe("destinationRunCap (India cricket Page: 30/day over 7:00-23:00 IST)", () => {
   // 13:30 UTC = 19:00 IST: 12 of 16 active hours gone -> ~12 expected.
   const evening = new Date("2026-09-26T13:30:00Z");
 
   it("spreads the day's posts over the active hours", () => {
-    expect(destinationRunCap(PAGE, 5, evening)).toBe(3);
-    expect(destinationRunCap(PAGE, 28, evening)).toBe(2);
-    expect(destinationRunCap(PAGE, 30, evening)).toBe(0);
+    expect(destinationRunCap(INDIA_CRICKET_PAGE, 5, evening)).toBe(3);
+    expect(destinationRunCap(INDIA_CRICKET_PAGE, 28, evening)).toBe(2);
+    expect(destinationRunCap(INDIA_CRICKET_PAGE, 30, evening)).toBe(0);
   });
 
   it("posts nothing at night or once the day's limit is reached", () => {
-    expect(destinationRunCap(PAGE, 0, new Date("2026-09-26T20:00:00Z"))).toBe(0); // 01:30 IST
-    expect(destinationRunCap(PAGE, 30, new Date("2026-09-26T17:00:00Z"))).toBe(0);
+    expect(destinationRunCap(INDIA_CRICKET_PAGE, 0, new Date("2026-09-26T20:00:00Z"))).toBe(0); // 01:30 IST
+    expect(destinationRunCap(INDIA_CRICKET_PAGE, 30, new Date("2026-09-26T17:00:00Z"))).toBe(0);
   });
 
   it("keeps overnight low intensity: one post in the first run of every second hour", () => {
-    expect(destinationRunCap(PAGE, 0, new Date("2026-09-26T20:30:00Z"))).toBe(1); // 02:00 IST
-    expect(destinationRunCap(PAGE, 0, new Date("2026-09-26T21:30:00Z"))).toBe(0); // 03:00 IST
-    expect(destinationRunCap(PAGE, 30, new Date("2026-09-26T20:30:00Z"))).toBe(0);
+    expect(destinationRunCap(INDIA_CRICKET_PAGE, 0, new Date("2026-09-26T20:30:00Z"))).toBe(1); // 02:00 IST
+    expect(destinationRunCap(INDIA_CRICKET_PAGE, 0, new Date("2026-09-26T21:30:00Z"))).toBe(0); // 03:00 IST
+    expect(destinationRunCap(INDIA_CRICKET_PAGE, 30, new Date("2026-09-26T20:30:00Z"))).toBe(0);
   });
 
   it("can be daytime-only (reels): nothing overnight, spread over the day", () => {
-    const reels = { dailyCap: 4, perRunCap: 1, activeHours: PAGE.activeHours, overnight: false };
+    const reels = { ...INDIA_CRICKET_PAGE.reels!, activeHours: INDIA_CRICKET_PAGE.activeHours, overnight: false };
     expect(destinationRunCap(reels, 0, new Date("2026-09-26T20:30:00Z"))).toBe(0); // 02:00 IST
     expect(destinationRunCap(reels, 0, evening)).toBe(1);
     expect(destinationRunCap(reels, 4, evening)).toBe(0);
