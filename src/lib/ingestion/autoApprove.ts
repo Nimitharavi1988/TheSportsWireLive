@@ -81,6 +81,10 @@ const MAX_PUSH_NOTIFICATIONS_PER_DAY = 3;
 // candidate or hit a transient failure — pacing this the same way as
 // Facebook (below) fixes that.
 const MAX_INSTAGRAM_POSTS_PER_DAY = 95;
+// Facebook Reels posted alongside the Instagram Reel (see the reel loop
+// below), on top of the normal link posts. Kept modest: link posts are the
+// traffic driver; Reels add reach to people who don't follow the Page yet.
+const MAX_FACEBOOK_REELS_PER_DAY = 15;
 // Ceiling on ATTEMPTS within a single run (not just successes) — each
 // attempt is a full Gemini content-generation call plus a real git
 // commit/push/deploy-wait cycle, far more expensive than Facebook's plain
@@ -592,12 +596,18 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   // Instagram posts a Reel (postReel.ts, explicit request 2026-09-28),
   // falling back to the generated poster (socialPoster.ts) for the same
   // story if the reel fails, so a reel problem never stops Instagram
-  // posting. Facebook stays on its plain post above for now. Both cost
+  // posting. Facebook keeps its plain link post above and also gets the Reel. Both cost
   // Gemini calls and a render per attempt, far more than Facebook's post. Paced against its
   // own daily budget (instagramRunCap, above) rather than the old flat
   // "2 attempts" cap, and stops as soon as one succeeds within the run —
   // no need to spend more of this run's already-paced budget once that
   // run's slot is filled.
+  // The same rendered Reel also goes to the Facebook Page (postReel.ts), in
+  // addition to the plain link post above, which is unchanged and still what
+  // sends readers to the site. Capped per day so the Page isn't flooded.
+  const [{ value: facebookReelsToday }] = await db.select({ value: count() }).from(socialPost)
+    .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, "reel"), eq(socialPost.status, "posted"), gte(socialPost.postedAt, todayStart)));
+  let facebookReelsRemaining = Math.max(0, MAX_FACEBOOK_REELS_PER_DAY - facebookReelsToday);
   let instagramAttempts = 0;
   let instagramDone = false;
   for (const article of instagramCandidates) {
@@ -606,7 +616,9 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     try {
       let posted = false;
       try {
-        posted = (await timed("postReel (render+Gemini+API)", () => postReel(article.id, { instagram: true, facebook: false }))).instagramPosted;
+        const reel = await timed("postReel (render+Gemini+API)", () => postReel(article.id, { instagram: true, facebook: facebookReelsRemaining > 0 }));
+        posted = reel.instagramPosted;
+        if (reel.facebookPosted) facebookReelsRemaining--;
       } catch (reelErr) {
         console.error("Instagram reel failed for article", article.id, reelErr);
       }
