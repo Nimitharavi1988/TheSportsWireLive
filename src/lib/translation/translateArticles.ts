@@ -73,6 +73,9 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
   // backfillCaps for the whole run instead of the rolling daily caps. Idempotent:
   // already-translated articles are skipped, so it can simply be re-run.
   const backfill = process.env.TRANSLATE_BACKFILL === "1";
+  // TRANSLATE_ONLY_CATEGORIES="volleyball,rugby": limit this run to those sports
+  // (e.g. a backfill after an edition adds sports) instead of all of its sports.
+  const onlyCategories = (process.env.TRANSLATE_ONLY_CATEGORIES ?? "").split(",").map((c) => c.trim()).filter(Boolean);
   let translated = 0, failed = 0, skipped = 0;
   const newUrls: Record<string, string[]> = {}; // per-edition URLs to ping IndexNow with once the run is done
 
@@ -85,7 +88,7 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
       .from(article)
       .where(and(
         eq(article.status, "published"),
-        inArray(article.category, locale.categories),
+        inArray(article.category, onlyCategories.length > 0 ? locale.categories.filter((c) => onlyCategories.includes(c)) : locale.categories),
         isNotNull(article.body),
         // New articles in the window, plus match articles whose kickoff is within
         // [window start, +72h] (previews becoming results). NOT plain updatedAt: that is

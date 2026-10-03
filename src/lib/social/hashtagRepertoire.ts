@@ -168,6 +168,10 @@ const SPANISH_SPORT_TAGS: Record<string, string> = {
   "american-football": "#NFL",
   "formula-1": "#F1",
   athletics: "#Atletismo",
+  volleyball: "#Voleibol",
+  rugby: "#Rugby",
+  hockey: "#NHL",
+  wnba: "#WNBA",
 };
 
 export function selectSpanishHashtags(title: string, category: string): string[] {

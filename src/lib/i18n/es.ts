@@ -25,6 +25,10 @@ export const ES: Dict = {
     { category: "american-football", label: "NFL" },
     { category: "formula-1", label: "Fórmula 1" },
     { category: "athletics", label: "Atletismo" },
+    { category: "volleyball", label: "Voleibol" },
+    { category: "rugby", label: "Rugby" },
+    { category: "hockey", label: "NHL" },
+    { category: "wnba", label: "WNBA" },
   ],
   categoryLabels: {
     football: "Fútbol",
@@ -34,6 +38,10 @@ export const ES: Dict = {
     "american-football": "NFL",
     "formula-1": "Fórmula 1",
     athletics: "Atletismo",
+    volleyball: "Voleibol",
+    rugby: "Rugby",
+    hockey: "NHL",
+    wnba: "WNBA",
   },
   time: {
     justNow: "ahora mismo",

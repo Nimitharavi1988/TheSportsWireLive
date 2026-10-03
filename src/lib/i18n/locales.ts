@@ -33,21 +33,25 @@ export const LOCALES: Record<string, LocaleConfig> = {
     code: "es",
     host: "es.sportswirelive.com",
     promptName: "NEUTRAL Spanish for a mixed audience of US Hispanic, Latin American and Spanish readers (no regional slang)",
-    categories: ["football", "football/world-cup", "basketball", "baseball", "american-football", "formula-1", "athletics"],
+    // Sports the Spanish edition serves — a SELECTION from the English site's full list
+    // (see memory: multilanguage-sports-approach). Added 2026-10-03: volleyball, rugby,
+    // hockey (NHL), WNBA — popular in Latin America / Spain or with US Hispanic fans.
+    categories: ["football", "football/world-cup", "basketball", "baseball", "american-football", "formula-1", "athletics", "volleyball", "rugby", "hockey", "wnba"],
     glossary: [
-      'soccer -> "fútbol"; NFL / American football -> "fútbol americano"; baseball -> "béisbol"; basketball -> "baloncesto"',
+      'soccer -> "fútbol"; NFL / American football -> "fútbol americano"; baseball -> "béisbol"; basketball -> "baloncesto"; volleyball -> "voleibol"; ice hockey / NHL -> "hockey sobre hielo" ("hockey" alone is fine in NHL context); rugby union -> "rugby"',
       'match preview articles ("Preview: A vs B — date") -> "Previa: A vs B — date" (always "Previa", feminine)',
       'Formula 1 -> "Fórmula 1" (with accent); "long runs" (F1) -> "tandas largas"; "pole position" stays "pole position"; "Grand Prix" -> "Gran Premio"',
       'Never write "Los Los Angeles": team names that already start with "Los"/"Las"/"El" take no extra article',
       "Keep clock times and time zones as written (e.g. 7:00 PM UTC); translate month names (Oct -> oct.)",
     ],
-    backfillCaps: { football: 400, "football/world-cup": 60, basketball: 200, "formula-1": 150, athletics: 100, baseball: 250, "american-football": 300 },
-    dailyCaps: { football: 120, "football/world-cup": 40, basketball: 60, "formula-1": 40, athletics: 20, baseball: 40, "american-football": 60 },
+    backfillCaps: { football: 400, "football/world-cup": 60, basketball: 200, "formula-1": 150, athletics: 100, baseball: 250, "american-football": 300, volleyball: 60, rugby: 60, hockey: 120, wnba: 100 },
+    dailyCaps: { football: 120, "football/world-cup": 40, basketball: 60, "formula-1": 40, athletics: 20, baseball: 40, "american-football": 60, volleyball: 20, rugby: 20, hockey: 30, wnba: 30 },
     priorityTerms: [
       "la liga", "real madrid", "barcelona", "barça", "atlético", "atletico", "sevilla", "valencia", "villarreal", "athletic club",
       "liga mx", "mexico", "méxico", "argentina", "brazil", "brasil", "colombia", "uruguay", "chile",
       "messi", "vinicius", "vinícius", "yamal", "mbappé", "mbappe", "lewandowski", "alcaraz", "sainz", "alonso",
       "world cup", "champions league", "copa", "mls", "inter miami",
+      "los pumas", "pumas", "uruguay", "españa", "spain",
     ],
   },
 };
