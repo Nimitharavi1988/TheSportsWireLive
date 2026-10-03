@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SPANISH_PAGE, spanishPageEnabled, INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, TOPIC_DESTINATIONS, destinationRunCap, isCricketOrAsianGames, isIndiaCricket, localDayStart } from "./facebookDestinations";
+import { SPANISH_PAGE, spanishPageEnabled, INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, TOPIC_DESTINATIONS, effectiveDestination, destinationRunCap, isCricketOrAsianGames, isIndiaCricket, localDayStart } from "./facebookDestinations";
 
 const story = (over: Partial<Parameters<typeof isIndiaCricket>[0]>) => ({
   category: "cricket", title: "", homeTeam: null, awayTeam: null, seriesLabel: null, leagueLabel: null, venue: null, ...over,
@@ -98,9 +98,25 @@ describe("Sportswirecricketlive test Page", () => {
 
   it("posts far less, as photo + question, and leaves the India cricket Page unchanged", () => {
     expect(CRICKETLIVE_PAGE.dailyCap).toBe(10);
-    expect(CRICKETLIVE_PAGE.reels?.dailyCap).toBe(4);
+    expect(CRICKETLIVE_PAGE.perRunCap).toBe(1);
+    expect(CRICKETLIVE_PAGE.reels?.dailyCap).toBe(10);
     expect(CRICKETLIVE_PAGE.style).toBe("photo-question");
     expect(INDIA_CRICKET_PAGE.dailyCap).toBe(30);
     expect(INDIA_CRICKET_PAGE.style).toBeUndefined();
+  });
+});
+
+describe("effectiveDestination (first-day boost)", () => {
+  it("applies the boost limits until its end, then the normal limits", () => {
+    const during = effectiveDestination(CRICKETLIVE_PAGE, new Date("2026-10-04T06:00:00Z"));
+    expect(during.dailyCap).toBe(30);
+    expect(during.reels).toEqual({ dailyCap: 30, perRunCap: 1 });
+    const after = effectiveDestination(CRICKETLIVE_PAGE, new Date("2026-10-04T18:30:00Z"));
+    expect(after.dailyCap).toBe(10);
+    expect(after.reels).toEqual({ dailyCap: 10, perRunCap: 1 });
+  });
+
+  it("leaves Pages without a boost unchanged", () => {
+    expect(effectiveDestination(INDIA_CRICKET_PAGE, new Date("2026-10-04T06:00:00Z"))).toBe(INDIA_CRICKET_PAGE);
   });
 });

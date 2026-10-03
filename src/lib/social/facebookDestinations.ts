@@ -42,6 +42,9 @@ export interface FacebookDestination {
   // a caption that ends in a question, and the article link in the first comment
   // (postArticleToFacebook) — a test of whether that earns more reach than a link.
   style?: "photo-question";
+  // Higher limits until a date (a Page's first day), after which the normal
+  // limits above apply again by themselves — see effectiveDestination.
+  boost?: { until: Date; dailyCap: number; reels?: { dailyCap: number; perRunCap: number } };
   // Automatic Reels for this Page (topicReels.ts): own daily limit, daytime only.
   reels?: { dailyCap: number; perRunCap: number };
   matches: (a: DestinationCandidate) => boolean;
@@ -135,9 +138,11 @@ export const CRICKETLIVE_PAGE: FacebookDestination = {
   pageId: "1389324964254541",
   tokenEnv: "FACEBOOK_PAGE_ACCESS_TOKEN",
   dailyCap: 10,
-  perRunCap: 2,
+  perRunCap: 1,
   style: "photo-question",
-  reels: { dailyCap: 4, perRunCap: 1 },
+  reels: { dailyCap: 10, perRunCap: 1 },
+  // First day of posting (4 Oct IST): 30 posts and 30 reels, still one of each per run.
+  boost: { until: new Date("2026-10-04T18:30:00Z"), dailyCap: 30, reels: { dailyCap: 30, perRunCap: 1 } },
 };
 
 // ---- Spanish Page (language edition "es") -------------------------------
@@ -166,6 +171,13 @@ export const SPANISH_PAGE: FacebookDestination = {
 };
 
 export const TOPIC_DESTINATIONS: FacebookDestination[] = [INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, ...(spanishPageEnabled() ? [SPANISH_PAGE] : [])];
+
+// The destination with its boost limits applied while the boost is active
+// (otherwise unchanged).
+export function effectiveDestination(d: FacebookDestination, now: Date): FacebookDestination {
+  if (!d.boost || now >= d.boost.until) return d;
+  return { ...d, dailyCap: d.boost.dailyCap, reels: d.boost.reels ?? d.reels };
+}
 
 // The hour (fractional) in a time zone, e.g. 13.5 for 1:30 PM.
 function localHour(now: Date, timeZone: string): number {

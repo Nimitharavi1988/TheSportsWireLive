@@ -10,7 +10,7 @@ import { and, count, desc, eq, gte, like, ilike, or } from "drizzle-orm";
 import { isMatchDataSource } from "../matchDataSources";
 import { hasRealImage } from "../contentQuality";
 import { isSimilarToAny } from "../titleSimilarity";
-import { TOPIC_DESTINATIONS, destinationRunCap, localDayStart, prioritise } from "./facebookDestinations";
+import { TOPIC_DESTINATIONS, destinationRunCap, effectiveDestination, localDayStart, prioritise } from "./facebookDestinations";
 import { postReel } from "./postReel";
 
 const POOL_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
@@ -24,7 +24,8 @@ const MAX_PHOTO_CHECKS = 15;
 const MAX_ATTEMPTS = 2;
 
 export async function postTopicReels(now: Date = new Date()): Promise<void> {
-  for (const d of TOPIC_DESTINATIONS) {
+  for (const destination of TOPIC_DESTINATIONS) {
+    const d = effectiveDestination(destination, now);
     if (!d.reels || !process.env[d.tokenEnv]) continue;
     try {
       const key = `${d.key}-reel`;

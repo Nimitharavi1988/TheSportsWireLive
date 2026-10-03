@@ -15,7 +15,7 @@ import { hasRealImage } from "../contentQuality";
 import { isSimilarToAny } from "../titleSimilarity";
 import { postArticleToFacebook } from "./facebook";
 import { editionConditions } from "../i18n/overlay";
-import { TOPIC_DESTINATIONS, destinationRunCap, localDayStart, prioritise, type FacebookDestination } from "./facebookDestinations";
+import { TOPIC_DESTINATIONS, destinationRunCap, effectiveDestination, localDayStart, prioritise, type FacebookDestination } from "./facebookDestinations";
 
 const POOL_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 const SIMILARITY_WINDOW_MS = 24 * 60 * 60 * 1000;
