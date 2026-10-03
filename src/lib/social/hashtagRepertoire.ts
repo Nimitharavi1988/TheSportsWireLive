@@ -178,6 +178,7 @@ const SPANISH_SPORT_TAGS: Record<string, string> = {
   motogp: "#MotoGP",
   cycling: "#Ciclismo",
   golf: "#Golf",
+  padel: "#Padel",
 };
 
 export function selectSpanishHashtags(title: string, category: string): string[] {

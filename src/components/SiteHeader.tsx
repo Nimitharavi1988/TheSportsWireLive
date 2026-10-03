@@ -122,6 +122,7 @@ const MORE_SPORTS_LINKS: { href: string; label: string; category: string | null;
   { href: "/sport/motogp", label: "MotoGP", category: "motogp", icon: SportsMotorsportsIcon },
   { href: "/sport/cycling", label: "Cycling", category: "cycling", icon: PedalBikeIcon },
   { href: "/sport/golf", label: "Golf", category: "golf", icon: SportsGolfIcon },
+  { href: "/sport/padel", label: "Padel", category: "padel", icon: SportsTennisIcon },
 ];
 
 type NavItem = { href: string; label: string; category: string | null; icon: SvgIconComponent; wideOnly?: boolean };

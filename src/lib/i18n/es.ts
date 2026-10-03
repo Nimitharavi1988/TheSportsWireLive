@@ -35,6 +35,7 @@ export const ES: Dict = {
     { category: "motogp", label: "MotoGP" },
     { category: "cycling", label: "Ciclismo" },
     { category: "golf", label: "Golf" },
+    { category: "padel", label: "Pádel" },
   ],
   categoryLabels: {
     football: "Fútbol",
@@ -54,6 +55,7 @@ export const ES: Dict = {
     motogp: "MotoGP",
     cycling: "Ciclismo",
     golf: "Golf",
+    padel: "Pádel",
   },
   time: {
     justNow: "ahora mismo",

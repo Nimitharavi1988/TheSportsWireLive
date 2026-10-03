@@ -99,4 +99,8 @@ export const CATEGORY_META: Record<string, { title: string; description: string 
     title: "Golf News, Tournament Results & Majors",
     description: "Latest golf news and tournament results from the PGA Tour, DP World Tour, LPGA and the four majors.",
   },
+  padel: {
+    title: "Padel News, Premier Padel Results & Rankings",
+    description: "Latest padel news and results from Premier Padel and the FIP tour, covering the sport's top pairs, tournaments and rankings.",
+  },
 };

@@ -40,6 +40,7 @@ const SECTIONS: { href: string; label: string; category: string | null }[] = [
   { href: "/sport/motogp", label: "MotoGP", category: "motogp" },
   { href: "/sport/cycling", label: "Cycling", category: "cycling" },
   { href: "/sport/golf", label: "Golf", category: "golf" },
+  { href: "/sport/padel", label: "Padel", category: "padel" },
 ];
 
 // Same active tint as the header nav.
