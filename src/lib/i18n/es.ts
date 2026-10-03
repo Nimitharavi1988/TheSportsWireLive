@@ -15,7 +15,9 @@ export const ES: Dict = {
     "Últimas noticias de fútbol, baloncesto, béisbol, fútbol americano y Fórmula 1: resultados, fichajes y crónicas en español, actualizadas las 24 horas.",
   otherSiteLabel: "English",
   switchTo: { name: "Español", readIn: "🌐 Leer en español →", acceptLang: "es", question: "¿Prefieres leer en español?", go: "Ir a la edición en español", dismiss: "No, gracias" },
-  nav: { home: "Inicio", searchPlaceholder: "Buscar noticias", searchButton: "Buscar", sections: "Secciones", moreSports: "Más deportes", openMenu: "Abrir menú", pages: { "/scores": "Marcadores", "/standings": "Clasificaciones", "/for-you": "Para ti" } },
+  nav: { home: "Inicio", searchPlaceholder: "Buscar noticias", searchButton: "Buscar", sections: "Secciones", moreSports: "Más deportes", openMenu: "Abrir menú", pages: { "/scores": "Marcadores", "/standings": "Clasificaciones", "/for-you": "Para ti" },
+    primary: ["/", "/sport/football", "/sport/american-football", "/sport/basketball", "/sport/baseball", "/scores", "/for-you"],
+  },
   sports: [
     { category: "football", label: "Fútbol" },
     { category: "basketball", label: "NBA" },

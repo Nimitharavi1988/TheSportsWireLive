@@ -132,7 +132,14 @@ function navFor(locale?: string): { top: NavItem[]; more: NavItem[] } {
     const base = all.find((l) => l.href === href);
     return base ? [{ ...base, label, wideOnly: false }] : [];
   });
-  return { top: [home, ...sports, ...pages], more: [] };
+  const items = [home, ...sports, ...pages];
+  // Same shape as the English bar: a short main row plus a "more" menu, so the
+  // links never wrap onto a second row beside the logo.
+  if (t.nav.primary.length === 0) return { top: items, more: [] };
+  return {
+    top: t.nav.primary.flatMap((href) => items.filter((i) => i.href === href)),
+    more: items.filter((i) => !t.nav.primary.includes(i.href)),
+  };
 }
 
 // Brand green tint for the active-nav pill — deliberately not MUI's default
@@ -169,7 +176,8 @@ function NavLinks({ locale }: { locale?: string }) {
   // nothing actually selected from it.
   const isMoreActive =
     more.some((l) => l.category !== null && l.category === activeCategory) ||
-    (!locale && (pathname.startsWith("/standings") || pathname.startsWith("/series")));
+    (!locale && (pathname.startsWith("/standings") || pathname.startsWith("/series"))) ||
+    (Boolean(locale) && more.some((l) => l.category === null && pathname.startsWith(l.href)));
 
   // Confirmed live (real mouse, not simulated): MUI's Menu/Popover renders
   // via a React Portal, so the trigger and the dropdown live in different
@@ -571,7 +579,7 @@ export default function SiteHeader({
                 type="search"
                 placeholder={t.nav.searchPlaceholder}
                 aria-label={t.nav.searchPlaceholder}
-                sx={{ font: "inherit", fontSize: 14, px: 1.5, py: 0.75, width: { xs: 120, sm: 170 }, border: "1px solid", borderColor: "divider", borderRadius: 5, bgcolor: "background.paper", color: "text.primary" }}
+                sx={{ font: "inherit", fontSize: 14, px: 1.5, py: 0.75, width: { xs: 120, sm: 130 }, border: "1px solid", borderColor: "divider", borderRadius: 5, bgcolor: "background.paper", color: "text.primary" }}
               />
             </Box>
           ) : (
