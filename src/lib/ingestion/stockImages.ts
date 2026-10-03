@@ -41,6 +41,7 @@ const CATEGORY_QUERIES: Record<string, string> = {
   motogp: "motorcycle racing",
   cycling: "road cycling race",
   golf: "golf course",
+  padel: "padel court",
   athletics: "athletics track",
 };
 

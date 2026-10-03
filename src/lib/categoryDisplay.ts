@@ -26,6 +26,7 @@ const CATEGORY_CHIP: Record<string, { label: string; color: string; emoji?: stri
   motogp: { label: "MotoGP", color: "#d35400", emoji: "🏍️" },
   cycling: { label: "Cycling", color: "#2471a3", emoji: "🚴" },
   golf: { label: "Golf", color: "#1e8449", emoji: "⛳" },
+  padel: { label: "Padel", color: "#17a2b8", emoji: "🎾" },
 };
 
 export function categoryChipStyle(category: string) {

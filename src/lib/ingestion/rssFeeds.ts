@@ -1,6 +1,7 @@
 import Parser from "rss-parser";
 import type { RawMatchItem } from "./footballData";
 import { decodeHtmlEntities } from "../htmlEntities";
+import { englishifyForeignItems } from "./foreignHeadlines";
 
 // Each publisher includes a real, story-specific photo directly in their own
 // RSS feed — media:thumbnail (BBC) or media:content, sometimes with a
@@ -104,6 +105,9 @@ export interface RssFeed {
   // category — right for a sport-specific feed, wrong for a mixed one.
   include?: RegExp;
   exclude?: RegExp;
+  // The feed is not in English ("es"): headlines are translated to English and the
+  // source text is flagged as Spanish before the article is written (foreignHeadlines.ts).
+  language?: "es";
 }
 
 // Whether a feed item belongs in the site under that feed (pure, tested).
@@ -393,10 +397,17 @@ const FEEDS: RssFeed[] = [
   { url: "http://feeds.bbci.co.uk/sport/golf/rss.xml", category: "golf", sourceName: "BBC Sport" },
   { url: "https://www.theguardian.com/sport/golf/rss", category: "golf", sourceName: "The Guardian" },
   { url: "https://sports.yahoo.com/golf/rss/", category: "golf", sourceName: "Yahoo Sports" },
+  // Padel (2026-10-03): no English feed covers it, and the audience is Spanish-speaking
+  // (Spain, Argentina, Mexico). Spanish sources, written up in English like every feed,
+  // then translated back by the Spanish edition.
+  { url: "https://e00-marca.uecdn.es/rss/padel.xml", category: "padel", sourceName: "Marca", language: "es" },
+  { url: "https://www.mundodeportivo.com/feed/rss/padel", category: "padel", sourceName: "Mundo Deportivo", language: "es" },
+  { url: "https://www.padelspain.net/feed/", category: "padel", sourceName: "PadelSpain", language: "es" },
 ];
 
 export async function fetchRssNews(): Promise<RawMatchItem[]> {
   const items: RawMatchItem[] = [];
+  const foreign: RawMatchItem[] = [];
 
   for (const feed of FEEDS) {
     // Per-feed item count, logged unconditionally (not just on error) —
@@ -430,9 +441,9 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
         const fullText = feedFullText(entry);
         const image = extractRssImage(entry) ?? feedContentImage(entry);
 
-        items.push({
+        (feed.language ? foreign : items).push({
           // Decoded: some feeds (Yahoo Sports) encode titles twice — see htmlEntities.ts.
-          title: decodeHtmlEntities(entry.title),
+          title: decodeHtmlEntities(entry.title).trim(),
           // Deliberately NOT reusing entry.contentSnippet (the source's own
           // article text) as our summary — that would republish the
           // publisher's copyrighted prose as if it were our own content.
@@ -460,11 +471,12 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
           dedupeKey: entry.link,
         });
       }
-      console.log(`[rssFeeds] ${feed.sourceName} (${feed.category}, ${feed.url}): ${items.length - startCount} items in ${Date.now() - feedStart}ms`);
+      console.log(`[rssFeeds] ${feed.sourceName} (${feed.category}, ${feed.url}): ${items.length + foreign.length - startCount} items in ${Date.now() - feedStart}ms`);
     } catch (err) {
       console.error(`RSS fetch failed for ${feed.url}:`, err);
     }
   }
 
+  if (foreign.length > 0) items.push(...(await englishifyForeignItems(foreign)));
   return items;
 }
