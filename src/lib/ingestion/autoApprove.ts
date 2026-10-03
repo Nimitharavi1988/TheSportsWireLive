@@ -34,21 +34,14 @@ import { MIN_BODY_LENGTH, MIN_MATCH_DATA_BODY_LENGTH, hasRealImage, isAutoApprov
 // the Page would still flood it. Capped to the top N by trendingScore among
 // the isHighlightWorthy set instead — a real per-run volume ceiling, not
 // just a topical filter.
-// Temporarily raised from 5 — Facebook's real-link fix (socialPoster.ts)
-// needs a volume boost to help recover traffic while it takes effect. The
-// daily total is still capped by MAX_FACEBOOK_POSTS_PER_DAY below, so this
-// only lets a single run post more within that same overall budget, not
-// exceed it. Revert to 5 once traffic recovers.
-const MAX_FACEBOOK_POSTS_PER_RUN = 10;
-// Temporary traffic-recovery boost (explicit request, 2026-09-16): guarantee
-// at least 5 attempts per run instead of the usual paced-down floor of 1,
-// so volume picks up noticeably for a while. Still bounded by
-// MAX_FACEBOOK_POSTS_PER_DAY via remainingToday below — this can't exceed
-// the daily budget, it just front-loads more of it into each run instead of
-// spreading it evenly, so a day now gets ~10 hours of elevated posting
-// before the daily cap runs out rather than a flat trickle all day. Revert
-// to 1 once traffic recovers (see paceTarget below).
-const MIN_FACEBOOK_POSTS_PER_RUN = 5;
+// Main Page volume (2026-10-03, from the Page's insights): at ~270 link
+// posts a day, 93% got no reaction, comment or share — Facebook shows a feed
+// that busy to almost no one. A few strong stories beat everything. At most 3
+// in one run (runs are every ~15 min), and no per-run minimum: a run posts
+// nothing when the day is on or ahead of pace (the old floor of 1 per run also
+// pushed the day past its own cap).
+const MAX_FACEBOOK_POSTS_PER_RUN = 3;
+const MIN_FACEBOOK_POSTS_PER_RUN = 0;
 // Raised 199 -> 260 (2026-09-19, explicit request): 199 was never a real
 // Facebook-specific limit — it was borrowed defensively from Instagram's
 // ~200/hour app-level ballpark back when this cap gated both platforms'
@@ -61,7 +54,7 @@ const MIN_FACEBOOK_POSTS_PER_RUN = 5;
 // block, it's Meta's own reach/spam throttling quietly reducing how far
 // each post travels — a soft, unmeasurable-in-advance risk, which is why
 // this is a modest bump rather than a much larger one.
-const MAX_FACEBOOK_POSTS_PER_DAY = 260;
+const MAX_FACEBOOK_POSTS_PER_DAY = 30;
 // Automated push notifications (see sendAutomatedPushNotifications below) —
 // deliberately tiny compared to every other daily cap here. This channel
 // interrupts a subscriber's phone directly (see push.ts's own comment on
@@ -502,10 +495,10 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   // hours (e.g. ~03:00-07:00 UTC) taper down to as little as 1-2, instead of
   // guaranteeing the same 5-per-run floor around the clock regardless of
   // whether anyone's actually likely to see it.
-  const runFloor = Math.max(1, Math.round(MIN_FACEBOOK_POSTS_PER_RUN * currentHourWeight));
+  const runFloor = Math.round(MIN_FACEBOOK_POSTS_PER_RUN * currentHourWeight);
   const paceTarget = Math.max(runFloor, expectedByNow - postedToday);
 
-  const runCap = Math.max(1, Math.min(MAX_FACEBOOK_POSTS_PER_RUN, remainingToday, paceTarget));
+  const runCap = Math.max(0, Math.min(MAX_FACEBOOK_POSTS_PER_RUN, remainingToday, paceTarget));
 
   const fbPool = [...freshCandidates, ...backlogExcludingFresh.filter((a) => !fbPostedIds.has(a.id))]
     .filter((a) => a.category !== "volleyball");
