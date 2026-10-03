@@ -461,7 +461,11 @@ export async function HomeView({ category, locale }: { category?: string; locale
     return t ? { ...a, title: t.title, summary: t.summary, body: t.body, slug: t.slug } : a;
   };
   const rankedIds = new Set(articlesRanked.map((a) => a.id));
-  const articlesWithDupes = [...manuallyFeaturedRaw.filter((a) => !rankedIds.has(a.id)), ...articlesRanked];
+  // A hero pick older than HERO_FEATURE_MAX_AGE_DAYS is dropped here, not just from the hero:
+  // this list feeds Player News, By Category and the other sections, and a forgotten pick
+  // from 2026-09-27 (Kohli's Thiruvananthapuram century) was still leading the cricket tile
+  // and the Kohli card on 2026-10-03.
+  const articlesWithDupes = [...manuallyFeaturedRaw.filter((a) => !rankedIds.has(a.id) && !isHeroFeatureStale(a.featuredAt)), ...articlesRanked];
 
   // Real duplicate rows do exist in the DB for the same underlying story
   // (confirmed live: identical Sky Sports headlines with different
