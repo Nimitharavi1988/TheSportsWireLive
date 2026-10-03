@@ -30,7 +30,7 @@ const STATE_BASE = { live: 1000, paused: 700, started: 600, upcoming: 200, final
 // (football-data / ESPN names), so a new competition just needs a pattern.
 const TIER_1 =
   /\b(premier league|champions league|europa league|world cup|euro(pean)? championship|euros|la liga|primera division|bundesliga|serie a|ligue 1|nfl|nba|mlb|nhl|ipl|indian premier|the ashes|ashes|test|odi|t20i?|international|nations league)\b/i;
-const TIER_2 = /\b(college football|wnba|mls|championship|eredivisie|primeira liga|conference league|big bash|the hundred|psl|county|brasileir)/i;
+const TIER_2 = /\b(college football|wnba|mls|liga mx|libertadores|concacaf champions|liga profesional|betplay|championship|eredivisie|primeira liga|conference league|big bash|the hundred|psl|county|brasileir)/i;
 
 // Cricket that is never a headline however it is labelled: women's and
 // age-group sides, qualifiers, domestic and "A" tours. Checked before the

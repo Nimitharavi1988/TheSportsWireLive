@@ -30,6 +30,11 @@ export const SOCCER_LEAGUE_CODES: Record<string, string> = {
   "European Championship": "uefa.euro",
   "FIFA World Cup": "fifa.world",
   MLS: "usa.1",
+  "Liga MX": "mex.1",
+  "Liga Profesional Argentina": "arg.1",
+  "Liga BetPlay Colombia": "col.1",
+  "Copa Libertadores": "conmebol.libertadores",
+  "Concacaf Champions Cup": "concacaf.champions",
 };
 
 // Words that carry no identity (club-type tags, articles, years).

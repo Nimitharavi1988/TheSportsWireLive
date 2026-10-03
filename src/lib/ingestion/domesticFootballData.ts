@@ -61,6 +61,13 @@ const LEAGUES: LeagueConfig[] = [
   { code: "ita.1", label: "Serie A" },
   { code: "fra.1", label: "Ligue 1" },
   { code: "usa.1", label: "MLS" },
+  // Spanish-audience leagues (2026-10-03): Liga MX, Argentina, Colombia and the
+  // two continental cups, for the Spanish edition (and US Hispanic readers of the English one).
+  { code: "mex.1", label: "Liga MX" },
+  { code: "arg.1", label: "Liga Profesional Argentina" },
+  { code: "col.1", label: "Liga BetPlay Colombia" },
+  { code: "conmebol.libertadores", label: "Copa Libertadores", days: { back: 1, ahead: 2 } },
+  { code: "concacaf.champions", label: "Concacaf Champions Cup", days: { back: 1, ahead: 2 } },
   // International break (2026-10-02: this weekend's football
   // is the Nations League — England v Croatia, Germany v Greece, Belgium v
   // France — and the site had no match pages for any of it). Football-data.org's
