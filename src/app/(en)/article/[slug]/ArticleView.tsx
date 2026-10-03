@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { article as articleTable, author as authorTable, articleTranslation } from "@/db/schema";
 import { and, eq, gte, ne, or, ilike, isNull, desc, like, sql } from "drizzle-orm";
 import { cache } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import Container from "@mui/material/Container";
@@ -56,6 +56,23 @@ import WhatshotIcon from "@mui/icons-material/Whatshot";
 
 // generateMetadata and the page both need the article row — cache() makes
 // that one database round trip per request instead of two.
+// A language edition receives links that use the ENGLISH article address — score
+// cards, the live ticker and other shared components link by the article's own
+// slug. Send such a visitor to the translated page when there is one, otherwise
+// to the English article, instead of a 404. (Redirects throw; this only returns
+// when the slug matches no published article.)
+async function redirectFromEnglishSlug(slug: string, locale: string): Promise<void> {
+  const rows = await db.select({ id: articleTable.id }).from(articleTable).where(and(eq(articleTable.slug, slug), eq(articleTable.status, "published"))).limit(1);
+  if (!rows[0]) return;
+  const tr = await db
+    .select({ slug: articleTranslation.slug })
+    .from(articleTranslation)
+    .where(and(eq(articleTranslation.articleId, rows[0].id), eq(articleTranslation.locale, locale), eq(articleTranslation.status, "translated")))
+    .limit(1);
+  if (tr[0]?.slug) redirect(`/article/${tr[0].slug}`);
+  redirect(`${process.env.SITE_URL ?? "http://localhost:3000"}/article/${slug}`);
+}
+
 // The slug in the URL: English = the Article's own slug. A language edition =
 // the slug of its translation row; the English row it was made from is loaded
 // and returned with the translated text (null unless that translation is live
@@ -200,6 +217,7 @@ export async function articleMetadata(slug: string, locale?: string) {
 // related stories) keeps reading the English row.
 export async function ArticleView({ slug, locale }: { slug: string; locale?: string }) {
   const found = await getArticle(slug, locale);
+  if (!found && locale) await redirectFromEnglishSlug(slug, locale);
   if (!found || found.article.status !== "published") notFound();
   const english = found.article;
   const article = found.tr ? { ...english, ...found.tr } : english;
