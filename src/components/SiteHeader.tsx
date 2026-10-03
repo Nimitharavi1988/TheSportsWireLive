@@ -546,6 +546,28 @@ function NavLinksFallback({ locale }: { locale?: string }) {
   );
 }
 
+// Link from a language edition back to the English site that keeps the reader on
+// the same page. Most pages share their address with English (/sport/x, /scores,
+// /standings, /player/x, /club/x, /for-you, /search), so the path is carried over.
+// An article's address differs (translated slug), so for those the page's own
+// hreflang="en" alternate (set by its metadata) is read once the page is shown;
+// until then, and without JavaScript, it falls back to the English home page.
+function OtherSiteLink({ href: base, label }: { href: string; label: string }) {
+  const pathname = usePathname() ?? "/";
+  const isArticle = pathname.startsWith("/article/");
+  const sameAddress = base.replace(/\/$/, "") + (isArticle || pathname === "/" ? "" : pathname);
+  const [href, setHref] = useState(sameAddress);
+  useEffect(() => {
+    const alternate = document.querySelector('link[rel="alternate"][hreflang="en"]')?.getAttribute("href");
+    setHref(isArticle ? (alternate ?? base) : sameAddress + (pathname === "/" ? "" : window.location.search));
+  }, [pathname, isArticle, base, sameAddress]);
+  return (
+    <Box component="a" href={href} hrefLang="en" lang="en" sx={{ fontSize: 14, fontWeight: 600, color: "text.secondary", textDecoration: "none", px: 1, "&:hover": { color: "primary.main" } }}>
+      {label}
+    </Box>
+  );
+}
+
 // es: English edition only — link to the Spanish edition. locale + otherSite: a
 // language edition — its dictionary drives the menu, and otherSite links back to
 // the English edition. (Props, not env reads: this is a client component.)
@@ -600,11 +622,7 @@ export default function SiteHeader({
           {/* Search icon: popover on desktop, full-screen on phones — see
               HeaderSearch.tsx. */}
           {editions && editions.length > 0 && <LanguageSwitch editions={editions} />}
-          {otherSite && (
-            <Box component="a" href={otherSite.href} hrefLang="en" lang="en" sx={{ fontSize: 14, fontWeight: 600, color: "text.secondary", textDecoration: "none", px: 1, "&:hover": { color: "primary.main" } }}>
-              {otherSite.label}
-            </Box>
-          )}
+          {otherSite && <OtherSiteLink href={otherSite.href} label={otherSite.label} />}
           {locale ? (
             <Box component="form" action="/search" method="get" role="search" sx={{ display: "flex", gap: 0.75 }}>
               <Box
