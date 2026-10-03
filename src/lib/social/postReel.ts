@@ -55,6 +55,29 @@ async function uploadBytes(url: string, accessToken: string, mp4: Buffer, what: 
   await graphJson(res, what);
 }
 
+// A follow prompt as the first comment on a published reel. Best-effort: the
+// reel is already public, so a failed comment is logged, never thrown (and
+// never retried as a second post). A just-published reel can still be
+// processing, so a failed attempt is retried a few times.
+async function commentOnReel(objectId: string, message: string, accessToken: string, what: string): Promise<void> {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await graphJson(
+        await fetch(`${GRAPH}/${objectId}/comments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message, access_token: accessToken }),
+        }),
+        `${what} follow comment`
+      );
+      return;
+    } catch (err) {
+      if (attempt === 3) console.warn(`[${what}] follow comment failed on ${objectId}:`, err instanceof Error ? err.message : err);
+      else await new Promise((r) => setTimeout(r, 10000));
+    }
+  }
+}
+
 async function recordAttempt(article: ArticleWithVertical, platform: "instagram" | "facebook", run: () => Promise<string>, destination = DESTINATION): Promise<boolean> {
   const [row] = await db.insert(socialPostTable)
     .values({ id: createId(), articleId: article.id, platform, destination, status: "queued" })
@@ -142,6 +165,8 @@ async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, ca
       "Instagram reel publish"
     );
     if (!published.id) throw new Error("Instagram returned no media id");
+    // Instagram comments can't carry a clickable link, so the follow prompt @-mentions the account.
+    await commentOnReel(published.id, "🔔 Follow @sportswirelivenews for daily sports news", accessToken, "instagram reel");
     return published.id as string;
   });
 }
@@ -185,6 +210,7 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
       }),
       "Facebook reel publish"
     );
+    await commentOnReel(start.video_id, `👍 Follow for more sports news: https://www.facebook.com/${pageId}`, accessToken, "facebook reel");
     return start.video_id as string;
   }, topicPage ? `${topicPage.key}-reel` : DESTINATION);
 }
