@@ -68,6 +68,40 @@ async function translationFor(articleId: string, locale: string): Promise<{ titl
   return r?.title && r.slug ? { title: r.title, body: r.body, slug: r.slug } : null;
 }
 
+// The story's photo as a Page photo post with `caption`, then the article link
+// as its first comment. Returns the post id, or null if the photo post didn't go
+// out (the caller falls back to a link post). A comment that fails after the
+// photo is up is logged, not thrown: the photo is already public, and falling
+// back would post the story twice.
+async function postPhotoWithLinkComment(pageId: string, token: string, photoUrl: string, caption: string, link: string): Promise<string | null> {
+  try {
+    const res = await fetch(`https://graph.facebook.com/v20.0/${pageId}/photos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: photoUrl, caption: `${caption}\n\n👇 Full story in the first comment`, access_token: token }),
+    });
+    const data = await res.json();
+    if (!res.ok || !(data?.post_id ?? data?.id)) {
+      console.warn(`[facebook] photo post failed, falling back to a link post: ${data?.error?.message ?? res.status}`);
+      return null;
+    }
+    const postId: string = data.post_id ?? data.id;
+    const commentRes = await fetch(`https://graph.facebook.com/v20.0/${postId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: `Read the full story: ${link}`, access_token: token }),
+    });
+    if (!commentRes.ok) {
+      const c = await commentRes.json().catch(() => ({}));
+      console.warn(`[facebook] link comment failed on ${postId}: ${c?.error?.message ?? commentRes.status}`);
+    }
+    return postId;
+  } catch (err) {
+    console.warn("[facebook] photo post errored, falling back to a link post:", err);
+    return null;
+  }
+}
+
 export async function postArticleToFacebook(articleId: string, destination?: FacebookDestination): Promise<boolean> {
   const destinationKey = destination?.key ?? "main";
   // Idempotency guard: confirmed live that repeated calls for the same
@@ -125,7 +159,8 @@ export async function postArticleToFacebook(articleId: string, destination?: Fac
   // falls back to a minimal safe caption (just the real title) on any
   // Gemini failure so a hiccup can never block a Facebook post, same as
   // every other Gemini-dependent step here.
-  const captions = postBody ? await generateSocialCaptions(postTitle, postBody, destination?.locale) : null;
+  const photoStyle = destination?.style === "photo-question" && Boolean(article.heroImageUrl);
+  const captions = postBody ? await generateSocialCaptions(postTitle, postBody, destination?.locale, photoStyle ? "question" : undefined) : null;
   const captionBody = captions?.facebook ?? postTitle;
   const hashtags = (destination?.hashtags ?? selectFacebookHashtags)(article.title, article.category).join(" ");
   const message = `${emojiFor(article.category)} ${captionBody}\n\n${hashtags}`;
@@ -136,22 +171,34 @@ export async function postArticleToFacebook(articleId: string, destination?: Fac
 
   try {
     const postToken = await resolvePageAccessToken(pageId, accessToken);
-    const res = await fetch(
-      `https://graph.facebook.com/v20.0/${pageId}/feed`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, link, access_token: postToken }),
-      }
-    );
-    const data = await res.json();
+    // Photo + question with the link in the first comment (destination.style);
+    // null when the photo post fails, so the story still goes out as a normal
+    // link post below.
+    const photoId = photoStyle && article.heroImageUrl
+      ? await postPhotoWithLinkComment(pageId, postToken, article.heroImageUrl, message, link)
+      : null;
+    let externalId: string;
+    if (photoId) {
+      externalId = photoId;
+    } else {
+      const res = await fetch(
+        `https://graph.facebook.com/v20.0/${pageId}/feed`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message, link, access_token: postToken }),
+        }
+      );
+      const data = await res.json();
 
-    if (!res.ok) {
-      throw new Error(data?.error?.message ?? `Facebook API error (${res.status})`);
+      if (!res.ok) {
+        throw new Error(data?.error?.message ?? `Facebook API error (${res.status})`);
+      }
+      externalId = data.id;
     }
 
     await db.update(socialPostTable)
-      .set({ status: "posted", externalPostId: data.id, postedAt: new Date() })
+      .set({ status: "posted", externalPostId: externalId, postedAt: new Date() })
       .where(eq(socialPostTable.id, socialPost.id));
     return true;
   } catch (err) {

@@ -38,6 +38,10 @@ export interface FacebookDestination {
   // these phrases (case-insensitive) — e.g. Asian Games stories filed under
   // athletics.
   alsoTitleLike?: string[];
+  // Post format. Default: a link post. "photo-question": the story's photo with
+  // a caption that ends in a question, and the article link in the first comment
+  // (postArticleToFacebook) — a test of whether that earns more reach than a link.
+  style?: "photo-question";
   // Automatic Reels for this Page (topicReels.ts): own daily limit, daytime only.
   reels?: { dailyCap: number; perRunCap: number };
   matches: (a: DestinationCandidate) => boolean;
@@ -118,15 +122,22 @@ export const INDIA_CRICKET_PAGE: FacebookDestination = {
 };
 
 // Sportswirecricketlive: the same stories, pacing, hashtags and reels as the
-// India cricket Page, under the main Business umbrella — so it posts with the
-// main FACEBOOK_PAGE_ACCESS_TOKEN (exchanged for its own Page token). Its own
-// key means its posting history is separate: each story goes to both Pages.
+// India cricket Page — same stories, hours and hashtags, under the main
+// Business umbrella — so it posts with the main FACEBOOK_PAGE_ACCESS_TOKEN
+// (exchanged for its own Page token). Its own key means its posting history is
+// separate: a story can go to both Pages. This is the TEST Page for the new
+// approach (2026-10): far fewer posts (10 a day, 4 reels) and the photo +
+// question + link-in-comment format; the India cricket Page stays the control.
 export const CRICKETLIVE_PAGE: FacebookDestination = {
   ...INDIA_CRICKET_PAGE,
   key: "cricketlive",
   label: "Sportswirecricketlive Page",
   pageId: "1389324964254541",
   tokenEnv: "FACEBOOK_PAGE_ACCESS_TOKEN",
+  dailyCap: 10,
+  perRunCap: 2,
+  style: "photo-question",
+  reels: { dailyCap: 4, perRunCap: 1 },
 };
 
 // ---- Spanish Page (language edition "es") -------------------------------

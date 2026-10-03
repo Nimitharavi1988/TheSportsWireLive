@@ -272,7 +272,12 @@ export async function verifyCommentaryHasSubstance(title: string, commentary: st
 // can never be attached to an article it doesn't actually apply to. One
 // call produces both platform captions together (cheaper than two calls,
 // and keeps the two versions consistent with the same underlying facts).
-function buildSocialCaptionsPrompt(title: string, body: string, language?: string): string {
+function buildSocialCaptionsPrompt(title: string, body: string, language?: string, facebookStyle?: "question"): string {
+  // "question": a photo post whose link goes in the first comment (see
+  // postArticleToFacebook) — the caption invites a reply instead of asking for a click.
+  const facebookCta = facebookStyle === "question"
+    ? "- End with ONE genuine pick-a-side, prediction or reaction question that people can answer in a few words, about something the facts actually raise (never generic like \"What do you think?\"). For a match preview or a player milestone, open with the fixture, number or record. Do NOT tell readers to click a link — it is added in the first comment."
+    : "- End with a clear call to action telling readers to click the link to read more (your own wording, doesn't need to be verbatim).";
   const languageRule = language === "es"
     ? "\nLANGUAGE: Write BOTH captions in neutral Spanish for US Hispanic, Latin American and Spanish readers (no regional slang). Keep names of people, teams and competitions as they are normally written.\n"
     : "";
@@ -287,7 +292,7 @@ ${body}
 
 FACEBOOK caption:
 - Punchy, professional, engaging — 2-4 short sentences.
-- End with a clear call to action telling readers to click the link to read more (your own wording, doesn't need to be verbatim).
+${facebookCta}
 - Do not include any hashtags — those are added separately.
 - Do not repeat the headline verbatim at the top.
 - If the story is built around something a named player, coach or pundit said, lead with their exact words in quotation marks, attributed by name. Only use a quote that appears word for word in the facts; never paraphrase inside quotation marks.
@@ -310,10 +315,10 @@ export interface SocialCaptions {
 }
 
 // language: "es" writes the captions in Spanish (the Spanish Page); default English.
-export async function generateSocialCaptions(title: string, body: string, language?: string): Promise<SocialCaptions | null> {
+export async function generateSocialCaptions(title: string, body: string, language?: string, facebookStyle?: "question"): Promise<SocialCaptions | null> {
   if (!body || body.trim().length < 40) return null;
 
-  const parsed = await callGemini(buildSocialCaptionsPrompt(title, body, language), {
+  const parsed = await callGemini(buildSocialCaptionsPrompt(title, body, language, facebookStyle), {
     model: COPY_MODEL,
     temperature: 0.6,
     maxOutputTokens: 2048,

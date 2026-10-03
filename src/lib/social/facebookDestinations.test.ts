@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SPANISH_PAGE, spanishPageEnabled, INDIA_CRICKET_PAGE, destinationRunCap, isCricketOrAsianGames, isIndiaCricket, localDayStart } from "./facebookDestinations";
+import { SPANISH_PAGE, spanishPageEnabled, INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, TOPIC_DESTINATIONS, destinationRunCap, isCricketOrAsianGames, isIndiaCricket, localDayStart } from "./facebookDestinations";
 
 const story = (over: Partial<Parameters<typeof isIndiaCricket>[0]>) => ({
   category: "cricket", title: "", homeTeam: null, awayTeam: null, seriesLabel: null, leagueLabel: null, venue: null, ...over,
@@ -86,5 +86,21 @@ describe("Spanish Page (flagged)", () => {
     expect(tags[0]).toBe("#Futbol");
     expect(tags).toContain("#SportsWireLive");
     expect(tags.length).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("Sportswirecricketlive test Page", () => {
+  it("covers the same stories as the India cricket Page, with its own history key", () => {
+    expect(CRICKETLIVE_PAGE.matches).toBe(INDIA_CRICKET_PAGE.matches);
+    expect(CRICKETLIVE_PAGE.key).not.toBe(INDIA_CRICKET_PAGE.key);
+    expect(TOPIC_DESTINATIONS.map((d) => d.key)).toContain("cricketlive");
+  });
+
+  it("posts far less, as photo + question, and leaves the India cricket Page unchanged", () => {
+    expect(CRICKETLIVE_PAGE.dailyCap).toBe(10);
+    expect(CRICKETLIVE_PAGE.reels?.dailyCap).toBe(4);
+    expect(CRICKETLIVE_PAGE.style).toBe("photo-question");
+    expect(INDIA_CRICKET_PAGE.dailyCap).toBe(30);
+    expect(INDIA_CRICKET_PAGE.style).toBeUndefined();
   });
 });
