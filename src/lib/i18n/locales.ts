@@ -51,7 +51,7 @@ export const LOCALES: Record<string, LocaleConfig> = {
       "liga mx", "mexico", "méxico", "argentina", "brazil", "brasil", "colombia", "uruguay", "chile",
       "messi", "vinicius", "vinícius", "yamal", "mbappé", "mbappe", "lewandowski", "alcaraz", "sainz", "alonso",
       "world cup", "champions league", "copa", "mls", "inter miami",
-      "los pumas", "pumas", "uruguay", "españa", "spain",
+      "liga mx", "libertadores", "concacaf", "boca", "river plate", "chivas", "club américa", "los pumas", "pumas", "uruguay", "españa", "spain",
     ],
   },
 };
