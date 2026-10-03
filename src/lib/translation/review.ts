@@ -61,6 +61,7 @@ export async function reviewTranslation(locale: LocaleConfig, src: Fields, out: 
     model: REVIEW_MODEL,
     temperature: 0,
     maxOutputTokens: 1024,
+    retries: 4,
     responseSchema: {
       type: "OBJECT",
       properties: {

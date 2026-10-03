@@ -75,6 +75,10 @@ interface GeminiCallOptions {
   model?: string;
   temperature?: number;
   maxOutputTokens?: number;
+  // Retries (with growing waits) on a temporary Gemini error (429/5xx) before the
+  // run is declared unavailable. Default 0 = unchanged behaviour; the translation
+  // job opts in so a brief outage mid-run does not abandon the whole batch.
+  retries?: number;
 }
 
 // Standard Flash for the Instagram hook/caption writing (2026-10-01): a few
@@ -95,8 +99,20 @@ export function aiUnavailableReason(): string | null {
 }
 
 const UNAVAILABLE_STATUSES = new Set([401, 402, 403, 429, 500, 502, 503, 504]);
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+const RETRY_WAITS_MS = [5_000, 15_000, 45_000, 90_000];
+const RETRY = Symbol("retry");
 
 export async function callGemini(prompt: string, options: GeminiCallOptions): Promise<any | null> {
+  const retries = options.retries ?? 0;
+  for (let attempt = 0; ; attempt++) {
+    const out = await callGeminiOnce(prompt, options, attempt < retries);
+    if (out !== RETRY) return out;
+    await new Promise((r) => setTimeout(r, RETRY_WAITS_MS[Math.min(attempt, RETRY_WAITS_MS.length - 1)]));
+  }
+}
+
+async function callGeminiOnce(prompt: string, options: GeminiCallOptions, willRetry: boolean): Promise<any | null | typeof RETRY> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     unavailable = "AI not configured (GEMINI_API_KEY unset)";
@@ -143,6 +159,7 @@ export async function callGemini(prompt: string, options: GeminiCallOptions): Pr
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
       console.error(`Gemini generation failed: ${res.status} ${detail.slice(0, 200)}`);
+      if (willRetry && RETRYABLE_STATUSES.has(res.status)) return RETRY;
       if (UNAVAILABLE_STATUSES.has(res.status)) {
         unavailable = res.status === 402 ? "AI unavailable (402: credits depleted)" : `AI unavailable (HTTP ${res.status})`;
       }

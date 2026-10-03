@@ -49,6 +49,7 @@ async function translateOnce(locale: LocaleConfig, f: Fields, model?: string, fe
     ...(model ? { model } : {}),
     temperature: 0.2,
     maxOutputTokens: 8192,
+    retries: 4,
     responseSchema: {
       type: "OBJECT",
       properties: { title: { type: "STRING" }, summary: { type: "STRING" }, body: { type: "STRING" } },
