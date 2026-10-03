@@ -9,7 +9,8 @@
  * Tokens come from GitHub Actions secrets (never stored here); Page ids
  * are public. A destination whose token isn't set is simply skipped.
  */
-import { selectIndiaCricketHashtags } from "./hashtagRepertoire";
+import { selectIndiaCricketHashtags, selectSpanishHashtags } from "./hashtagRepertoire";
+import { LOCALES } from "../i18n/locales";
 
 export interface FacebookDestination {
   key: string;
@@ -26,6 +27,13 @@ export interface FacebookDestination {
   // The sport this Page covers (category prefix) — candidates are chosen
   // within it, so busier sports can't crowd its stories out.
   sport: string;
+  // Several sports at once (category prefixes), for a Page that covers more than
+  // one: used instead of `sport` when set.
+  categories?: string[];
+  // A language edition's Page: only stories with a live translation are posted,
+  // with the translated text and the edition's own article address (see
+  // postArticleToFacebook).
+  locale?: string;
   // Also draw candidates from other categories whose title contains one of
   // these phrases (case-insensitive) — e.g. Asian Games stories filed under
   // athletics.
@@ -109,7 +117,32 @@ export const INDIA_CRICKET_PAGE: FacebookDestination = {
   hashtags: (title) => selectIndiaCricketHashtags(title),
 };
 
-export const TOPIC_DESTINATIONS: FacebookDestination[] = [INDIA_CRICKET_PAGE];
+// ---- Spanish Page (language edition "es") -------------------------------
+// Posts translated stories, in Spanish, linking to es.sportswirelive.com.
+// OFF until the Page exists: set FACEBOOK_ES_ENABLED=1 together with
+// FACEBOOK_PAGE_ES_ID (variable) and FACEBOOK_PAGE_ES_ACCESS_TOKEN (secret).
+// Audience: US Hispanic, Latin America and Spain — so the posting day runs 8:00-23:00
+// Mexico City time (mid-day for the Americas; late evening in Spain).
+export function spanishPageEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.FACEBOOK_ES_ENABLED === "1" && Boolean(env.FACEBOOK_PAGE_ES_ID);
+}
+
+export const SPANISH_PAGE: FacebookDestination = {
+  key: "es",
+  label: "Spanish Page",
+  pageId: process.env.FACEBOOK_PAGE_ES_ID ?? "",
+  tokenEnv: "FACEBOOK_PAGE_ES_ACCESS_TOKEN",
+  dailyCap: 24,
+  perRunCap: 2,
+  activeHours: { timeZone: "America/Mexico_City", start: 8, end: 23 },
+  sport: "football",
+  categories: LOCALES.es.categories,
+  locale: "es",
+  matches: () => true,
+  hashtags: (title, category) => selectSpanishHashtags(title, category),
+};
+
+export const TOPIC_DESTINATIONS: FacebookDestination[] = [INDIA_CRICKET_PAGE, ...(spanishPageEnabled() ? [SPANISH_PAGE] : [])];
 
 // The hour (fractional) in a time zone, e.g. 13.5 for 1:30 PM.
 function localHour(now: Date, timeZone: string): number {

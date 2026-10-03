@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { INDIA_CRICKET_PAGE, destinationRunCap, isCricketOrAsianGames, isIndiaCricket, localDayStart } from "./facebookDestinations";
+import { SPANISH_PAGE, spanishPageEnabled, INDIA_CRICKET_PAGE, destinationRunCap, isCricketOrAsianGames, isIndiaCricket, localDayStart } from "./facebookDestinations";
 
 const story = (over: Partial<Parameters<typeof isIndiaCricket>[0]>) => ({
   category: "cricket", title: "", homeTeam: null, awayTeam: null, seriesLabel: null, leagueLabel: null, venue: null, ...over,
@@ -59,5 +59,32 @@ describe("destinationRunCap (India cricket Page: 30/day over 7:00-23:00 IST)", (
 
   it("counts the day from local midnight", () => {
     expect(localDayStart(evening, "Asia/Kolkata").toISOString()).toBe("2026-09-25T18:30:00.000Z");
+  });
+});
+
+describe("Spanish Page (flagged)", () => {
+  it("is off unless the flag AND the Page id are set", () => {
+    expect(spanishPageEnabled({} as NodeJS.ProcessEnv)).toBe(false);
+    expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "1" } as unknown as NodeJS.ProcessEnv)).toBe(false);
+    expect(spanishPageEnabled({ FACEBOOK_PAGE_ES_ID: "123" } as unknown as NodeJS.ProcessEnv)).toBe(false);
+    expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "0", FACEBOOK_PAGE_ES_ID: "123" } as unknown as NodeJS.ProcessEnv)).toBe(false);
+    expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "1", FACEBOOK_PAGE_ES_ID: "123" } as unknown as NodeJS.ProcessEnv)).toBe(true);
+  });
+  it("is a language-edition Page covering the Spanish sports", () => {
+    expect(SPANISH_PAGE.locale).toBe("es");
+    expect(SPANISH_PAGE.key).toBe("es");
+    expect(SPANISH_PAGE.categories).toContain("football");
+    expect(SPANISH_PAGE.categories).not.toContain("cricket");
+  });
+  it("posts through the same daily pacing as the other Pages", () => {
+    const evening = new Date("2026-10-03T20:00:00Z");
+    expect(destinationRunCap(SPANISH_PAGE, 0, evening)).toBeGreaterThan(0);
+    expect(destinationRunCap(SPANISH_PAGE, SPANISH_PAGE.dailyCap, evening)).toBe(0);
+  });
+  it("has Spanish hashtags with the brand tag, at most 3", () => {
+    const tags = SPANISH_PAGE.hashtags!("Real Madrid vence al Barcelona", "football");
+    expect(tags[0]).toBe("#Futbol");
+    expect(tags).toContain("#SportsWireLive");
+    expect(tags.length).toBeLessThanOrEqual(3);
   });
 });

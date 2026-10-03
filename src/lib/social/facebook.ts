@@ -1,7 +1,8 @@
 import { categoryEmoji } from "@/lib/categoryDisplay";
 import { socialArticleUrl } from "./trackedLink";
 import { db } from "@/db";
-import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
+import { article as articleTable, articleTranslation as articleTranslationTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
+import { LOCALES } from "@/lib/i18n/locales";
 import { eq, and } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { generateSocialCaptions } from "@/lib/ingestion/commentary";
@@ -58,6 +59,15 @@ export async function resolvePageAccessToken(pageId: string, token: string): Pro
 // `destination`: a topic Page (facebookDestinations.ts) instead of the main
 // Page. Its own page id/token, and its own history — the guard below is per
 // destination, so posting a story to one Page doesn't block it for another.
+async function translationFor(articleId: string, locale: string): Promise<{ title: string; body: string | null; slug: string } | null> {
+  const rows = await db.select({ title: articleTranslationTable.title, body: articleTranslationTable.body, slug: articleTranslationTable.slug })
+    .from(articleTranslationTable)
+    .where(and(eq(articleTranslationTable.articleId, articleId), eq(articleTranslationTable.locale, locale), eq(articleTranslationTable.status, "translated")))
+    .limit(1);
+  const r = rows[0];
+  return r?.title && r.slug ? { title: r.title, body: r.body, slug: r.slug } : null;
+}
+
 export async function postArticleToFacebook(articleId: string, destination?: FacebookDestination): Promise<boolean> {
   const destinationKey = destination?.key ?? "main";
   // Idempotency guard: confirmed live that repeated calls for the same
@@ -88,8 +98,14 @@ export async function postArticleToFacebook(articleId: string, destination?: Fac
     return false;
   }
 
-  const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
-  const link = socialArticleUrl(siteUrl, article.slug, "facebook");
+  // A language edition's Page posts the translated text and links to that edition's own
+  // article address (not the English one).
+  const tr = destination?.locale ? await translationFor(articleId, destination.locale) : null;
+  if (destination?.locale && !tr) return false; // not translated (yet): nothing to post
+  const siteUrl = destination?.locale ? `https://${LOCALES[destination.locale].host}` : (process.env.SITE_URL ?? "http://localhost:3000");
+  const link = socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "facebook");
+  const postTitle = tr?.title ?? article.title;
+  const postBody = tr ? tr.body : article.body;
   // The link itself is passed as its own `link` field, not pasted into the
   // message text — Facebook auto-generates a proper preview card (image,
   // title, domain) from it, which gets meaningfully more reach than a raw
@@ -109,8 +125,8 @@ export async function postArticleToFacebook(articleId: string, destination?: Fac
   // falls back to a minimal safe caption (just the real title) on any
   // Gemini failure so a hiccup can never block a Facebook post, same as
   // every other Gemini-dependent step here.
-  const captions = article.body ? await generateSocialCaptions(article.title, article.body) : null;
-  const captionBody = captions?.facebook ?? article.title;
+  const captions = postBody ? await generateSocialCaptions(postTitle, postBody, destination?.locale) : null;
+  const captionBody = captions?.facebook ?? postTitle;
   const hashtags = (destination?.hashtags ?? selectFacebookHashtags)(article.title, article.category).join(" ");
   const message = `${emojiFor(article.category)} ${captionBody}\n\n${hashtags}`;
 

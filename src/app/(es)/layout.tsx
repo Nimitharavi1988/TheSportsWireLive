@@ -35,6 +35,8 @@ export function generateMetadata() {
     description: ES.metaDescription,
     openGraph: { siteName: "Sports Wire Live", type: "website", locale: ES.ogLocale },
     twitter: { card: "summary_large_image" },
+    // Meta domain verification, same value as the English site (Page links and previews).
+    verification: { other: { "facebook-domain-verification": "1wu4e0sq15ic02ovi486rzv199i54t" } },
     robots: live
       ? { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 } }
       : { index: false, follow: false },

@@ -272,9 +272,12 @@ export async function verifyCommentaryHasSubstance(title: string, commentary: st
 // can never be attached to an article it doesn't actually apply to. One
 // call produces both platform captions together (cheaper than two calls,
 // and keeps the two versions consistent with the same underlying facts).
-function buildSocialCaptionsPrompt(title: string, body: string): string {
+function buildSocialCaptionsPrompt(title: string, body: string, language?: string): string {
+  const languageRule = language === "es"
+    ? "\nLANGUAGE: Write BOTH captions in neutral Spanish for US Hispanic, Latin American and Spanish readers (no regional slang). Keep names of people, teams and competitions as they are normally written.\n"
+    : "";
   return `You are an expert sports social media manager. Write two captions for the same story, one for Facebook and one for Instagram, following these platform rules exactly.
-
+${languageRule}
 Headline: "${title}"
 
 Facts (the ONLY source of information you may use — never invent a detail, quote, or statistic not stated here):
@@ -306,10 +309,11 @@ export interface SocialCaptions {
   instagram: string;
 }
 
-export async function generateSocialCaptions(title: string, body: string): Promise<SocialCaptions | null> {
+// language: "es" writes the captions in Spanish (the Spanish Page); default English.
+export async function generateSocialCaptions(title: string, body: string, language?: string): Promise<SocialCaptions | null> {
   if (!body || body.trim().length < 40) return null;
 
-  const parsed = await callGemini(buildSocialCaptionsPrompt(title, body), {
+  const parsed = await callGemini(buildSocialCaptionsPrompt(title, body, language), {
     model: COPY_MODEL,
     temperature: 0.6,
     maxOutputTokens: 2048,

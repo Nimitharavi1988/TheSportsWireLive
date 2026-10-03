@@ -14,6 +14,7 @@ import { isMatchDataSource } from "../matchDataSources";
 import { hasRealImage } from "../contentQuality";
 import { isSimilarToAny } from "../titleSimilarity";
 import { postArticleToFacebook } from "./facebook";
+import { editionConditions } from "../i18n/overlay";
 import { TOPIC_DESTINATIONS, destinationRunCap, localDayStart, prioritise, type FacebookDestination } from "./facebookDestinations";
 
 const POOL_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
@@ -41,7 +42,13 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
       venue: article.venue, matchStatus: article.matchStatus, heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
       trendingScore: article.trendingScore, publishedAt: article.publishedAt,
     }).from(article)
-      .where(and(eq(article.status, "published"), or(like(article.category, `${d.sport}%`), ...(d.alsoTitleLike ?? []).map((t) => ilike(article.title, `%${t}%`))), gte(article.publishedAt, new Date(now.getTime() - POOL_WINDOW_MS))))
+      .where(and(
+        eq(article.status, "published"),
+        or(...(d.categories ?? [d.sport]).map((c) => like(article.category, `${c}%`)), ...(d.alsoTitleLike ?? []).map((t) => ilike(article.title, `%${t}%`))),
+        // A language edition's Page posts only stories that have a live translation.
+        ...(d.locale ? editionConditions(d.locale) : []),
+        gte(article.publishedAt, new Date(now.getTime() - POOL_WINDOW_MS))
+      ))
       .orderBy(desc(article.trendingScore), desc(article.publishedAt))
       .limit(500),
     db.select({ articleId: socialPost.articleId }).from(socialPost)

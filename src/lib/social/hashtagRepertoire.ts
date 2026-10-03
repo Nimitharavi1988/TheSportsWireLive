@@ -156,6 +156,26 @@ export function selectFacebookHashtags(title: string, category: string): string[
   return [...selectAllRelevantTags(title, category).slice(0, 2), FACEBOOK_BRAND_TAG];
 }
 
+// Spanish Page (facebookDestinations.ts SPANISH_PAGE): the sport in Spanish
+// ("#Futbol"), the most relevant topic tag from the shared repertoire (team,
+// competition, player tags are the same in every language), and the brand tag.
+// Still 3 at most, like every Facebook post here.
+const SPANISH_SPORT_TAGS: Record<string, string> = {
+  football: "#Futbol",
+  "football/world-cup": "#Mundial",
+  basketball: "#NBA",
+  baseball: "#Beisbol",
+  "american-football": "#NFL",
+  "formula-1": "#F1",
+  athletics: "#Atletismo",
+};
+
+export function selectSpanishHashtags(title: string, category: string): string[] {
+  const sport = SPANISH_SPORT_TAGS[category] ?? SPANISH_SPORT_TAGS[category.split("/")[0]];
+  const topic = selectAllRelevantTags(title, category).find((t) => t !== sport);
+  return [...new Set([sport, topic, FACEBOOK_BRAND_TAG].filter((t): t is string => Boolean(t)))].slice(0, 3);
+}
+
 // No artificial minimum/maximum beyond a sane upper bound — see module
 // comment for why padding to hit "10-15" isn't done here. Instagram
 // allows 30, so the brand tag is added on top of the topic tags rather
