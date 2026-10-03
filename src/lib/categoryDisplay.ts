@@ -20,6 +20,12 @@ const CATEGORY_CHIP: Record<string, { label: string; color: string; emoji?: stri
   hockey: { label: "NHL", color: "#1a5276", emoji: "🏒" },
   volleyball: { label: "Volleyball", color: "#8e44ad", emoji: "🏐" },
   "formula-1": { label: "Formula 1", color: "#b7950b", emoji: "🏎️" },
+  tennis: { label: "Tennis", color: "#5d8a1f", emoji: "🎾" },
+  boxing: { label: "Boxing", color: "#a93226", emoji: "🥊" },
+  mma: { label: "MMA", color: "#4a4a4a", emoji: "🥋" },
+  motogp: { label: "MotoGP", color: "#d35400", emoji: "🏍️" },
+  cycling: { label: "Cycling", color: "#2471a3", emoji: "🚴" },
+  golf: { label: "Golf", color: "#1e8449", emoji: "⛳" },
 };
 
 export function categoryChipStyle(category: string) {

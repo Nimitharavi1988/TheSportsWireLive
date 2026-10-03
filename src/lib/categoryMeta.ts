@@ -75,4 +75,28 @@ export const CATEGORY_META: Record<string, { title: string; description: string 
     description:
       "Latest Formula 1 news, race previews, qualifying and race results, plus driver and constructor standings from every Grand Prix weekend on the calendar.",
   },
+  tennis: {
+    title: "Tennis News, Results & Grand Slam Updates",
+    description: "Latest tennis news and results from the ATP and WTA tours and the Grand Slams, updated automatically through the season.",
+  },
+  boxing: {
+    title: "Boxing News, Fight Results & Previews",
+    description: "Latest boxing news, fight results and previews from world title bouts and major cards around the world.",
+  },
+  mma: {
+    title: "MMA & UFC News, Fight Results & Previews",
+    description: "Latest MMA and UFC news, fight results and card previews from the biggest promotions in mixed martial arts.",
+  },
+  motogp: {
+    title: "MotoGP News, Race Results & Standings",
+    description: "Latest MotoGP news, race and qualifying results, and rider news from every Grand Prix weekend on the calendar.",
+  },
+  cycling: {
+    title: "Cycling News, Race Results & Grand Tours",
+    description: "Latest cycling news and results from the Grand Tours, classics and major road races around the world.",
+  },
+  golf: {
+    title: "Golf News, Tournament Results & Majors",
+    description: "Latest golf news and tournament results from the PGA Tour, DP World Tour, LPGA and the four majors.",
+  },
 };

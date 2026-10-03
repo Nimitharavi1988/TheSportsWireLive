@@ -47,6 +47,12 @@ export const SELECTABLE_SPORTS = [
   "rugby",
   "volleyball",
   "formula-1",
+  "tennis",
+  "boxing",
+  "mma",
+  "motogp",
+  "cycling",
+  "golf",
 ] as const;
 
 export type SelectableSport = (typeof SELECTABLE_SPORTS)[number];
