@@ -24,6 +24,8 @@ export const EN: Dict = {
   },
   home: {
     topStory: "Top story",
+    h1: "Sports Wire Live: live sports news, scores and standings",
+    h1Sport: (l) => `${l} news, live scores and standings`,
     justIn: "Just In",
     byCategory: "By Category",
     byCompetition: "By Competition",

@@ -39,6 +39,8 @@ export interface Dict {
   time: { justNow: string; minutes: (n: number) => string; hours: (n: number) => string; days: (n: number) => string };
   home: {
     topStory: string;
+    h1: string;
+    h1Sport: (sportLabel: string) => string;
     justIn: string;
     byCategory: string;
     byCompetition: string;

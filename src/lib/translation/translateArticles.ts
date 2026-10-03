@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { article, articleTranslation } from "@/db/schema";
+import { isMatchDataSource } from "../matchDataSources";
 import { and, count, eq, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { callGemini, aiUnavailableReason, MODEL } from "../ingestion/commentary";
@@ -66,6 +67,11 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
   }
   const maxPerRun = Number(process.env.TRANSLATE_MAX_PER_RUN ?? 30);
   const windowStart = new Date(Date.now() - Number(process.env.TRANSLATE_WINDOW_HOURS ?? 48) * 60 * 60 * 1000);
+  // One-off backfill (TRANSLATE_BACKFILL=1, with a wide TRANSLATE_WINDOW_HOURS and a
+  // large TRANSLATE_MAX_PER_RUN): news only, per-sport limits from the locale's
+  // backfillCaps for the whole run instead of the rolling daily caps. Idempotent:
+  // already-translated articles are skipped, so it can simply be re-run.
+  const backfill = process.env.TRANSLATE_BACKFILL === "1";
   let translated = 0, failed = 0, skipped = 0;
   const newUrls: Record<string, string[]> = {}; // per-edition URLs to ping IndexNow with once the run is done
 
@@ -73,7 +79,7 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
     const candidates = await db
       .select({
         id: article.id, category: article.category, title: article.title, summary: article.summary, body: article.body,
-        trendingScore: article.trendingScore,
+        trendingScore: article.trendingScore, sourceName: article.sourceName,
       })
       .from(article)
       .where(and(
@@ -119,6 +125,7 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
 
     const ranked = candidates
       .filter((c) => (c.body ?? "").length >= MIN_BODY_CHARS)
+      .filter((c) => !backfill || !isMatchDataSource(c.sourceName))
       .map((c) => ({ ...c, fields: { title: c.title.trim(), summary: c.summary.trim(), body: c.body!.trim() } }))
       .map((c) => ({ ...c, hash: sourceHash(c.fields), prev: byArticle.get(c.id) }))
       .filter((c) => {
@@ -129,7 +136,7 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
       })
       .sort((a, b) => priorityScore(b.trendingScore, b.title, locale.priorityTerms) - priorityScore(a.trendingScore, a.title, locale.priorityTerms))
       .map((c) => ({ ...c, isNew: !c.prev }));
-    const todo = applyDailyCaps(ranked, usedToday, locale.dailyCaps).slice(0, maxPerRun);
+    const todo = applyDailyCaps(ranked, backfill ? {} : usedToday, backfill ? locale.backfillCaps : locale.dailyCaps).slice(0, maxPerRun);
 
     console.log(`Translation [${locale.code}]: ${candidates.length} recent published, ${todo.length} to translate (cap ${maxPerRun})${opts.dryRun ? " [dry-run]" : ""}`);
 

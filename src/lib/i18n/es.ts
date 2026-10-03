@@ -43,6 +43,8 @@ export const ES: Dict = {
   },
   home: {
     topStory: "Noticia destacada",
+    h1: "Sports Wire Live en Español: noticias deportivas, marcadores y clasificaciones",
+    h1Sport: (l) => `Noticias de ${l}, marcadores y clasificaciones`,
     justIn: "Última hora",
     byCategory: "Por deporte",
     byCompetition: "Por competición",

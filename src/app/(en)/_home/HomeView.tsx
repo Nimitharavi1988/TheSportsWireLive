@@ -10,6 +10,7 @@ import { article as articleTable, articleTranslation } from "@/db/schema";
 import { getDict } from "@/lib/i18n/dictionary";
 import { categoryLabel } from "@/lib/i18n/helpers";
 import { LOCALES } from "@/lib/i18n/locales";
+import { editionConditions } from "@/lib/i18n/overlay";
 import { and, eq, inArray, like, isNotNull, isNull, lte, ne, notInArray, or, desc, gte, sql, type SQL } from "drizzle-orm";
 import { ForYouStrip } from "@/components/ForYouStrip";
 import { HappeningNow } from "@/components/HappeningNow";
@@ -438,6 +439,8 @@ export async function HomeView({ category, locale }: { category?: string; locale
       : db.select().from(articleTable)
           .where(and(
             eq(articleTable.status, "published"),
+            // A language edition lists only its own sports and translated games.
+            ...editionConditions(locale),
             inArray(articleTable.sourceName, MATCH_DATA_SOURCE_NAMES),
             gte(articleTable.kickoffAt, new Date(Date.now() - 36 * 60 * 60 * 1000)),
             lte(articleTable.kickoffAt, new Date(Date.now() + 48 * 60 * 60 * 1000))
@@ -884,6 +887,14 @@ export async function HomeView({ category, locale }: { category?: string; locale
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* AdSense loads only on pages of the site's own stories (home, sport
           sections, news articles) — see GoogleAdSense.tsx. */}
+      {/* The page's one <h1>, for search engines and screen readers (the visible
+          page opens with the hero, which has its own heading level). */}
+      <Typography
+        variant="h1"
+        sx={{ position: "absolute", width: 1, height: 1, p: 0, m: -1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap", border: 0 }}
+      >
+        {category ? (loc ? t.home.h1Sport(categoryLabel(category.split("/")[0], t)) : CATEGORY_META[category]?.title ?? t.home.h1) : t.home.h1}
+      </Typography>
       {!loc && <GoogleAdSense />}
       {!loc && <HomeBanners />}
       {!category && <ForYouStrip />}

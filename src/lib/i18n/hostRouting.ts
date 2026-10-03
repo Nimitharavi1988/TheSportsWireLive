@@ -11,6 +11,10 @@ export const MAIN_HOST = "sportswirelive.com";
 // get Spanish versions.
 // robots/sitemaps/feed are per host: the Spanish host serves its own (the files
 // live under /es/ in the internal tree).
+// English-only sections: a language host sends these to the English page. Any other
+// unknown path is served by the language tree and gets that language's 404.
+const ENGLISH_ONLY_PREFIXES = new Set(["about", "contact", "privacy", "terms", "series", "venue", "country", "athlete", "author", "videos", "analysis", "admin"]);
+
 const SUPPORTED_PREFIXES = new Set(["article", "sport", "search", "scores", "standings", "player", "club", "for-you", "robots.txt", "sitemap.xml", "news-sitemap.xml", "feed.xml"]);
 
 // Served identically on every host (route handlers, assets, key files).
@@ -56,7 +60,7 @@ export function routeForHost(hostname: string, pathname: string, previewLocale?:
   if (PASS_THROUGH.test(pathname + "/")) return { kind: "next" };
   const first = pathname.split("/")[1] ?? "";
   if (first === locale) return { kind: "next" }; // already internal (e.g. a rewritten request re-entering)
-  if (first !== "" && !SUPPORTED_PREFIXES.has(first)) {
+  if (first !== "" && !SUPPORTED_PREFIXES.has(first) && ENGLISH_ONLY_PREFIXES.has(first)) {
     // A preview host has no separate English host to send to: show the English page.
     if (preview) return { kind: "next" };
     return { kind: "redirect", host: MAIN_HOST, pathname };
