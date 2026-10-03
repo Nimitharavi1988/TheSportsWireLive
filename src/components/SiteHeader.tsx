@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { getDict } from "@/lib/i18n/dictionary";
-import { LanguageSwitch, type EditionLink } from "@/components/LanguageSwitch";
+import { LanguageSwitch, editionHref, type EditionLink } from "@/components/LanguageSwitch";
+import LanguageIcon from "@mui/icons-material/Language";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AppBar from "@mui/material/AppBar";
@@ -164,7 +165,7 @@ const MENU_ICON_SIZE = 18;
 // page, including statically-prerendered ones like /admin/login), or the
 // production build fails outright ("should be wrapped in a suspense
 // boundary"). The static wordmark stays outside so it never has to wait.
-function NavLinks({ locale }: { locale?: string }) {
+function NavLinks({ locale, editions }: { locale?: string; editions?: EditionLink[] }) {
   const t = getDict(locale);
   const { top, more } = navFor(locale);
   const pathname = usePathname();
@@ -367,6 +368,24 @@ function NavLinks({ locale }: { locale?: string }) {
                     </Box>
                   );
                 })}
+                {editions && editions.length > 0 && (
+                  <>
+                    <Divider />
+                    {editions.map((e) => (
+                      <Box
+                        key={e.code}
+                        component="a"
+                        href={editionHref(e, pathname)}
+                        hrefLang={e.code}
+                        lang={e.code}
+                        sx={{ display: "flex", alignItems: "center", gap: 1.2, px: 2, py: 1, textDecoration: "none", color: "text.primary", ...MENU_TEXT_SX, "&:hover": { bgcolor: "action.hover" } }}
+                      >
+                        <LanguageIcon sx={{ fontSize: MENU_ICON_SIZE }} />
+                        {e.name}
+                      </Box>
+                    ))}
+                  </>
+                )}
               </Box>
             )}
           </Box>
@@ -438,6 +457,21 @@ function NavLinks({ locale }: { locale?: string }) {
             })}
           </List>
           </>
+          )}
+          {editions && editions.length > 0 && (
+            <>
+              <Divider />
+              <List>
+                {editions.map((e) => (
+                  <ListItemButton key={e.code} component="a" href={editionHref(e, pathname)} hrefLang={e.code} lang={e.code} onClick={() => setDrawerOpen(false)}>
+                    <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>
+                      <LanguageIcon sx={{ fontSize: MENU_ICON_SIZE }} />
+                    </ListItemIcon>
+                    <ListItemText primary={e.name} slotProps={{ primary: { sx: MENU_TEXT_SX } }} />
+                  </ListItemButton>
+                ))}
+              </List>
+            </>
           )}
         </Box>
       </Drawer>
@@ -561,7 +595,7 @@ export default function SiteHeader({
             never left alone on a row of its own. */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
           <Suspense fallback={<NavLinksFallback locale={locale} />}>
-            <NavLinks locale={locale} />
+            <NavLinks locale={locale} editions={editions} />
           </Suspense>
           {/* Search icon: popover on desktop, full-screen on phones — see
               HeaderSearch.tsx. */}
