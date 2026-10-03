@@ -45,7 +45,9 @@ export function LiveTicker({ initial }: { initial: ScoreMatch[] }) {
   // for the section straight away. Updates in place while games are live.
   const sport = sectionSport(usePathname());
   const start = sport ? initial.filter((m) => m.sport === sport) : initial;
-  const matches = useLiveScores(start, { mode: "list", url: liveListUrl(sport), fetchOnStart: Boolean(sport) });
+  const live = useLiveScores(start, { mode: "list", url: liveListUrl(sport), fetchOnStart: Boolean(sport) });
+  // The refresh API returns every sport; a language edition keeps only its own.
+  const matches = locale ? live.filter((m) => dict.sports.some((s) => s.category === m.sport || s.category.startsWith(m.sport + "/"))) : live;
   const track = useRef<HTMLDivElement | null>(null);
   if (matches.length === 0) return null;
   const liveCount = matches.filter((m) => m.state === "live").length;

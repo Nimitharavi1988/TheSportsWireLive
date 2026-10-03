@@ -61,7 +61,9 @@ export function ScoresPanel({ initial, sport }: { initial: ScoreMatch[]; sport?:
   const [picked, setPicked] = useState<string | null>(sport ?? null);
   const chips = sport ? [] : SPORT_ORDER.filter((s) => initial.some((m) => m.sport === s));
   const start = picked ? initial.filter((m) => m.sport === picked) : initial;
-  const matches = useLiveScores(start, { mode: "list", url: liveListUrl(picked), fetchOnStart: Boolean(picked) && picked !== sport });
+  const live = useLiveScores(start, { mode: "list", url: liveListUrl(picked), fetchOnStart: Boolean(picked) && picked !== sport });
+  // The refresh API returns every sport; a language edition keeps only its own.
+  const matches = locale ? live.filter((m) => dict.sports.some((s) => s.category === m.sport || s.category.startsWith(m.sport + "/"))) : live;
   if (initial.length === 0) return null;
 
   const [lead, ...rest] = matches;
