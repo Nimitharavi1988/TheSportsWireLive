@@ -15,6 +15,7 @@ import type { EntityResult } from "@/lib/entitySearch";
 import { followKey, serializeFollows } from "@/lib/follows";
 import { EntityAvatar } from "./EntityAvatar";
 import { FollowButton } from "./FollowButton";
+import { useDict } from "@/lib/i18n/LocaleContext";
 import { useFollows } from "./useFollows";
 import { entitiesSeenInSuggestions, useSuggest } from "./useSuggest";
 
@@ -41,6 +42,7 @@ function chipSx(active: boolean) {
 // ?only=kind:slug, "All" clears it. The x on each chip unfollows.
 export function FollowManager({ initialEntities, activeKey }: { initialEntities: EntityResult[]; activeKey: string | null }) {
   const router = useRouter();
+  const t = useDict().forYou;
   const { follows, ready, toggle } = useFollows();
   const [pickerOpen, setPickerOpen] = useState(initialEntities.length === 0);
   const [query, setQuery] = useState("");
@@ -98,13 +100,13 @@ export function FollowManager({ initialEntities, activeKey }: { initialEntities:
                 href={isActive ? "/for-you" : `/for-you?only=${encodeURIComponent(key)}`}
                 scroll={false}
                 aria-current={isActive ? "page" : undefined}
-                aria-label={isActive ? `Show all followed stories` : `Show only ${e.name} stories`}
+                aria-label={isActive ? t.showAll : t.showOnly(e.name)}
                 sx={{ display: "flex", alignItems: "center", gap: 0.75, color: "inherit", textDecoration: "none", pr: 0.25 }}
               >
                 <EntityAvatar initials={e.initials} color={e.color} size={26} />
                 <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{e.name}</Typography>
               </Box>
-              <IconButton size="small" aria-label={`Unfollow ${e.name}`} onClick={() => toggle({ kind: e.kind, slug: e.slug })} sx={{ color: "inherit" }}>
+              <IconButton size="small" aria-label={t.unfollow(e.name)} onClick={() => toggle({ kind: e.kind, slug: e.slug })} sx={{ color: "inherit" }}>
                 <CloseIcon sx={{ fontSize: 16 }} />
               </IconButton>
             </Box>
@@ -117,7 +119,7 @@ export function FollowManager({ initialEntities, activeKey }: { initialEntities:
           onClick={() => setPickerOpen((o) => !o)}
           sx={{ borderRadius: 5, textTransform: "none", fontWeight: 600 }}
         >
-          {pickerOpen ? (followed.length > 0 ? "Done" : "Hide") : followed.length > 0 ? "Follow more" : "Follow teams and players"}
+          {pickerOpen ? (followed.length > 0 ? t.done : t.hide) : followed.length > 0 ? t.followMore : t.followTeams}
         </Button>
       </Box>
 
@@ -128,13 +130,13 @@ export function FollowManager({ initialEntities, activeKey }: { initialEntities:
             <InputBase
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Find a team, player, competition or sport"
+              placeholder={t.searchPlaceholder}
               sx={{ flex: 1, fontSize: 15 }}
-              inputProps={{ "aria-label": "Find something to follow" }}
+              inputProps={{ "aria-label": t.searchAria }}
             />
           </Box>
           <Typography sx={{ fontSize: 12, fontWeight: 600, color: "text.secondary", mb: 0.5 }}>
-            {query.trim().length >= 2 ? "Results" : "Series, events and popular"}
+            {query.trim().length >= 2 ? t.results : t.popular}
           </Typography>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, columnGap: 2 }}>
             {suggestions.map((e) => (
@@ -150,7 +152,7 @@ export function FollowManager({ initialEntities, activeKey }: { initialEntities:
           </Box>
           {query.trim().length >= 2 && data && suggestions.length === 0 && (
             <Typography sx={{ fontSize: 14, color: "text.secondary", py: 1 }}>
-              Nothing to follow matches &ldquo;{query.trim()}&rdquo; yet.
+              {t.nothingMatches(query.trim())}
             </Typography>
           )}
         </Box>

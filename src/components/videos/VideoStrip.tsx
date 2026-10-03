@@ -10,6 +10,7 @@ import { ScrollRow } from "@/components/ScrollRow";
 import { relativeTime } from "@/lib/relativeTime";
 import { fetchLatestVideos, fetchMatchVideo, videoSport, type VideoItem } from "@/lib/videos/queries";
 import { VideoPlayer } from "./VideoPlayer";
+import { LOCALES } from "@/lib/i18n/locales";
 
 // Card width in strips: on a phone (xs) a bit over one card fits, so the
 // next card peeking in signals the row scrolls; wider from sm up. Same
@@ -149,11 +150,14 @@ export function VideoStripSkeleton({ title = "Videos", headingSx }: { title?: st
 // Data-fetching wrappers, rendered inside <Suspense> so the video query
 // never holds up the rest of the page. A failed query just hides the
 // section — videos are never worth an error page.
-export async function LatestVideos({ category, headingSx }: { category?: string; headingSx?: SxProps<Theme> }) {
+// locale: a language edition — only the videos of its sports. The edition has no
+// /videos page yet, so no "all videos" link there.
+export async function LatestVideos({ category, headingSx, locale }: { category?: string; headingSx?: SxProps<Theme>; locale?: string }) {
+  const sports = locale && !category ? [...new Set(LOCALES[locale].categories.map((c) => c.split("/")[0]))] : undefined;
   // No fallback here: a sport with no videos shows no strip, so the link
   // only ever appears alongside that sport's own videos.
-  const videos = await fetchLatestVideos({ category }).catch(() => []);
-  return <VideoStrip videos={videos} headingSx={headingSx} moreHref={videosHref(category)} />;
+  const videos = await fetchLatestVideos({ category, sports }).catch(() => []);
+  return <VideoStrip videos={videos} headingSx={headingSx} moreHref={locale ? undefined : videosHref(category)} />;
 }
 
 // "Watch" strip at the end of every article — most visitors arrive on an

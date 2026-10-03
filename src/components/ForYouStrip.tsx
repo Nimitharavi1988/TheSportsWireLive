@@ -9,6 +9,7 @@ import Button from "@mui/material/Button";
 import CloseIcon from "@mui/icons-material/Close";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import { useFollows } from "./useFollows";
+import { useDict } from "@/lib/i18n/LocaleContext";
 import { FOLLOWS_COOKIE } from "@/lib/follows";
 import { FAVORITE_SPORTS_COOKIE } from "@/lib/preferences";
 
@@ -45,6 +46,7 @@ const HIDE_BEFORE_PAINT = `try{if(localStorage.getItem(${JSON.stringify(DISMISSE
 // Rendered on the server (most visitors see it), hidden before paint for
 // the rest (HIDE_BEFORE_PAINT), then removed once the browser check runs.
 export function ForYouStrip() {
+  const t = useDict().forYou;
   const { follows, ready } = useFollows();
   const storedDismissed = useSyncExternalStore(subscribeStorage, readDismissed, () => false);
   const [dismissedNow, setDismissedNow] = useState(false);
@@ -70,14 +72,14 @@ export function ForYouStrip() {
     >
       <StarBorderIcon sx={{ color: "primary.main", fontSize: 22 }} />
       <Typography sx={{ flex: 1, fontSize: 14 }}>
-        Follow your teams and players to get a <b>For You</b> feed of just their news.
+        {t.stripBefore}<b>{t.stripBold}</b>{t.stripAfter}
       </Typography>
       <Button component={Link} href="/for-you" size="small" variant="contained" disableElevation sx={{ borderRadius: 5, textTransform: "none", fontWeight: 600, flexShrink: 0 }}>
-        Get started
+        {t.getStarted}
       </Button>
       <IconButton
         size="small"
-        aria-label="Dismiss"
+        aria-label={t.dismiss}
         onClick={() => {
           try {
             localStorage.setItem(DISMISSED_KEY, "1");

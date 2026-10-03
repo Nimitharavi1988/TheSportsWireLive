@@ -144,6 +144,35 @@ export interface Dict {
   };
   search: { title: string; results: string; none: string; prompt: string };
   footer: { rights: string; about: string; contact: string; privacy: string; terms: string; englishNote: string; players: string; clubs: string };
+  forYou: {
+    title: string;
+    metaTitle: string;
+    metaDescription: string;
+    subtitleHas: string;
+    subtitleEmpty: string;
+    showingOnly: (name: string) => string;
+    goToPage: (name: string) => string;
+    noneActive: (name: string) => string;
+    noneAll: string;
+    storiesAria: string;
+    showAll: string;
+    showOnly: (name: string) => string;
+    unfollow: (name: string) => string;
+    done: string;
+    hide: string;
+    followMore: string;
+    followTeams: string;
+    searchPlaceholder: string;
+    searchAria: string;
+    results: string;
+    popular: string;
+    nothingMatches: (q: string) => string;
+    stripBefore: string;
+    stripBold: string;
+    stripAfter: string;
+    getStarted: string;
+    dismiss: string;
+  };
   entity: {
     players: string;
     clubs: string;

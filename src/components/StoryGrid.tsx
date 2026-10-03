@@ -2,6 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
+import { getDict } from "@/lib/i18n/dictionary";
+import { categoryLabel } from "@/lib/i18n/helpers";
 import { TeamCrest } from "./TeamCrest";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 
@@ -57,7 +59,8 @@ function GridPhoto({ item }: { item: StoryGridItem }) {
 // shape as the Videos grid: three across on desktop, two on tablets, one on
 // phones. Was a narrow single-column list on the left, leaving half the
 // page empty on desktop (2026-09-28).
-export function StoryGrid({ items }: { items: StoryGridItem[] }) {
+export function StoryGrid({ items, locale }: { items: StoryGridItem[]; locale?: string }) {
+  const t = getDict(locale);
   return (
     <Box
       sx={{
@@ -67,8 +70,9 @@ export function StoryGrid({ items }: { items: StoryGridItem[] }) {
       }}
     >
       {items.map((item) => {
-        const chip = categoryChipStyle(item.category);
-        const date = item.publishedAt ? new Date(item.publishedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : null;
+        const base = categoryChipStyle(item.category);
+        const chip = locale ? { ...base, label: categoryLabel(item.category, t) } : base;
+        const date = item.publishedAt ? new Date(item.publishedAt).toLocaleDateString(locale ? t.dateLocale : "en-US", { month: "short", day: "numeric" }) : null;
         return (
           <Link key={item.slug} href={`/article/${item.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
             <Box component="article" sx={{ "&:hover .story-grid-title": { color: "primary.main" } }}>

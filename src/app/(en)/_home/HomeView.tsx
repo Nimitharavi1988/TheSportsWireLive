@@ -792,7 +792,7 @@ export async function HomeView({ category, locale }: { category?: string; locale
           sections, news articles) — see GoogleAdSense.tsx. */}
       {!loc && <GoogleAdSense />}
       {!loc && <HomeBanners />}
-      {!category && !loc && <ForYouStrip />}
+      {!category && <ForYouStrip />}
       {articles.length === 0 && (
         <Box sx={{ textAlign: "center", py: 8 }}>
           <Typography variant="h6" gutterBottom>
@@ -1052,11 +1052,9 @@ export async function HomeView({ category, locale }: { category?: string; locale
           {/* Official league/broadcaster videos (src/lib/videos/), filtered
               to the current sport; its own Suspense so the query never
               delays the news below. */}
-          {!loc && (
           <Suspense fallback={<VideoStripSkeleton headingSx={SECTION_HEADING_SX} />}>
-            <LatestVideos category={category} headingSx={SECTION_HEADING_SX} />
+            <LatestVideos category={category} headingSx={SECTION_HEADING_SX} locale={locale} />
           </Suspense>
-          )}
 
           {highlightArticles.length > 0 && (
             <Box component="section" sx={{ mb: 4, ...BELOW_FOLD_SX }}>

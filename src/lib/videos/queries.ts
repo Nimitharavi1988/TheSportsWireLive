@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { video } from "@/db/schema";
-import { and, desc, eq, gte, ilike, isNull, ne, or } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, isNull, ne, or } from "drizzle-orm";
 import { pickVideoStrip, VIDEO_FRESH_MS, VIDEO_PAGE_FRESH_MS, videoSearchWords } from "./videoStrip";
 
 export type VideoItem = { youtubeId: string; title: string; channelTitle: string; publishedAt: Date; isHighlights: boolean; category: string };
@@ -20,13 +20,13 @@ export function videoSport(category: string | null | undefined): string | undefi
   return category ? category.split("/")[0] : undefined;
 }
 
-async function fetchRecent(opts: { sport?: string; freshMs: number; now: Date; take: number; excludeMatchArticleId?: string }) {
+async function fetchRecent(opts: { sport?: string; sports?: string[]; freshMs: number; now: Date; take: number; excludeMatchArticleId?: string }) {
   return db
     .select(COLUMNS)
     .from(video)
     .where(and(
       gte(video.publishedAt, new Date(opts.now.getTime() - opts.freshMs)),
-      ...(opts.sport ? [eq(video.category, opts.sport)] : []),
+      ...(opts.sport ? [eq(video.category, opts.sport)] : opts.sports ? [inArray(video.category, opts.sports)] : []),
       // The article's own highlights are already shown at the top of it.
       ...(opts.excludeMatchArticleId ? [or(isNull(video.matchArticleId), ne(video.matchArticleId, opts.excludeMatchArticleId))] : [])
     ))
@@ -40,12 +40,12 @@ async function fetchRecent(opts: { sport?: string; freshMs: number; now: Date; t
 // pages, where most Facebook visitors land and this is their way in to
 // the videos.
 export async function fetchLatestVideos(
-  opts: { category?: string; limit?: number; now?: Date; excludeMatchArticleId?: string; fallbackToAll?: boolean } = {}
+  opts: { category?: string; sports?: string[]; limit?: number; now?: Date; excludeMatchArticleId?: string; fallbackToAll?: boolean } = {}
 ): Promise<VideoItem[]> {
   const now = opts.now ?? new Date();
   const limit = opts.limit ?? 10;
   const sport = videoSport(opts.category);
-  const base = { freshMs: VIDEO_FRESH_MS, now, take: 80, excludeMatchArticleId: opts.excludeMatchArticleId };
+  const base = { freshMs: VIDEO_FRESH_MS, now, take: 80, excludeMatchArticleId: opts.excludeMatchArticleId, sports: opts.sports };
   let picked = pickVideoStrip(await fetchRecent({ ...base, sport }), limit);
   if (sport && opts.fallbackToAll && picked.length < 3) picked = pickVideoStrip(await fetchRecent(base), limit);
   return picked;

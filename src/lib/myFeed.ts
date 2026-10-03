@@ -6,6 +6,7 @@ import { followMatchers } from "./entitySearch";
 import { resolveCompetitionEntities } from "./competitions";
 import { parseFollows, type FollowRef } from "./follows";
 import { isSelectableSport } from "./preferences";
+import { editionConditions, fetchTranslationMap } from "./i18n/overlay";
 
 export interface MyFeedArticle {
   id: string;
@@ -41,7 +42,9 @@ function escapeRegex(value: string): string {
 
 // Newest first rather than trendingScore — a following feed is "what's new
 // with my teams", the same ordering club/player pages already use.
-export async function fetchFollowingArticles(refs: FollowRef[], limit = 30): Promise<MyFeedArticle[]> {
+// locale: a language edition — only its sports and translated stories, with the
+// translated title/slug shown (matching still reads the English title).
+export async function fetchFollowingArticles(refs: FollowRef[], limit = 30, locale?: string): Promise<MyFeedArticle[]> {
   const matchers = followMatchers(refs);
   const allTerms = matchers.titleTerms.flatMap((m) => m.terms);
   // Competitions match on the exact seriesKey the ingestion pipeline
@@ -74,7 +77,7 @@ export async function fetchFollowingArticles(refs: FollowRef[], limit = 30): Pro
       seriesKey: article.seriesKey,
     })
     .from(article)
-    .where(and(eq(article.status, "published"), or(...conditions)))
+    .where(and(eq(article.status, "published"), ...editionConditions(locale), or(...conditions)))
     .orderBy(desc(article.publishedAt))
     .limit(limit);
 
@@ -84,8 +87,11 @@ export async function fetchFollowingArticles(refs: FollowRef[], limit = 30): Pro
     name: m.name,
     pattern: new RegExp(`\\b(${m.terms.map(escapeRegex).join("|")})\\b`, "i"),
   }));
+  const tr = locale ? await fetchTranslationMap(locale, rows.map((r) => r.id)) : new Map();
   return rows.map(({ seriesKey, ...row }) => ({
     ...row,
+    title: tr.get(row.id)?.title ?? row.title,
+    slug: tr.get(row.id)?.slug ?? row.slug,
     matchedFollows: [
       ...(seriesKey && competitions.has(seriesKey) ? [competitions.get(seriesKey)!.name] : []),
       ...termPatterns.filter((t) => t.pattern.test(row.title)).map((t) => t.name),
