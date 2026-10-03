@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { getDict } from "@/lib/i18n/dictionary";
-import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { LanguageSwitch, type EditionLink } from "@/components/LanguageSwitch";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AppBar from "@mui/material/AppBar";
@@ -508,11 +508,11 @@ function NavLinksFallback({ locale }: { locale?: string }) {
 // language edition — its dictionary drives the menu, and otherSite links back to
 // the English edition. (Props, not env reads: this is a client component.)
 export default function SiteHeader({
-  es,
+  editions,
   locale,
   otherSite,
 }: {
-  es?: { origin: string; categories: string[] } | null;
+  editions?: EditionLink[];
   locale?: string;
   otherSite?: { href: string; label: string } | null;
 }) {
@@ -557,7 +557,7 @@ export default function SiteHeader({
           </Suspense>
           {/* Search icon: popover on desktop, full-screen on phones — see
               HeaderSearch.tsx. */}
-          {es && <LanguageSwitch origin={es.origin} categories={es.categories} />}
+          {editions && editions.length > 0 && <LanguageSwitch editions={editions} />}
           {otherSite && (
             <Box component="a" href={otherSite.href} hrefLang="en" lang="en" sx={{ fontSize: 14, fontWeight: 600, color: "text.secondary", textDecoration: "none", px: 1, "&:hover": { color: "primary.main" } }}>
               {otherSite.label}

@@ -18,6 +18,8 @@ export interface Dict {
   metaDescription: string;
   /** Link to the English edition, shown on non-English sites. */
   otherSiteLabel: string;
+  /** How the English site offers this edition: its own name, the 'read in' link, and the one-time suggestion banner (shown in this language). */
+  switchTo: { name: string; readIn: string; acceptLang: string; question: string; go: string; dismiss: string };
   nav: {
     home: string;
     searchPlaceholder: string;

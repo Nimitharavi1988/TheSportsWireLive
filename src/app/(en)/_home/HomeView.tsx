@@ -1,5 +1,5 @@
 import GoogleAdSense from "@/components/GoogleAdSense";
-import { esSiteEnabled, esSportUrl, ES_ORIGIN } from "@/lib/i18n/esSite";
+import { liveLocales, localeOrigin, localeSportUrl } from "@/lib/i18n/liveLocales";
 import { StoryCard } from "@/components/StoryCard";
 import { AnalysisStrip } from "@/components/AnalysisStrip";
 import { TeamCrest } from "@/components/TeamCrest";
@@ -113,10 +113,14 @@ export function homeMetadata(category?: string) {
   // including its RSS feed `types` entry — so it has to be repeated here
   // rather than relying on the layout default to survive.
   const rssTypes = { types: { "application/rss+xml": "/feed.xml" } };
-  // hreflang to the Spanish site (only once it is switched on, and only for
-  // sports it covers) — see lib/i18n/esSite.ts.
-  const esUrl = !esSiteEnabled() ? null : category ? esSportUrl(category) : `${ES_ORIGIN}/`;
-  const languages = esUrl ? { languages: { en: category ? `/sport/${category}` : "/", es: esUrl } } : {};
+  // hreflang to each live language edition (only sports it covers) — see
+  // lib/i18n/liveLocales.ts.
+  const alt: Record<string, string> = {};
+  for (const l of liveLocales()) {
+    const url = category ? localeSportUrl(l.code, category) : `${localeOrigin(l.code)}/`;
+    if (url) alt[l.code] = url;
+  }
+  const languages = Object.keys(alt).length > 0 ? { languages: { en: category ? `/sport/${category}` : "/", ...alt } } : {};
   if (!meta) return { alternates: { canonical: "/", ...languages, ...rssTypes } };
   return {
     title: meta.title,

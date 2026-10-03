@@ -12,6 +12,7 @@ export const EN: Dict = {
   metaDescription:
     "Breaking football, cricket, NFL, NBA, and NHL news, live scores, transfer updates, and match reports from Sports Wire Live — automatically updated around the clock.",
   otherSiteLabel: "English",
+  switchTo: { name: "English", readIn: "Read in English →", acceptLang: "en", question: "Prefer to read in English?", go: "Go to the English edition", dismiss: "No, thanks" },
   nav: { home: "All", searchPlaceholder: "Search news", searchButton: "Search", sections: "Sections", moreSports: "More Sports", openMenu: "Open menu", pages: {} },
   sports: [],
   categoryLabels: {},

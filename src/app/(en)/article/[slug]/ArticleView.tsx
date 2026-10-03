@@ -46,7 +46,7 @@ import { fetchStoryTags } from "@/lib/tags";
 import { matchVenue } from "@/lib/venues";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import { relativeTime } from "@/lib/relativeTime";
-import { ES_ORIGIN, spanishSlugFor } from "@/lib/i18n/esSite";
+import { localeOrigin, translatedSlugs } from "@/lib/i18n/liveLocales";
 import { getDict } from "@/lib/i18n/dictionary";
 import { categoryLabel } from "@/lib/i18n/helpers";
 import { LOCALES } from "@/lib/i18n/locales";
@@ -159,7 +159,7 @@ export async function articleMetadata(slug: string, locale?: string) {
   // the actual article image, a real hit to click-through on shared links.
   const shareImage = article.heroImageUrl ?? article.homeCrestUrl ?? undefined;
   const writer = await getAuthor(article.authorSlug);
-  const esSlug = locale ? null : await spanishSlugFor(article.id);
+  const alts = locale ? {} : await translatedSlugs(article.id);
   return {
     title: article.title,
     description,
@@ -167,7 +167,9 @@ export async function articleMetadata(slug: string, locale?: string) {
     alternates: {
       canonical: `/article/${article.slug}`,
       // hreflang pair: English page <-> its translation, only when one is live.
-      ...(esSlug ? { languages: { en: `/article/${article.slug}`, es: `${ES_ORIGIN}/article/${esSlug}` } } : {}),
+      ...(Object.keys(alts).length > 0
+        ? { languages: { en: `/article/${article.slug}`, ...Object.fromEntries(Object.entries(alts).map(([code, slug]) => [code, `${localeOrigin(code)}/article/${slug}`])) } }
+        : {}),
       ...(locale ? { languages: { [locale]: `/article/${article.slug}`, en: `${EN_SITE}/article/${english.slug}` } } : {}),
     },
     // Match rows are templated score cards (a couple of hundred characters
@@ -203,7 +205,7 @@ export async function ArticleView({ slug, locale }: { slug: string; locale?: str
   const article = found.tr ? { ...english, ...found.tr } : english;
   const t = getDict(locale);
   const loc = Boolean(locale);
-  const esSlug = loc ? null : await spanishSlugFor(article.id);
+  const alts = loc ? {} : await translatedSlugs(article.id);
   const siteUrl = loc ? `https://${LOCALES[locale!].host}` : (process.env.SITE_URL ?? "http://localhost:3000");
   const enSiteUrl = process.env.SITE_URL ?? "http://localhost:3000";
   const catLabel = loc ? categoryLabel(article.category, t) : categoryChipStyle(article.category).label;
@@ -547,13 +549,13 @@ export async function ArticleView({ slug, locale }: { slug: string; locale?: str
         </Box>
       ) : null}
 
-      {esSlug && (
-        <Box sx={{ mb: 1 }}>
-          <a href={`${ES_ORIGIN}/article/${esSlug}`} hrefLang="es" lang="es" style={{ fontSize: 13, fontWeight: 600, textDecoration: "none", color: "inherit" }}>
-            🌐 Leer en español →
+      {Object.entries(alts).map(([code, slug]) => (
+        <Box key={code} sx={{ mb: 1 }}>
+          <a href={`${localeOrigin(code)}/article/${slug}`} hrefLang={code} lang={code} style={{ fontSize: 13, fontWeight: 600, textDecoration: "none", color: "inherit" }}>
+            {getDict(code).switchTo.readIn}
           </a>
         </Box>
-      )}
+      ))}
       <Chip
         label={catLabel}
         size="small"

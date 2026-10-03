@@ -8,8 +8,7 @@ import SiteFooter from "@/components/SiteFooter";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { LanguageSuggestion } from "@/components/LanguageSuggestion";
-import { ES_ORIGIN, esSiteEnabled } from "@/lib/i18n/esSite";
-import { ES_SPORTS } from "@/lib/i18n/es";
+import { editionLinks } from "@/lib/i18n/liveLocales";
 import "../globals.css";
 
 export const metadata = {
@@ -82,8 +81,9 @@ export const viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // Spanish-site hooks in the English chrome, all off until ES_SITE_ENABLED=1.
-  const es = esSiteEnabled() ? { origin: ES_ORIGIN, categories: ES_SPORTS.map((s) => s.category) } : null;
+  // Language-edition hooks in the English chrome: links and the suggestion
+  // banner, for the editions listed in LIVE_LOCALES (none until launch).
+  const editions = editionLinks();
   return (
     <html lang="en" className={`${poppins.variable} ${inter.variable}`}>
       <head>
@@ -99,12 +99,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ServiceWorkerRegister />
         <ThemeRegistry>
           <NavigationProgress />
-          <SiteHeader es={es} />
+          <SiteHeader editions={editions} />
           <MobileSectionNav />
           <MatchTicker />
           {children}
           <SiteFooter />
-          {es && <LanguageSuggestion origin={es.origin} />}
+          {editions.length > 0 && <LanguageSuggestion editions={editions} />}
         </ThemeRegistry>
       </body>
     </html>
