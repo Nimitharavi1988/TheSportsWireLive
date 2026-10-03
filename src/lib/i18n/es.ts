@@ -16,7 +16,7 @@ export const ES: Dict = {
   otherSiteLabel: "English",
   switchTo: { name: "Español", readIn: "🌐 Leer en español →", acceptLang: "es", question: "¿Prefieres leer en español?", go: "Ir a la edición en español", dismiss: "No, gracias" },
   nav: { home: "Inicio", searchPlaceholder: "Buscar noticias", searchButton: "Buscar", sections: "Secciones", moreSports: "Más deportes", openMenu: "Abrir menú", pages: { "/scores": "Marcadores", "/standings": "Clasificaciones", "/for-you": "Para ti" },
-    primary: ["/", "/sport/football", "/sport/american-football", "/sport/basketball", "/sport/baseball", "/scores", "/for-you"],
+    primary: ["/", "/sport/football", "/sport/american-football", "/sport/basketball", "/sport/baseball", "/scores"],
   },
   sports: [
     { category: "football", label: "Fútbol" },

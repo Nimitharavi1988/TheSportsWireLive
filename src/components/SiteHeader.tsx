@@ -579,7 +579,7 @@ export default function SiteHeader({
                 type="search"
                 placeholder={t.nav.searchPlaceholder}
                 aria-label={t.nav.searchPlaceholder}
-                sx={{ font: "inherit", fontSize: 14, px: 1.5, py: 0.75, width: { xs: 120, sm: 130 }, border: "1px solid", borderColor: "divider", borderRadius: 5, bgcolor: "background.paper", color: "text.primary" }}
+                sx={{ font: "inherit", fontSize: 14, px: 1.5, py: 0.75, width: { xs: 110, sm: 110 }, border: "1px solid", borderColor: "divider", borderRadius: 5, bgcolor: "background.paper", color: "text.primary" }}
               />
             </Box>
           ) : (
