@@ -36,11 +36,11 @@ import { MIN_BODY_LENGTH, MIN_MATCH_DATA_BODY_LENGTH, hasRealImage, isAutoApprov
 // just a topical filter.
 // Main Page volume (2026-10-03, from the Page's insights): at ~270 link
 // posts a day, 93% got no reaction, comment or share — Facebook shows a feed
-// that busy to almost no one. A few strong stories beat everything. At most 2
+// that busy to almost no one. A few strong stories beat everything. At most 3
 // in one run (runs are every ~15 min), and no per-run minimum: a run posts
 // nothing when the day is on or ahead of pace (the old floor of 1 per run also
 // pushed the day past its own cap).
-const MAX_FACEBOOK_POSTS_PER_RUN = 2;
+const MAX_FACEBOOK_POSTS_PER_RUN = 3;
 const MIN_FACEBOOK_POSTS_PER_RUN = 0;
 // Raised 199 -> 260 (2026-09-19, explicit request): 199 was never a real
 // Facebook-specific limit — it was borrowed defensively from Instagram's
@@ -54,7 +54,7 @@ const MIN_FACEBOOK_POSTS_PER_RUN = 0;
 // block, it's Meta's own reach/spam throttling quietly reducing how far
 // each post travels — a soft, unmeasurable-in-advance risk, which is why
 // this is a modest bump rather than a much larger one.
-const MAX_FACEBOOK_POSTS_PER_DAY = 10;
+const MAX_FACEBOOK_POSTS_PER_DAY = 30;
 // Automated push notifications (see sendAutomatedPushNotifications below) —
 // deliberately tiny compared to every other daily cap here. This channel
 // interrupts a subscriber's phone directly (see push.ts's own comment on
@@ -77,7 +77,7 @@ const MAX_INSTAGRAM_POSTS_PER_DAY = 95;
 // Facebook Reels posted alongside the Instagram Reel (see the reel loop
 // below), on top of the normal link posts. Kept modest: link posts are the
 // traffic driver; Reels add reach to people who don't follow the Page yet.
-const MAX_FACEBOOK_REELS_PER_DAY = 8;
+const MAX_FACEBOOK_REELS_PER_DAY = 15;
 // Ceiling on ATTEMPTS within a single run (not just successes) — each
 // attempt is a full Gemini content-generation call plus a real git
 // commit/push/deploy-wait cycle, far more expensive than Facebook's plain
