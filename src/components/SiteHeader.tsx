@@ -558,8 +558,15 @@ function OtherSiteLink({ href: base, label }: { href: string; label: string }) {
   const sameAddress = base.replace(/\/$/, "") + (isArticle || pathname === "/" ? "" : pathname);
   const [href, setHref] = useState(sameAddress);
   useEffect(() => {
-    const alternate = document.querySelector('link[rel="alternate"][hreflang="en"]')?.getAttribute("href");
-    setHref(isArticle ? (alternate ?? base) : sameAddress + (pathname === "/" ? "" : window.location.search));
+    const read = () => {
+      const alternate = document.querySelector('link[rel="alternate"][hreflang="en"]')?.getAttribute("href");
+      setHref(isArticle ? (alternate ?? base) : sameAddress + (pathname === "/" ? "" : window.location.search));
+    };
+    read();
+    // After a client-side navigation the new page's <head> can land a moment after
+    // this runs, so read again once it has settled.
+    const t = setTimeout(read, 500);
+    return () => clearTimeout(t);
   }, [pathname, isArticle, base, sameAddress]);
   return (
     <Box component="a" href={href} hrefLang="en" lang="en" sx={{ fontSize: 14, fontWeight: 600, color: "text.secondary", textDecoration: "none", px: 1, "&:hover": { color: "primary.main" } }}>
