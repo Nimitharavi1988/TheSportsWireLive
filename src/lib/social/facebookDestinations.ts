@@ -117,6 +117,18 @@ export const INDIA_CRICKET_PAGE: FacebookDestination = {
   hashtags: (title) => selectIndiaCricketHashtags(title),
 };
 
+// Sportswirecricketlive: the same stories, pacing, hashtags and reels as the
+// India cricket Page, under the main Business umbrella — so it posts with the
+// main FACEBOOK_PAGE_ACCESS_TOKEN (exchanged for its own Page token). Its own
+// key means its posting history is separate: each story goes to both Pages.
+export const CRICKETLIVE_PAGE: FacebookDestination = {
+  ...INDIA_CRICKET_PAGE,
+  key: "cricketlive",
+  label: "Sportswirecricketlive Page",
+  pageId: "1389324964254541",
+  tokenEnv: "FACEBOOK_PAGE_ACCESS_TOKEN",
+};
+
 // ---- Spanish Page (language edition "es") -------------------------------
 // Posts translated stories, in Spanish, linking to es.sportswirelive.com.
 // OFF until the Page exists: set FACEBOOK_ES_ENABLED=1 together with
@@ -142,7 +154,7 @@ export const SPANISH_PAGE: FacebookDestination = {
   hashtags: (title, category) => selectSpanishHashtags(title, category),
 };
 
-export const TOPIC_DESTINATIONS: FacebookDestination[] = [INDIA_CRICKET_PAGE, ...(spanishPageEnabled() ? [SPANISH_PAGE] : [])];
+export const TOPIC_DESTINATIONS: FacebookDestination[] = [INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, ...(spanishPageEnabled() ? [SPANISH_PAGE] : [])];
 
 // The hour (fractional) in a time zone, e.g. 13.5 for 1:30 PM.
 function localHour(now: Date, timeZone: string): number {
