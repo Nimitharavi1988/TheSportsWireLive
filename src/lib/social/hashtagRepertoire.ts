@@ -172,6 +172,12 @@ const SPANISH_SPORT_TAGS: Record<string, string> = {
   rugby: "#Rugby",
   hockey: "#NHL",
   wnba: "#WNBA",
+  tennis: "#Tenis",
+  boxing: "#Boxeo",
+  mma: "#MMA",
+  motogp: "#MotoGP",
+  cycling: "#Ciclismo",
+  golf: "#Golf",
 };
 
 export function selectSpanishHashtags(title: string, category: string): string[] {

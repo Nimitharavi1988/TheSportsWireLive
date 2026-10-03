@@ -371,6 +371,28 @@ const FEEDS: RssFeed[] = [
   // nothing current in September). Confirmed live and working directly
   // (2026-09-12).
   { url: "https://feeds.bbci.co.uk/sport/rugby-union/rss.xml", category: "rugby", sourceName: "BBC Sport" },
+  // Individual / global sports (2026-10-03) — popular with Spanish-speaking readers
+  // (Alcaraz, Canelo, Marc Márquez, the Vuelta, Rahm) and added for every edition. All
+  // feeds checked live that day (200, current items). The Spanish edition opts in via
+  // LOCALES.es.categories.
+  { url: "http://feeds.bbci.co.uk/sport/tennis/rss.xml", category: "tennis", sourceName: "BBC Sport" },
+  { url: "https://www.espn.com/espn/rss/tennis/news", category: "tennis", sourceName: "ESPN" },
+  { url: "https://www.theguardian.com/sport/tennis/rss", category: "tennis", sourceName: "The Guardian" },
+  { url: "https://sports.yahoo.com/tennis/rss/", category: "tennis", sourceName: "Yahoo Sports" },
+  { url: "http://feeds.bbci.co.uk/sport/boxing/rss.xml", category: "boxing", sourceName: "BBC Sport" },
+  { url: "https://www.espn.com/espn/rss/boxing/news", category: "boxing", sourceName: "ESPN" },
+  { url: "https://www.theguardian.com/sport/boxing/rss", category: "boxing", sourceName: "The Guardian" },
+  { url: "https://www.espn.com/espn/rss/mma/news", category: "mma", sourceName: "ESPN" },
+  { url: "https://sports.yahoo.com/mma/rss/", category: "mma", sourceName: "Yahoo Sports" },
+  { url: "https://www.cbssports.com/rss/headlines/mma/", category: "mma", sourceName: "CBS Sports" },
+  { url: "https://www.motorsport.com/rss/motogp/news/", category: "motogp", sourceName: "Motorsport.com" },
+  { url: "https://www.autosport.com/rss/motogp/news/", category: "motogp", sourceName: "Autosport" },
+  { url: "http://feeds.bbci.co.uk/sport/cycling/rss.xml", category: "cycling", sourceName: "BBC Sport" },
+  { url: "https://www.theguardian.com/sport/cycling/rss", category: "cycling", sourceName: "The Guardian" },
+  { url: "https://www.cyclingnews.com/rss/", category: "cycling", sourceName: "Cyclingnews" },
+  { url: "http://feeds.bbci.co.uk/sport/golf/rss.xml", category: "golf", sourceName: "BBC Sport" },
+  { url: "https://www.theguardian.com/sport/golf/rss", category: "golf", sourceName: "The Guardian" },
+  { url: "https://sports.yahoo.com/golf/rss/", category: "golf", sourceName: "Yahoo Sports" },
 ];
 
 export async function fetchRssNews(): Promise<RawMatchItem[]> {

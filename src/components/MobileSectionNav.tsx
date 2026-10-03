@@ -34,6 +34,12 @@ const SECTIONS: { href: string; label: string; category: string | null }[] = [
   { href: "/sport/college-football", label: "College Football", category: "college-football" },
   { href: "/sport/wnba", label: "WNBA", category: "wnba" },
   { href: "/sport/formula-1", label: "Formula 1", category: "formula-1" },
+  { href: "/sport/tennis", label: "Tennis", category: "tennis" },
+  { href: "/sport/boxing", label: "Boxing", category: "boxing" },
+  { href: "/sport/mma", label: "MMA", category: "mma" },
+  { href: "/sport/motogp", label: "MotoGP", category: "motogp" },
+  { href: "/sport/cycling", label: "Cycling", category: "cycling" },
+  { href: "/sport/golf", label: "Golf", category: "golf" },
 ];
 
 // Same active tint as the header nav.

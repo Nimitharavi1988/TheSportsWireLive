@@ -36,6 +36,11 @@ import SportsBaseballIcon from "@mui/icons-material/SportsBaseball";
 import SportsRugbyIcon from "@mui/icons-material/SportsRugby";
 import DirectionsRunIcon from "@mui/icons-material/DirectionsRun";
 import SportsHockeyIcon from "@mui/icons-material/SportsHockey";
+import SportsTennisIcon from "@mui/icons-material/SportsTennis";
+import SportsMmaIcon from "@mui/icons-material/SportsMma";
+import SportsMartialArtsIcon from "@mui/icons-material/SportsMartialArts";
+import SportsGolfIcon from "@mui/icons-material/SportsGolf";
+import PedalBikeIcon from "@mui/icons-material/PedalBike";
 import SportsFootballOutlinedIcon from "@mui/icons-material/SportsFootballOutlined";
 import SportsBasketballOutlinedIcon from "@mui/icons-material/SportsBasketballOutlined";
 import SportsVolleyballIcon from "@mui/icons-material/SportsVolleyball";
@@ -111,6 +116,12 @@ const MORE_SPORTS_LINKS: { href: string; label: string; category: string | null;
   { href: "/sport/hockey", label: "NHL", category: "hockey", icon: SportsHockeyIcon },
   { href: "/sport/volleyball", label: "Volleyball", category: "volleyball", icon: SportsVolleyballIcon },
   { href: "/sport/formula-1", label: "Formula 1", category: "formula-1", icon: SportsMotorsportsIcon },
+  { href: "/sport/tennis", label: "Tennis", category: "tennis", icon: SportsTennisIcon },
+  { href: "/sport/boxing", label: "Boxing", category: "boxing", icon: SportsMartialArtsIcon },
+  { href: "/sport/mma", label: "MMA", category: "mma", icon: SportsMmaIcon },
+  { href: "/sport/motogp", label: "MotoGP", category: "motogp", icon: SportsMotorsportsIcon },
+  { href: "/sport/cycling", label: "Cycling", category: "cycling", icon: PedalBikeIcon },
+  { href: "/sport/golf", label: "Golf", category: "golf", icon: SportsGolfIcon },
 ];
 
 type NavItem = { href: string; label: string; category: string | null; icon: SvgIconComponent; wideOnly?: boolean };

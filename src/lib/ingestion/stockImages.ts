@@ -35,6 +35,12 @@ const CATEGORY_QUERIES: Record<string, string> = {
   // a stock-photo fallback either, closing it now for full coverage across
   // every nav category rather than just the newly-added ones.
   rugby: "rugby stadium",
+  tennis: "tennis court",
+  boxing: "boxing ring",
+  mma: "mixed martial arts octagon",
+  motogp: "motorcycle racing",
+  cycling: "road cycling race",
+  golf: "golf course",
   athletics: "athletics track",
 };
 
