@@ -29,6 +29,8 @@ export interface Dict {
     openMenu: string;
     /** Non-sport pages this edition has (href -> label); others are hidden from its menu until built. */
     pages: Record<string, string>;
+    /** Hrefs shown in the main bar, in order; everything else goes under the "more" menu. Empty = all in the main bar. */
+    primary: string[];
   };
   /** Sports shown in this edition's navigation, in order (keys = Article.category). */
   sports: { category: string; label: string }[];
