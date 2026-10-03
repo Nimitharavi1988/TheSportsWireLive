@@ -10,6 +10,8 @@ import { useFollows } from "./useFollows";
 // every team/player in search results, the way ESPN, The Athletic and
 // FotMob put "Follow" wherever the entity appears rather than only in a
 // separate settings screen.
+import { useDict } from "@/lib/i18n/LocaleContext";
+
 export function FollowButton({
   kind,
   slug,
@@ -21,6 +23,7 @@ export function FollowButton({
   name: string;
   size?: "small" | "medium";
 }) {
+  const t = useDict().entity;
   const { ready, isFollowing, toggle } = useFollows();
   const following = ready && isFollowing({ kind, slug });
 
@@ -31,7 +34,7 @@ export function FollowButton({
       disableElevation
       startIcon={following ? <CheckIcon /> : <AddIcon />}
       aria-pressed={following}
-      aria-label={following ? `Unfollow ${name}` : `Follow ${name}`}
+      aria-label={following ? t.unfollowAria(name) : t.followAria(name)}
       onClick={(e) => {
         // Often sits inside a clickable row — following shouldn't also navigate.
         e.preventDefault();
@@ -54,7 +57,7 @@ export function FollowButton({
         "& .MuiButton-startIcon": { mr: 0.5, "& svg": { fontSize: 16 } },
       }}
     >
-      {following ? "Following" : "Follow"}
+      {following ? t.following : t.follow}
     </Button>
   );
 }

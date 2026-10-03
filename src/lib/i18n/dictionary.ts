@@ -141,7 +141,26 @@ export interface Dict {
     events: { goal: string; yellow: string; red: string; sub: string };
   };
   search: { title: string; results: string; none: string; prompt: string };
-  footer: { rights: string; about: string; contact: string; privacy: string; terms: string; englishNote: string };
+  footer: { rights: string; about: string; contact: string; privacy: string; terms: string; englishNote: string; players: string; clubs: string };
+  entity: {
+    players: string;
+    clubs: string;
+    playersSubtitle: string;
+    clubsSubtitle: string;
+    stories: (n: number) => string;
+    noStories: (name: string) => string;
+    coach: string;
+    official: string;
+    follow: string;
+    following: string;
+    followAria: (name: string) => string;
+    unfollowAria: (name: string) => string;
+    crestAlt: (name: string) => string;
+    playerTitle: (name: string, role: string, sport: string) => string;
+    playerDescription: (name: string, sport: string) => string;
+    clubTitle: (name: string, sport: string) => string;
+    clubDescription: (name: string) => string;
+  };
   notFound: { title: string; body: string; back: string };
   error: { title: string; body: string; retry: string };
 }

@@ -11,7 +11,7 @@ export const MAIN_HOST = "sportswirelive.com";
 // get Spanish versions.
 // robots/sitemaps/feed are per host: the Spanish host serves its own (the files
 // live under /es/ in the internal tree).
-const SUPPORTED_PREFIXES = new Set(["article", "sport", "search", "scores", "standings", "robots.txt", "sitemap.xml", "news-sitemap.xml", "feed.xml"]);
+const SUPPORTED_PREFIXES = new Set(["article", "sport", "search", "scores", "standings", "player", "club", "robots.txt", "sitemap.xml", "news-sitemap.xml", "feed.xml"]);
 
 // Served identically on every host (route handlers, assets, key files).
 const PASS_THROUGH = /^\/(api|_next|media|social-posters|icon|icon-192|icon-512|manifest\.webmanifest|favicon\.ico|[a-f0-9]{32}\.txt)(\/|$|\.)/;

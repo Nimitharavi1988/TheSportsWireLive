@@ -36,6 +36,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
       alternates: { languages: { es: `${site}/sport/${s.category}`, en: `${en}/sport/${s.category}` } },
     })),
+    { url: `${site}/scores`, changeFrequency: "always" as const, priority: 0.8 },
+    { url: `${site}/standings`, changeFrequency: "daily" as const, priority: 0.6 },
+    { url: `${site}/player`, changeFrequency: "weekly" as const, priority: 0.5 },
+    { url: `${site}/club`, changeFrequency: "weekly" as const, priority: 0.5 },
     ...rows.filter((r) => r.slug).map((r) => ({
       url: `${site}/article/${r.slug}`,
       lastModified: r.updatedAt,

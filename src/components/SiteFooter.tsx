@@ -24,6 +24,8 @@ export default function SiteFooter({ locale }: { locale?: string }) {
   const en = process.env.SITE_URL ?? "https://sportswirelive.com";
   const links = locale
     ? [
+        { href: "/player", label: t.footer.players },
+        { href: "/club", label: t.footer.clubs },
         { href: `${en}/about`, label: t.footer.about },
         { href: `${en}/contact`, label: t.footer.contact },
         { href: `${en}/privacy`, label: t.footer.privacy },
