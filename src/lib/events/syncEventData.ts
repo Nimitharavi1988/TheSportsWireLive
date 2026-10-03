@@ -9,7 +9,7 @@ import { db } from "@/db";
 import { eventData } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { EVENT_HUBS } from "./eventHubs";
-import { medalTableProblem, parseMedalTable, type MedalTable } from "./medalTable";
+import { medalTableProblem, parseMedalTable, reviewRejectedTable, type MedalCandidate, type MedalTable } from "./medalTable";
 import { syncAthletes } from "./athleteSync";
 
 // Wikimedia asks API clients to identify themselves.
@@ -30,10 +30,26 @@ export async function syncEventData(): Promise<void> {
       const table = parseMedalTable((await res.json()).parse?.text ?? "");
       const [prev] = await db.select({ data: eventData.data }).from(eventData).where(eq(eventData.key, key)).limit(1);
       const problem = medalTableProblem(table, (prev?.data as MedalTable | undefined) ?? null);
+      const candidateKey = `${key}:candidate`;
       if (problem) {
-        console.warn(`[events] ${key}: kept last good table — ${problem}`);
-        continue;
+        // Keep the stored table, but remember this one: if it holds up for a few
+        // hours the stored table was the bad one (see medalTable.ts).
+        const [stored] = await db.select({ data: eventData.data }).from(eventData).where(eq(eventData.key, candidateKey)).limit(1);
+        const review = reviewRejectedTable(table, (stored?.data as MedalCandidate | undefined) ?? null, new Date());
+        if (review.candidate) {
+          await db.insert(eventData)
+            .values({ key: candidateKey, eventKey: hub.eventKey, kind: "medals-candidate", data: review.candidate, sourceUrl, fetchedAt: new Date() })
+            .onConflictDoUpdate({ target: eventData.key, set: { data: review.candidate, sourceUrl, fetchedAt: new Date() } });
+        } else if (stored) {
+          await db.delete(eventData).where(eq(eventData.key, candidateKey));
+        }
+        if (!review.accept) {
+          console.warn(`[events] ${key}: kept last good table — ${problem}`);
+          continue;
+        }
+        console.warn(`[events] ${key}: replacing the stored table — the new one has been consistent since ${review.candidate?.since} (was rejected: ${problem})`);
       }
+      await db.delete(eventData).where(eq(eventData.key, candidateKey));
       await db.insert(eventData)
         .values({ key, eventKey: hub.eventKey, kind: "medals", data: table, sourceUrl, fetchedAt: new Date() })
         .onConflictDoUpdate({ target: eventData.key, set: { data: table, sourceUrl, fetchedAt: new Date() } });

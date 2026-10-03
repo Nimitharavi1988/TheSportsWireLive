@@ -29,13 +29,35 @@ const STATE_BASE = { live: 1000, paused: 700, started: 600, upcoming: 200, final
 // Competitions readers look for first. Matched against the league label
 // (football-data / ESPN names), so a new competition just needs a pattern.
 const TIER_1 =
-  /\b(premier league|champions league|europa league|world cup|euro(pean)? championship|euros|la liga|primera division|bundesliga|serie a|ligue 1|nfl|nba|mlb|nhl|ipl|indian premier|the ashes|ashes|test|odi|t20i?|international)\b/i;
+  /\b(premier league|champions league|europa league|world cup|euro(pean)? championship|euros|la liga|primera division|bundesliga|serie a|ligue 1|nfl|nba|mlb|nhl|ipl|indian premier|the ashes|ashes|test|odi|t20i?|international|nations league)\b/i;
 const TIER_2 = /\b(college football|wnba|mls|championship|eredivisie|primeira liga|conference league|big bash|the hundred|psl|county|brasileir)/i;
 
 // Cricket that is never a headline however it is labelled: women's and
 // age-group sides, qualifiers, domestic and "A" tours. Checked before the
 // tiers so "ICC T20 World Cup Sub Regional Qualifier" is not a World Cup.
 const MINOR_CRICKET = /\b(women'?s?|under-?\d+|u-?\d\d|qualifier|sub regional|emerging|domestic|pro20|academy|second xi)\b|\b\w+ A tour\b/i;
+
+// US sports the audience is mostly here for (explicit request 2026-10-02: most
+// viewers are in the US, but a live minor cricket or volleyball game outranked
+// tonight's NHL and college football games on the home scores strip, because
+// "in play" scored 1000 and an upcoming game 200). Applied only to a league
+// that already rates tier 1 or 2, so a minor US league gets nothing.
+const US_SPORTS = new Set(["american-football", "college-football", "baseball", "hockey", "basketball", "wnba"]);
+const US_AUDIENCE_BOOST = 600;
+// A result is news for half a day; a game is relevant from 36h ahead.
+const US_FINAL_FRESH_MS = 12 * 60 * 60 * 1000;
+const US_UPCOMING_WINDOW_MS = 36 * 60 * 60 * 1000;
+
+export function usAudienceBoost(m: ScoreMatch, now: number): number {
+  if (!US_SPORTS.has(m.sport) || leagueWeight(m.leagueLabel, m.sport) < 200) return 0;
+  const kickoff = m.kickoffAt ? Date.parse(m.kickoffAt) : null;
+  if (m.state === "final") return kickoff !== null && now - kickoff <= US_FINAL_FRESH_MS ? US_AUDIENCE_BOOST / 2 : 0;
+  if (m.state === "upcoming") return kickoff !== null && kickoff - now <= US_UPCOMING_WINDOW_MS ? US_AUDIENCE_BOOST : 0;
+  // A game in play already outranks the minor games that were beating tonight's
+  // US schedule (1000 + its league tier), and a fresh marquee result must keep
+  // sitting above a live game (see the marquee tests) — so no boost there.
+  return m.state === "started" ? US_AUDIENCE_BOOST : 0;
+}
 
 // Higher-profile competitions first; unknown leagues still rank, just last.
 export function leagueWeight(label: string, sport?: string): number {
@@ -55,10 +77,14 @@ const FOOTBALL_MAJOR = [
   "bayern", "borussia dortmund", "paris saint-germain", "psg", "juventus", "inter milan", "internazionale", "ac milan", "napoli",
 ];
 
+// National teams in football (Nations League, friendlies), exact names: a substring
+// match would make "New England Revolution" an England game.
+const FOOTBALL_NATIONS = new Set(["england", "france", "germany", "spain", "italy", "portugal", "netherlands", "belgium", "croatia", "brazil", "argentina", "united states", "mexico"]);
+
 function isMajorTeam(sport: string, name: string): boolean {
   const n = name.trim().toLowerCase();
   if (sport === "cricket") return CRICKET_MAJOR.has(n);
-  if (sport === "football") return FOOTBALL_MAJOR.some((t) => n.includes(t));
+  if (sport === "football") return FOOTBALL_NATIONS.has(n) || FOOTBALL_MAJOR.some((t) => n.includes(t));
   return false;
 }
 
@@ -108,7 +134,7 @@ function marqueeBoost(m: ScoreMatch, now: number): number {
 }
 
 export function matchPriority(m: ScoreMatch, now: number, event?: MatchEvent): number {
-  let p = STATE_BASE[m.state] + leagueWeight(m.leagueLabel, m.sport) + marqueeBoost(m, now) + closeness(m);
+  let p = STATE_BASE[m.state] + leagueWeight(m.leagueLabel, m.sport) + marqueeBoost(m, now) + closeness(m) + usAudienceBoost(m, now);
   if (m.state === "upcoming" && m.kickoffAt) {
     // Starting within two hours outranks a game later in the window.
     const until = Date.parse(m.kickoffAt) - now;

@@ -26,7 +26,18 @@ import { computeDedupeHash, computeStableDedupeHash } from "./dedupe";
 import { runQualityChecks } from "./qualityCheck";
 import { fetchTrendingKeywords, computeTrendingScore } from "./trending";
 import { fetchStockImagePools, createStockImagePicker } from "./stockImages";
-import { aiUnavailableReason, generateCommentary, generateMatchRecap, verifyCommentaryHasSubstance } from "./commentary";
+import {
+  aiUnavailableReason,
+  generateCommentary as generateCommentaryUntimed,
+  generateMatchRecap as generateMatchRecapUntimed,
+  verifyCommentaryHasSubstance as verifyCommentaryHasSubstanceUntimed,
+} from "./commentary";
+import { timed, logTimingSummary } from "./timing";
+
+// Same functions, with their time summed per label for the run log (timing.ts).
+const generateCommentary = (...args: Parameters<typeof generateCommentaryUntimed>) => timed("generateCommentary (Gemini)", () => generateCommentaryUntimed(...args));
+const generateMatchRecap = (...args: Parameters<typeof generateMatchRecapUntimed>) => timed("generateMatchRecap (Gemini)", () => generateMatchRecapUntimed(...args));
+const verifyCommentaryHasSubstance = (...args: Parameters<typeof verifyCommentaryHasSubstanceUntimed>) => timed("verifyCommentaryHasSubstance (Gemini)", () => verifyCommentaryHasSubstanceUntimed(...args));
 import { extractArticleContent, extractArticleContentDetailed } from "./articleTextExtractor";
 import { fetchPersonPhoto, sportSearchHint } from "./wikimediaImages";
 import { isExcludedSource } from "../excludedSources";
@@ -233,58 +244,58 @@ export async function runIngest() {
 
   const [scoreItems, nflItems, mlbItems, nbaItems, domesticFootballItems, nhlItems, volleyballItems, espnVolleyballItems, collegeFootballItems, wnbaItems, espnCricketItems, newsItems, playerNewsItems, cricinfoPlayerItems, asianGamesItems, cricketItems, trendingKeywords, stockImagePools] =
     await Promise.all([
-      fetchFootballData(),
-      fetchNflData(),
-      fetchMlbData(),
-      fetchNbaData(),
+      timed("fetchFootballData", () => fetchFootballData()),
+      timed("fetchNflData", () => fetchNflData()),
+      timed("fetchMlbData", () => fetchMlbData()),
+      timed("fetchNbaData", () => fetchNbaData()),
       // Domestic leagues (Bundesliga/Serie A/Ligue 1/MLS/Indian Super
       // League) and NHL/volleyball — see domesticFootballData.ts/
       // nhlData.ts/volleyballData.ts for source details.
-      fetchDomesticFootballData(),
-      fetchNhlData(),
-      fetchVolleyballData(),
+      timed("fetchDomesticFootballData", () => fetchDomesticFootballData()),
+      timed("fetchNhlData", () => fetchNhlData()),
+      timed("fetchVolleyballData", () => fetchVolleyballData()),
       // Second volleyball source (US college, not international) — added
       // after the API-Sports.io account behind volleyballData.ts got
       // suspended, so real volleyball coverage keeps flowing regardless of
       // that account's status. See espnVolleyballData.ts.
-      fetchEspnVolleyballData(),
+      timed("fetchEspnVolleyballData", () => fetchEspnVolleyballData()),
       // College football (this week's Top-25 games) and the WNBA — the
       // config-driven ESPN fetcher, see espnLeagueData.ts.
-      fetchCollegeFootballData(),
-      fetchWnbaData(),
+      timed("fetchCollegeFootballData", () => fetchCollegeFootballData()),
+      timed("fetchWnbaData", () => fetchWnbaData()),
       // Second cricket source (internationals CricketData's free tier
       // misses) — see espnCricketData.ts.
-      fetchEspnCricketData(UPCOMING_DAYS),
-      fetchRssNews(),
+      timed("fetchEspnCricketData", () => fetchEspnCricketData(UPCOMING_DAYS)),
+      timed("fetchRssNews", () => fetchRssNews()),
       // Actively searches Google News per tracked player (players.ts) —
       // unlike the fixed feeds above, which only ever surface whatever a
       // handful of outlets' latest items happen to include. Built after
       // confirming a real gap: a newly-tracked player (Sanju Samson) had
       // zero mentions across all 4 cricket feeds at the time this was
       // added, even though real coverage of him existed elsewhere.
-      fetchPlayerNews(),
+      timed("fetchPlayerNews", () => fetchPlayerNews()),
       // Each tracked cricket player's own official Cricinfo RSS feed — real
       // article snippets and direct URLs, unlike the Google News search
       // above (see cricinfoPlayerFeeds.ts). Primary source for cricket
       // player coverage now; Google News search stays as the breadth
       // fallback for whoever/whatever Cricinfo doesn't carry.
-      fetchCricinfoPlayerNews(),
+      timed("fetchCricinfoPlayerNews", () => fetchCricinfoPlayerNews()),
       // General (multi-sport) Indian news feeds, filtered down to just
       // "Asian Games" titles — see asianGamesFeeds.ts's own header comment
       // for why this exists as a separate fetcher rather than a plain
       // rssFeeds.ts entry (those feeds carry unrelated sports too, so they
       // can't be assigned one fixed category the way every other feed
       // there is).
-      fetchAsianGamesNews(),
-      fetchCricketData(),
-      fetchTrendingKeywords(),
+      timed("fetchAsianGamesNews", () => fetchAsianGamesNews()),
+      timed("fetchCricketData", () => fetchCricketData()),
+      timed("fetchTrendingKeywords", () => fetchTrendingKeywords()),
       // Reddit engagement (redditEngagement.ts) is intentionally not called
       // here — Reddit's no-auth JSON endpoint now 403s anonymous/datacenter
       // traffic (confirmed 2026-09-09), so it would just burn 2 of the free
       // Workers plan's scarce 50-subrequest budget for zero benefit. The
       // module and its tests are still in place, ready to wire back in once
       // real OAuth app credentials are added.
-      fetchStockImagePools(),
+      timed("fetchStockImagePools", () => fetchStockImagePools()),
     ]);
   // Prioritize RSS items by trending relevance so the limited commentary
   // budget (MAX_COMMENTARY_PER_RUN) goes to the most important stories first,
@@ -501,7 +512,7 @@ export async function runIngest() {
       // was pure waste, a meaningful share of the cost increase after
       // Gemini billing was restored.
       if (existing.body === null && existing.status !== "flagged" && existing.status !== "rejected" && !isMatchDataSource(item.sourceName) && canAffordCommentary(item.category)) {
-        const grounding = await resolveGrounding(item);
+        const grounding = await timed("resolveGrounding (page fetch)", () => resolveGrounding(item));
         if (grounding) {
           recordCommentaryCall(item.category);
           const { commentary: rawCommentary, personNames, venue: extractedVenue } = await generateCommentary(item.title, grounding.text, item.sourceName);
@@ -692,7 +703,7 @@ export async function runIngest() {
       // knownPersonName (player-news) items used to be excluded here
       // outright — see resolveGrounding's comment for why they're now
       // routed through page-text extraction instead of being skipped.
-      const grounding = await resolveGrounding(item);
+      const grounding = await timed("resolveGrounding (page fetch)", () => resolveGrounding(item));
       if (grounding) {
         recordCommentaryCall(item.category);
         const { commentary: rawCommentary, personNames, venue: extractedVenue } = await generateCommentary(item.title, grounding.text, item.sourceName);
@@ -906,6 +917,7 @@ export async function runIngest() {
     if (!quality.passed) flagged++;
   }
 
+  logTimingSummary("ingest");
   if (aiUnavailableReason()) console.warn(`[ingest] ${aiUnavailableReason()} — stories were left pending, not rejected; they will be written once the AI is back.`);
   console.log(
     `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${staleSkipped} stale RSS items skipped (older than ${MAX_RSS_ITEM_AGE_MS / 86400000}d), ${crossProviderSkipped} matches already stored from another provider (${crossProviderRefreshed} scored from a superseding one), ${reopenedFromDirect} Google-News-rejected stories reopened from the publisher's own feed, ` +

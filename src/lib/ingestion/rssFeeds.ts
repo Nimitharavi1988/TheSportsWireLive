@@ -392,6 +392,7 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
     // the actual run logs. A one-line count per feed, every run, is cheap
     // and makes a repeat of this exact 3-day blind spot impossible.
     const startCount = items.length;
+    const feedStart = Date.now();
     try {
       const parsed = await parser.parseURL(feed.url);
 
@@ -437,7 +438,7 @@ export async function fetchRssNews(): Promise<RawMatchItem[]> {
           dedupeKey: entry.link,
         });
       }
-      console.log(`[rssFeeds] ${feed.sourceName} (${feed.category}, ${feed.url}): ${items.length - startCount} items`);
+      console.log(`[rssFeeds] ${feed.sourceName} (${feed.category}, ${feed.url}): ${items.length - startCount} items in ${Date.now() - feedStart}ms`);
     } catch (err) {
       console.error(`RSS fetch failed for ${feed.url}:`, err);
     }

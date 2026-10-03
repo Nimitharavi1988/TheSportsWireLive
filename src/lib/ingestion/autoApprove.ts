@@ -9,6 +9,7 @@ import { isPushWorthy } from "../pushWorthy";
 import { postToTopicPages } from "../social/topicPosting";
 import { postTopicReels } from "../social/topicReels";
 import { postArticleToFacebook } from "../social/facebook";
+import { timed, logTimingSummary } from "./timing";
 import { postInstagramPoster } from "../social/postInstagramPoster";
 import { postReel } from "../social/postReel";
 import { sendPushToAllSubscribers } from "../push";
@@ -577,7 +578,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   // here, same as before the poster work started.
   for (const article of toPost) {
     try {
-      const posted = await postArticleToFacebook(article.id);
+      const posted = await timed("postArticleToFacebook (caption+API)", () => postArticleToFacebook(article.id));
       console.log(
         posted
           ? `[facebook] posted article ${article.id} ("${article.title.slice(0, 60)}")`
@@ -605,13 +606,13 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     try {
       let posted = false;
       try {
-        posted = (await postReel(article.id, { instagram: true, facebook: false })).instagramPosted;
+        posted = (await timed("postReel (render+Gemini+API)", () => postReel(article.id, { instagram: true, facebook: false }))).instagramPosted;
       } catch (reelErr) {
         console.error("Instagram reel failed for article", article.id, reelErr);
       }
       if (!posted) {
         console.log(`[instagram] reel not posted for ${article.id}, trying the poster`);
-        posted = await postInstagramPoster(article.id);
+        posted = await timed("postInstagramPoster", () => postInstagramPoster(article.id));
       }
       if (posted) instagramDone = true;
     } catch (err) {
@@ -747,6 +748,7 @@ if (require.main === module) {
       console.log(`Rejected ${rejectedNoImage} pending articles still with no real image after ${STALE_NO_IMAGE_HOURS}+ hours.`);
       const rejectedNoBody = await rejectStaleNoBodyArticles();
       console.log(`Rejected ${rejectedNoBody} pending articles still with no real body after ${STALE_NO_BODY_HOURS}+ hours.`);
+      logTimingSummary("auto-approve");
       process.exit(0);
     })
     .catch((err) => {

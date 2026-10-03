@@ -59,6 +59,24 @@ export interface EspnLeagueConfig {
   timeZone: string;
   /** Show AP/CFP ranks (college). */
   ranked?: boolean;
+  /** The default scoreboard lists the main weekend slate only, so Thursday/
+   *  Friday games were missing (2026-10-02: Penn State at Northwestern,
+   *  Pittsburgh at Virginia Tech). These dates' own scoreboards (ET, relative
+   *  to today) are fetched too; `keep` decides which of their games count. */
+  extraDates?: { daysBack: number; daysAhead: number; keep: (event: EspnLeagueEvent, config: EspnLeagueConfig) => boolean };
+}
+
+// Ranked (Top 25) on either side.
+function hasRankedTeam(event: EspnLeagueEvent): boolean {
+  return (event.competitions?.[0]?.competitors ?? []).some((c) => (c.curatedRank?.current ?? 99) <= 25);
+}
+
+// College football: a Saturday date lists every FBS game (54 on 2026-10-03), so
+// only the ranked ones are added; on any other day (Thursday/Friday/weeknight
+// games, a handful) every game is.
+export function keepCollegeExtraGame(event: EspnLeagueEvent, config: EspnLeagueConfig): boolean {
+  const weekday = new Date(event.date).toLocaleDateString("en-US", { weekday: "short", timeZone: config.timeZone });
+  return weekday !== "Sat" || hasRankedTeam(event);
 }
 
 export const COLLEGE_FOOTBALL: EspnLeagueConfig = {
@@ -77,6 +95,7 @@ export const COLLEGE_FOOTBALL: EspnLeagueConfig = {
   dedupePrefix: "espn-cfb",
   timeZone: "America/New_York",
   ranked: true,
+  extraDates: { daysBack: 1, daysAhead: 1, keep: keepCollegeExtraGame },
 };
 
 export const WNBA: EspnLeagueConfig = {
@@ -197,19 +216,41 @@ export function espnEventToItem(event: EspnLeagueEvent, config: EspnLeagueConfig
   };
 }
 
-export async function fetchEspnLeague(config: EspnLeagueConfig): Promise<RawMatchItem[]> {
+// YYYYMMDD for a calendar day in the league's time zone, `offset` days from now.
+export function scoreboardDate(now: Date, offset: number, timeZone: string): string {
+  const d = new Date(now.getTime() + offset * 24 * 60 * 60 * 1000);
+  return d.toLocaleDateString("en-CA", { timeZone }).replace(/-/g, "");
+}
+
+async function fetchScoreboardEvents(config: EspnLeagueConfig, date?: string): Promise<EspnLeagueEvent[]> {
   try {
-    const res = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/${config.path}/scoreboard`);
+    const res = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/${config.path}/scoreboard${date ? `?dates=${date}` : ""}`);
     if (!res.ok) {
-      console.error(`${config.sourceName} scoreboard fetch failed: ${res.status}`);
+      console.error(`${config.sourceName} scoreboard${date ? ` ${date}` : ""} fetch failed: ${res.status}`);
       return [];
     }
     const data = await res.json();
-    return ((data.events ?? []) as EspnLeagueEvent[]).flatMap((e) => espnEventToItem(e, config) ?? []);
+    return (data.events ?? []) as EspnLeagueEvent[];
   } catch (err) {
-    console.error(`${config.sourceName} scoreboard fetch failed:`, err);
+    console.error(`${config.sourceName} scoreboard${date ? ` ${date}` : ""} fetch failed:`, err);
     return [];
   }
+}
+
+export async function fetchEspnLeague(config: EspnLeagueConfig, now: Date = new Date()): Promise<RawMatchItem[]> {
+  const events = await fetchScoreboardEvents(config);
+  const extra = config.extraDates;
+  if (extra) {
+    const seen = new Set(events.map((e) => e.id));
+    for (let offset = -extra.daysBack; offset <= extra.daysAhead; offset++) {
+      for (const e of await fetchScoreboardEvents(config, scoreboardDate(now, offset, config.timeZone))) {
+        if (seen.has(e.id) || !extra.keep(e, config)) continue;
+        seen.add(e.id);
+        events.push(e);
+      }
+    }
+  }
+  return events.flatMap((e) => espnEventToItem(e, config) ?? []);
 }
 
 export const fetchCollegeFootballData = () => fetchEspnLeague(COLLEGE_FOOTBALL);

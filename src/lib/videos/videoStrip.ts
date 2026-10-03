@@ -36,8 +36,16 @@ export function videoSearchWords(query: string): string[] {
 
 export const MAX_PER_CHANNEL = 3;
 
-export function pickVideoStrip<T extends { channelTitle: string; publishedAt: Date; isHighlights: boolean }>(rows: T[], limit: number): T[] {
-  const sorted = [...rows].sort(
+// Channels re-upload old matches as new videos ("SASSUOLO-MILAN 2-0 | CLASSIC
+// HIGHLIGHTS SERIE A 2025/26" appeared as a latest video on 2026-10-02): not
+// news, and last season's scoreline reads as a current result.
+const THROWBACK_TITLE = /\b(classic|throwback|rewind|archive|full match replay|on this day)\b/i;
+export function isThrowbackTitle(title: string): boolean {
+  return THROWBACK_TITLE.test(title);
+}
+
+export function pickVideoStrip<T extends { channelTitle: string; publishedAt: Date; isHighlights: boolean; title?: string }>(rows: T[], limit: number): T[] {
+  const sorted = rows.filter((r) => !(r.title && isThrowbackTitle(r.title))).sort(
     (a, b) => Number(b.isHighlights) - Number(a.isHighlights) || b.publishedAt.getTime() - a.publishedAt.getTime()
   );
   const perChannel = new Map<string, number>();

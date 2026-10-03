@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { COLLEGE_FOOTBALL, WNBA, espnEventToItem, espnMatchNote, type EspnLeagueEvent } from "./espnLeagueData";
+import { COLLEGE_FOOTBALL, WNBA, espnEventToItem, espnMatchNote, keepCollegeExtraGame, scoreboardDate, type EspnLeagueEvent } from "./espnLeagueData";
 
 // Shapes as returned live by ESPN on 2026-09-26.
 const team = (displayName: string, location: string, id: string) => ({ id, displayName, location, logo: `https://a.espncdn.com/i/teamlogos/ncaa/500/${id}.png` });
@@ -103,5 +103,40 @@ describe("espnMatchNote", () => {
     const unranked = { ...cfbLive, competitions: [{ ...cfbLive.competitions[0], competitors: cfbLive.competitions[0].competitors.map((c) => ({ ...c, curatedRank: { current: 99 } })) }] };
     expect(espnMatchNote(unranked, COLLEGE_FOOTBALL)).toBeUndefined();
     expect(espnMatchNote({ ...wnbaPlayoff, competitions: [{ ...wnbaPlayoff.competitions[0], notes: [], series: undefined }] }, WNBA)).toBeUndefined();
+  });
+});
+
+describe("college football games outside the default scoreboard", () => {
+  const game = (date: string, homeRank: number, awayRank: number): EspnLeagueEvent => ({
+    ...cfbPre,
+    date,
+    competitions: [
+      {
+        ...cfbPre.competitions[0],
+        competitors: [
+          { ...cfbPre.competitions[0].competitors[0], curatedRank: { current: homeRank } },
+          { ...cfbPre.competitions[0].competitors[1], curatedRank: { current: awayRank } },
+        ],
+      },
+    ],
+  });
+
+  it("keeps every Friday game (Liberty at Delaware, unranked) but only ranked Saturday ones", () => {
+    expect(keepCollegeExtraGame(game("2026-10-02T23:00Z", 99, 99), COLLEGE_FOOTBALL)).toBe(true);
+    expect(keepCollegeExtraGame(game("2026-10-03T16:00Z", 99, 99), COLLEGE_FOOTBALL)).toBe(false);
+    expect(keepCollegeExtraGame(game("2026-10-03T16:00Z", 14, 99), COLLEGE_FOOTBALL)).toBe(true);
+    expect(keepCollegeExtraGame(game("2026-10-03T16:00Z", 99, 22), COLLEGE_FOOTBALL)).toBe(true);
+  });
+
+  it("treats a late Friday kickoff as Friday in Eastern time, not Saturday in UTC", () => {
+    // 8 PM ET Friday = 00:00 UTC Saturday.
+    expect(keepCollegeExtraGame(game("2026-10-03T00:00Z", 99, 99), COLLEGE_FOOTBALL)).toBe(true);
+  });
+
+  it("names scoreboard dates in the league's time zone", () => {
+    const evening = new Date("2026-10-03T01:00:00Z"); // still Friday evening in New York
+    expect(scoreboardDate(evening, 0, "America/New_York")).toBe("20261002");
+    expect(scoreboardDate(evening, 1, "America/New_York")).toBe("20261003");
+    expect(scoreboardDate(evening, -1, "America/New_York")).toBe("20261001");
   });
 });

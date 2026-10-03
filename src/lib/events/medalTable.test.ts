@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { medalTableProblem, parseMedalTable } from "./medalTable";
+import { CANDIDATE_ACCEPT_AFTER_MS, medalTableProblem, parseMedalTable, reviewRejectedTable, type MedalTable } from "./medalTable";
 
 // Wikipedia's medal-table markup as served on 2026-09-26 (trimmed): rank
 // td, nation th with flag + link, four number cells, host marked "*",
@@ -50,5 +50,51 @@ describe("medalTableProblem", () => {
   it("rejects a snapshot where a nation's medals went down (vandalism)", () => {
     const later = { ...good, rows: good.rows.map((r) => (r.nation === "China" ? { ...r, gold: 98, total: 161 } : r)), totals: null };
     expect(medalTableProblem(later, good)).toMatch(/China's medals went down/);
+  });
+});
+
+const table = (rows: [string, number, number, number][]): MedalTable => ({
+  rows: rows.map(([nation, gold, silver, bronze], i) => ({ rank: i + 1, nation, host: false, gold, silver, bronze, total: gold + silver + bronze })),
+  totals: null,
+});
+
+describe("reviewRejectedTable", () => {
+  // 2026-10-01: Vietnam on 255 golds was stored; the real table (China first) was then rejected for a day.
+  const bad = table([["Vietnam", 255, 140, 179], ["China", 151, 67, 59], ["Japan", 50, 77, 73]]);
+  const real = (g: number) => table([["China", g, 81, 73], ["Japan", 90, 77, 73], ["South Korea", 70, 30, 49]]);
+  const t0 = new Date("2026-10-02T20:00:00Z");
+  const later = (ms: number) => new Date(t0.getTime() + ms);
+
+  it("rejects the correct table against the bad stored one, which is what got it stuck", () => {
+    expect(medalTableProblem(real(162), bad)).toMatch(/Vietnam/);
+  });
+
+  it("starts a candidate on the first rejected fetch without accepting it", () => {
+    const r = reviewRejectedTable(real(162), null, t0);
+    expect(r.accept).toBe(false);
+    expect(r.candidate?.since).toBe(t0.toISOString());
+  });
+
+  it("keeps the run going while consistent fetches arrive, and accepts after the wait", () => {
+    const first = reviewRejectedTable(real(162), null, t0).candidate!;
+    const mid = reviewRejectedTable(real(163), first, later(60 * 60 * 1000));
+    expect(mid.accept).toBe(false);
+    expect(mid.candidate?.since).toBe(t0.toISOString());
+    const done = reviewRejectedTable(real(165), mid.candidate, later(CANDIDATE_ACCEPT_AFTER_MS));
+    expect(done.accept).toBe(true);
+  });
+
+  it("restarts the clock when a fetch contradicts the candidate (an edit war), so it is not accepted", () => {
+    const first = reviewRejectedTable(real(162), null, t0).candidate!;
+    const other = table([["Japan", 200, 10, 10], ["China", 100, 10, 10], ["South Korea", 5, 5, 5]]);
+    const r = reviewRejectedTable(other, first, later(CANDIDATE_ACCEPT_AFTER_MS + 1));
+    expect(r.accept).toBe(false);
+    expect(r.candidate?.since).toBe(later(CANDIDATE_ACCEPT_AFTER_MS + 1).toISOString());
+  });
+
+  it("never makes a table that is wrong on its own a candidate", () => {
+    const broken = table([["China", 10, 1, 1], ["Japan", 20, 1, 1], ["Korea", 5, 1, 1]]); // ranked below with more medals
+    const r = reviewRejectedTable(broken, null, t0);
+    expect(r).toEqual({ accept: false, candidate: null });
   });
 });

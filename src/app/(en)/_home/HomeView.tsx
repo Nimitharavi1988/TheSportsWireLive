@@ -10,7 +10,7 @@ import { article as articleTable, articleTranslation } from "@/db/schema";
 import { getDict } from "@/lib/i18n/dictionary";
 import { categoryLabel } from "@/lib/i18n/helpers";
 import { LOCALES } from "@/lib/i18n/locales";
-import { and, eq, inArray, like, isNotNull, isNull, ne, notInArray, or, desc, gte, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, like, isNotNull, isNull, lte, ne, notInArray, or, desc, gte, sql, type SQL } from "drizzle-orm";
 import { ForYouStrip } from "@/components/ForYouStrip";
 import { HappeningNow } from "@/components/HappeningNow";
 import { LatestVideos, VideoStripSkeleton } from "@/components/videos/VideoStrip";
@@ -60,6 +60,7 @@ import { CollapsibleAdBox } from "@/components/CollapsibleAdBox";
 import { MoreHeadlinesAdTile } from "@/components/MoreHeadlinesAdTile";
 import { HomeBanners } from "@/components/HomeBanners";
 import { fetchLiveNow } from "@/lib/scores/scoreboard";
+import { pickHomeMatches } from "@/lib/homeMatches";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import StarIcon from "@mui/icons-material/Star";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
@@ -335,7 +336,7 @@ export async function HomeView({ category, locale }: { category?: string; locale
   // decision was silently getting overridden by a score cutoff instead of
   // actually taking priority. Capped at 5 (the same cap `featureArticle`
   // itself enforces), so this can never balloon the query.
-  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeCompetitions, medalLines, justInRaw, highlightCandidatesRaw, matchCandidatesRaw] = await Promise.all([
+  const [articlesRanked, manuallyFeaturedRaw, liveMatches, activeCompetitions, medalLines, justInRaw, highlightCandidatesRaw, matchCandidatesRaw, matchWindowRaw] = await Promise.all([
     // Main trending list, limited to fresh stories — see heroConfig.ts's
     // FRESH_NEWS_* for why (trendingScore never decays: on 2026-09-25 an
     // 11-day-old story with score 175 was still leading the hero).
@@ -396,9 +397,15 @@ export async function HomeView({ category, locale }: { category?: string; locale
     // justInRaw) so the best fresh stories still surface first; the
     // isHighlightWorthy/real-image/match-data-exclusion filters stay in JS
     // below, unchanged.
+    // Match-data pages are excluded IN the query (they're dropped from this
+    // section anyway): on 2026-10-02 they filled 57 of football's 60 slots,
+    // leaving 3 news stories and no "Transfers & Big News" section at all
+    // while 40 fresh news stories existed — same crowding fetchFreshRanked
+    // fixed for the main list.
     db.select().from(articleTable)
       .where(and(
         ...baseConditions,
+        notInArray(articleTable.sourceName, MATCH_DATA_SOURCE_NAMES),
         gte(articleTable.publishedAt, new Date(Date.now() - HIGHLIGHT_MAX_AGE_DAYS * 24 * 60 * 60 * 1000))
       ))
       .orderBy(desc(articleTable.trendingScore))
@@ -421,11 +428,27 @@ export async function HomeView({ category, locale }: { category?: string; locale
       ))
       .orderBy(desc(articleTable.trendingScore))
       .limit(100),
+    // All-sports page only: the games in the next 48 hours and the last 36, for
+    // "Match Results & Previews" (pickHomeMatches). The trending-ordered pool
+    // above can't feed it: a game's trending score says nothing about whether
+    // it matters (tonight's NHL games score near zero, women's cricket high),
+    // and it also holds fixtures weeks away.
+    category
+      ? Promise.resolve([] as (typeof articleTable.$inferSelect)[])
+      : db.select().from(articleTable)
+          .where(and(
+            eq(articleTable.status, "published"),
+            inArray(articleTable.sourceName, MATCH_DATA_SOURCE_NAMES),
+            gte(articleTable.kickoffAt, new Date(Date.now() - 36 * 60 * 60 * 1000)),
+            lte(articleTable.kickoffAt, new Date(Date.now() + 48 * 60 * 60 * 1000))
+          ))
+          .orderBy(desc(articleTable.trendingScore))
+          .limit(300),
   ]);
   // Spanish: one lookup of the translated text for every candidate row.
   const trMap = new Map<string, { title: string; summary: string; body: string | null; slug: string }>();
   if (locale) {
-    const ids = [...new Set([...articlesRanked, ...manuallyFeaturedRaw, ...justInRaw, ...highlightCandidatesRaw, ...matchCandidatesRaw].map((a) => a.id))];
+    const ids = [...new Set([...articlesRanked, ...manuallyFeaturedRaw, ...justInRaw, ...highlightCandidatesRaw, ...matchCandidatesRaw, ...matchWindowRaw].map((a) => a.id))];
     const rows = ids.length === 0 ? [] : await db
       .select({ articleId: articleTranslation.articleId, title: articleTranslation.title, summary: articleTranslation.summary, body: articleTranslation.body, slug: articleTranslation.slug })
       .from(articleTranslation)
@@ -575,6 +598,61 @@ export async function HomeView({ category, locale }: { category?: string; locale
           return chosen ? { category: cat, article: L(chosen) } : null;
         })
         .filter((entry): entry is { category: string; article: (typeof articles)[number] } => entry !== null);
+
+  // By Category tiles, rendered in two places like Just In: in the lg sidebar and, below lg,
+  // in the main column before Videos (it sat at the very bottom of the page on a phone).
+  const categoryPanel = categoryTiles.length > 0 && (
+        <Paper component="section" variant="outlined" sx={{ p: 2, ...BELOW_FOLD_SX }}>
+          <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, mb: 1, display: "block" }}>
+            {t.home.byCategory}
+          </Typography>
+          <Stack spacing={1.25}>
+            {categoryTiles.map(({ category: cat, article }) => (
+              <Link
+                key={cat}
+                href={`/article/${article.slug}`}
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+                <Stack
+                  direction="row"
+                  spacing={1.25}
+                  sx={{
+                    alignItems: "center",
+                    p: 0.75,
+                    borderRadius: 2,
+                    transition: "background-color 0.15s",
+                    "&:hover": { bgcolor: "action.hover" },
+                  }}
+                >
+                  <ArticleThumb article={article} size={48} fallbackColor={categoryChipStyle(cat).color} />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ color: categoryChipStyle(cat).color, fontWeight: 700, display: "block" }}
+                    >
+                      {loc ? categoryLabel(cat, t) : categoryChipStyle(cat).label}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontSize: 12.5,
+                        lineHeight: 1.3,
+                        fontWeight: 500,
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {article.title}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Link>
+            ))}
+          </Stack>
+        </Paper>
+  );
 
   // "By Competition" sidebar tiles — same idea and same visual pattern as By
   // Category, one level more specific (Premier League, La Liga, Champions
@@ -746,7 +824,19 @@ export async function HomeView({ category, locale }: { category?: string; locale
   const allNflArticles = allMatchArticles.filter((a) => a.sourceName === "ESPN NFL");
   const allFootballCricketArticles = allMatchArticles.filter((a) => a.sourceName !== "ESPN NFL");
 
-  const matchArticles = allFootballCricketArticles.slice(0, 10).map(L);
+  // On the all-sports page: most important first (the scoreboard's ranking) with
+  // at most 3 per sport, so one busy sport can't fill the list. A sport page keeps
+  // its own order.
+  const matchArticles = (category
+    ? allFootballCricketArticles.slice(0, 10)
+    : pickHomeMatches(
+        matchWindowRaw.filter((a) => a.sourceName !== "ESPN NFL" && !heroIds.has(a.id) && !excludedFromMatchPool.has(a.id)),
+        10,
+        new Date(),
+        3,
+        // NCAA volleyball plays dozens of games a day and is the lowest-profile of these.
+        { volleyball: 1 }
+      )).map(L);
   const nflArticles = allNflArticles.slice(0, 10).map(L);
   // Was allFootballCricketArticles.slice(10, 25) — that pool is genuine
   // match-data sources only (football-data.org/CricketData.org), which is
@@ -873,58 +963,7 @@ export async function HomeView({ category, locale }: { category?: string; locale
           >
             {justInPanel && <Box sx={{ display: { xs: "none", lg: "block" }, mb: 3 }}>{justInPanel}</Box>}
 
-            {categoryTiles.length > 0 && (
-              <Paper component="section" variant="outlined" sx={{ p: 2, ...BELOW_FOLD_SX }}>
-                <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, mb: 1, display: "block" }}>
-                  {t.home.byCategory}
-                </Typography>
-                <Stack spacing={1.25}>
-                  {categoryTiles.map(({ category: cat, article }) => (
-                    <Link
-                      key={cat}
-                      href={`/article/${article.slug}`}
-                      style={{ textDecoration: "none", color: "inherit" }}
-                    >
-                      <Stack
-                        direction="row"
-                        spacing={1.25}
-                        sx={{
-                          alignItems: "center",
-                          p: 0.75,
-                          borderRadius: 2,
-                          transition: "background-color 0.15s",
-                          "&:hover": { bgcolor: "action.hover" },
-                        }}
-                      >
-                        <ArticleThumb article={article} size={48} fallbackColor={categoryChipStyle(cat).color} />
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography
-                            variant="caption"
-                            sx={{ color: categoryChipStyle(cat).color, fontWeight: 700, display: "block" }}
-                          >
-                            {loc ? categoryLabel(cat, t) : categoryChipStyle(cat).label}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              fontSize: 12.5,
-                              lineHeight: 1.3,
-                              fontWeight: 500,
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                            }}
-                          >
-                            {article.title}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </Link>
-                  ))}
-                </Stack>
-              </Paper>
-            )}
+            {categoryPanel && <Box sx={{ display: { xs: "none", lg: "block" } }}>{categoryPanel}</Box>}
 
             {competitionTiles.length > 0 && (
               <Paper component="section" variant="outlined" sx={{ p: 2, mt: 3, ...BELOW_FOLD_SX }}>
@@ -1038,26 +1077,43 @@ export async function HomeView({ category, locale }: { category?: string; locale
           </Box>
         )}
 
-        {justInPanel && <Box sx={{ display: { xs: "block", lg: "none" }, minWidth: 0 }}>{justInPanel}</Box>}
+        {/* Below lg the sections are reordered with flex `order` (lg and up
+            keep the DOM order: series, Player News, Videos, Transfers...).
+            Mobile order, per explicit request 2026-10-02: Player News, Just In,
+            Transfers & Big News, By Category, Videos, Series & events, then
+            the match sections. */}
+        <Box component="main" sx={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
+          <Box sx={{ order: { xs: 7, lg: 0 } }}>
+            {!loc && <HappeningNow competitions={activeCompetitions} medalLines={medalLines} />}
+          </Box>
 
-        <Box component="main" sx={{ minWidth: 0 }}>
-          {!loc && <HappeningNow competitions={activeCompetitions} medalLines={medalLines} />}
+          {justInPanel && (
+            <Box sx={{ order: 3, display: { xs: "block", lg: "none" }, minWidth: 0, mb: 4 }}>{justInPanel}</Box>
+          )}
 
           {playerNewsMatches.length > 0 && (
-            <Suspense fallback={<PlayerNewsSkeleton locale={locale} />}>
-              <PlayerNewsSection playerNewsMatches={playerNewsMatches} locale={locale} />
-            </Suspense>
+            <Box sx={{ order: { xs: 1, lg: 0 } }}>
+              <Suspense fallback={<PlayerNewsSkeleton locale={locale} />}>
+                <PlayerNewsSection playerNewsMatches={playerNewsMatches} locale={locale} />
+              </Suspense>
+            </Box>
           )}
 
           {/* Official league/broadcaster videos (src/lib/videos/), filtered
               to the current sport; its own Suspense so the query never
               delays the news below. */}
-          <Suspense fallback={<VideoStripSkeleton headingSx={SECTION_HEADING_SX} />}>
-            <LatestVideos category={category} headingSx={SECTION_HEADING_SX} locale={locale} />
-          </Suspense>
+          {categoryPanel && (
+            <Box sx={{ order: 5, display: { xs: "block", lg: "none" }, minWidth: 0, mb: 4 }}>{categoryPanel}</Box>
+          )}
+
+          <Box sx={{ order: { xs: 6, lg: 0 } }}>
+            <Suspense fallback={<VideoStripSkeleton headingSx={SECTION_HEADING_SX} />}>
+              <LatestVideos category={category} headingSx={SECTION_HEADING_SX} locale={locale} />
+            </Suspense>
+          </Box>
 
           {highlightArticles.length > 0 && (
-            <Box component="section" sx={{ mb: 4, ...BELOW_FOLD_SX }}>
+            <Box component="section" sx={{ order: { xs: 4, lg: 0 }, mb: 4, ...BELOW_FOLD_SX }}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <SwapHorizIcon sx={{ color: "warning.main" }} />
                 <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>{t.home.transfers}</Typography>
@@ -1071,7 +1127,7 @@ export async function HomeView({ category, locale }: { category?: string; locale
           )}
 
           {matchArticles.length > 0 && (
-            <Box component="section" sx={BELOW_FOLD_SX}>
+            <Box component="section" sx={{ order: { xs: 8, lg: 0 }, ...BELOW_FOLD_SX }}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <ScoreboardIcon sx={{ color: "primary.main" }} />
                 <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>{t.home.matchResults}</Typography>
@@ -1085,7 +1141,7 @@ export async function HomeView({ category, locale }: { category?: string; locale
           )}
 
           {nflArticles.length > 0 && (
-            <Box component="section" sx={{ mt: matchArticles.length > 0 ? 4 : 0, ...BELOW_FOLD_SX }}>
+            <Box component="section" sx={{ order: { xs: 9, lg: 0 }, mt: matchArticles.length > 0 ? 4 : 0, ...BELOW_FOLD_SX }}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
                 <SportsFootballIcon sx={{ color: categoryChipStyle("american-football").color }} />
                 <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>{t.home.nflScores}</Typography>

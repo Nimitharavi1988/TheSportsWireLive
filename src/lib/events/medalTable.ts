@@ -104,3 +104,36 @@ export function medalTableProblem(table: MedalTable, previous: MedalTable | null
   }
   return null;
 }
+
+// Recovery from a bad snapshot. The checks above compare a new table with the
+// last stored one and keep the stored one on any regression — which is also
+// what happens when the STORED table is the bad one: on 2026-10-01 a table
+// with Vietnam on 255 golds (China 151) passed the checks (its numbers only
+// went up) and was stored, after which every correct table (China first,
+// Vietnam far lower) was rejected as "Vietnam's medals went down", for over a
+// day. A rejected table is now remembered as a candidate; one that keeps
+// passing the checks against ITS OWN previous fetch (so a settled, correct
+// table rather than a one-off edit) for CANDIDATE_ACCEPT_AFTER_MS replaces
+// the stored one.
+export const CANDIDATE_ACCEPT_AFTER_MS = 3 * 60 * 60 * 1000;
+
+export interface MedalCandidate {
+  table: MedalTable;
+  /** ISO time this run of consistent fetches began. */
+  since: string;
+}
+
+export function reviewRejectedTable(
+  table: MedalTable,
+  candidate: MedalCandidate | null,
+  now: Date
+): { accept: boolean; candidate: MedalCandidate | null } {
+  // A table that is wrong on its own terms is never a candidate.
+  if (medalTableProblem(table, null)) return { accept: false, candidate: null };
+  const continues = candidate !== null && medalTableProblem(table, candidate.table) === null;
+  const since = continues ? candidate!.since : now.toISOString();
+  return {
+    accept: continues && now.getTime() - new Date(since).getTime() >= CANDIDATE_ACCEPT_AFTER_MS,
+    candidate: { table, since },
+  };
+}
