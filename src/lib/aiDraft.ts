@@ -25,7 +25,23 @@ export interface DraftFacts {
   venues: { name: string; about: string }[];
   people: string[];
   recentStories: { title: string; summary: string; date: string }[];
+  // Automatic drafts only (stories/research.ts): facts found by web search
+  // for this story, and the shape the piece should take (DRAFT_FORMATS).
+  webFacts?: string[];
+  format?: DraftFormat;
 }
+
+// Shapes the automatic drafts rotate through, so the Analysis section doesn't
+// read as one template (the five pieces written by hand on 2026-10-04 used
+// these, one each).
+export const DRAFT_FORMATS = {
+  feature: "a narrative feature: open on a vivid but factual moment or image, build the story through background and stakes, end on the moment that matters",
+  numbers: "\"by the numbers\": each subheading is one key figure from the facts (e.g. \"405\"), followed by a short paragraph on what it means; finish with a section on what the numbers add up to",
+  takeaways: "three numbered takeaways (subheadings \"1. …\", \"2. …\", \"3. …\") after a short lead, then a closing section on what comes next",
+  qa: "a question-and-answer explainer: every subheading is a question a reader would ask, answered in one or two paragraphs; finish with \"The bottom line\"",
+  reportCard: "a report card: a short lead, then subheadings that each grade one part of the performance (e.g. \"Batting: A-\"), each justified from the facts, and an overall grade",
+} as const;
+export type DraftFormat = keyof typeof DRAFT_FORMATS;
 
 export interface AiDraft {
   title: string;
@@ -46,6 +62,7 @@ const SHAPE: Record<string, string> = {
 export function buildDraftPrompt(f: DraftFacts): string {
   const section = (title: string, lines: string[]) => (lines.length ? `${title}:\n${lines.map((l) => `- ${l}`).join("\n")}` : "");
   const facts = [
+    section("Facts from today's reporting (found by web search; the most reliable facts here)", f.webFacts ?? []),
     section("Fixtures and results", f.fixtures),
     section("Ground", f.venues.map((v) => `${v.name}: ${v.about}`)),
     section("Players and teams in the story", f.people),
@@ -55,7 +72,7 @@ export function buildDraftPrompt(f: DraftFacts): string {
   return `You are helping a sports writer at Sports Wire Live. Write a FIRST DRAFT that they will rewrite in their own voice, fact-check and publish under their own name.
 
 The writer's brief: ${f.brief}
-Kind of piece: ${f.kindLabel} (${SHAPE[f.kindLabel] ?? SHAPE.Analysis})
+Kind of piece: ${f.kindLabel} (${SHAPE[f.kindLabel] ?? SHAPE.Analysis})${f.format ? `\nFormat: ${DRAFT_FORMATS[f.format]}. Use as many subheadings as the format needs.` : ""}
 Sport: ${f.sportLabel}${f.seriesLabel ? `\nSeries or event: ${f.seriesLabel}` : ""}
 
 Facts you may use (the only facts you may state):
@@ -111,15 +128,21 @@ export function blocksToBody(blocks: Block[]): string {
 
 export class AiDraftError extends Error {}
 
-export async function requestDraft(facts: DraftFacts): Promise<AiDraft> {
+// model: the editor's button uses the lite tier; the automatic drafts pass
+// standard Flash (stories/research.ts RESEARCH_MODEL), which needs its hidden
+// reasoning turned off or it uses up the output cap (see commentary.ts).
+export async function requestDraft(facts: DraftFacts, model: string = MODEL): Promise<AiDraft> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new AiDraftError("AI drafting isn't set up on the site yet (GEMINI_API_KEY is missing in Cloudflare).");
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-goog-api-key": apiKey },
     body: JSON.stringify({
       contents: [{ parts: [{ text: buildDraftPrompt(facts) }] }],
-      generationConfig: { responseMimeType: "application/json", responseSchema: RESPONSE_SCHEMA, temperature: 0.5, maxOutputTokens: 2048 },
+      generationConfig: {
+        ...(model !== MODEL ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+        responseMimeType: "application/json", responseSchema: RESPONSE_SCHEMA, temperature: 0.5, maxOutputTokens: 3072,
+      },
     }),
   });
   if (!res.ok) {
