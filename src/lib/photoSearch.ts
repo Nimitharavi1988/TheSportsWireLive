@@ -15,6 +15,7 @@
  * requires — photographer, licence, source link — stored with the story
  * and shown under the photo.
  */
+import { decodeHtmlEntities } from "./htmlEntities";
 
 export type PhotoSourceId = "openverse" | "commons";
 
@@ -81,8 +82,11 @@ export function isCommercialFreeLicense(name: string): boolean {
   return /^(cc[\s-]?by(-sa)?\b|cc0|public domain|pd\b)/i.test(name.trim());
 }
 
+// Tags out, then entities decoded: Commons' Artist field is HTML, so a name
+// like "Maize & Blue Nation" arrives as "Maize &amp; Blue Nation" and was
+// stored in the credit that way (found 2026-10-04).
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+  return decodeHtmlEntities(html.replace(/<[^>]*>/g, "")).replace(/\s+/g, " ").trim();
 }
 
 // A Wikimedia thumbnail URL at another width (".../400px-File.jpg" ->
@@ -113,7 +117,8 @@ export function fromOpenverse(r: OpenverseImage): PhotoResult | null {
   if (!label || r.mature || !r.foreign_landing_url || !r.width || !r.height) return null;
   const license = label(r.license_version ?? "");
   const sourceName = SOURCE_NAMES[r.source ?? ""] ?? r.source ?? "Openverse";
-  const creator = r.creator?.trim() || "Unknown author";
+  // Openverse passes on what the source site had, entities included.
+  const creator = decodeHtmlEntities(r.creator ?? "").trim() || "Unknown author";
   // Wikimedia originals can be 20+ MB; import a web-sized rendition.
   const wikimediaThumb = r.url.match(/^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\/(\w)\/(\w\w)\/([^/?#]+)$/);
   const importUrl = wikimediaThumb
@@ -122,7 +127,7 @@ export function fromOpenverse(r: OpenverseImage): PhotoResult | null {
   return {
     id: `openverse:${r.id}`,
     source: "openverse",
-    title: r.title?.trim() || "Untitled",
+    title: decodeHtmlEntities(r.title ?? "").trim() || "Untitled",
     creator,
     license,
     landingUrl: r.foreign_landing_url,
