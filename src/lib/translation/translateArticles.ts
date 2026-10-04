@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { article, articleTranslation } from "@/db/schema";
 import { isMatchDataSource } from "../matchDataSources";
+import { isThinRewrite } from "../thinContent";
 import { and, count, eq, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { callGemini, aiUnavailableReason, MODEL } from "../ingestion/commentary";
@@ -189,7 +190,8 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
           set: { ...out, slug, sourceHash: c.hash, status: "translated", attempts: 0, lastError: res.reason || null, model, updatedAt: now },
         });
         translated++;
-        if (!c.prev) (newUrls[locale.code] ??= []).push(`${localeOrigin(locale.code)}/article/${slug}`);
+        // Noindex pages (a translation of a short write-up, thinContent.ts) aren't announced.
+        if (!c.prev && !isThinRewrite(c)) (newUrls[locale.code] ??= []).push(`${localeOrigin(locale.code)}/article/${slug}`);
       } else {
         const reason = verdict.ok ? "unknown" : verdict.reason;
         // Held back by the second-opinion review (not retried automatically; the

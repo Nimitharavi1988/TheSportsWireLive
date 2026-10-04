@@ -4,6 +4,7 @@ import { eq, and, inArray, gte, lt, count, desc } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { submitToIndexNow, articleUrl } from "../indexNow";
 import { isMatchDataSource } from "../matchDataSources";
+import { isThinRewrite } from "../thinContent";
 import { isHighlightWorthy } from "../highlightWorthy";
 import { isPushWorthy } from "../pushWorthy";
 import { postToTopicPages } from "../social/topicPosting";
@@ -263,7 +264,7 @@ const SOCIAL_BACKLOG_WINDOW_MS = 1 * 24 * 60 * 60 * 1000;
 
 export async function autoApproveValidArticles(): Promise<{ checked: number; approved: number }> {
   const candidates = await db.select({
-    id: article.id, slug: article.slug, title: article.title, body: article.body,
+    id: article.id, slug: article.slug, title: article.title, body: article.body, summary: article.summary,
     heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
     playerNewsSourced: article.playerNewsSourced, sourceName: article.sourceName,
     trendingScore: article.trendingScore, category: article.category,
@@ -281,8 +282,9 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
 
     // Best-effort, same isolation principle as the Facebook post below —
     // a failed ping here should never affect publishing.
-    // Match rows are noindex (article page metadata) — nothing to submit.
-    await submitToIndexNow(toApprove.filter((a) => !isMatchDataSource(a.sourceName)).map((a) => articleUrl(a.slug)));
+    // Match rows and short write-ups are noindex (article page metadata,
+    // thinContent.ts) — nothing to submit for them.
+    await submitToIndexNow(toApprove.filter((a) => !isMatchDataSource(a.sourceName) && !isThinRewrite(a)).map((a) => articleUrl(a.slug)));
   }
 
   // Social-posting candidate pool: NOT scoped to just-approved toApprove

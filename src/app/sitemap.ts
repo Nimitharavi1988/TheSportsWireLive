@@ -10,6 +10,7 @@ import { CATEGORY_META } from "@/lib/categoryMeta";
 import { MATCH_DATA_SOURCE_NAMES } from "@/lib/matchDataSources";
 import { VENUES } from "@/lib/venues";
 import { listAthleteSlugs } from "@/lib/events/athleteRead";
+import { indexableArticleSql } from "@/lib/thinContent";
 
 export const revalidate = 3600;
 
@@ -27,8 +28,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .from(articleTable)
     // Match rows are templated score cards and are noindex (see the
     // article page's generateMetadata) — /scores and the sport pages are
-    // what should rank for scores.
-    .where(and(eq(articleTable.status, "published"), notInArray(articleTable.sourceName, MATCH_DATA_SOURCE_NAMES)))
+    // what should rank for scores. Short write-ups of other outlets'
+    // reports are noindex too (thinContent.ts).
+    .where(and(eq(articleTable.status, "published"), notInArray(articleTable.sourceName, MATCH_DATA_SOURCE_NAMES), indexableArticleSql()))
     .orderBy(desc(articleTable.publishedAt))
     .limit(20000);
 
