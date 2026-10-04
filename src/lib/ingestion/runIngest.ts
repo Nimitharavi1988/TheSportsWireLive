@@ -1,7 +1,10 @@
 import { isPromoBannerImage } from "./promoImages";
 import { db } from "@/db";
 import { article, vertical } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { and, count, eq, gte, inArray, isNotNull, ne, notInArray } from "drizzle-orm";
+import { DEFAULT_DAILY_NEWS_COMMENTARY_CAP, commentaryRunBudget, scaledReserve } from "./commentaryBudget";
+import { isNotAStory } from "../thinContent";
+import { ORIGINAL_SOURCE } from "../stories";
 import { createId } from "@paralleldrive/cuid2";
 import { fetchFootballData, type RawMatchItem } from "./footballData";
 import { fetchNflData } from "./nflData";
@@ -42,7 +45,7 @@ import { extractArticleContent, extractArticleContentDetailed } from "./articleT
 import { fetchPersonPhoto, sportSearchHint } from "./wikimediaImages";
 import { isExcludedSource } from "../excludedSources";
 import { competitionFromSummary } from "../teamNames";
-import { isMatchDataSource, supersedes } from "../matchDataSources";
+import { MATCH_DATA_SOURCE_NAMES, isMatchDataSource, supersedes } from "../matchDataSources";
 import { resolvePrimaryPlayerName } from "../players";
 
 // Prefers a source-provided stable id (see RawMatchItem.dedupeKey) over the
@@ -321,7 +324,11 @@ export async function runIngest() {
     // through (most reach here via the per-player Google News search,
     // playerNewsFeeds.ts, not a fixed feed) — see excludedSources.ts for
     // why a source lands here instead of being caught by a content check.
-    .filter((item) => !isExcludedSource(item.sourceName));
+    .filter((item) => !isExcludedSource(item.sourceName))
+    // Fan-site threads, stream listings and TV guides: never a story of their
+    // own and always noindex (thinContent.ts), so not worth a write-up or a
+    // place on the site (2026-10-04; ~600 a day).
+    .filter((item) => isMatchDataSource(item.sourceName) || !isNotAStory(item.title));
   const stockImagePicker = createStockImagePicker(stockImagePools);
 
   // Cloudflare Workers caps outbound subrequests per invocation, and every
@@ -407,7 +414,19 @@ export async function runIngest() {
       ? existing.body === null && existing.status !== "flagged" && existing.status !== "rejected"
       : true;
   }).length;
-  const cricketCommentaryCap = Math.min(CRICKET_COMMENTARY_RESERVED, cricketCandidateCount);
+  // This run's share of the daily write-up cap (commentaryBudget.ts): the
+  // write-ups already made in the last 24 hours are counted once up front.
+  const dailyCommentaryCap = Number(process.env.DAILY_NEWS_COMMENTARY_CAP ?? DEFAULT_DAILY_NEWS_COMMENTARY_CAP);
+  const [{ n: commentaryUsedToday }] = await db.select({ n: count() }).from(article).where(and(
+    gte(article.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000)),
+    isNotNull(article.body),
+    ne(article.sourceName, ORIGINAL_SOURCE),
+    notInArray(article.sourceName, MATCH_DATA_SOURCE_NAMES),
+  ));
+  const runCommentaryBudget = commentaryRunBudget(dailyCommentaryCap, commentaryUsedToday, MAX_COMMENTARY_PER_RUN);
+  console.log(`News write-ups: ${commentaryUsedToday} in the last 24h of ${dailyCommentaryCap} a day; ${runCommentaryBudget} this run.`);
+
+  const cricketCommentaryCap = Math.min(scaledReserve(CRICKET_COMMENTARY_RESERVED, MAX_COMMENTARY_PER_RUN, runCommentaryBudget), cricketCandidateCount, runCommentaryBudget);
   const minorCandidateCount = rawItems.filter((item) => {
     if (!MINOR_SPORT_CATEGORIES.has(item.category) || isMatchDataSource(item.sourceName)) return false;
     const existing = existingArticles.get(dedupeHashFor(item));
@@ -415,8 +434,8 @@ export async function runIngest() {
       ? existing.body === null && existing.status !== "flagged" && existing.status !== "rejected"
       : true;
   }).length;
-  const minorCommentaryCap = Math.min(MINOR_SPORT_COMMENTARY_RESERVED, minorCandidateCount);
-  const otherCommentaryCap = MAX_COMMENTARY_PER_RUN - cricketCommentaryCap - minorCommentaryCap;
+  const minorCommentaryCap = Math.min(scaledReserve(MINOR_SPORT_COMMENTARY_RESERVED, MAX_COMMENTARY_PER_RUN, runCommentaryBudget), minorCandidateCount, runCommentaryBudget - cricketCommentaryCap);
+  const otherCommentaryCap = Math.max(0, runCommentaryBudget - cricketCommentaryCap - minorCommentaryCap);
 
   // Cricket draws from its own reserved floor first; everything else shares
   // the remainder of MAX_COMMENTARY_PER_RUN by trending priority, same as

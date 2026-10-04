@@ -26,6 +26,13 @@ export interface LocaleConfig {
   // whole run, replacing dailyCaps. Sized so a launch has depth in every sport
   // without drowning the thin ones in NFL/baseball.
   backfillCaps: Record<string, number>;
+  // Max NEW translations per rolling 24h of noindex stories: short write-ups
+  // of other outlets' news and match score cards (thinContent.ts). They were
+  // 97% of translations (2026-10-04: 545 of 566 in a day) yet never reach
+  // search; this keeps a day's worth of the most relevant ones for the
+  // edition's front page and Facebook Page. Indexed stories (the writers'
+  // pieces, enriched reports) are always translated. Not applied to backfills.
+  thinDailyCap: number;
 }
 
 export const LOCALES: Record<string, LocaleConfig> = {
@@ -45,6 +52,7 @@ export const LOCALES: Record<string, LocaleConfig> = {
       "Keep clock times and time zones as written (e.g. 7:00 PM UTC); translate month names (Oct -> oct.)",
     ],
     backfillCaps: { football: 400, "football/world-cup": 60, basketball: 200, "formula-1": 150, athletics: 100, baseball: 250, "american-football": 300, volleyball: 60, rugby: 60, hockey: 120, wnba: 100, tennis: 150, boxing: 100, mma: 100, motogp: 80, cycling: 80, golf: 80, padel: 120 },
+    thinDailyCap: 50,
     dailyCaps: { football: 120, "football/world-cup": 40, basketball: 60, "formula-1": 40, athletics: 20, baseball: 40, "american-football": 60, volleyball: 20, rugby: 20, hockey: 30, wnba: 30, tennis: 30, boxing: 20, mma: 20, motogp: 15, cycling: 15, golf: 15, padel: 25 },
     priorityTerms: [
       "la liga", "real madrid", "barcelona", "barça", "atlético", "atletico", "sevilla", "valencia", "villarreal", "athletic club",

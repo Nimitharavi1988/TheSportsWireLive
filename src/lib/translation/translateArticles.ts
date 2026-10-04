@@ -6,7 +6,7 @@ import { and, count, eq, gte, inArray, isNotNull, lte, or, sql } from "drizzle-o
 import { createId } from "@paralleldrive/cuid2";
 import { callGemini, aiUnavailableReason, MODEL } from "../ingestion/commentary";
 import { enabledLocales, type LocaleConfig } from "../i18n/locales";
-import { applyDailyCaps, checkTranslation, priorityScore, slugFromTitle, sourceHash, type Fields } from "./checks";
+import { applyDailyCaps, applyThinCap, checkTranslation, priorityScore, slugFromTitle, sourceHash, type Fields } from "./checks";
 import { reviewTranslation, type Review } from "./review";
 import { submitToIndexNow } from "../indexNow";
 import { liveLocales, localeOrigin } from "../i18n/liveLocales";
@@ -59,6 +59,20 @@ async function translateOnce(locale: LocaleConfig, f: Fields, model?: string, fe
   });
   if (!parsed || typeof parsed.title !== "string" || typeof parsed.summary !== "string" || typeof parsed.body !== "string") return null;
   return { title: parsed.title.trim(), summary: parsed.summary.trim(), body: parsed.body.trim() };
+}
+
+// New translations in the last 24h of stories that are noindex (thinContent.ts).
+async function thinTranslatedToday(locale: string): Promise<number> {
+  try {
+    const rows = await db
+      .select({ sourceName: article.sourceName, title: article.title, body: article.body, summary: article.summary })
+      .from(articleTranslation)
+      .innerJoin(article, eq(article.id, articleTranslation.articleId))
+      .where(and(eq(articleTranslation.locale, locale), eq(articleTranslation.status, "translated"), gte(articleTranslation.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000))));
+    return rows.filter(isThinRewrite).length;
+  } catch {
+    return 0;
+  }
 }
 
 export async function translateArticles(opts: { dryRun?: boolean } = {}): Promise<{ translated: number; failed: number; skipped: number }> {
@@ -140,8 +154,11 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
         return c.prev.status === "failed";
       })
       .sort((a, b) => priorityScore(b.trendingScore, b.title, locale.priorityTerms) - priorityScore(a.trendingScore, a.title, locale.priorityTerms))
-      .map((c) => ({ ...c, isNew: !c.prev }));
-    const todo = applyDailyCaps(ranked, backfill ? {} : usedToday, backfill ? locale.backfillCaps : locale.dailyCaps).slice(0, maxPerRun);
+      .map((c) => ({ ...c, isNew: !c.prev, thin: isThinRewrite(c) }));
+    // Noindex stories get a small daily allowance (locale.thinDailyCap); the
+    // site's indexed stories are always translated.
+    const capped = backfill ? ranked : applyThinCap(ranked, await thinTranslatedToday(locale.code), locale.thinDailyCap);
+    const todo = applyDailyCaps(capped, backfill ? {} : usedToday, backfill ? locale.backfillCaps : locale.dailyCaps).slice(0, maxPerRun);
 
     console.log(`Translation [${locale.code}]: ${candidates.length} recent published, ${todo.length} to translate (cap ${maxPerRun})${opts.dryRun ? " [dry-run]" : ""}`);
 
