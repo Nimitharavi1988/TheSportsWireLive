@@ -4,6 +4,7 @@ import Box from "@mui/material/Box";
 
 export const metadata = {
   title: "About",
+  alternates: { canonical: "/about" },
   description: "Who publishes Sports Wire Live, how our coverage is produced, and how to reach us.",
 };
 

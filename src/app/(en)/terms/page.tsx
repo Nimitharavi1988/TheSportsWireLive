@@ -2,7 +2,7 @@ import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 
-export const metadata = { title: "Terms of Service" };
+export const metadata = { title: "Terms of Service", alternates: { canonical: "/terms" } };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

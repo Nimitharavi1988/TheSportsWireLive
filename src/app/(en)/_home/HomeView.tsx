@@ -122,8 +122,10 @@ export function homeMetadata(category?: string) {
     const url = category ? localeSportUrl(l.code, category) : `${localeOrigin(l.code)}/`;
     if (url) alt[l.code] = url;
   }
-  const languages = Object.keys(alt).length > 0 ? { languages: { en: category ? `/sport/${category}` : "/", ...alt } } : {};
-  if (!meta) return { alternates: { canonical: "/", ...languages, ...rssTypes } };
+  const enUrl = category ? `/sport/${category}` : "/";
+  // x-default: the English page is the fallback for any other language.
+  const languages = Object.keys(alt).length > 0 ? { languages: { en: enUrl, "x-default": enUrl, ...alt } } : {};
+  if (!meta) return { alternates: { canonical: "/", ...languages, ...rssTypes }, openGraph: { siteName: "Sports Wire Live", type: "website", url: "/" } };
   return {
     title: meta.title,
     description: meta.description,
@@ -883,8 +885,21 @@ export async function HomeView({ category, locale }: { category?: string; locale
     })
   );
 
+  // The English front page tells search engines what the site is: its name,
+  // logo (the same icon NewsArticle's publisher uses) and search. Only real
+  // values (see CLAUDE.md's structured-data policy).
+  const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
+  const siteJsonLd = !category && !locale ? [
+    { "@context": "https://schema.org", "@type": "Organization", name: "Sports Wire Live", url: siteUrl, logo: { "@type": "ImageObject", url: `${siteUrl}/icon-512`, width: 512, height: 512 } },
+    {
+      "@context": "https://schema.org", "@type": "WebSite", name: "Sports Wire Live", url: siteUrl,
+      potentialAction: { "@type": "SearchAction", target: { "@type": "EntryPoint", urlTemplate: `${siteUrl}/search?q={search_term_string}` }, "query-input": "required name=search_term_string" },
+    },
+  ] : null;
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      {siteJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd).replace(/</g, "\\u003c") }} />}
       {/* AdSense loads only on pages of the site's own stories (home, sport
           sections, news articles) — see GoogleAdSense.tsx. */}
       {/* The page's one <h1>, for search engines and screen readers (the visible

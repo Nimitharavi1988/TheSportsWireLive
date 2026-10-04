@@ -29,8 +29,11 @@ export const metadata = {
   // Recommended range is ~120-158 characters; expanded to name the site's
   // real, actual categories (NBA/NHL were already live categories this
   // description simply never mentioned) rather than padding with filler.
+  // "Automatically updated around the clock" dropped (2026-10-04): the
+  // site's own analysis is now what it should be known for, and that phrase
+  // read as an automated feed to reviewers (AdSense).
   description:
-    "Breaking football, cricket, NFL, NBA, and NHL news, live scores, transfer updates, and match reports from Sports Wire Live — automatically updated around the clock.",
+    "Football, cricket, NFL, NBA and NHL news, live scores and standings, with match previews and analysis from the Sports Wire Live writers.",
   openGraph: {
     siteName: "Sports Wire Live",
     type: "website",
