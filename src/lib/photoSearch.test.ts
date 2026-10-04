@@ -72,6 +72,13 @@ describe("photo search", () => {
     expect(fromCommons({ ...commonsPage, imageinfo: [{ ...commonsPage.imageinfo[0], mime: "image/svg+xml" }] })).toBeNull();
   });
 
+  it("decodes HTML entities in the photographer's name", () => {
+    const artist = '<a href="//www.flickr.com/people/maizeandbluenation">Maize &amp; Blue Nation</a>';
+    const r = fromCommons({ ...commonsPage, imageinfo: [{ ...commonsPage.imageinfo[0], extmetadata: { ...commonsPage.imageinfo[0].extmetadata, Artist: { value: artist } } }] })!;
+    expect(r.credit).toBe("Photo by Maize & Blue Nation (CC BY-SA 4.0), via Wikimedia Commons");
+    expect(fromOpenverse({ ...openverseWikimedia, creator: "Maize &amp; Blue Nation" })!.creator).toBe("Maize & Blue Nation");
+  });
+
   it("recognises the same Commons file from either source", () => {
     const a = photoKey({ importUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/The_Sports_Hub.jpg/1280px-The_Sports_Hub.jpg", landingUrl: "https://commons.wikimedia.org/w/index.php?curid=1" });
     const b = photoKey({ importUrl: "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/04/The_Sports_Hub.jpg/1280px-The_Sports_Hub.jpg", landingUrl: "https://commons.wikimedia.org/wiki/File:The_Sports_Hub.jpg" });
