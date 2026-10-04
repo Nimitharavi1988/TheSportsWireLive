@@ -11,22 +11,28 @@ import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import { getDict } from "@/lib/i18n/dictionary";
 
 export async function leagueMetadata(code: string, locale?: string) {
+  const league = STANDINGS_LEAGUES.find((l) => l.code === code.toUpperCase());
+  if (!league) return {};
   const apiKey = process.env.FOOTBALL_DATA_API_KEY;
-  if (!apiKey) return {};
-  const table = await fetchStandingsTable(apiKey, code.toUpperCase());
-  if (!table) return {};
-  return { title: getDict(locale).standings.leagueTitle(table.competitionName), alternates: { canonical: `/standings/${code.toUpperCase()}` } };
+  const table = apiKey ? await fetchStandingsTable(apiKey, league.code) : null;
+  return { title: getDict(locale).standings.leagueTitle(table?.competitionName ?? league.name), alternates: { canonical: `/standings/${league.code}` } };
 }
 
 // One football league's full table, English or a language edition.
 export async function StandingsLeagueView({ code, locale }: { code: string; locale?: string }) {
   const params = { code };
   const t = getDict(locale);
+  // Only a league we don't cover is "not found". A failed fetch of one we
+  // do cover (football-data.org's free tier allows 10 calls a minute) used
+  // to answer 404 too, and that 404 was cached: Google found five of the
+  // nine league pages in the sitemap "not found" (2026-10-04). Throwing
+  // instead keeps serving the last good page while it retries.
+  if (!STANDINGS_LEAGUES.some((l) => l.code === params.code.toUpperCase())) notFound();
   const apiKey = process.env.FOOTBALL_DATA_API_KEY;
-  if (!apiKey) notFound();
+  if (!apiKey) throw new Error("FOOTBALL_DATA_API_KEY is not set");
 
   const table = await fetchStandingsTable(apiKey, params.code.toUpperCase());
-  if (!table || table.rows.length === 0) notFound();
+  if (!table || table.rows.length === 0) throw new Error(`Standings for ${params.code} unavailable right now`);
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>

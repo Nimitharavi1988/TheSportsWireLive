@@ -2,7 +2,7 @@ import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 
-export const metadata = { title: "Privacy Policy" };
+export const metadata = { title: "Privacy Policy", alternates: { canonical: "/privacy" } };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
