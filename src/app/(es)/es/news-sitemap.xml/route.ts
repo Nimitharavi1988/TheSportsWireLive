@@ -4,6 +4,7 @@ import { and, desc, eq, gte, notInArray } from "drizzle-orm";
 import { MATCH_DATA_SOURCE_NAMES } from "@/lib/matchDataSources";
 import { LOCALES } from "@/lib/i18n/locales";
 import { escapeXml } from "@/lib/xml";
+import { indexableArticleSql } from "@/lib/thinContent";
 
 // Spanish Google News sitemap (es.sportswirelive.com/news-sitemap.xml): same
 // rules as the English one — last 48h, at most 1,000 URLs, no match score
@@ -23,6 +24,9 @@ export async function GET() {
       eq(articleTranslation.locale, "es"),
       eq(articleTranslation.status, "translated"),
       notInArray(article.sourceName, MATCH_DATA_SOURCE_NAMES),
+      // A translation of a short write-up is noindex like its original
+      // (thinContent.ts) — missed here when that rule went in (2026-10-04).
+      indexableArticleSql(),
       gte(article.createdAt, new Date(Date.now() - WINDOW_MS)),
     ))
     .orderBy(desc(article.createdAt))
