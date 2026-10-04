@@ -39,7 +39,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .from(articleTable)
     .where(and(isNotNull(articleTable.seriesKey), eq(articleTable.status, "published")));
 
-  const authors = await db.select({ slug: authorTable.slug }).from(authorTable);
+  // Only writers with something published: an empty writer page is noindex
+  // (author/[slug]/page.tsx).
+  const authors = await db.selectDistinct({ slug: authorTable.slug }).from(authorTable)
+    .innerJoin(articleTable, and(eq(articleTable.authorSlug, authorTable.slug), eq(articleTable.status, "published")));
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: siteUrl, changeFrequency: "hourly", priority: 1 },

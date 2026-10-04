@@ -32,10 +32,16 @@ const getAuthor = cache(async (slug: string) => {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const writer = await getAuthor((await params).slug);
   if (!writer) return {};
+  // A writer with nothing published yet (a draft saved under their name, or
+  // a byline since moved to another name) has an empty page: not offered to
+  // search engines until there's something on it (left out of sitemap.ts too).
+  const [published] = await db.select({ id: article.id }).from(article)
+    .where(and(eq(article.authorSlug, writer.slug), eq(article.status, "published"))).limit(1);
   return {
     title: `${writer.name} — Sports Writer at Sports Wire Live`,
     description: writer.bio?.slice(0, 160) || `Stories, previews and analysis by ${writer.name} for Sports Wire Live.`,
     alternates: { canonical: `/author/${writer.slug}` },
+    ...(published ? {} : { robots: { index: false, follow: true } }),
   };
 }
 
