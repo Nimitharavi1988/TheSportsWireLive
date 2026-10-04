@@ -50,14 +50,17 @@ export function significantWords(title: string): Set<string> {
 // category of them.
 const MIN_ABSOLUTE_OVERLAP = 3;
 
-export function isSimilarTitle(a: string, b: string, threshold = 0.5): boolean {
-  const wa = significantWords(a);
-  const wb = significantWords(b);
+// The overlap test on two already-computed word sets (pure, unit-tested).
+export function sharesWords(wa: Set<string>, wb: Set<string>, threshold = 0.5, minOverlap = MIN_ABSOLUTE_OVERLAP): boolean {
   if (wa.size === 0 || wb.size === 0) return false;
   let overlap = 0;
   for (const w of wa) if (wb.has(w)) overlap++;
-  if (overlap < MIN_ABSOLUTE_OVERLAP) return false;
+  if (overlap < minOverlap) return false;
   return overlap / Math.min(wa.size, wb.size) >= threshold;
+}
+
+export function isSimilarTitle(a: string, b: string, threshold = 0.5): boolean {
+  return sharesWords(significantWords(a), significantWords(b), threshold);
 }
 
 export function isSimilarToAny(title: string, others: string[], threshold = 0.5): boolean {

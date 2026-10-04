@@ -77,6 +77,19 @@ export function priorityScore(trendingScore: number, title: string, priorityTerm
 // translation is kept only while its sport is under its cap (counting what was
 // already translated in the last 24h). Re-translations of changed articles
 // (isNew false) are never capped. A sport without a cap is unlimited.
+// New translations of capped (noindex) stories, at most `cap` more in the
+// period `usedSoFar` was counted over, highest priority first (items arrive
+// sorted). Other stories and re-translations always pass (pure, unit-tested).
+export function applyThinCap<T extends { isNew: boolean; thin: boolean }>(items: T[], usedToday: number, cap: number): T[] {
+  let used = usedToday;
+  return items.filter((it) => {
+    if (!it.isNew || !it.thin) return true;
+    if (used >= cap) return false;
+    used++;
+    return true;
+  });
+}
+
 export function applyDailyCaps<T extends { category: string; isNew: boolean }>(
   items: T[],
   usedToday: Record<string, number>,

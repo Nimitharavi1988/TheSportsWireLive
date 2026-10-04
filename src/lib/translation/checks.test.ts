@@ -1,5 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { checkTranslation, sourceHash, slugFromTitle, priorityScore, applyDailyCaps } from "./checks";
+import { checkTranslation, sourceHash, slugFromTitle, priorityScore, applyDailyCaps, applyThinCap } from "./checks";
+
+describe("applyThinCap", () => {
+  const item = (id: string, thin: boolean, isNew = true) => ({ id, thin, isNew });
+  it("lets only the first new noindex stories through, in priority order", () => {
+    const items = [item("a", true), item("b", false), item("c", true), item("d", true)];
+    expect(applyThinCap(items, 48, 50).map((i) => i.id)).toEqual(["a", "b", "c"]);
+  });
+  it("always lets indexed stories and re-translations through", () => {
+    const items = [item("a", true, false), item("b", false), item("c", true)];
+    expect(applyThinCap(items, 50, 50).map((i) => i.id)).toEqual(["a", "b"]);
+  });
+});
 
 const src = {
   title: "Brown scores twice as Northern Ireland win 3-0",
