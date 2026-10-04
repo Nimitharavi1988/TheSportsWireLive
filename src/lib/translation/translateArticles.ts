@@ -196,6 +196,14 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
         model = RETRY_MODEL;
         res = await attempt(RETRY_MODEL, [res.reason]);
       }
+      // The AI ran out of room, or went down, during this item (normal on free
+      // tiers, which end each day): that isn't the translation's fault. Leave
+      // the item untouched for the next run, rather than counting a failed
+      // attempt or holding it for review because its review couldn't run.
+      if (!res.ok && aiUnavailableReason()) {
+        console.log(`Translation: stopping — ${aiUnavailableReason()}`);
+        break;
+      }
       const out = res.out;
       const verdict = res.ok ? ({ ok: true } as const) : ({ ok: false, reason: res.reason } as const);
 

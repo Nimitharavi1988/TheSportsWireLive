@@ -30,6 +30,13 @@ jobs:
           ARTICLE_ID: ${{ inputs.article_id }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # AI router (src/lib/llm): free providers in order; all optional, off unless LLM_ROUTER=1.
+          LLM_ROUTER: ${{ vars.LLM_ROUTER }}
+          LLM_DISABLE: ${{ vars.LLM_DISABLE }}
+          LLM_PAID_DAILY_CALLS: ${{ vars.LLM_PAID_DAILY_CALLS }}
+          GEMINI_FREE_API_KEY: ${{ secrets.GEMINI_FREE_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           SITE_URL: ${{ vars.SITE_URL }}
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
