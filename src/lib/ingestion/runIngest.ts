@@ -132,6 +132,14 @@ const MAX_MATCH_RECAP_PER_RUN = 20;
 // cricket doesn't actually need still spills over via the pre-pass below.
 const CRICKET_COMMENTARY_RESERVED = 35;
 
+// A floor for the sports added 2026-10-03 (tennis, boxing, MMA, MotoGP, cycling, golf,
+// padel). Their stories rank low on the trending score next to football and cricket, so
+// with the shared budget alone they got almost no articles (boxing had two). The floor
+// is used first by these sports; once it is spent they still compete for the shared
+// budget like everyone else, and what they do not need spills over.
+const MINOR_SPORT_COMMENTARY_RESERVED = 25;
+const MINOR_SPORT_CATEGORIES = new Set(["tennis", "boxing", "mma", "motogp", "cycling", "golf", "padel"]);
+
 // RSS items older than this are skipped outright rather than ingested —
 // see the skip site below for why. 24 hours, matching the site's display
 // windows (heroConfig.ts, 2026-09-27; was 3 days): an item first seen when
@@ -376,6 +384,7 @@ export async function runIngest() {
   let flagged = 0;
   let cricketCommentaryCalls = 0;
   let otherCommentaryCalls = 0;
+  let minorCommentaryCalls = 0;
   let matchRecapCalls = 0;
 
   // Spillover: cricket's reserve is a ceiling, not a guarantee it'll all get
@@ -399,19 +408,28 @@ export async function runIngest() {
       : true;
   }).length;
   const cricketCommentaryCap = Math.min(CRICKET_COMMENTARY_RESERVED, cricketCandidateCount);
-  const otherCommentaryCap = MAX_COMMENTARY_PER_RUN - cricketCommentaryCap;
+  const minorCandidateCount = rawItems.filter((item) => {
+    if (!MINOR_SPORT_CATEGORIES.has(item.category) || isMatchDataSource(item.sourceName)) return false;
+    const existing = existingArticles.get(dedupeHashFor(item));
+    return existing
+      ? existing.body === null && existing.status !== "flagged" && existing.status !== "rejected"
+      : true;
+  }).length;
+  const minorCommentaryCap = Math.min(MINOR_SPORT_COMMENTARY_RESERVED, minorCandidateCount);
+  const otherCommentaryCap = MAX_COMMENTARY_PER_RUN - cricketCommentaryCap - minorCommentaryCap;
 
   // Cricket draws from its own reserved floor first; everything else shares
   // the remainder of MAX_COMMENTARY_PER_RUN by trending priority, same as
   // before. Total spend is unchanged — this only changes which items the
   // existing budget goes to.
   function canAffordCommentary(category: string): boolean {
-    return category === "cricket"
-      ? cricketCommentaryCalls < cricketCommentaryCap
-      : otherCommentaryCalls < otherCommentaryCap;
+    if (category === "cricket") return cricketCommentaryCalls < cricketCommentaryCap;
+    if (MINOR_SPORT_CATEGORIES.has(category) && minorCommentaryCalls < minorCommentaryCap) return true;
+    return otherCommentaryCalls < otherCommentaryCap;
   }
   function recordCommentaryCall(category: string): void {
     if (category === "cricket") cricketCommentaryCalls++;
+    else if (MINOR_SPORT_CATEGORIES.has(category) && minorCommentaryCalls < minorCommentaryCap) minorCommentaryCalls++;
     else otherCommentaryCalls++;
   }
 
@@ -922,7 +940,7 @@ export async function runIngest() {
   console.log(
     `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${staleSkipped} stale RSS items skipped (older than ${MAX_RSS_ITEM_AGE_MS / 86400000}d), ${crossProviderSkipped} matches already stored from another provider (${crossProviderRefreshed} scored from a superseding one), ${reopenedFromDirect} Google-News-rejected stories reopened from the publisher's own feed, ` +
     `${duplicates} duplicates skipped (${backfilled} of those backfilled with a body they missed on a previous run), ` +
-    `${cricketCommentaryCalls + otherCommentaryCalls} RSS commentary calls (${cricketCommentaryCalls} cricket, ${otherCommentaryCalls} other), ${matchRecapCalls} match recap calls. ` +
+    `${cricketCommentaryCalls + minorCommentaryCalls + otherCommentaryCalls} RSS commentary calls (${cricketCommentaryCalls} cricket, ${minorCommentaryCalls} new sports, ${otherCommentaryCalls} other), ${matchRecapCalls} match recap calls. ` +
     `(${scoreItems.length} from football-data.org, ${nflItems.length} from ESPN NFL, ${newsItems.length} from RSS, ${playerNewsItems.length} from per-player Google News search, ${cricketItems.length} from CricketData.org, ${trendingKeywords.length} trending keywords checked)`
   );
 }

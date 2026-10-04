@@ -1032,7 +1032,7 @@ export async function HomeView({ category, locale }: { category?: string; locale
 
             {!loc && <SentimentLeaderboard />}
 
-            {quotes.length > 0 && (
+            {!category && quotes.length > 0 && (
               <Box sx={{ mt: 3 }}>
                 <QuotesStrip quotes={quotes} />
               </Box>
@@ -1294,7 +1294,7 @@ export async function HomeView({ category, locale }: { category?: string; locale
                 ESPN's own feed down to a single item) can genuinely have
                 neither a live cricket match nor any brief articles, and
                 previously that meant nothing rendered here at all. */}
-            {briefArticles.length === 0 && quotes.length > 0 && (
+            {!category && briefArticles.length === 0 && quotes.length > 0 && (
               <QuotesStrip quotes={quotes} />
             )}
             {/* Our writers' pieces while there are only a few (see
