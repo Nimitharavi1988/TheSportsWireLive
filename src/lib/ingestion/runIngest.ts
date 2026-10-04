@@ -414,17 +414,19 @@ export async function runIngest() {
       ? existing.body === null && existing.status !== "flagged" && existing.status !== "rejected"
       : true;
   }).length;
-  // This run's share of the daily write-up cap (commentaryBudget.ts): the
-  // write-ups already made in the last 24 hours are counted once up front.
+  // This run's share of the daily write-up cap (commentaryBudget.ts), paced
+  // by the hour. Counted on updatedAt, not createdAt: a story first seen
+  // earlier and written up now (the retry path above) counts when it's
+  // written. A little high (other edits also bump updatedAt), never low.
   const dailyCommentaryCap = Number(process.env.DAILY_NEWS_COMMENTARY_CAP ?? DEFAULT_DAILY_NEWS_COMMENTARY_CAP);
-  const [{ n: commentaryUsedToday }] = await db.select({ n: count() }).from(article).where(and(
-    gte(article.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000)),
+  const [{ n: commentaryUsedLastHour }] = await db.select({ n: count() }).from(article).where(and(
+    gte(article.updatedAt, new Date(Date.now() - 60 * 60 * 1000)),
     isNotNull(article.body),
     ne(article.sourceName, ORIGINAL_SOURCE),
     notInArray(article.sourceName, MATCH_DATA_SOURCE_NAMES),
   ));
-  const runCommentaryBudget = commentaryRunBudget(dailyCommentaryCap, commentaryUsedToday, MAX_COMMENTARY_PER_RUN);
-  console.log(`News write-ups: ${commentaryUsedToday} in the last 24h of ${dailyCommentaryCap} a day; ${runCommentaryBudget} this run.`);
+  const runCommentaryBudget = commentaryRunBudget(dailyCommentaryCap, commentaryUsedLastHour, MAX_COMMENTARY_PER_RUN);
+  console.log(`News write-ups: ${commentaryUsedLastHour} in the last hour (cap ${dailyCommentaryCap} a day); ${runCommentaryBudget} this run.`);
 
   const cricketCommentaryCap = Math.min(scaledReserve(CRICKET_COMMENTARY_RESERVED, MAX_COMMENTARY_PER_RUN, runCommentaryBudget), cricketCandidateCount, runCommentaryBudget);
   const minorCandidateCount = rawItems.filter((item) => {

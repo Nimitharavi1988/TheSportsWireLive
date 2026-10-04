@@ -26,12 +26,13 @@ export interface LocaleConfig {
   // whole run, replacing dailyCaps. Sized so a launch has depth in every sport
   // without drowning the thin ones in NFL/baseball.
   backfillCaps: Record<string, number>;
-  // Max NEW translations per rolling 24h of noindex stories: short write-ups
-  // of other outlets' news and match score cards (thinContent.ts). They were
-  // 97% of translations (2026-10-04: 545 of 566 in a day) yet never reach
-  // search; this keeps a day's worth of the most relevant ones for the
-  // edition's front page and Facebook Page. Indexed stories (the writers'
-  // pieces, enriched reports) are always translated. Not applied to backfills.
+  // Max NEW translations a day of noindex short write-ups of other outlets'
+  // news (thinContent.ts), spread over the day's hours (cap / 24 an hour).
+  // They were 97% of translations (2026-10-04: 545 of 566 in a day) yet never
+  // reach search; this keeps the most relevant ones for the edition's front
+  // page and Facebook Page. Indexed stories (the writers' pieces, enriched
+  // reports) and match score cards (their sport's dailyCaps) are not
+  // counted. Not applied to backfills.
   thinDailyCap: number;
 }
 

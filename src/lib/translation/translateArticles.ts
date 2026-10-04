@@ -61,15 +61,25 @@ async function translateOnce(locale: LocaleConfig, f: Fields, model?: string, fe
   return { title: parsed.title.trim(), summary: parsed.summary.trim(), body: parsed.body.trim() };
 }
 
-// New translations in the last 24h of stories that are noindex (thinContent.ts).
-async function thinTranslatedToday(locale: string): Promise<number> {
+// Short write-ups of other outlets' news (thinContent.ts) are what
+// locale.thinDailyCap limits. Match score cards are left to their sport's
+// daily cap: they are short by nature, not a cost problem, and an untranslated
+// card sends a Spanish visitor to the English page.
+type CappedFields = { sourceName: string; title: string; body: string | null; summary: string | null };
+const isCappedThin = (a: CappedFields) => isThinRewrite(a) && !isMatchDataSource(a.sourceName);
+
+// New translations in the last hour of stories under that cap. Paced by the
+// hour, not counted over a rolling day: the day this went in, the last 24
+// hours already held ~545, so a rolling-day count would have stopped every
+// new Spanish rewrite for ~20 hours.
+async function thinTranslatedLastHour(locale: string): Promise<number> {
   try {
     const rows = await db
       .select({ sourceName: article.sourceName, title: article.title, body: article.body, summary: article.summary })
       .from(articleTranslation)
       .innerJoin(article, eq(article.id, articleTranslation.articleId))
-      .where(and(eq(articleTranslation.locale, locale), eq(articleTranslation.status, "translated"), gte(articleTranslation.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000))));
-    return rows.filter(isThinRewrite).length;
+      .where(and(eq(articleTranslation.locale, locale), eq(articleTranslation.status, "translated"), gte(articleTranslation.createdAt, new Date(Date.now() - 60 * 60 * 1000))));
+    return rows.filter(isCappedThin).length;
   } catch {
     return 0;
   }
@@ -154,10 +164,10 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
         return c.prev.status === "failed";
       })
       .sort((a, b) => priorityScore(b.trendingScore, b.title, locale.priorityTerms) - priorityScore(a.trendingScore, a.title, locale.priorityTerms))
-      .map((c) => ({ ...c, isNew: !c.prev, thin: isThinRewrite(c) }));
-    // Noindex stories get a small daily allowance (locale.thinDailyCap); the
-    // site's indexed stories are always translated.
-    const capped = backfill ? ranked : applyThinCap(ranked, await thinTranslatedToday(locale.code), locale.thinDailyCap);
+      .map((c) => ({ ...c, isNew: !c.prev, thin: isCappedThin(c) }));
+    // Noindex write-ups get a small allowance (locale.thinDailyCap, spread
+    // over the day's hours); the site's indexed stories are always translated.
+    const capped = backfill ? ranked : applyThinCap(ranked, await thinTranslatedLastHour(locale.code), Math.ceil(locale.thinDailyCap / 24));
     const todo = applyDailyCaps(capped, backfill ? {} : usedToday, backfill ? locale.backfillCaps : locale.dailyCaps).slice(0, maxPerRun);
 
     console.log(`Translation [${locale.code}]: ${candidates.length} recent published, ${todo.length} to translate (cap ${maxPerRun})${opts.dryRun ? " [dry-run]" : ""}`);
