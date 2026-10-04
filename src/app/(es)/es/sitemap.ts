@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { article, articleTranslation } from "@/db/schema";
 import { and, desc, eq, notInArray } from "drizzle-orm";
 import { MATCH_DATA_SOURCE_NAMES } from "@/lib/matchDataSources";
+import { indexableArticleSql } from "@/lib/thinContent";
 import { ES_SPORTS } from "@/lib/i18n/es";
 import { LOCALES } from "@/lib/i18n/locales";
 
@@ -24,6 +25,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       eq(articleTranslation.locale, "es"),
       eq(articleTranslation.status, "translated"),
       notInArray(article.sourceName, MATCH_DATA_SOURCE_NAMES),
+      // A translation of a short write-up is noindex like its original
+      // (thinContent.ts; the article page judges the English row).
+      indexableArticleSql(),
     ))
     .orderBy(desc(article.createdAt))
     .limit(20000);

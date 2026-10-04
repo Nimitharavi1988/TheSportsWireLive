@@ -3,6 +3,7 @@ import { article } from "@/db/schema";
 import { and, desc, eq, gte, notInArray } from "drizzle-orm";
 import { MATCH_DATA_SOURCE_NAMES } from "@/lib/matchDataSources";
 import { escapeXml } from "@/lib/xml";
+import { indexableArticleSql } from "@/lib/thinContent";
 
 // Google News sitemap: the stories published in the last two days, which is
 // how Google News / Top Stories discover a news site's new articles quickly
@@ -23,6 +24,8 @@ export async function GET() {
     .where(and(
       eq(article.status, "published"),
       notInArray(article.sourceName, MATCH_DATA_SOURCE_NAMES),
+      // Short write-ups of other outlets' reports are noindex (thinContent.ts).
+      indexableArticleSql(),
       // createdAt: when the story went up on this site — publishedAt can be
       // the source's own (earlier) time.
       gte(article.createdAt, new Date(Date.now() - WINDOW_MS))

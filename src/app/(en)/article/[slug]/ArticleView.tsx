@@ -31,6 +31,7 @@ import { TRACKED_PLAYERS } from "@/lib/players";
 import { TRACKED_CLUBS } from "@/lib/clubs";
 import { createEntityLinker } from "@/lib/entityLinks";
 import { isMatchDataSource } from "@/lib/matchDataSources";
+import { isThinRewrite } from "@/lib/thinContent";
 import { currentScoreMatch } from "@/lib/scores/scoreboard";
 import { MatchHeader } from "@/components/scores/MatchHeader";
 import { ArticleVideos, MatchHighlightsForArticle, VideoStripSkeleton } from "@/components/videos/VideoStrip";
@@ -193,7 +194,10 @@ export async function articleMetadata(slug: string, locale?: string) {
     // each, ~2,100 of them) — kept for readers, but not offered to search
     // engines as articles: at that volume thin pages can weigh on how the
     // whole site is judged. /scores and the sport pages rank for scores.
-    ...(isMatchDataSource(article.sourceName) ? { robots: { index: false, follow: true } } : {}),
+    // Short write-ups of other outlets' reports get the same treatment
+    // (thinContent.ts). Judged on the English row, so a translation follows
+    // its original.
+    ...(isMatchDataSource(article.sourceName) || isThinRewrite(english) ? { robots: { index: false, follow: true } } : {}),
     openGraph: {
       title: article.title,
       description,
