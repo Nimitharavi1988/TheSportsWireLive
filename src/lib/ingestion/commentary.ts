@@ -29,7 +29,7 @@ import type { GeminiSchema } from "../llm/schema";
 // reasoning, which is exactly the workload the lite tier is designed for.
 export const MODEL = "gemini-flash-lite-latest";
 
-function buildRssPrompt(title: string, sourceSnippet: string, sourceName: string): string {
+export function buildRssPrompt(title: string, sourceSnippet: string, sourceName: string): string {
   return `You are writing a brief original news blurb for a sports aggregator site, based on a report from ${sourceName}.
 
 Headline: "${title}"

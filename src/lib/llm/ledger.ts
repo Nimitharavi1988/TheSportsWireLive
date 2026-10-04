@@ -79,7 +79,11 @@ export function recordSuccess(u: Usage, tokens: number): void {
 export function recordRateLimit(u: Usage, now: number, resetHourUtc: number, hint: { retryAfterSec?: number; daily?: boolean } = {}): void {
   u.strikes += 1;
   let until: number;
-  if (hint.daily || u.strikes >= 4) until = nextReset(now, resetHourUtc);
+  if (hint.daily && hint.retryAfterSec !== undefined) {
+    // The provider named when the allowance returns: believe it (it is often
+    // sooner than our guess at the quota day's end), but not past that end.
+    until = Math.min(now + hint.retryAfterSec * 1000, nextReset(now, resetHourUtc));
+  } else if (hint.daily || u.strikes >= 4) until = nextReset(now, resetHourUtc);
   else {
     const wait = hint.retryAfterSec !== undefined ? hint.retryAfterSec * 1000 : 60_000 * 2 ** (u.strikes - 1);
     until = now + Math.min(Math.max(wait, 5_000), MAX_TEMPORARY_BLOCK);
@@ -165,8 +169,13 @@ export class Pacer {
   }
 }
 
-// A rough token count for a prompt plus the part of the reply we expect to
-// use, for budget checks before the real usage is known.
+// A rough token count for a prompt plus the reply we expect, for budget
+// checks before the real usage is known. A reply is rarely near the maximum
+// allowed (a translation is about as long as its source), so it's estimated
+// from the prompt and capped by the maximum: assuming 60% of the maximum made
+// an 8,192-token translation limit look like 4,900 tokens, five times too
+// tight for a per-minute limit like Groq's 8,000.
 export function estimateTokens(promptChars: number, maxOutputTokens: number): number {
-  return Math.ceil(promptChars / 3.5) + Math.ceil(maxOutputTokens * 0.6);
+  const prompt = Math.ceil(promptChars / 3.5);
+  return prompt + Math.min(Math.ceil(maxOutputTokens * 0.6), Math.ceil(prompt * 1.2) + 300);
 }

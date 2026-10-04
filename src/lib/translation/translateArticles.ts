@@ -26,7 +26,7 @@ const RETRY_MODEL = "gemini-flash-latest"; // lite first (cheaper); flagged item
 const MAX_ATTEMPTS = 3;
 const MIN_BODY_CHARS = 200;
 
-function buildPrompt(locale: LocaleConfig, f: Fields, feedback: string[] = []): string {
+export function buildPrompt(locale: LocaleConfig, f: Fields, feedback: string[] = []): string {
   return `You are a professional sports-news translator. Translate the article below from English into ${locale.promptName}.
 
 Rules:

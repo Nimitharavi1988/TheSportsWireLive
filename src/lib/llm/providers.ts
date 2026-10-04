@@ -7,9 +7,12 @@
  * Free limits, as published or reported on 2026-10-04 (they change without
  * notice, which is why the router also obeys each provider's own "too many
  * requests" answers, and every number can be overridden by an env var):
- *  - Gemini API free tier (a Google project WITHOUT billing): not published;
- *    commonly ~15 requests/min and ~1,000/day on Flash-Lite, ~10/min and
- *    ~250/day on Flash. Your real numbers: aistudio.google.com/rate-limit.
+ *  - Gemini API free tier (a Google project WITHOUT billing): Google does not
+ *    publish it; read from its own error on 2026-10-04: Flash allows only 20
+ *    requests a day. Flash-Lite (AI Studio, Rate limits, free project): 15
+ *    requests/min, 250K tokens/min, 500 requests/day. Google Search grounding
+ *    was refused on the free key ("quota exceeded"), so web research needs
+ *    the paid slot.
  *  - Groq: limits are per model: 30 requests/min, 1,000/day, 8,000
  *    tokens/min, 200,000 tokens/day each on gpt-oss-20b, gpt-oss-120b and
  *    qwen3.8-27b (console.groq.com/docs/rate-limits). Llama 3.x left the free
@@ -41,6 +44,12 @@ export interface Slot {
   // Gemini Flash spends output tokens on hidden reasoning unless told not
   // to; Flash-Lite rejects that setting (see ingestion/commentary.ts).
   thinkingOff?: boolean;
+  // Only for high-priority work (and first in line for it): the strong models
+  // with the smallest daily allowances.
+  highOnly?: boolean;
+  // Position in a tier's chain where it differs from the order slots are
+  // listed in (lower is earlier).
+  order?: Partial<Record<Tier, number>>;
   // OpenAI-style options.
   maxTokensParam?: "max_tokens" | "max_completion_tokens";
   reasoningEffort?: "low";
@@ -63,23 +72,41 @@ const GEMINI_RESET_HOUR_UTC = 8;
 // (a provider misbehaving, or a key to rotate): names are gemini-free, groq,
 // openrouter, ollama, gemini-paid.
 export function buildSlots(env: Record<string, string | undefined>, openRouterModels: string[] = []): Slot[] {
-  const off = new Set((env.LLM_DISABLE ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean));
-  return buildAllSlots(env, openRouterModels).filter((s) => !off.has(s.id.split(" ")[0]));
+  const off = [...new Set((env.LLM_DISABLE ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean))];
+  // A name matches any slot whose id contains it: "groq", "gemma", "gemini-free".
+  return buildAllSlots(env, openRouterModels).filter((s) => !off.some((t) => s.id.toLowerCase().includes(t)));
 }
 
 function buildAllSlots(env: Record<string, string | undefined>, openRouterModels: string[]): Slot[] {
   const slots: Slot[] = [];
-  const gemini = (key: string, id: string, model: string, tiers: Tier[], limits: Limits, paid: boolean, thinkingOff: boolean): Slot => ({
+  const gemini = (key: string, id: string, model: string, tiers: Tier[], limits: Limits, paid: boolean, thinkingOff: boolean, extra: Partial<Slot> = {}): Slot => ({
     id, provider: "gemini", baseUrl: "https://generativelanguage.googleapis.com/v1beta", apiKey: key, model, tiers, limits,
-    budgetKey: `${paid ? "gemini-paid" : "gemini-free"}/${model}`, resetHourUtc: GEMINI_RESET_HOUR_UTC, paid, thinkingOff,
+    budgetKey: `${paid ? "gemini-paid" : "gemini-free"}/${model}`, resetHourUtc: GEMINI_RESET_HOUR_UTC, paid, thinkingOff, ...extra,
   });
 
+  // The free Gemini project's limits, read from AI Studio's Rate limits page on
+  // 2026-10-04. Each MODEL has its own allowance (as with Groq's), which is
+  // what lets one project carry the site's bulk work:
+  //   Gemini 3.5 and 3.1 Flash-Lite   15 requests/min, 250K tokens/min, 500 a day each
+  //   Gemma 4 31B and 26B             30 requests/min, 16K tokens/min, 14,400 a day each
+  //   Gemini 3.5 to 3.8 Flash         5 requests/min, 250K tokens/min, 20 a day each
+  // (Gemini 2.5 models are closed to new accounts, and Gemini 3 has no free
+  // Search grounding, so web research needs the paid slot.)
+  // The 2026-10-04 test (10 write-ups and 5 Spanish translations per model, on
+  // real stories, judged by Gemini) decided the order:
+  //   3.5 Flash-Lite  quality 4.8, 0% invented figures, 1.4 s a call, translations ok
+  //   3.1 Flash-Lite  quality 5.0, translations 3 of 3 ok, 10-27 s a call
+  //   gpt-oss-120b    quality 4.9, translations 3 of 3 ok, 12 s
+  //   Qwen            quality 4.7, translations ok/minor, 22-50 s
+  //   Gemma 4         the 14,400-a-day looks big, but 16K tokens a minute and
+  //                   long "thinking" meant only 4 of 10 write-ups (31B) or 6
+  //                   of 10 (26B) came back, with stalls of minutes: last resort.
   const freeKey = env.GEMINI_FREE_API_KEY;
   if (freeKey) {
-    slots.push(gemini(freeKey, "gemini-free lite", GEMINI_LITE, ["lite"], { rpm: num(env.GEMINI_FREE_LITE_RPM, 12), rpd: num(env.GEMINI_FREE_LITE_RPD, 1000) }, false, false));
-    // Standard work only: Flash's small daily allowance is kept for the
-    // researched reports and drafts, not spent on bulk summaries.
-    slots.push(gemini(freeKey, "gemini-free flash", GEMINI_STANDARD, ["standard"], { rpm: num(env.GEMINI_FREE_FLASH_RPM, 8), rpd: num(env.GEMINI_FREE_FLASH_RPD, 250) }, false, true));
+    const lite = (id: string, model: string): Slot => gemini(freeKey, id, model, ["lite", "standard"],
+      { rpm: num(env.GEMINI_FREE_LITE_RPM, 14), rpd: num(env.GEMINI_FREE_LITE_RPD, 500), tpm: num(env.GEMINI_FREE_LITE_TPM, 240000) }, false, false);
+    slots.push(lite("gemini-free lite", GEMINI_LITE));
+    slots.push(lite("gemini-free lite31", "gemini-3.1-flash-lite"));
   }
 
   const groqKey = env.GROQ_API_KEY;
@@ -90,10 +117,11 @@ function buildAllSlots(env: Record<string, string | undefined>, openRouterModels
       budgetKey: `groq/${model}`, resetHourUtc: 0, paid: false, maxTokensParam: "max_completion_tokens",
       ...(model.startsWith("openai/gpt-oss") ? { reasoningEffort: "low" as const } : {}),
     });
-    // Each model has its own daily allowance: the small one takes bulk work,
-    // the large one standard work, Qwen (good at Spanish) either.
-    slots.push(groq("openai/gpt-oss-20b", ["lite"]));
-    slots.push(groq("openai/gpt-oss-120b", ["standard"]));
+    // Each model has its own daily allowance. gpt-oss-120b was the best Groq
+    // model in the 2026-10-04 test (a translation rated "ok" 3 times in 3) and
+    // leads standard work; gpt-oss-20b was dropped (muddled facts, left words
+    // untranslated); Qwen is sound but slow (22-50 s a call).
+    slots.push({ ...groq("openai/gpt-oss-120b", ["lite", "standard"]), order: { standard: -1 } });
     slots.push(groq("qwen/qwen3.8-27b", ["lite", "standard"]));
   }
 
@@ -107,6 +135,24 @@ function buildAllSlots(env: Record<string, string | undefined>, openRouterModels
         limits: orLimits, budgetKey: "openrouter", resetHourUtc: 0, paid: false, maxTokensParam: "max_tokens",
         extraHeaders: { "HTTP-Referer": env.SITE_URL ?? "https://sportswirelive.com", "X-Title": "Sports Wire Live" },
       });
+    }
+  }
+
+  // Last resort before giving up (see the test results above).
+  if (freeKey) {
+    const gemma = (id: string, model: string): Slot => gemini(freeKey, id, model, ["lite", "standard"],
+      { rpm: num(env.GEMINI_FREE_GEMMA_RPM, 28), rpd: num(env.GEMINI_FREE_GEMMA_RPD, 14000), tpm: num(env.GEMINI_FREE_GEMMA_TPM, 15000) }, false, false);
+    slots.push(gemma("gemini-free gemma31", "gemma-4-31b-it"));
+    slots.push(gemma("gemini-free gemma26", "gemma-4-26b-a4b-it"));
+  }
+
+  // Four strong Flash models with 20 requests a day each: 80 a day for the work
+  // that matters most (researched reports, fact-checks, drafts), which asks for
+  // them with "high" priority; other work never touches them.
+  if (freeKey) {
+    for (const model of ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash"]) {
+      slots.push(gemini(freeKey, `gemini-free flash${model.replace(/\D/g, "")}`, model, ["standard"],
+        { rpm: num(env.GEMINI_FREE_FLASH_RPM, 4), rpd: num(env.GEMINI_FREE_FLASH_RPD, 20) }, false, true, { highOnly: true }));
     }
   }
 
@@ -127,13 +173,18 @@ function buildAllSlots(env: Record<string, string | undefined>, openRouterModels
   return slots;
 }
 
-// The slots that may answer a request of this tier, in the order buildSlots
-// lists them (best first), with any paid slot always last.
-export function chainFor(slots: Slot[], tier: Tier): Slot[] {
+// The slots that may answer a request of this tier and priority, best first:
+// high-priority work gets the strong low-allowance models first and other
+// work never sees them; otherwise the order buildSlots lists them in (or a
+// slot's own `order` for the tier); any paid slot is always last.
+export function chainFor(slots: Slot[], tier: Tier, priority: "high" | "normal" | "low" = "normal"): Slot[] {
   return slots
     .map((s, i) => ({ s, i }))
-    .filter(({ s }) => s.tiers.includes(tier))
-    .sort((a, b) => Number(a.s.paid) - Number(b.s.paid) || a.i - b.i)
+    .filter(({ s }) => s.tiers.includes(tier) && (!s.highOnly || priority === "high"))
+    .sort((a, b) => Number(a.s.paid) - Number(b.s.paid)
+      || Number(!!b.s.highOnly) - Number(!!a.s.highOnly)
+      || (a.s.order?.[tier] ?? a.i) - (b.s.order?.[tier] ?? b.i)
+      || a.i - b.i)
     .map(({ s }) => s);
 }
 
@@ -148,8 +199,10 @@ interface OpenRouterModel {
 }
 
 export function pickOpenRouterFree(models: OpenRouterModel[]): string[] {
-  const AVOID = /safety|guard|code|omni|preview|stealth|audio|image|vision|embed|lyria|content/i;
-  const PREFER = /nemotron-3-super|qwen3|gemma-4|gpt-oss|llama-3\.3|deepseek/i;
+  // nemotron: in the 2026-10-04 test it returned no JSON on 3 of 5 write-ups
+  // and took up to two minutes a call.
+  const AVOID = /safety|guard|code|omni|preview|stealth|audio|image|vision|embed|lyria|content|nemotron/i;
+  const PREFER = /qwen3|gemma-4|gpt-oss|llama-3\.3|deepseek/i;
   return models
     .filter((m) => m.id.endsWith(":free") && Number(m.pricing?.prompt) === 0 && Number(m.pricing?.completion) === 0)
     .filter((m) => !AVOID.test(m.id) && (m.context_length ?? 0) >= 32_000)

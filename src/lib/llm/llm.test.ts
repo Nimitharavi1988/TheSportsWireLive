@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { extractJson, toJsonSchema, validateAgainstSchema, type GeminiSchema } from "./schema";
 import {
-  Pacer, SOFT_CAP, checkBudget, dayKey, mergeLedgers, nextReset, recordRateLimit, sanitizeLedger, usageFor, type Ledger, type Usage,
+  Pacer, SOFT_CAP, checkBudget, dayKey, estimateTokens, mergeLedgers, nextReset, recordRateLimit, sanitizeLedger, usageFor, type Ledger, type Usage,
 } from "./ledger";
 import { buildSlots, chainFor, pickOpenRouterFree } from "./providers";
-import { LlmRouter, classifyHttpError, type LedgerStore } from "./router";
+import { LlmRouter, classifyHttpError, retryInSeconds, type LedgerStore } from "./router";
 import { ungroundedNumbers } from "./grounding";
 
 const SCHEMA: GeminiSchema = {
@@ -102,6 +102,13 @@ describe("ledger", () => {
     expect(p.waitMs("k", { rpm: 3 }, 100, T + 61_000)).toBe(0);
   });
 
+  it("estimates a reply from the prompt, capped by the maximum allowed", () => {
+    // A 5,000-character translation prompt: ~1,430 tokens in, ~2,000 out, not 4,900.
+    expect(estimateTokens(5000, 8192)).toBeLessThan(3600);
+    // A short prompt with a small maximum is bounded by the maximum.
+    expect(estimateTokens(700, 100)).toBe(200 + 60);
+  });
+
   it("repairs a damaged ledger and merges two jobs' copies", () => {
     expect(sanitizeLedger("junk")).toEqual({});
     expect(sanitizeLedger({ a: { day: "d", requests: "x", tokens: -4, blockedUntil: 5, strikes: 1 }, b: 7, c: null })).toEqual({
@@ -123,8 +130,27 @@ describe("providers", () => {
 
   it("orders slots best-first per tier", () => {
     const slots = buildSlots(ALL);
-    expect(chainFor(slots, "lite").map((s) => s.id)).toEqual(["gemini-free lite", "groq openai/gpt-oss-20b", "groq qwen/qwen3.8-27b", "openrouter or-a:free", "openrouter or-b:free"]);
-    expect(chainFor(slots, "standard").map((s) => s.id)).toEqual(["gemini-free flash", "groq openai/gpt-oss-120b", "groq qwen/qwen3.8-27b", "openrouter or-a:free", "openrouter or-b:free"]);
+    // Gemma is last: the 2026-10-04 test found it stalls on its 16K tokens/min.
+    expect(chainFor(slots, "lite").map((s) => s.id)).toEqual([
+      "gemini-free lite", "gemini-free lite31", "groq openai/gpt-oss-120b", "groq qwen/qwen3.8-27b", "openrouter or-a:free", "openrouter or-b:free", "gemini-free gemma31", "gemini-free gemma26",
+    ]);
+    // Standard work: Groq's 120B first (best in the test), then the Flash-Lite
+    // models; the four Flash models (20 a day each) are not offered to ordinary work.
+    const standard = ["groq openai/gpt-oss-120b", "gemini-free lite", "gemini-free lite31", "groq qwen/qwen3.8-27b", "openrouter or-a:free", "openrouter or-b:free", "gemini-free gemma31", "gemini-free gemma26"];
+    expect(chainFor(slots, "standard").map((s) => s.id)).toEqual(standard);
+    expect(chainFor(slots, "standard", "low").map((s) => s.id)).toEqual(standard);
+    // High-priority work gets those Flash models first.
+    expect(chainFor(slots, "standard", "high").map((s) => s.id)).toEqual(["gemini-free flash38", "gemini-free flash37", "gemini-free flash36", "gemini-free flash35", ...standard]);
+  });
+
+  it("gives each free model its own allowance, as the AI Studio rate-limit page lists them", () => {
+    const by = Object.fromEntries(buildSlots(ALL).map((s) => [s.id, s]));
+    expect(by["gemini-free lite"].limits).toMatchObject({ rpm: 14, rpd: 500 });
+    expect(by["gemini-free lite31"].limits).toMatchObject({ rpm: 14, rpd: 500 });
+    expect(by["gemini-free lite31"].budgetKey).not.toBe(by["gemini-free lite"].budgetKey);
+    expect(by["gemini-free gemma31"].limits).toMatchObject({ rpd: 14000, tpm: 15000 });
+    expect(by["gemini-free flash38"].limits.rpd).toBe(20);
+    expect(by["gemini-free flash38"].highOnly).toBe(true);
   });
 
   it("has no paid slot unless asked, and puts it last with a hard cap", () => {
@@ -136,8 +162,12 @@ describe("providers", () => {
     expect(buildSlots({ GEMINI_API_KEY: "p", LLM_PAID_DAILY_CALLS: "5" }).every((s) => s.paid)).toBe(true);
   });
 
-  it("switches providers off by name", () => {
-    expect(chainFor(buildSlots({ ...ALL, LLM_DISABLE: "groq, openrouter" }), "lite").map((s) => s.id)).toEqual(["gemini-free lite"]);
+  it("switches providers off by name, or part of one", () => {
+    expect(chainFor(buildSlots({ ...ALL, LLM_DISABLE: "groq, openrouter" }), "lite").map((s) => s.id))
+      .toEqual(["gemini-free lite", "gemini-free lite31", "gemini-free gemma31", "gemini-free gemma26"]);
+    expect(chainFor(buildSlots({ ...ALL, LLM_DISABLE: "gemma,lite31,openrouter" }), "lite").map((s) => s.id))
+      .toEqual(["gemini-free lite", "groq openai/gpt-oss-120b", "groq qwen/qwen3.8-27b"]);
+    expect(buildSlots({ ...ALL, LLM_DISABLE: "gemini-free" }).some((s) => s.id.startsWith("gemini-free"))).toBe(false);
   });
 
   it("skips providers without a key", () => {
@@ -149,6 +179,7 @@ describe("providers", () => {
     const m = (id: string, ctx: number, params: string[], price = "0") => ({ id, context_length: ctx, pricing: { prompt: price, completion: price }, supported_parameters: params });
     expect(pickOpenRouterFree([
       m("qwen/qwen3.8-27b:free", 262144, ["structured_outputs"]),
+      m("nvidia/nemotron-3-super-120b-a12b:free", 262144, ["response_format", "structured_outputs"]),
       m("nvidia/nemotron-3.5-content-safety:free", 128000, ["response_format"]),
       m("google/gemma-4-31b-it:free", 262144, ["response_format"]),
       m("someone/preview-model:free", 262144, ["response_format"]),
@@ -167,6 +198,26 @@ describe("HTTP errors", () => {
     expect(classifyHttpError(429, h(), '{"error":{"details":[{"retryDelay":"31s"}]}}')).toMatchObject({ retryAfterSec: 31 });
     expect(classifyHttpError(429, h(), "Rate limit reached for requests per day (RPD)")).toMatchObject({ daily: true });
     expect(classifyHttpError(429, h(), "GenerateRequestsPerDayPerProjectPerModel-FreeTier")).toMatchObject({ daily: true });
+  });
+
+  it("reads Google's free-tier daily limit, which only says 'retry in 1h29m'", () => {
+    const body = "You exceeded your current quota. * Quota exceeded for metric: generate_content_free_tier_requests, limit: 20, model: gemini-3.8-flash Please retry in 1h29m28.163317664s.";
+    expect(retryInSeconds(body)).toBe(5369);
+    expect(retryInSeconds("Please retry in 31s")).toBe(31);
+    expect(retryInSeconds("Please retry in 2m")).toBe(120);
+    expect(retryInSeconds("nothing here")).toBeUndefined();
+    expect(classifyHttpError(429, h(), body)).toMatchObject({ kind: "rate-limit", daily: true, retryAfterSec: 5369 });
+    expect(classifyHttpError(429, h(), "Please retry in 20s")).toMatchObject({ daily: false, retryAfterSec: 20 });
+  });
+
+  it("blocks until the time a provider names for a used-up allowance, but not past the quota day", () => {
+    const T = Date.UTC(2026, 9, 4, 12);
+    const u: Usage = { day: "d", requests: 0, tokens: 0, blockedUntil: 0, strikes: 0 };
+    recordRateLimit(u, T, 8, { daily: true, retryAfterSec: 5369 });
+    expect(u.blockedUntil).toBe(T + 5369_000);
+    const v: Usage = { ...u, blockedUntil: 0, strikes: 0 };
+    recordRateLimit(v, T, 8, { daily: true, retryAfterSec: 25 * 3600 }); // would pass the next 08:00 UTC reset
+    expect(v.blockedUntil).toBe(nextReset(T, 8));
   });
 
   it("blocks for a long time on auth, payment and missing-model errors, and retries server errors", () => {
@@ -202,12 +253,12 @@ function memoryStore(initial: Ledger = {}): LedgerStore & { saved: Ledger[] } {
   return { saved, async load() { return structuredClone(current); }, async save(l) { current = structuredClone(l); saved.push(current); } };
 }
 
-function makeRouter(env: Record<string, string>, net: ReturnType<typeof fakeNetwork>, extra: { store?: LedgerStore; now?: () => number; maxTotalWaitMs?: number } = {}) {
+function makeRouter(env: Record<string, string>, net: ReturnType<typeof fakeNetwork>, extra: { store?: LedgerStore; now?: () => number; maxTotalWaitMs?: number; groundedFree?: boolean } = {}) {
   const sleeps: number[] = [];
   const logs: string[] = [];
   const router = new LlmRouter(buildSlots(env), {
     fetchFn: net.fn, store: extra.store, now: extra.now ?? (() => Date.UTC(2026, 9, 4, 12)),
-    sleep: async (ms) => { sleeps.push(ms); }, log: (m) => logs.push(m), maxTotalWaitMs: extra.maxTotalWaitMs,
+    sleep: async (ms) => { sleeps.push(ms); }, log: (m) => logs.push(m), maxTotalWaitMs: extra.maxTotalWaitMs, groundedFree: extra.groundedFree,
   });
   return { router, sleeps, logs };
 }
@@ -229,10 +280,10 @@ describe("router", () => {
     const net = fakeNetwork((url) => (url.includes("googleapis") ? { status: 429, headers: { "retry-after": "30" }, text: "busy" } : openai(GOOD)));
     const { router } = makeRouter(FREE, net);
     const first = await router.json(REQ);
-    expect(first.via).toBe("groq openai/gpt-oss-20b");
+    expect(first.via).toBe("groq openai/gpt-oss-120b"); // after both Flash-Lite models said "busy"
     const second = await router.json(REQ);
-    expect(second.via).toBe("groq openai/gpt-oss-20b");
-    expect(net.count("googleapis")).toBe(1); // blocked after the first 429, not asked again
+    expect(second.via).toBe("groq openai/gpt-oss-120b");
+    expect(net.count("googleapis")).toBe(2); // each asked once, then blocked, not asked again
   });
 
   it("walks the whole chain and reports failure when nobody can answer", async () => {
@@ -254,8 +305,39 @@ describe("router", () => {
     const net = fakeNetwork((url) => (url.includes("googleapis") ? { json: { candidates: [{ content: { parts: [{ text: "I cannot help" }] } }] } } : openai(GOOD)));
     const { router } = makeRouter(FREE, net);
     const r = await router.json(REQ);
-    expect(r.via).toBe("groq openai/gpt-oss-20b");
+    expect(r.via).toBe("groq openai/gpt-oss-120b");
     expect(r.attempts[0]).toMatch(/invalid answer/);
+  });
+
+  it("answers from Gemma, through the same Gemini endpoint with a response schema", async () => {
+    const net = fakeNetwork((url) => (url.includes("gemma") ? gemini(GOOD) : { status: 429, text: "busy" }));
+    const { router } = makeRouter({ GEMINI_FREE_API_KEY: "g" }, net);
+    const r = await router.json(REQ);
+    expect(r.via).toBe("gemini-free gemma31");
+    const call = net.calls.find((c) => c.url.includes("gemma-4-31b-it"))!;
+    expect((call.body.generationConfig as Record<string, unknown>).responseSchema).toBeDefined();
+    expect((call.body.generationConfig as Record<string, unknown>).thinkingConfig).toBeUndefined();
+  });
+
+  it("offers the strong Flash models only to high-priority work, and first", async () => {
+    const net = fakeNetwork(() => gemini(GOOD));
+    const std = { ...REQ, tier: "standard" as const };
+    const high = await makeRouter({ GEMINI_FREE_API_KEY: "g" }, net).router.json({ ...std, priority: "high" });
+    expect(high.via).toBe("gemini-free flash38");
+    expect(net.calls[0].url).toContain("gemini-3.8-flash");
+    expect((net.calls[0].body.generationConfig as Record<string, unknown>).thinkingConfig).toEqual({ thinkingBudget: 0 });
+    const normal = await makeRouter({ GEMINI_FREE_API_KEY: "g" }, net).router.json(std);
+    expect(normal.via).toBe("gemini-free lite"); // never a Flash model
+  });
+
+  it("moves through the four Flash models as each reaches its 20 a day", async () => {
+    const net = fakeNetwork(() => gemini(GOOD));
+    const { router } = makeRouter({ GEMINI_FREE_API_KEY: "g", GEMINI_FREE_FLASH_RPD: "2", GEMINI_FREE_FLASH_RPM: "1000" }, net);
+    const used: string[] = [];
+    for (let i = 0; i < 5; i++) used.push((await router.json({ ...REQ, tier: "standard", priority: "high" })).via ?? "none");
+    // 95% of 2 allows 1 each.
+    expect(used.slice(0, 4)).toEqual(["gemini-free flash38", "gemini-free flash37", "gemini-free flash36", "gemini-free flash35"]);
+    expect(used[4]).toBe("gemini-free lite");
   });
 
   it("rejects an answer that doesn't fit the schema", async () => {
@@ -281,11 +363,12 @@ describe("router", () => {
     expect(net.calls[1].body.response_format).toBeUndefined();
   });
 
-  it("reads provider errors reported inside a 200 answer", async () => {
-    const net = fakeNetwork((url) => (url.includes("openrouter") ? { json: { error: { code: 429, message: "free-models-per-day" } } } : openai(GOOD)));
-    const { router } = makeRouter({ OPENROUTER_API_KEY: "o", OPENROUTER_FREE_MODELS: "or-a:free,or-b:free", GROQ_API_KEY: "q" }, net);
-    const r = await router.json({ ...REQ, tier: "standard" });
-    expect(r.via).toBe("groq openai/gpt-oss-120b");
+  it("reads provider errors reported inside a 200 answer, and tries the next model", async () => {
+    const net = fakeNetwork((_url, body) => (body.model === "or-a:free" ? { json: { error: { code: 429, message: "slow down" } } } : openai(GOOD)));
+    const { router } = makeRouter({ OPENROUTER_API_KEY: "o", OPENROUTER_FREE_MODELS: "or-a:free,or-b:free" }, net);
+    const r = await router.json(REQ);
+    expect(r.via).toBe("openrouter or-b:free");
+    expect(r.attempts[0]).toMatch(/or-a:free: rate-limited/);
   });
 
   it("stops asking a model that no longer exists", async () => {
@@ -298,7 +381,7 @@ describe("router", () => {
 
   it("keeps low-priority work to a share of the day, so important work still has room", async () => {
     const net = fakeNetwork(() => gemini(GOOD));
-    const { router } = makeRouter({ GEMINI_FREE_API_KEY: "g", GEMINI_FREE_LITE_RPD: "10", GEMINI_FREE_LITE_RPM: "1000" }, net);
+    const { router } = makeRouter({ GEMINI_FREE_API_KEY: "g", GEMINI_FREE_LITE_RPD: "10", GEMINI_FREE_LITE_RPM: "1000", LLM_DISABLE: "lite31,gemma" }, net);
     const results: boolean[] = [];
     for (let i = 0; i < 7; i++) results.push(!!(await router.json({ ...REQ, priority: "low" })).data);
     expect(results).toEqual([true, true, true, true, true, true, false]);
@@ -320,7 +403,7 @@ describe("router", () => {
 
   it("remembers the day's usage across runs through the store", async () => {
     const store = memoryStore();
-    const env = { GEMINI_FREE_API_KEY: "g", GEMINI_FREE_LITE_RPD: "4", GEMINI_FREE_LITE_RPM: "1000" };
+    const env = { GEMINI_FREE_API_KEY: "g", GEMINI_FREE_LITE_RPD: "4", GEMINI_FREE_LITE_RPM: "1000", LLM_DISABLE: "lite31,gemma" };
     const net = fakeNetwork(() => gemini(GOOD));
     const run1 = makeRouter(env, net, { store }).router;
     for (let i = 0; i < 3; i++) expect((await run1.json(REQ)).data).toBeTruthy();
@@ -332,7 +415,7 @@ describe("router", () => {
   it("starts a new quota day with fresh budgets", async () => {
     let t = Date.UTC(2026, 9, 4, 12);
     const net = fakeNetwork(() => gemini(GOOD));
-    const { router } = makeRouter({ GEMINI_FREE_API_KEY: "g", GEMINI_FREE_LITE_RPD: "2", GEMINI_FREE_LITE_RPM: "1000" }, net, { now: () => t });
+    const { router } = makeRouter({ GEMINI_FREE_API_KEY: "g", GEMINI_FREE_LITE_RPD: "2", GEMINI_FREE_LITE_RPM: "1000", LLM_DISABLE: "lite31,gemma" }, net, { now: () => t });
     expect((await router.json(REQ)).data).toBeTruthy();
     expect((await router.json(REQ)).data).toBeNull(); // floor(2 x 0.85) = 1
     t += 24 * 3_600_000;
@@ -374,23 +457,46 @@ describe("router", () => {
     expect(capped.sleeps).toEqual([]);
   });
 
-  it("answers web-grounded research with Gemini only, returning the sources", async () => {
-    const net = fakeNetwork((url, body) => (url.includes("googleapis")
-      ? { json: { candidates: [{ content: { parts: [{ text: "FACT: one" }] }, groundingMetadata: { groundingChunks: [{ web: { title: "mlb.com" } }] } }], usageMetadata: { totalTokenCount: 50 } } }
-      : openai(body)));
-    const { router } = makeRouter(FREE, net);
+  const SEARCH_REPLY = { json: { candidates: [{ content: { parts: [{ text: "FACT: one" }] }, groundingMetadata: { groundingChunks: [{ web: { title: "mlb.com" } }] } }], usageMetadata: { totalTokenCount: 50 } } };
+
+  it("answers web-grounded research on the paid Gemini slot only, returning the sources", async () => {
+    const net = fakeNetwork((url, body) => (url.includes("googleapis") ? SEARCH_REPLY : openai(body)));
+    const { router } = makeRouter({ ...FREE, GEMINI_API_KEY: "p", LLM_PAID_DAILY_CALLS: "5" }, net);
     const r = await router.grounded({ prompt: "research" });
     expect(r?.text).toBe("FACT: one");
     expect(r?.chunks).toEqual([{ web: { title: "mlb.com" } }]);
+    expect(net.calls).toHaveLength(1);
     expect(net.calls[0].body.tools).toEqual([{ google_search: {} }]);
     expect(net.calls[0].url).toContain("gemini-flash-latest");
     expect((net.calls[0].body.generationConfig as Record<string, unknown>).responseSchema).toBeUndefined();
     expect(net.count("groq")).toBe(0);
   });
 
-  it("returns null for research when Gemini is out of room, never trying other providers", async () => {
-    const net = fakeNetwork(() => ({ status: 429, text: "per day" }));
+  it("skips web research, without spending a request, when there is no paid slot (the free project has no Search grounding)", async () => {
+    const net = fakeNetwork(() => SEARCH_REPLY);
     const { router } = makeRouter(FREE, net);
+    expect(await router.grounded({ prompt: "research" })).toBeNull();
+    expect(net.calls).toHaveLength(0);
+  });
+
+  it("can try the free Gemini models for research when asked to", async () => {
+    const net = fakeNetwork(() => SEARCH_REPLY);
+    const { router } = makeRouter(FREE, net, { groundedFree: true });
+    expect((await router.grounded({ prompt: "research" }))?.via).toBe("gemini-free flash38");
+    expect(net.calls[0].url).toContain("gemini-3.8-flash");
+  });
+
+  it("keeps a refused search from blocking the same model's ordinary answers", async () => {
+    const net = fakeNetwork((_url, body) => (body.tools ? { status: 429, text: "quota exceeded" } : gemini(GOOD)));
+    const { router } = makeRouter(FREE, net, { groundedFree: true });
+    expect(await router.grounded({ prompt: "research" })).toBeNull();
+    const r = await router.json({ ...REQ, tier: "standard", priority: "high" });
+    expect(r.via).toBe("gemini-free flash38");
+  });
+
+  it("returns null for research when the paid slot is out of room, never trying other providers", async () => {
+    const net = fakeNetwork(() => ({ status: 429, text: "per day" }));
+    const { router } = makeRouter({ ...FREE, GEMINI_API_KEY: "p", LLM_PAID_DAILY_CALLS: "5" }, net);
     expect(await router.grounded({ prompt: "research" })).toBeNull();
     expect(net.count("groq") + net.count("openrouter")).toBe(0);
   });

@@ -84,6 +84,15 @@ export interface RouterDeps {
   sleep?: (ms: number) => Promise<void>;
   log?: (message: string) => void;
   maxTotalWaitMs?: number;
+  /** Let web research try the free Gemini slots too (LLM_GROUNDED_FREE=1). */
+  groundedFree?: boolean;
+}
+
+// "Please retry in 1h29m28.163s" in an error message, as seconds (pure, unit-tested).
+export function retryInSeconds(text: string): number | undefined {
+  const m = text.match(/retry in\s+(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:(\d+(?:\.\d+)?)s)?/i);
+  if (!m || (!m[1] && !m[2] && !m[3])) return undefined;
+  return Math.ceil(Number(m[1] ?? 0) * 3600 + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0));
 }
 
 // What a failed HTTP answer means (pure, unit-tested).
@@ -92,10 +101,14 @@ export function classifyHttpError(status: number, headers: { get(name: string): 
   if (status === 429) {
     const header = Number(headers.get("retry-after"));
     const fromBody = body.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/);
+    const retryAfterSec = Number.isFinite(header) && header > 0 ? header : fromBody ? Math.ceil(Number(fromBody[1])) : retryInSeconds(body);
     return {
       kind: "rate-limit",
-      daily: /per[- ]?day|daily|\bRPD\b|\bTPD\b/i.test(body),
-      retryAfterSec: Number.isFinite(header) && header > 0 ? header : fromBody ? Math.ceil(Number(fromBody[1])) : undefined,
+      // A wait of a quarter hour or more is a used-up daily allowance, whatever
+      // the message calls it (Google's free-tier daily limits say only
+      // "limit: 20 ... Please retry in 1h29m").
+      daily: /per[- ]?day|daily|\bRPD\b|\bTPD\b/i.test(body) || (retryAfterSec !== undefined && retryAfterSec >= 900),
+      retryAfterSec,
       detail,
     };
   }
@@ -114,6 +127,7 @@ export class LlmRouter {
   private sleep: (ms: number) => Promise<void>;
   private log: (message: string) => void;
   private maxTotalWaitMs: number;
+  private groundedFree: boolean;
   private waited = 0;
   readonly stats: Record<string, { ok: number; failed: number }> = {};
 
@@ -124,6 +138,7 @@ export class LlmRouter {
     this.sleep = deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
     this.log = deps.log ?? ((m) => console.log(m));
     this.maxTotalWaitMs = deps.maxTotalWaitMs ?? DEFAULT_MAX_TOTAL_WAIT_MS;
+    this.groundedFree = deps.groundedFree ?? false;
   }
 
   /** Whether any free slot is configured (a paid slot alone doesn't count). */
@@ -152,11 +167,13 @@ export class LlmRouter {
    * blocked, and (after a short wait if needed) inside its per-minute limits.
    * Returns the slot's counters, or why not.
    */
-  private async acquire(slot: Slot, priority: Priority, est: number): Promise<{ budget: Usage; block: Usage } | { reason: string }> {
+  private async acquire(slot: Slot, priority: Priority, est: number, blockKind = ""): Promise<{ budget: Usage; block: Usage } | { reason: string }> {
     const ledger = await this.ensureLedger();
     const now = this.now();
     const budget = usageFor(ledger, slot.budgetKey, now, slot.resetHourUtc);
-    const block = usageFor(ledger, `block:${slot.id}`, now, slot.resetHourUtc);
+    // Web research has its own block record: a refused search must not block
+    // the same model's ordinary answers.
+    const block = usageFor(ledger, `block:${slot.id}${blockKind}`, now, slot.resetHourUtc);
     const check = checkBudget(budget, slot.limits, priority, est, now);
     if (!check.ok) return { reason: check.reason };
     const blocked = checkBudget(block, {}, priority, est, now);
@@ -191,7 +208,7 @@ export class LlmRouter {
   async json(req: RouteRequest): Promise<RouteResult> {
     const priority = req.priority ?? "normal";
     const est = estimateTokens(req.prompt.length, req.maxOutputTokens ?? 1024);
-    const chain = chainFor(this.slots, req.tier);
+    const chain = chainFor(this.slots, req.tier, priority);
     const attempts: string[] = [];
     let sawInvalid = false;
     // Slots that had no room or refused, as opposed to answering badly.
@@ -237,15 +254,20 @@ export class LlmRouter {
 
   /**
    * A web-grounded answer (Gemini with Google Search), for research. Only
-   * Gemini slots can do this; the same budgets, blocks and pacing apply.
+   * Gemini slots can do this, and only the paid one: the free project has no
+   * Search grounding on Gemini 3 models (measured 2026-10-04: "quota
+   * exceeded"; the 1,500-a-day allowance is for 2.5 models, closed to new
+   * accounts). Set LLM_GROUNDED_FREE=1 to try the free slots anyway. With no
+   * eligible slot this is simply null and research is skipped. The same
+   * budgets, blocks and pacing apply.
    */
   async grounded(req: GroundedRequest): Promise<GroundedResult | null> {
     const priority = req.priority ?? "high";
     const est = estimateTokens(req.prompt.length, req.maxOutputTokens ?? 3072);
-    const chain = chainFor(this.slots, "standard").filter((s) => s.provider === "gemini");
+    const chain = chainFor(this.slots, "standard", "high").filter((s) => s.provider === "gemini" && (s.paid || this.groundedFree));
     const attempts: string[] = [];
     for (const slot of chain) {
-      const got = await this.acquire(slot, priority, est);
+      const got = await this.acquire(slot, priority, est, ":grounded");
       if ("reason" in got) { attempts.push(`${slot.id}: ${got.reason}`); continue; }
       const { budget, block } = got;
       const outcome = await this.call(slot, { prompt: req.prompt, schema: { type: "OBJECT" }, tier: "standard", temperature: req.temperature, maxOutputTokens: req.maxOutputTokens }, est, true);

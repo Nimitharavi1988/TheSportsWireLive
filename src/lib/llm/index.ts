@@ -62,6 +62,7 @@ export function getRouter(): Promise<LlmRouter | null> {
       const router = new LlmRouter(buildSlots(process.env, openRouterModels), {
         store: await createStore().catch(() => undefined),
         maxTotalWaitMs: process.env.LLM_MAX_TOTAL_WAIT_MS ? Number(process.env.LLM_MAX_TOTAL_WAIT_MS) : undefined,
+        groundedFree: process.env.LLM_GROUNDED_FREE === "1",
       });
       if (!router.hasFreeSlots()) {
         console.warn("LLM router: LLM_ROUTER=1 but no free provider has a key — using the Gemini key directly.");
