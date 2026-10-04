@@ -28,6 +28,10 @@ export const MIN_INDEXED_WORDS = 300;
 const NOT_A_STORY = "open thread|open chat|game thread|live stream|how to watch|where to watch|live updates|live blog";
 const NOT_A_STORY_RE = new RegExp(NOT_A_STORY, "i");
 
+export function isNotAStory(title: string): boolean {
+  return NOT_A_STORY_RE.test(title);
+}
+
 export function articleWords(a: { body: string | null; summary: string | null }): number {
   const text = (a.body?.trim() ? a.body : a.summary ?? "").trim();
   return text ? text.split(/\s+/).length : 0;

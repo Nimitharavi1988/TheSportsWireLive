@@ -135,6 +135,18 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SITE_URL: ${{ vars.SITE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # Top-story enrichment (src/lib/stories/enrich.ts): the day's highest-
+      # trending short write-ups are researched, rewritten as full reports and
+      # fact-checked, which brings them back into search (thinContent.ts).
+      # Capped per run/day; a story that can't be done well is left as it is.
+      # Before the translation step, so a rewritten story is re-translated.
+      - if: ${{ !cancelled() }}
+        run: npx tsx src/lib/stories/enrich.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SITE_URL: ${{ vars.SITE_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
       # Spanish site (src/lib/translation/translateArticles.ts, see PLAN.md):
       # translates newly published articles. Dormant until the repo variable
       # TRANSLATION_LOCALES is set (e.g. "es") -- unset = the step does nothing.
