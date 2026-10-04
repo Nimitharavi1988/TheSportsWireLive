@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { article, vertical } from "@/db/schema";
 import { and, count, eq, gte, inArray, isNotNull, ne, notInArray } from "drizzle-orm";
 import { DEFAULT_DAILY_NEWS_COMMENTARY_CAP, commentaryRunBudget, scaledReserve } from "./commentaryBudget";
+import { COVERAGE_WINDOW_MS, COVERED_REASON, createCoverageIndex } from "./coverageIndex";
 import { isNotAStory } from "../thinContent";
 import { ORIGINAL_SOURCE } from "../stories";
 import { createId } from "@paralleldrive/cuid2";
@@ -439,6 +440,20 @@ export async function runIngest() {
   const minorCommentaryCap = Math.min(scaledReserve(MINOR_SPORT_COMMENTARY_RESERVED, MAX_COMMENTARY_PER_RUN, runCommentaryBudget), minorCandidateCount, runCommentaryBudget - cricketCommentaryCap);
   const otherCommentaryCap = Math.max(0, runCommentaryBudget - cricketCommentaryCap - minorCommentaryCap);
 
+  // Stories already written up in the last 48 hours, per sport: a new story
+  // whose headline closely matches one of them is the same event from
+  // another outlet and isn't written up (coverageIndex.ts). Stories written
+  // up during this run are added as they go.
+  const coverage = createCoverageIndex(
+    await db.select({ title: article.title, category: article.category }).from(article).where(and(
+      gte(article.createdAt, new Date(Date.now() - COVERAGE_WINDOW_MS)),
+      inArray(article.status, ["published", "pending_review"]),
+      isNotNull(article.body),
+      notInArray(article.sourceName, MATCH_DATA_SOURCE_NAMES),
+    )),
+  );
+  let coveredSkipped = 0;
+
   // Cricket draws from its own reserved floor first; everything else shares
   // the remainder of MAX_COMMENTARY_PER_RUN by trending priority, same as
   // before. Total spend is unchanged — this only changes which items the
@@ -550,6 +565,13 @@ export async function runIngest() {
       // article's fate is already decided; retrying its commentary forever
       // was pure waste, a meaningful share of the cost increase after
       // Gemini billing was restored.
+      // Same event as a story already written up: not worth a write-up, and
+      // not left waiting in the queue either.
+      if (existing.body === null && existing.status === "pending_review" && !isMatchDataSource(item.sourceName) && coverage.isCovered(item.title, item.category)) {
+        await db.update(article).set({ status: "rejected", rejectionReason: COVERED_REASON, updatedAt: new Date() }).where(eq(article.id, existing.id));
+        existing.status = "rejected";
+        coveredSkipped++;
+      }
       if (existing.body === null && existing.status !== "flagged" && existing.status !== "rejected" && !isMatchDataSource(item.sourceName) && canAffordCommentary(item.category)) {
         const grounding = await timed("resolveGrounding (page fetch)", () => resolveGrounding(item));
         if (grounding) {
@@ -613,6 +635,7 @@ export async function runIngest() {
               .set({ body: commentary, ...heroImageUpdate, ...(extractedVenue ? { venue: extractedVenue } : {}), updatedAt: new Date() })
               .where(eq(article.id, existing.id));
             existing.body = commentary; // avoid reprocessing if the same story appears twice in this run
+            coverage.add(item.title, item.category);
             existing.heroImageUrl = heroImageUpdate.heroImageUrl ?? existing.heroImageUrl;
             backfilled++;
           }
@@ -738,7 +761,14 @@ export async function runIngest() {
     // waiting for a separate cleanup pass.
     let commentaryAttemptFailed = false;
     let rejectionReason: string | undefined;
-    if (!body && quality.passed && canAffordCommentary(item.category)) {
+    if (!body && quality.passed && coverage.isCovered(item.title, item.category)) {
+      // Same event as a story already written up (coverageIndex.ts): stored
+      // as rejected, like a story that couldn't be written, so a later run
+      // doesn't try it again.
+      commentaryAttemptFailed = true;
+      rejectionReason = COVERED_REASON;
+      coveredSkipped++;
+    } else if (!body && quality.passed && canAffordCommentary(item.category)) {
       // knownPersonName (player-news) items used to be excluded here
       // outright — see resolveGrounding's comment for why they're now
       // routed through page-text extraction instead of being skipped.
@@ -750,8 +780,10 @@ export async function runIngest() {
         // own comment and the retry-path branch above for why this can't
         // just be folded into generateCommentary's own response.
         const commentary = rawCommentary && (await verifyCommentaryHasSubstance(item.title, rawCommentary)) ? rawCommentary : null;
-        if (commentary) body = commentary;
-        else if (!aiUnavailableReason()) {
+        if (commentary) {
+          body = commentary;
+          coverage.add(item.title, item.category);
+        } else if (!aiUnavailableReason()) {
           commentaryAttemptFailed = true;
           rejectionReason = commentaryFailureReason(rawCommentary, grounding.text.length);
         }
@@ -961,7 +993,7 @@ export async function runIngest() {
   console.log(
     `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${staleSkipped} stale RSS items skipped (older than ${MAX_RSS_ITEM_AGE_MS / 86400000}d), ${crossProviderSkipped} matches already stored from another provider (${crossProviderRefreshed} scored from a superseding one), ${reopenedFromDirect} Google-News-rejected stories reopened from the publisher's own feed, ` +
     `${duplicates} duplicates skipped (${backfilled} of those backfilled with a body they missed on a previous run), ` +
-    `${cricketCommentaryCalls + minorCommentaryCalls + otherCommentaryCalls} RSS commentary calls (${cricketCommentaryCalls} cricket, ${minorCommentaryCalls} new sports, ${otherCommentaryCalls} other), ${matchRecapCalls} match recap calls. ` +
+    `${cricketCommentaryCalls + minorCommentaryCalls + otherCommentaryCalls} RSS commentary calls (${cricketCommentaryCalls} cricket, ${minorCommentaryCalls} new sports, ${otherCommentaryCalls} other), ${matchRecapCalls} match recap calls, ${coveredSkipped} not written up (same event as an earlier story). ` +
     `(${scoreItems.length} from football-data.org, ${nflItems.length} from ESPN NFL, ${newsItems.length} from RSS, ${playerNewsItems.length} from per-player Google News search, ${cricketItems.length} from CricketData.org, ${trendingKeywords.length} trending keywords checked)`
   );
 }
