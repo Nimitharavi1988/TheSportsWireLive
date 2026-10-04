@@ -13,7 +13,7 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import Autocomplete from "@mui/material/Autocomplete";
 import { tagGroupLabel, type TagOption } from "@/lib/tagOptions";
-import { saveStory, uploadStoryImage, deleteDraft } from "./actions";
+import { saveStory, uploadStoryImage, deleteDraft, unpublishStory } from "./actions";
 import { PhotoFinder } from "./PhotoFinder";
 import { AiDraftDialog } from "./AiDraftDialog";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
@@ -143,6 +143,18 @@ export function StoryEditor({ initial, categories, seriesOptions, tagOptions, id
       const r = await deleteDraft(v.id!);
       if (r.ok) router.push("/admin/stories");
       else setMessage({ kind: "error", text: r.error });
+    });
+  }
+
+  function unpublish() {
+    if (!v.id || !confirm("Take this story off the site? It goes back to a draft you can edit and publish again.")) return;
+    startTransition(async () => {
+      const r = await unpublishStory(v.id!);
+      if (r.ok) {
+        setV((cur) => ({ ...cur, status: "draft" }));
+        setMessage({ kind: "success", text: "Unpublished — it's a draft again." });
+        router.refresh();
+      } else setMessage({ kind: "error", text: r.error });
     });
   }
 
@@ -295,6 +307,7 @@ export function StoryEditor({ initial, categories, seriesOptions, tagOptions, id
             <Button variant="contained" onClick={() => save(true)} disabled={pending || uploading}>{live ? "Update" : "Publish"}</Button>
             {!live && <Button variant="outlined" onClick={() => save(false)} disabled={pending || uploading}>Save draft</Button>}
             {v.id && v.status === "draft" && <Button color="error" onClick={remove} disabled={pending}>Delete draft</Button>}
+            {v.id && live && <Button color="warning" onClick={unpublish} disabled={pending}>Unpublish</Button>}
           </>
         ) : (
           <Button variant="contained" onClick={() => save(false)} disabled={pending || uploading}>Save changes</Button>

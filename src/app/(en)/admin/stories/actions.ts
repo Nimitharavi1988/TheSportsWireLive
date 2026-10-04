@@ -183,6 +183,20 @@ export async function saveStory(input: SaveStoryInput): Promise<Result<{ id: str
   return { ok: true, id: existing.id, slug: existing.slug, status };
 }
 
+// Takes a published original story off the site, back to an editable draft
+// (e.g. a piece found to need a rewrite). Publish puts it back; it then
+// counts as new that day, like any first publish.
+export async function unpublishStory(id: string): Promise<Result<object>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Not signed in." };
+  const [row] = await db.select({ status: article.status, sourceName: article.sourceName, slug: article.slug, category: article.category })
+    .from(article).where(eq(article.id, id)).limit(1);
+  if (!row || row.status !== "published" || !isOriginalStory(row)) return { ok: false, error: "Only published stories written here can be unpublished." };
+  await db.update(article).set({ status: "draft", reviewedBy: session.userId, reviewedAt: new Date(), updatedAt: new Date() }).where(eq(article.id, id));
+  revalidateStory(row.slug, row.category);
+  return { ok: true };
+}
+
 export async function deleteDraft(id: string): Promise<Result<object>> {
   if (!(await getSession())) return { ok: false, error: "Not signed in." };
   const [row] = await db.select({ status: article.status, sourceName: article.sourceName }).from(article).where(eq(article.id, id)).limit(1);
