@@ -130,12 +130,15 @@ function buildAllSlots(env: Record<string, string | undefined>, openRouterModels
   // tokens/min); mistral-small-2603 is limited to 0 and mistral-large to
   // "not allowed" on this plan, so only the Ministral model is used. A smaller
   // model than Groq's 120B, so it follows Groq and precedes OpenRouter.
+  // rpd 4000 (was 1000, which the first day of use reached by evening): the
+  // plan limits are per minute and per month, not a small daily count; about
+  // 900k tokens a day is well inside a monthly allowance. Watch the ledger.
   const mistralKey = env.MISTRAL_API_KEY;
   if (mistralKey) {
     slots.push({
       id: "mistral ministral-14b-2512", provider: "openai", baseUrl: "https://api.mistral.ai/v1", apiKey: mistralKey,
       model: "ministral-14b-2512", tiers: ["lite", "standard"],
-      limits: { rpm: num(env.MISTRAL_RPM, 28), rpd: num(env.MISTRAL_RPD, 1000), tpm: num(env.MISTRAL_TPM, 800000) },
+      limits: { rpm: num(env.MISTRAL_RPM, 28), rpd: num(env.MISTRAL_RPD, 4000), tpm: num(env.MISTRAL_TPM, 800000) },
       budgetKey: "mistral/ministral-14b-2512", resetHourUtc: 0, paid: false, maxTokensParam: "max_tokens",
     });
   }
