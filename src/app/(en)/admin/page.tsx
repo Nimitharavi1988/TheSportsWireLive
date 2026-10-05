@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { article, socialPost } from "@/db/schema";
-import { and, eq, ilike, desc, inArray, count } from "drizzle-orm";
+import { and, eq, desc, inArray, count } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import {
   approveArticle,
@@ -33,6 +33,7 @@ import Link from "next/link";
 import { ArticleQueueClient } from "./ArticleQueueClient";
 import { PipelineHealthPanel } from "./PipelineHealthPanel";
 import { getPipelineHealth } from "@/lib/pipelineHealth";
+import { titleSearch } from "@/lib/adminSearch";
 
 const PAGE_SIZE = 50;
 
@@ -61,7 +62,7 @@ export default async function AdminQueuePage(
     eq(article.status, status),
     ...(source ? [eq(article.sourceName, source)] : []),
     ...(category ? [eq(article.category, category)] : []),
-    ...(q ? [ilike(article.title, `%${q}%`)] : []),
+    ...(q ? [titleSearch(article.title, q)] : []),
   ];
 
   const [{ value: totalForStatus }] = await db.select({ value: count() }).from(article).where(eq(article.status, status));
@@ -103,6 +104,13 @@ export default async function AdminQueuePage(
       : [];
 
   const hasFilters = Boolean(q || source || category);
+  // A search that finds nothing here may well match in the other tab (the queue
+  // lists pending stories by default; a published one isn't in it).
+  const otherStatus = status === "published" ? "pending_review" : "published";
+  const matchesInOtherTab =
+    q && list.length === 0
+      ? (await db.select({ value: count() }).from(article).where(and(eq(article.status, otherStatus), titleSearch(article.title, q))))[0].value
+      : 0;
   const health = await getPipelineHealth();
 
   return (
@@ -179,6 +187,19 @@ export default async function AdminQueuePage(
             py: 4
           }}>
           Nothing matches right now.
+        </Typography>
+      )}
+
+      {list.length === 0 && matchesInOtherTab > 0 && (
+        <Typography align="center" sx={{ pb: 3 }}>
+          {matchesInOtherTab} {matchesInOtherTab === 1 ? "story matches" : "stories match"} in{" "}
+          <Link
+            href={`/admin?q=${encodeURIComponent(q ?? "")}&status=${otherStatus}`}
+            style={{ color: "inherit", fontWeight: 700 }}
+          >
+            {otherStatus === "published" ? "Published" : "the review queue"}
+          </Link>
+          .
         </Typography>
       )}
 

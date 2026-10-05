@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { article as articleTable } from "@/db/schema";
-import { and, eq, ilike, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { featureArticle, unfeatureArticle, highlightArticle, unhighlightArticle } from "../actions";
 import { HERO_CAP, sectionOf } from "@/lib/heroConfig";
@@ -15,6 +15,7 @@ import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
 import Link from "next/link";
+import { titleSearch } from "@/lib/adminSearch";
 
 const HIGHLIGHT_DISPLAY_CAP = 4;
 
@@ -35,7 +36,7 @@ export default async function HomepageManagerPage(
       .orderBy(desc(articleTable.highlightedAt)),
     q
       ? db.select().from(articleTable)
-          .where(and(eq(articleTable.status, "published"), ilike(articleTable.title, `%${q}%`)))
+          .where(and(eq(articleTable.status, "published"), titleSearch(articleTable.title, q)))
           .orderBy(desc(articleTable.publishedAt))
           .limit(20)
       : Promise.resolve([]),

@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { article, poll, pollOption } from "@/db/schema";
-import { and, eq, inArray, ilike, asc } from "drizzle-orm";
+import { and, eq, inArray, asc } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { getSession } from "@/lib/auth";
 import { isMatchDataSource } from "@/lib/matchDataSources";
@@ -15,6 +15,7 @@ import { REEL_THEME_NAMES, REEL_FONT_NAMES, type ReelTheme, type ReelFont } from
 import { HERO_CAP, sectionOf } from "@/lib/heroConfig";
 import { submitToIndexNow, articleUrl } from "@/lib/indexNow";
 import { revalidatePath } from "next/cache";
+import { titleSearch } from "@/lib/adminSearch";
 
 export async function approveArticle(articleId: string) {
   const session = await getSession();
@@ -230,7 +231,7 @@ export async function approveAllMatching(filters: { q?: string; source?: string;
     eq(article.status, "pending_review"),
     ...(source ? [eq(article.sourceName, source)] : []),
     ...(category ? [eq(article.category, category)] : []),
-    ...(q ? [ilike(article.title, `%${q}%`)] : []),
+    ...(q ? [titleSearch(article.title, q)] : []),
   ];
 
   const candidates = await db.select({
