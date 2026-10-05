@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { article, vertical } from "@/db/schema";
 import { and, count, eq, gte, inArray, isNotNull, ne, notInArray } from "drizzle-orm";
 import { commentaryRunBudget, dailyCommentaryCapFrom, scaledReserve } from "./commentaryBudget";
+import { runPool } from "./pool";
 import { COVERAGE_WINDOW_MS, COVERED_REASON, createCoverageIndex } from "./coverageIndex";
 import { isNotAStory } from "../thinContent";
 import { ORIGINAL_SOURCE } from "../stories";
@@ -76,6 +77,9 @@ function sleep(ms: number) {
 // RPM ceiling, while letting a run actually get through far more of the
 // pending backlog in the same wall-clock window.
 const COMMENTARY_DELAY_MS = 400;
+// Items processed at once (pool.ts). Three keeps a run well inside the free
+// providers' per-minute limits while cutting the wait on slow AI calls.
+const DEFAULT_ITEM_CONCURRENCY = 3;
 
 // Cap real Gemini calls per ingestion run. Billing IS linked on this account
 // (a card was added after Gemini's `generateContent` required one to work at
@@ -206,10 +210,12 @@ interface Grounding {
 // an unnecessary extra fetch. Every other feed's own snippet is used when
 // substantive, and only falls back to page extraction when it's too thin.
 // Why grounding found nothing, for Article.rejectionReason.
-let lastGroundingFailure = "";
+// Why grounding failed, per item: items now run concurrently, so a single shared
+// variable could be overwritten by another item before it is read.
+const groundingFailures = new WeakMap<RawMatchItem, string>();
 
 async function resolveGrounding(item: RawMatchItem): Promise<Grounding | null> {
-  lastGroundingFailure = "";
+  groundingFailures.delete(item);
   const snippet = item.sourceSnippet?.trim();
   if (snippet && snippet.length >= THIN_SNIPPET_THRESHOLD) {
     // The snippet is enough to write from, but a feed without images
@@ -234,12 +240,12 @@ async function resolveGrounding(item: RawMatchItem): Promise<Grounding | null> {
   // the full extraction attempt below -- this only short-circuits the one
   // case already known to be a dead end before spending anything on it.
   if (isGoogleNewsRedirect(item.sourceUrl)) {
-    lastGroundingFailure = "Google News link (unreadable) and feed summary too short";
+    groundingFailures.set(item, "Google News link (unreadable) and feed summary too short");
     return null;
   }
   const extracted = await extractArticleContentDetailed(item.sourceUrl);
   if (!("failure" in extracted)) return { text: extracted.text, imageUrl: extracted.imageUrl };
-  lastGroundingFailure = `source page unreadable (${extracted.failure})${snippet ? "; used short feed summary" : ""}`;
+  groundingFailures.set(item, `source page unreadable (${extracted.failure})${snippet ? "; used short feed summary" : ""}`);
   return snippet ? { text: snippet } : null;
 }
 
@@ -463,14 +469,28 @@ export async function runIngest() {
     if (MINOR_SPORT_CATEGORIES.has(category) && minorCommentaryCalls < minorCommentaryCap) return true;
     return otherCommentaryCalls < otherCommentaryCap;
   }
-  function recordCommentaryCall(category: string): void {
-    if (category === "cricket") cricketCommentaryCalls++;
-    else if (MINOR_SPORT_CATEGORIES.has(category) && minorCommentaryCalls < minorCommentaryCap) minorCommentaryCalls++;
-    else otherCommentaryCalls++;
+  // Reserves a write-up from the budget and says which share it came from.
+  // Items run concurrently now, so the budget is taken BEFORE the slow page
+  // fetch and AI call (check and take are one synchronous step), and given
+  // back if the attempt never reaches the AI.
+  type CommentaryShare = "cricket" | "minor" | "other";
+  function recordCommentaryCall(category: string): CommentaryShare {
+    if (category === "cricket") { cricketCommentaryCalls++; return "cricket"; }
+    if (MINOR_SPORT_CATEGORIES.has(category) && minorCommentaryCalls < minorCommentaryCap) { minorCommentaryCalls++; return "minor"; }
+    otherCommentaryCalls++;
+    return "other";
+  }
+  function releaseCommentaryCall(share: CommentaryShare): void {
+    if (share === "cricket") cricketCommentaryCalls--;
+    else if (share === "minor") minorCommentaryCalls--;
+    else otherCommentaryCalls--;
   }
 
-  for (const item of rawItems) {
-    if (INGEST_LIMIT !== undefined && ingested >= INGEST_LIMIT) break;
+  // Items run a few at a time (pool.ts): a run was 5-10 minutes of waiting on
+  // page fetches and AI calls, one story at a time. The shared state they
+  // touch is only changed between awaits, never across one.
+  const processItem = async (item: RawMatchItem): Promise<void> => {
+    if (INGEST_LIMIT !== undefined && ingested >= INGEST_LIMIT) return;
 
     // A publisher's ad banner is not a photo of the story: drop it so the
     // usual fallbacks (story image lookup, person photo, or no real image,
@@ -573,15 +593,18 @@ export async function runIngest() {
         coveredSkipped++;
       }
       if (existing.body === null && existing.status !== "flagged" && existing.status !== "rejected" && !isMatchDataSource(item.sourceName) && canAffordCommentary(item.category)) {
+        const share = recordCommentaryCall(item.category);
+        coverage.add(item.title, item.category); // reserved for the event while this one is written
         const grounding = await timed("resolveGrounding (page fetch)", () => resolveGrounding(item));
+        if (!grounding) { releaseCommentaryCall(share); coverage.remove(item.title, item.category); }
         if (grounding) {
-          recordCommentaryCall(item.category);
           const { commentary: rawCommentary, personNames, venue: extractedVenue } = await generateCommentary(item.title, grounding.text, item.sourceName);
           // Second-pass vagueness check (see verifyCommentaryHasSubstance's
           // own comment) — a commentary that comes back non-empty but reads
           // as pure headline-paraphrase is treated the same as an empty one
           // below, not silently accepted.
           const commentary = rawCommentary && (await verifyCommentaryHasSubstance(item.title, rawCommentary)) ? rawCommentary : null;
+          if (!commentary) coverage.remove(item.title, item.category);
           const retryReason = commentaryFailureReason(rawCommentary, grounding.text.length);
           await sleep(COMMENTARY_DELAY_MS);
 
@@ -635,7 +658,6 @@ export async function runIngest() {
               .set({ body: commentary, ...heroImageUpdate, ...(extractedVenue ? { venue: extractedVenue } : {}), updatedAt: new Date() })
               .where(eq(article.id, existing.id));
             existing.body = commentary; // avoid reprocessing if the same story appears twice in this run
-            coverage.add(item.title, item.category);
             existing.heroImageUrl = heroImageUpdate.heroImageUrl ?? existing.heroImageUrl;
             backfilled++;
           }
@@ -644,7 +666,7 @@ export async function runIngest() {
           // (extraction blocked, RSS snippet too thin/missing) — same
           // "real attempt failed" rejection as the commentary-came-back-
           // empty case above.
-          await db.update(article).set({ status: "rejected", rejectionReason: lastGroundingFailure || "nothing to write from", updatedAt: new Date() }).where(eq(article.id, existing.id));
+          await db.update(article).set({ status: "rejected", rejectionReason: groundingFailures.get(item) || "nothing to write from", updatedAt: new Date() }).where(eq(article.id, existing.id));
           existing.status = "rejected";
         }
       }
@@ -662,7 +684,7 @@ export async function runIngest() {
           existing.heroImageUrl = personPhoto.url;
         }
       }
-      continue;
+      return;
     }
 
     // RSS feeds aren't reliably reverse-chronological "latest only" lists —
@@ -685,12 +707,12 @@ export async function runIngest() {
       } else {
         crossProviderSkipped++;
       }
-      continue;
+      return;
     }
 
     if (item.sourceSnippet && !isMatchDataSource(item.sourceName) && Date.now() - item.publishedAt.getTime() > MAX_RSS_ITEM_AGE_MS) {
       staleSkipped++;
-      continue;
+      return;
     }
 
     // The editorial gate (profanity, broken-scrape, filler/spam checks) is
@@ -772,9 +794,11 @@ export async function runIngest() {
       // knownPersonName (player-news) items used to be excluded here
       // outright — see resolveGrounding's comment for why they're now
       // routed through page-text extraction instead of being skipped.
+      const share = recordCommentaryCall(item.category);
+      coverage.add(item.title, item.category); // reserved for the event while this one is written
       const grounding = await timed("resolveGrounding (page fetch)", () => resolveGrounding(item));
+      if (!grounding) { releaseCommentaryCall(share); coverage.remove(item.title, item.category); }
       if (grounding) {
-        recordCommentaryCall(item.category);
         const { commentary: rawCommentary, personNames, venue: extractedVenue } = await generateCommentary(item.title, grounding.text, item.sourceName);
         // Second-pass vagueness check — see verifyCommentaryHasSubstance's
         // own comment and the retry-path branch above for why this can't
@@ -782,10 +806,12 @@ export async function runIngest() {
         const commentary = rawCommentary && (await verifyCommentaryHasSubstance(item.title, rawCommentary)) ? rawCommentary : null;
         if (commentary) {
           body = commentary;
-          coverage.add(item.title, item.category);
-        } else if (!aiUnavailableReason()) {
-          commentaryAttemptFailed = true;
-          rejectionReason = commentaryFailureReason(rawCommentary, grounding.text.length);
+        } else {
+          coverage.remove(item.title, item.category);
+          if (!aiUnavailableReason()) {
+            commentaryAttemptFailed = true;
+            rejectionReason = commentaryFailureReason(rawCommentary, grounding.text.length);
+          }
         }
         // AI unavailable (out of credits, rate-limited, down): not a verdict
         // on the story — it stays pending and is written on a later run.
@@ -827,7 +853,7 @@ export async function runIngest() {
         // blocked, RSS snippet too thin) — a real attempt that failed, same
         // as commentary generation coming back empty above.
         commentaryAttemptFailed = true;
-        rejectionReason = lastGroundingFailure || "nothing to write from";
+        rejectionReason = groundingFailures.get(item) || "nothing to write from";
       }
     }
 
@@ -986,7 +1012,11 @@ export async function runIngest() {
 
     ingested++;
     if (!quality.passed) flagged++;
-  }
+  };
+
+  // INGEST_CONCURRENCY=1 restores the old one-at-a-time behavior.
+  const itemConcurrency = Math.max(1, Number(process.env.INGEST_CONCURRENCY) || DEFAULT_ITEM_CONCURRENCY);
+  await runPool(rawItems, itemConcurrency, (item) => [dedupeHashFor(item), ...keysFor(item)], processItem);
 
   logTimingSummary("ingest");
   if (aiUnavailableReason()) console.warn(`[ingest] ${aiUnavailableReason()} — stories were left pending, not rejected; they will be written once the AI is back.`);

@@ -38,6 +38,15 @@ export function createCoverageIndex(rows: { title: string; category: string }[] 
   for (const r of rows) add(r.title, r.category);
   return {
     add,
+    // Takes back one add() (a write-up reserved before the AI call that then
+    // produced nothing, so later stories on the event aren't skipped for it).
+    remove(title: string, category: string): void {
+      const words = significantWords(title);
+      const list = bySport.get(sportOf(category));
+      if (!list || words.size === 0) return;
+      const i = list.findLastIndex((w) => w.size === words.size && [...words].every((x) => w.has(x)));
+      if (i >= 0) list.splice(i, 1);
+    },
     isCovered(title: string, category: string): boolean {
       const words = significantWords(title);
       return (bySport.get(sportOf(category)) ?? []).some((w) => sharesWords(words, w, COVERAGE_THRESHOLD, COVERAGE_MIN_OVERLAP));

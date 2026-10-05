@@ -46,3 +46,15 @@ describe("title similarity helpers", () => {
     expect(sharesWords(a, b, 0.6, 5)).toBe(false);
   });
 });
+
+describe("coverage index remove", () => {
+  it("takes back a reservation so later stories on the event are not skipped", () => {
+    const idx = createCoverageIndex();
+    const t = "Yankees beat Red Sox 5-3 in extra innings thriller";
+    idx.add(t, "baseball");
+    expect(idx.isCovered("Yankees edge Red Sox 5-3 in extra innings thriller", "baseball")).toBe(true);
+    idx.remove(t, "baseball");
+    expect(idx.isCovered("Yankees edge Red Sox 5-3 in extra innings thriller", "baseball")).toBe(false);
+    idx.remove(t, "baseball"); // removing again is harmless
+  });
+});
