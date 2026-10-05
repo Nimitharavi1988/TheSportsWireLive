@@ -38,6 +38,8 @@ describe("enriching top stories", () => {
     expect(creditLine(["mlb.com"], "MLB.com")).toBeNull();
     expect(creditLine(["youtube.com", "ground.news", "apnews.com"], "Yahoo Sports")).toBe("This report also draws on coverage from apnews.com.");
     expect(creditLine([], "BBC Sport")).toBeNull();
+    // a name with a space is still the original publisher, and repeats are listed once
+    expect(creditLine(["Yahoo Sports", "Fox Sports", "fox sports", "MLB.com"], "Yahoo Sports")).toBe("This report also draws on coverage from Fox Sports, MLB.com.");
   });
 
   it("puts the facts and the headline into the prompt", () => {

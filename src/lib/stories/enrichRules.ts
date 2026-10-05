@@ -81,11 +81,23 @@ Rules:
 // testing 2026-10-04: youtube.com, ground.news).
 const NOT_AN_OUTLET = /(^|\.)(youtube\.com|youtu\.be|facebook\.com|instagram\.com|x\.com|twitter\.com|tiktok\.com|reddit\.com|ground\.news|news\.google\.com|msn\.com|wikipedia\.org)$/;
 
+// Names are compared without spaces or punctuation ("Yahoo Sports" is
+// "yahoosports", as is a site called yahoosports.com), so the original publisher
+// is not credited a second time (seen in the 2026-10-05 dry run).
+const GENERIC_LABEL = new Set(["sports", "sport", "news", "www"]);
+const normName = (s: string) => s.toLowerCase().replace(/^www./, "").replace(/[^a-z0-9.]/g, "");
+
 export function creditLine(sources: string[], originalSource: string): string | null {
-  const original = originalSource.toLowerCase().replace(/\s+/g, "");
+  const original = normName(originalSource);
+  const seen = new Set<string>();
   const others = sources.filter((s) => {
-    const site = s.toLowerCase().replace(/^www\./, "");
-    return !NOT_AN_OUTLET.test(site) && !site.includes(original) && !original.includes(site.split(".")[0]);
+    const site = normName(s);
+    if (!site || seen.has(site) || NOT_AN_OUTLET.test(site)) return false;
+    const label = site.split(".")[0];
+    const sameAsOriginal = site.includes(original) || original.includes(site) || (label.length >= 4 && !GENERIC_LABEL.has(label) && original.includes(label));
+    if (sameAsOriginal) return false;
+    seen.add(site);
+    return true;
   });
   return others.length > 0 ? `This report also draws on coverage from ${others.slice(0, 5).join(", ")}.` : null;
 }
