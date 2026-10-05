@@ -38,6 +38,10 @@ export interface FacebookDestination {
   // these phrases (case-insensitive) — e.g. Asian Games stories filed under
   // athletics.
   alsoTitleLike?: string[];
+  // Oldest story (hours since it was published) this Page posts, links and reels.
+  // Default: 48 hours. Without a limit, a slow stretch drops to day-old stories
+  // (a quarter of Greenfield's reels used stories over 24 hours old).
+  maxAgeHours?: number;
   // Post format. Default: a link post. "photo-question": the story's photo with
   // a caption that ends in a question, and the article link in the first comment
   // (postArticleToFacebook) — a test of whether that earns more reach than a link.
@@ -120,6 +124,8 @@ export const INDIA_CRICKET_PAGE: FacebookDestination = {
   activeHours: { timeZone: "Asia/Kolkata", start: 7, end: 23 },
   sport: "cricket",
   alsoTitleLike: ["asian games"],
+  // News only: nothing older than a day (Sportswirecricketlive inherits this).
+  maxAgeHours: 24,
   reels: { dailyCap: 24, perRunCap: 1, minTrending: 35 },
   matches: isCricketOrAsianGames,
   // #INDvWI, the player, #TeamIndia — not the main Page's brand tag.

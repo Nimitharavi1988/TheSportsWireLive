@@ -120,3 +120,11 @@ describe("effectiveDestination (first-day boost)", () => {
     expect(effectiveDestination(INDIA_CRICKET_PAGE, new Date("2026-10-04T06:00:00Z"))).toBe(INDIA_CRICKET_PAGE);
   });
 });
+
+describe("story age limit", () => {
+  it("limits both cricket Pages to the last 24 hours and leaves the Spanish Page on the default", () => {
+    expect(INDIA_CRICKET_PAGE.maxAgeHours).toBe(24);
+    expect(CRICKETLIVE_PAGE.maxAgeHours).toBe(24);
+    expect(SPANISH_PAGE.maxAgeHours).toBeUndefined();
+  });
+});

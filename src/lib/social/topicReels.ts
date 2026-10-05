@@ -49,7 +49,7 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
           .where(and(
             eq(article.status, "published"),
             or(like(article.category, `${d.sport}%`), ...(d.alsoTitleLike ?? []).map((t) => ilike(article.title, `%${t}%`))),
-            gte(article.publishedAt, new Date(now.getTime() - POOL_WINDOW_MS)),
+            gte(article.publishedAt, new Date(now.getTime() - (d.maxAgeHours ? d.maxAgeHours * 3600_000 : POOL_WINDOW_MS))),
           ))
           .orderBy(desc(article.trendingScore), desc(article.publishedAt))
           .limit(300),

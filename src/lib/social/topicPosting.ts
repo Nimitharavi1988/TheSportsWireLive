@@ -47,7 +47,7 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
         or(...(d.categories ?? [d.sport]).map((c) => like(article.category, `${c}%`)), ...(d.alsoTitleLike ?? []).map((t) => ilike(article.title, `%${t}%`))),
         // A language edition's Page posts only stories that have a live translation.
         ...(d.locale ? editionConditions(d.locale) : []),
-        gte(article.publishedAt, new Date(now.getTime() - POOL_WINDOW_MS))
+        gte(article.publishedAt, new Date(now.getTime() - (d.maxAgeHours ? d.maxAgeHours * 3600_000 : POOL_WINDOW_MS)))
       ))
       .orderBy(desc(article.trendingScore), desc(article.publishedAt))
       .limit(500),
