@@ -61,6 +61,7 @@ jobs:
           LLM_ROUTER: ${{ vars.LLM_ROUTER }}
           LLM_DISABLE: ${{ vars.LLM_DISABLE }}
           LLM_PAID_DAILY_CALLS: ${{ vars.LLM_PAID_DAILY_CALLS }}
+          DAILY_NEWS_COMMENTARY_CAP: ${{ vars.DAILY_NEWS_COMMENTARY_CAP }}
           GEMINI_FREE_API_KEY: ${{ secrets.GEMINI_FREE_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}

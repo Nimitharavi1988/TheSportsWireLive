@@ -2,7 +2,7 @@ import { isPromoBannerImage } from "./promoImages";
 import { db } from "@/db";
 import { article, vertical } from "@/db/schema";
 import { and, count, eq, gte, inArray, isNotNull, ne, notInArray } from "drizzle-orm";
-import { DEFAULT_DAILY_NEWS_COMMENTARY_CAP, commentaryRunBudget, scaledReserve } from "./commentaryBudget";
+import { commentaryRunBudget, dailyCommentaryCapFrom, scaledReserve } from "./commentaryBudget";
 import { COVERAGE_WINDOW_MS, COVERED_REASON, createCoverageIndex } from "./coverageIndex";
 import { isNotAStory } from "../thinContent";
 import { ORIGINAL_SOURCE } from "../stories";
@@ -419,7 +419,7 @@ export async function runIngest() {
   // by the hour. Counted on updatedAt, not createdAt: a story first seen
   // earlier and written up now (the retry path above) counts when it's
   // written. A little high (other edits also bump updatedAt), never low.
-  const dailyCommentaryCap = Number(process.env.DAILY_NEWS_COMMENTARY_CAP ?? DEFAULT_DAILY_NEWS_COMMENTARY_CAP);
+  const dailyCommentaryCap = dailyCommentaryCapFrom(process.env.DAILY_NEWS_COMMENTARY_CAP);
   const [{ n: commentaryUsedLastHour }] = await db.select({ n: count() }).from(article).where(and(
     gte(article.updatedAt, new Date(Date.now() - 60 * 60 * 1000)),
     isNotNull(article.body),

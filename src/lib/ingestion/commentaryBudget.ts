@@ -35,3 +35,12 @@ export function scaledReserve(reserve: number, oldTotal: number, budget: number)
   if (budget <= 0) return 0;
   return Math.max(1, Math.round((reserve / oldTotal) * budget));
 }
+
+// The daily cap from the DAILY_NEWS_COMMENTARY_CAP setting. An unset or empty
+// GitHub variable arrives as "" (Number("") is 0, which would stop all
+// publishing), so anything that isn't a positive number falls back to the
+// default (pure, unit-tested).
+export function dailyCommentaryCapFrom(raw: string | undefined): number {
+  const n = Number(raw?.trim());
+  return raw && Number.isFinite(n) && n > 0 ? Math.floor(n) : DEFAULT_DAILY_NEWS_COMMENTARY_CAP;
+}

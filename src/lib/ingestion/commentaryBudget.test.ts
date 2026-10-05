@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { commentaryRunBudget, scaledReserve } from "./commentaryBudget";
+import { commentaryRunBudget, dailyCommentaryCapFrom, scaledReserve } from "./commentaryBudget";
 
 describe("hourly news write-up budget", () => {
   it("gives a run up to half the hour's allowance when the hour is quiet", () => {
@@ -26,5 +26,15 @@ describe("hourly news write-up budget", () => {
     expect(scaledReserve(25, 150, 9)).toBe(2);
     expect(scaledReserve(35, 150, 0)).toBe(0);
     expect(scaledReserve(35, 150, 150)).toBe(35);
+  });
+});
+
+describe("dailyCommentaryCapFrom", () => {
+  it("uses a positive number from the setting", () => {
+    expect(dailyCommentaryCapFrom("1000")).toBe(1000);
+    expect(dailyCommentaryCapFrom(" 850 ")).toBe(850);
+  });
+  it("falls back to the default for empty, missing or invalid values (never 0)", () => {
+    for (const raw of [undefined, "", "  ", "abc", "0", "-5"]) expect(dailyCommentaryCapFrom(raw)).toBe(700);
   });
 });
