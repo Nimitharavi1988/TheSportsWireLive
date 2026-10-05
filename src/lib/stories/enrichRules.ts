@@ -2,12 +2,12 @@
 import { hasRealImage, isImageUrlBlocked } from "../contentQuality";
 import { MIN_INDEXED_WORDS, articleWords, isNotAStory } from "../thinContent";
 
-// Fifteen a day (was 10 while research cost money; it is free now,
+// Twenty-five a day (was 10 while research cost money; it is free now,
 // coverageResearch.ts), two a run: a steady flow of substantial indexed pages
-// (about 450 a month) without the volume itself becoming the "scaled content"
+// (about 750 a month) without the volume itself becoming the "scaled content"
 // problem the noindex rule fixed. Raise only after reading what it produces.
 export const MAX_ENRICH_PER_RUN = 2;
-export const MAX_ENRICH_PER_DAY = 15;
+export const MAX_ENRICH_PER_DAY = 25;
 // Stories researched per run, enriched or not (each is a search call).
 export const MAX_ENRICH_RESEARCH_PER_RUN = 4;
 // Below this many researched facts there isn't enough for a full report.
