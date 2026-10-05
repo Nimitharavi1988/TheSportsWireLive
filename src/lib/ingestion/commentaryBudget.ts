@@ -12,10 +12,13 @@
  * (dailyCap / 24) has at most a one-hour pause on the first run, then a
  * steady flow, highest-trending first. Stories past the allowance stay
  * unwritten (pending) exactly as when the per-run budget used to run out.
- * Raise DAILY_NEWS_COMMENTARY_CAP (env) to spend more.
+ * Raised from 400 to 700 on 2026-10-05, once the free-tier router (src/lib/llm)
+ * took the AI work: about 1,300 good free calls a day is roughly 650 write-ups
+ * at two calls each. The original 1,850 is not possible on free tiers. Raise
+ * DAILY_NEWS_COMMENTARY_CAP (env) to change it.
  */
 
-export const DEFAULT_DAILY_NEWS_COMMENTARY_CAP = 400;
+export const DEFAULT_DAILY_NEWS_COMMENTARY_CAP = 700;
 
 // Write-ups this run may make: what's left of the hour's allowance, and no
 // more than half the allowance in one run so the four runs in an hour share
