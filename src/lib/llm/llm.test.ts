@@ -4,7 +4,7 @@ import {
   Pacer, SOFT_CAP, checkBudget, dayKey, estimateTokens, mergeLedgers, nextReset, recordRateLimit, sanitizeLedger, usageFor, type Ledger, type Usage,
 } from "./ledger";
 import { buildSlots, chainFor, pickOpenRouterFree } from "./providers";
-import { LlmRouter, classifyHttpError, retryInSeconds, type LedgerStore } from "./router";
+import { LlmRouter, classifyHttpError, retryInSeconds, type LedgerStore, attemptIsExhausted } from "./router";
 import { ungroundedNumbers } from "./grounding";
 
 const SCHEMA: GeminiSchema = {
@@ -407,6 +407,33 @@ describe("router", () => {
     const outcomes = [];
     for (let i = 0; i < 4; i++) outcomes.push(!!(await router.json({ ...REQ, priority: "high" })).data);
     expect(outcomes.filter(Boolean).length).toBeLessThanOrEqual(2);
+  });
+
+  it("uses the paid slot only when every free slot is used up, not when they are merely busy", async () => {
+    const busy = fakeNetwork(() => ({ status: 503, text: "high demand" }));
+    const busyFree = makeRouter(FREE, busy).router;
+    const busyPaid = fakeNetwork(() => ({ status: 503, text: "high demand" }));
+    const r1 = await makeRouter({ ...FREE, GEMINI_API_KEY: "p", LLM_PAID_DAILY_CALLS: "5" }, busyPaid).router.json(REQ);
+    await busyFree.json(REQ);
+    expect(r1.data).toBeNull();
+    expect(busyPaid.calls.length).toBe(busy.calls.length); // no extra call for the paid slot
+    expect(r1.attempts.some((a) => a.includes("held back"))).toBe(true);
+
+    const used = fakeNetwork(() => ({ status: 429, text: "Rate limit: requests per day (RPD)" }));
+    const usedFree = fakeNetwork(() => ({ status: 429, text: "Rate limit: requests per day (RPD)" }));
+    await makeRouter(FREE, usedFree).router.json(REQ);
+    await makeRouter({ ...FREE, GEMINI_API_KEY: "p", LLM_PAID_DAILY_CALLS: "5" }, used).router.json(REQ);
+    expect(used.calls.length).toBe(usedFree.calls.length + 1); // free all used up: the paid slot is asked
+  });
+
+  it("treats only daily or long blocks as used up", () => {
+    expect(attemptIsExhausted("groq x: daily requests used (850/1000)")).toBe(true);
+    expect(attemptIsExhausted("groq x: rate-limited (daily)")).toBe(true);
+    expect(attemptIsExhausted("groq x: blocked for another 382 min")).toBe(true);
+    expect(attemptIsExhausted("groq x: blocked for another 4 min")).toBe(false);
+    expect(attemptIsExhausted("groq x: busy for 52s")).toBe(false);
+    expect(attemptIsExhausted("groq x: HTTP 503: high demand")).toBe(false);
+    expect(attemptIsExhausted("groq x: invalid answer (no JSON in the answer)")).toBe(false);
   });
 
   it("remembers the day's usage across runs through the store", async () => {

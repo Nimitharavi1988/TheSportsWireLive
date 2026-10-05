@@ -216,6 +216,14 @@ export class LlmRouter {
     if (chain.length === 0) return { data: null, failure: "none", attempts };
 
     for (const slot of chain) {
+      // Paid last, and only once every free slot is used up for the day (or out
+      // for a long while): a free slot that was merely busy for a moment is a
+      // reason to wait for the next run, not to spend.
+      if (slot.paid && !attempts.every(attemptIsExhausted)) {
+        attempts.push(`${slot.id}: held back (free providers are busy, not used up)`);
+        noRoom++;
+        continue;
+      }
       const got = await this.acquire(slot, priority, est);
       if ("reason" in got) { attempts.push(`${slot.id}: ${got.reason}`); noRoom++; continue; }
       const { budget, block } = got;
@@ -362,4 +370,16 @@ export class LlmRouter {
     const parts = Object.entries(this.stats).map(([id, s]) => `${id} ${s.ok} ok/${s.failed} failed`);
     return parts.length ? `LLM router: ${parts.join(", ")}` : "LLM router: no calls";
   }
+}
+
+// Whether one failed attempt (the "slot: reason" text in `attempts`) means the
+// slot is used up for the day or out for a long while, as opposed to merely
+// busy for a moment (a 503, a pacing wait, a short rate limit, a bad answer).
+// The paid slot is only used when every free slot ahead of it is used up
+// (pure, unit-tested).
+const LONG_BLOCK_MIN = 45;
+export function attemptIsExhausted(attempt: string): boolean {
+  if (/daily requests used|daily tokens used|rate-limited \(daily\)|\/min limit/.test(attempt)) return true;
+  const blocked = /blocked for another (\d+) min/.exec(attempt);
+  return !!blocked && Number(blocked[1]) >= LONG_BLOCK_MIN;
 }
