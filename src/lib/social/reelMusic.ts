@@ -26,6 +26,7 @@ interface MusicStyle {
   padLevel: number;
   padBrightness: number; // 0.02 dark .. 0.15 bright
   swing: number; // 0 = straight, delays off-beat 16ths by this fraction of a step
+  introSteps?: number; // steps (16ths) before the drums come in; default 16 (one bar). Short = a hook in the first second.
   padDuck?: number; // how far the pad dips on each beat, 0 (smooth) .. 1; default 0.65
 }
 
@@ -168,17 +169,150 @@ export const REEL_MUSIC_STYLES = {
     padDuck: 0.2,
     swing: 0,
   },
+  // Added 2026-10-05. Short intros (the drums are in within about half a second)
+  // so the first second already has a hook.
+  // Dark phonk-style hype: D minor, 130 BPM, syncopated kick, rolling hats, 808.
+  hype: {
+    bpm: 130,
+    chords: [[62, 65, 69], [58, 62, 65], [55, 58, 62], [57, 61, 64]], // Dm Bb Gm A
+    bassRoots: [38, 34, 31, 33],
+    kick: [1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0],
+    clap: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+    hat: [1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1],
+    openHat: new Array(16).fill(0),
+    bass: [4, 0, 0, 2, 0, 0, 4, 0, 0, 0, 3, 0, 0, 2, 0, 0],
+    bassKind: "808",
+    arp: [1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0],
+    arpOctave: 12,
+    arpDecay: 12,
+    arpLevel: 0.08,
+    padLevel: 0.035,
+    padBrightness: 0.05,
+    swing: 0,
+    introSteps: 4,
+  },
+  // Upbeat house: G major, 126 BPM, four-on-the-floor, bright off-beat plucks.
+  dance: {
+    bpm: 126,
+    chords: [[55, 59, 62], [57, 62, 66], [52, 55, 59], [55, 60, 64]], // G D Em C
+    bassRoots: [31, 26, 28, 24],
+    kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+    clap: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+    hat: [0.4, 0.3, 0.8, 0.3, 0.4, 0.3, 0.8, 0.3, 0.4, 0.3, 0.8, 0.3, 0.4, 0.3, 0.8, 0.3],
+    openHat: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
+    bass: [0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 2, 0],
+    bassKind: "pluck",
+    arp: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+    arpOctave: 12,
+    arpDecay: 12,
+    arpLevel: 0.1,
+    padLevel: 0.06,
+    padBrightness: 0.12,
+    swing: 0,
+    introSteps: 8,
+  },
+  // Lo-fi: A minor 7ths, 78 BPM, soft kick and snare, heavy swing, sparse bells.
+  lofi: {
+    bpm: 78,
+    chords: [[57, 60, 64, 67], [53, 57, 60, 64], [60, 64, 67, 71], [52, 55, 59, 62]], // Am7 Fmaj7 Cmaj7 Em7
+    bassRoots: [33, 29, 36, 28],
+    kick: [0.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 0, 0, 0, 0],
+    clap: [0, 0, 0, 0, 0.4, 0, 0, 0, 0, 0, 0, 0, 0.4, 0, 0, 0],
+    hat: [0.5, 0, 0.3, 0, 0.5, 0, 0.3, 0, 0.5, 0, 0.3, 0, 0.5, 0, 0.3, 0],
+    openHat: new Array(16).fill(0),
+    bass: [3, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0],
+    bassKind: "pluck",
+    arp: [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    arpOctave: 12,
+    arpDecay: 4,
+    arpLevel: 0.08,
+    padLevel: 0.07,
+    padBrightness: 0.035,
+    padDuck: 0.25,
+    swing: 0.4,
+    introSteps: 8,
+  },
+  // Epic build: A minor, 110 BPM, marching kick, big bright pads, rising 16th arp.
+  epic: {
+    bpm: 110,
+    chords: [[57, 60, 64], [53, 57, 60], [55, 60, 64], [55, 59, 62]], // Am F C G
+    bassRoots: [33, 29, 36, 31],
+    kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0],
+    clap: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+    hat: [0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0],
+    openHat: new Array(16).fill(0),
+    bass: [4, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0],
+    bassKind: "pluck",
+    arp: new Array(16).fill(1),
+    arpOctave: 12,
+    arpDecay: 14,
+    arpLevel: 0.08,
+    padLevel: 0.1,
+    padBrightness: 0.12,
+    padDuck: 0.4,
+    swing: 0,
+    introSteps: 8,
+  },
+  // Funk groove: Dm7 G7 Cmaj7 Fmaj7, 108 BPM, syncopated bass, light swing.
+  groove: {
+    bpm: 108,
+    chords: [[50, 53, 57, 60], [55, 59, 62, 65], [48, 52, 55, 59], [53, 57, 60, 64]],
+    bassRoots: [38, 31, 36, 29],
+    kick: [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    clap: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+    hat: [0.6, 0.3, 0.5, 0.3, 0.6, 0.3, 0.5, 0.3, 0.6, 0.3, 0.5, 0.3, 0.6, 0.3, 0.5, 0.3],
+    openHat: new Array(16).fill(0),
+    bass: [2, 0, 0, 1, 0, 0, 2, 0, 0, 0, 2, 0, 0, 1, 0, 0],
+    bassKind: "pluck",
+    arp: [0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0],
+    arpOctave: 12,
+    arpDecay: 9,
+    arpLevel: 0.09,
+    padLevel: 0.05,
+    padBrightness: 0.06,
+    swing: 0.15,
+    introSteps: 8,
+  },
 } satisfies Record<string, MusicStyle>;
 
 export type ReelMusicStyle = keyof typeof REEL_MUSIC_STYLES;
 export const REEL_MUSIC_STYLE_NAMES = Object.keys(REEL_MUSIC_STYLES) as ReelMusicStyle[];
 
+// Which styles suit a story: its mood first (a dispute wants tension, a win or
+// record wants energy, an injury or farewell wants calm), else its sport.
+// Chosen by words in the headline, so no new data is needed. Within the
+// pool, the pick is still stable per story (musicStyleFor).
+const MOODS: { re: RegExp; pool: ReelMusicStyle[] }[] = [
+  { re: /controvers|slams?|blasts?|furious|outrage|backlash|scandal|suspend|banned?|dispute|row|clash|accus|crisis|blow|stunned|shock/i, pool: ["cinematic", "hype", "trap"] },
+  { re: /injur|ruled out|retire|farewell|tribute|passes away|dies|heartbreak|emotional|tears/i, pool: ["smooth", "lofi", "ambient", "chill"] },
+  { re: /century|hundred|record|champion|gold|title|historic|milestone|hat-?trick|stunning|thrash|crush|maiden|clinch|wins?|beats?/i, pool: ["dance", "drive", "anthem", "epic", "hype"] },
+  { re: /preview|how to watch|date, venue|live stream|schedule|predictions?|odds|props|picks/i, pool: ["groove", "chill", "drive", "lofi"] },
+];
+const SPORT_POOLS: [string, ReelMusicStyle[]][] = [
+  ["cricket", ["drive", "anthem", "dance", "groove", "epic"]],
+  ["american-football", ["anthem", "trap", "hype", "epic", "drive"]],
+  ["college-football", ["anthem", "trap", "hype", "epic", "drive"]],
+  ["basketball", ["trap", "hype", "groove", "dance"]],
+  ["wnba", ["trap", "hype", "groove", "dance"]],
+  ["football", ["anthem", "dance", "drive", "epic", "groove"]],
+  ["baseball", ["groove", "drive", "anthem", "chill"]],
+];
+
+export function stylePoolFor(story: { title?: string; category?: string }): ReelMusicStyle[] {
+  const mood = MOODS.find((m) => m.re.test(story.title ?? ""));
+  if (mood) return mood.pool;
+  const cat = story.category ?? "";
+  const sport = SPORT_POOLS.find(([c]) => cat === c || cat.startsWith(c + "/"));
+  return sport ? sport[1] : REEL_MUSIC_STYLE_NAMES;
+}
+
 // Stable pick per story, so reruns of the same story keep the same track
 // while the feed as a whole rotates through all of them.
-export function musicStyleFor(id: string): ReelMusicStyle {
+export function musicStyleFor(id: string, story?: { title?: string; category?: string }): ReelMusicStyle {
+  const pool = story ? stylePoolFor(story) : REEL_MUSIC_STYLE_NAMES;
   let h = 0;
   for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return REEL_MUSIC_STYLE_NAMES[h % REEL_MUSIC_STYLE_NAMES.length];
+  return pool[h % pool.length];
 }
 
 function peakOf(L: Float32Array, R: Float32Array): number {
@@ -208,6 +342,8 @@ export function generateReelMusic(seconds: number, styleName: ReelMusicStyle = "
   const beat = 60 / st.bpm;
   const step = beat / 4;
   const barLen = beat * 4;
+  const introSteps = st.introSteps ?? 16;
+  const introLen = introSteps * step;
 
   const add = (i: number, v: number, pan = 0) => {
     if (i < 0 || i >= n) return;
@@ -279,7 +415,7 @@ export function generateReelMusic(seconds: number, styleName: ReelMusicStyle = "
   for (let s = 0; s < totalSteps; s++) {
     const i16 = s % 16;
     const bar = Math.floor(s / 16) % st.chords.length;
-    const full = s >= 16;
+    const full = s >= introSteps;
     const start = Math.floor((s * step + (i16 % 2 === 1 ? st.swing * step : 0)) * SR);
     if (st.hat[i16]) hat(start, st.hat[i16], false);
     if (st.openHat[i16]) hat(start, st.openHat[i16], true);
@@ -308,11 +444,11 @@ export function generateReelMusic(seconds: number, styleName: ReelMusicStyle = "
         vR += Math.sin(2 * Math.PI * f * 0.997 * h * t) / h;
       }
     }
-    const cutoff = t < barLen ? st.padBrightness * (0.25 + 0.75 * (t / barLen)) : st.padBrightness;
+    const cutoff = t < introLen ? st.padBrightness * (0.25 + 0.75 * (t / introLen)) : st.padBrightness;
     lpL += cutoff * (vL - lpL);
     lpR += cutoff * (vR - lpR);
     const depth = st.padDuck ?? 0.65;
-    const duck = t < barLen ? 1 : 1 - depth + depth * Math.min(1, ((t % beat) / beat) * 3);
+    const duck = t < introLen ? 1 : 1 - depth + depth * Math.min(1, ((t % beat) / beat) * 3);
     L[i] += lpL * st.padLevel * duck;
     R[i] += lpR * st.padLevel * duck;
   }

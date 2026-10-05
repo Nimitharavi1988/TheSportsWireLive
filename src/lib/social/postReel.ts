@@ -254,7 +254,7 @@ export async function postReel(
   console.log("Reel content:", JSON.stringify(content));
   const captions = await generateSocialCaptions(article.title, article.body);
 
-  const music = opts.music ?? musicStyleFor(article.id);
+  const music = opts.music ?? musicStyleFor(article.id, { title: article.title, category: article.category });
   console.log(`Rendering reel (music: ${music}, theme: ${opts.theme ?? "default"}, font: ${opts.font ?? "default"})...`);
   const mp4 = await renderReel({ content, heroImageUrl: article.heroImageUrl, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme: opts.theme, font: opts.font });
   console.log(`Rendered ${(mp4.length / 1024 / 1024).toFixed(1)} MB`);
