@@ -14,6 +14,8 @@
  * is an ordinary structured call (callGemini).
  */
 import { callGemini } from "../ingestion/commentary";
+import { getRouter } from "../llm";
+import type { LlmRouter } from "../llm/router";
 import { blocksToBody } from "../aiDraft";
 
 // Standard Flash, not the lite tier: research and checking are where the
@@ -68,7 +70,19 @@ export function groundingSources(chunks: GroundingChunk[] | undefined): string[]
   return [...seen].slice(0, 10);
 }
 
+// With the AI router on, the search goes through its budget like every other
+// call (it uses the same Gemini Flash allowance as the standard-tier work);
+// otherwise it's the direct call below, as before.
+async function researchViaRouter(router: LlmRouter, prompt: string): Promise<Research | null> {
+  const answer = await router.grounded({ prompt, priority: "high", temperature: 0.1, maxOutputTokens: 3072 });
+  if (!answer) return null;
+  const sources = groundingSources(answer.chunks as GroundingChunk[] | undefined);
+  return sources.length === 0 ? { facts: [], sources } : { facts: parseFacts(answer.text), sources };
+}
+
 export async function researchStory(headline: string, brief: string, today: Date = new Date()): Promise<Research | null> {
+  const router = await getRouter();
+  if (router) return researchViaRouter(router, buildResearchPrompt(headline, brief, today));
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
   try {
@@ -144,6 +158,7 @@ Rules:
 export async function factCheckDraft(facts: string[], body: string): Promise<{ body: string; removed: string[] } | null> {
   const out = (await callGemini(buildCheckPrompt(facts, body), {
     responseSchema: CHECK_SCHEMA,
+    priority: "high",
     model: RESEARCH_MODEL,
     temperature: 0.1,
     maxOutputTokens: 4096,

@@ -26,7 +26,7 @@ const RETRY_MODEL = "gemini-flash-latest"; // lite first (cheaper); flagged item
 const MAX_ATTEMPTS = 3;
 const MIN_BODY_CHARS = 200;
 
-function buildPrompt(locale: LocaleConfig, f: Fields, feedback: string[] = []): string {
+export function buildPrompt(locale: LocaleConfig, f: Fields, feedback: string[] = []): string {
   return `You are a professional sports-news translator. Translate the article below from English into ${locale.promptName}.
 
 Rules:
@@ -195,6 +195,14 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
       if (!res.ok) {
         model = RETRY_MODEL;
         res = await attempt(RETRY_MODEL, [res.reason]);
+      }
+      // The AI ran out of room, or went down, during this item (normal on free
+      // tiers, which end each day): that isn't the translation's fault. Leave
+      // the item untouched for the next run, rather than counting a failed
+      // attempt or holding it for review because its review couldn't run.
+      if (!res.ok && aiUnavailableReason()) {
+        console.log(`Translation: stopping — ${aiUnavailableReason()}`);
+        break;
       }
       const out = res.out;
       const verdict = res.ok ? ({ ok: true } as const) : ({ ok: false, reason: res.reason } as const);

@@ -80,7 +80,7 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
     if (research.facts.length < MIN_ENRICH_FACTS) { record(story.id, "few-facts"); continue; }
 
     const written = (await callGemini(buildEnrichPrompt({ title: story.title, sourceName: story.sourceName, text, facts: research.facts }), {
-      responseSchema: ENRICH_SCHEMA, model: RESEARCH_MODEL, temperature: 0.3, maxOutputTokens: 3072,
+      responseSchema: ENRICH_SCHEMA, priority: "high", model: RESEARCH_MODEL, temperature: 0.3, maxOutputTokens: 3072,
     })) as { paragraphs?: string[] } | null;
     const draft = (written?.paragraphs ?? []).map((p) => p.replace(/\s+/g, " ").trim()).filter(Boolean).join("\n\n");
     if (!draft) { note = "writing failed"; break; }

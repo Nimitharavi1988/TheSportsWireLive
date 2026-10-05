@@ -15,6 +15,8 @@
  * failure, which suits a 15-minute batch job, not an editor.
  */
 import { MODEL } from "./ingestion/commentary";
+import { getRouter } from "./llm";
+import type { GeminiSchema } from "./llm/schema";
 
 export interface DraftFacts {
   brief: string;
@@ -132,6 +134,23 @@ export class AiDraftError extends Error {}
 // standard Flash (stories/research.ts RESEARCH_MODEL), which needs its hidden
 // reasoning turned off or it uses up the output cap (see commentary.ts).
 export async function requestDraft(facts: DraftFacts, model: string = MODEL): Promise<AiDraft> {
+  // With the AI router on (the ingest job; the website's admin button has no
+  // router and keeps the direct call below) the draft goes through its budget.
+  const router = await getRouter();
+  if (router) {
+    const result = await router.json({
+      prompt: buildDraftPrompt(facts),
+      schema: RESPONSE_SCHEMA as GeminiSchema,
+      tier: model !== MODEL ? "standard" : "lite",
+      priority: "high",
+      temperature: 0.5,
+      maxOutputTokens: 3072,
+    });
+    if (!result.data) {
+      throw new AiDraftError(result.failure === "invalid" ? "The AI returned an unusable draft — try again." : "Every free AI provider is at its limit — try again later.");
+    }
+    return toAiDraft(result.data as { title?: string; summary?: string; blocks?: Block[]; checks?: string[] });
+  }
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new AiDraftError("AI drafting isn't set up on the site yet (GEMINI_API_KEY is missing in Cloudflare).");
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -152,7 +171,10 @@ export async function requestDraft(facts: DraftFacts, model: string = MODEL): Pr
   const data = await res.json();
   const text: string | undefined = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new AiDraftError("The AI returned nothing — try rewording the brief.");
-  const draft = JSON.parse(text) as { title?: string; summary?: string; blocks?: Block[]; checks?: string[] };
+  return toAiDraft(JSON.parse(text) as { title?: string; summary?: string; blocks?: Block[]; checks?: string[] });
+}
+
+function toAiDraft(draft: { title?: string; summary?: string; blocks?: Block[]; checks?: string[] }): AiDraft {
   const body = blocksToBody(draft.blocks ?? []);
   if (!body) throw new AiDraftError("The AI returned an empty draft — try again.");
   return {

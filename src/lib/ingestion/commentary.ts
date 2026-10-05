@@ -14,6 +14,12 @@
  * Free tier: no credit card required, rate-limited (see Google AI Studio).
  */
 
+import { getRouter } from "../llm";
+import { ungroundedNumbers } from "../llm/grounding";
+import type { LlmRouter } from "../llm/router";
+import type { Priority } from "../llm/ledger";
+import type { GeminiSchema } from "../llm/schema";
+
 // Lite tier — confirmed live (2026-09-19) resolves to gemini-3.5-flash-lite,
 // at a fraction of the standard Flash tier's per-token cost (Flash-Lite is
 // roughly 6x cheaper on input and 12x cheaper on output per Google's current
@@ -23,7 +29,7 @@
 // reasoning, which is exactly the workload the lite tier is designed for.
 export const MODEL = "gemini-flash-lite-latest";
 
-function buildRssPrompt(title: string, sourceSnippet: string, sourceName: string): string {
+export function buildRssPrompt(title: string, sourceSnippet: string, sourceName: string): string {
   return `You are writing a brief original news blurb for a sports aggregator site, based on a report from ${sourceName}.
 
 Headline: "${title}"
@@ -79,6 +85,11 @@ interface GeminiCallOptions {
   // run is declared unavailable. Default 0 = unchanged behaviour; the translation
   // job opts in so a brief outage mid-run does not abandon the whole batch.
   retries?: number;
+  // How much of a free tier's daily allowance this call may use when the AI
+  // router is on (llm/ledger.ts SOFT_CAP): "high" work can use nearly all of
+  // it, "low" (social copy) only a share, so a busy day's bulk work doesn't
+  // leave nothing for the work that matters. Default "normal".
+  priority?: Priority;
 }
 
 // Standard Flash for the Instagram hook/caption writing (2026-10-01): a few
@@ -103,7 +114,30 @@ const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 const RETRY_WAITS_MS = [5_000, 15_000, 45_000, 90_000];
 const RETRY = Symbol("retry");
 
+// With LLM_ROUTER=1 (llm/index.ts) the call goes to the first free provider
+// that has room, falling through Gemini's free tier, Groq and OpenRouter; the
+// model option only picks the tier (lite by default, standard for a
+// non-default model). Otherwise it's the Gemini call below, unchanged.
+async function callViaRouter(router: LlmRouter, prompt: string, options: GeminiCallOptions): Promise<unknown> {
+  if (unavailable) return null;
+  const result = await router.json({
+    prompt,
+    schema: options.responseSchema as GeminiSchema,
+    tier: options.model && options.model !== MODEL ? "standard" : "lite",
+    priority: options.priority,
+    temperature: options.temperature,
+    maxOutputTokens: options.maxOutputTokens,
+  });
+  if (result.data) return result.data;
+  // Out of room everywhere is no verdict on the story: like a Gemini outage,
+  // it stays waiting for a later run. Only "answered, but unusable" is.
+  if (result.failure !== "invalid") unavailable = "AI unavailable (every free provider is at its limit)";
+  return null;
+}
+
 export async function callGemini(prompt: string, options: GeminiCallOptions): Promise<any | null> {
+  const router = await getRouter();
+  if (router) return callViaRouter(router, prompt, options);
   const retries = options.retries ?? 0;
   for (let attempt = 0; ; attempt++) {
     const out = await callGeminiOnce(prompt, options, attempt < retries);
@@ -213,6 +247,16 @@ export async function generateCommentary(
   if (!parsed) return EMPTY_RESULT;
 
   const commentary = typeof parsed.commentary === "string" ? parsed.commentary.trim() : "";
+  // With the AI router on, any provider may have written this, and the free
+  // fallbacks are less careful than Gemini: a figure that isn't in the source
+  // is an invention, so the write-up is dropped (llm/grounding.ts).
+  if (commentary && (await getRouter())) {
+    const invented = ungroundedNumbers(commentary, `${title}\n${sourceSnippet}`);
+    if (invented.length > 0) {
+      console.log(`[ai] write-up for "${title.slice(0, 60)}" dropped: figures not in the source (${invented.join(", ")})`);
+      return EMPTY_RESULT;
+    }
+  }
   const personNames: string[] = Array.isArray(parsed.personNames)
     ? parsed.personNames
         .filter((n: unknown): n is string => typeof n === "string" && n.trim().length > 0)
@@ -319,6 +363,7 @@ export async function generateSocialCaptions(title: string, body: string, langua
   if (!body || body.trim().length < 40) return null;
 
   const parsed = await callGemini(buildSocialCaptionsPrompt(title, body, language, facebookStyle), {
+    priority: "low",
     model: COPY_MODEL,
     temperature: 0.6,
     maxOutputTokens: 2048,
@@ -396,6 +441,7 @@ export async function generatePosterContent(title: string, body: string): Promis
   if (!body || body.trim().length < 40) return null;
 
   const parsed = await callGemini(buildPosterPrompt(title, body), {
+    priority: "low",
     model: COPY_MODEL,
     temperature: 0.5,
     maxOutputTokens: 2048,
