@@ -8,6 +8,7 @@ import { isThinRewrite } from "../thinContent";
 import { isHighlightWorthy } from "../highlightWorthy";
 import { isPushWorthy } from "../pushWorthy";
 import { postToTopicPages } from "../social/topicPosting";
+import { freshnessMultiplier } from "../social/freshness";
 import { postTopicReels } from "../social/topicReels";
 import { postArticleToFacebook } from "../social/facebook";
 import { timed, logTimingSummary } from "./timing";
@@ -267,7 +268,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     id: article.id, slug: article.slug, title: article.title, body: article.body, summary: article.summary,
     heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
     playerNewsSourced: article.playerNewsSourced, sourceName: article.sourceName,
-    trendingScore: article.trendingScore, category: article.category,
+    trendingScore: article.trendingScore, category: article.category, publishedAt: article.publishedAt,
   }).from(article).where(eq(article.status, "pending_review"));
 
   const toApprove = candidates.filter(isAutoApprovable);
@@ -296,7 +297,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   // doesn't already have a posted/queued row for that platform, so the
   // pacing logic below actually has enough real candidates to hit its
   // per-run target most runs. Runs even when toApprove is empty.
-  type SocialCandidate = { id: string; slug: string; title: string; trendingScore: number; category: string; sourceName: string };
+  type SocialCandidate = { id: string; slug: string; title: string; trendingScore: number; category: string; sourceName: string; publishedAt?: Date | null };
   // A post needs a real picture; match rows can publish without one (see
   // isAutoApprovable), so the image bar is applied here for social.
   const postable = (a: { heroImageUrl: string | null; homeCrestUrl: string | null }) => hasRealImage(a);
@@ -311,7 +312,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   const [backlogPool, fbPostedRows, igPostedRows, fbRecentTitleRows, igRecentTitleRows] = await Promise.all([
     db.select({
       id: article.id, slug: article.slug, title: article.title,
-      trendingScore: article.trendingScore, category: article.category, sourceName: article.sourceName,
+      trendingScore: article.trendingScore, category: article.category, sourceName: article.sourceName, publishedAt: article.publishedAt,
       heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
     }).from(article)
       .where(and(eq(article.status, "published"), gte(article.publishedAt, backlogCutoff)))
@@ -348,7 +349,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   const igRecentTitles = igRecentTitleRows.map((r) => r.title);
 
   const freshCandidates: SocialCandidate[] = toApprove.filter(postable).map((a) => ({
-    id: a.id, slug: a.slug, title: a.title, trendingScore: a.trendingScore, category: a.category, sourceName: a.sourceName,
+    id: a.id, slug: a.slug, title: a.title, trendingScore: a.trendingScore, category: a.category, sourceName: a.sourceName, publishedAt: a.publishedAt,
   }));
   const freshIds = new Set(freshCandidates.map((a) => a.id));
   const backlogExcludingFresh = backlogPool.filter((a) => !freshIds.has(a.id) && postable(a));
@@ -387,13 +388,16 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   // `new Date()` here — both need "this run's start time," not
   // independently-sampled clock reads a few lines apart.
   function socialSelectionScore(a: SocialCandidate): number {
+    // Newer stories first (social/freshness.ts): the stored score has no time
+    // component, so without this a 20-hour-old story kept beating this hour's.
+    const fresh = freshnessMultiplier(a.publishedAt, now);
     if (a.category === "american-football" && isInternationalAudienceWindow(now)) {
-      return a.trendingScore * AMERICAN_FOOTBALL_INTERNATIONAL_WINDOW_MULTIPLIER;
+      return a.trendingScore * AMERICAN_FOOTBALL_INTERNATIONAL_WINDOW_MULTIPLIER * fresh;
     }
     if (a.category === "cricket" && isUsAudienceHours(now)) {
-      return a.trendingScore * CRICKET_US_HOURS_MULTIPLIER;
+      return a.trendingScore * CRICKET_US_HOURS_MULTIPLIER * fresh;
     }
-    return a.trendingScore;
+    return a.trendingScore * fresh;
   }
 
   function selectTopN(n: number, byTrending: SocialCandidate[], eligible: SocialCandidate[], recentTitles: string[], reserve = true): SocialCandidate[] {
