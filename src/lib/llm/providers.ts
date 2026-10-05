@@ -125,21 +125,6 @@ function buildAllSlots(env: Record<string, string | undefined>, openRouterModels
     slots.push(groq("qwen/qwen3.8-27b", ["lite", "standard"]));
   }
 
-  // Mistral's free plan (checked 2026-10-04 with the account's own limits page
-  // and live calls): ministral-14b-2512 answers (30 requests/min, ~940k
-  // tokens/min); mistral-small-2603 is limited to 0 and mistral-large to
-  // "not allowed" on this plan, so only the Ministral model is used. A smaller
-  // model than Groq's 120B, so it follows Groq and precedes OpenRouter.
-  const mistralKey = env.MISTRAL_API_KEY;
-  if (mistralKey) {
-    slots.push({
-      id: "mistral ministral-14b-2512", provider: "openai", baseUrl: "https://api.mistral.ai/v1", apiKey: mistralKey,
-      model: "ministral-14b-2512", tiers: ["lite", "standard"],
-      limits: { rpm: num(env.MISTRAL_RPM, 28), rpd: num(env.MISTRAL_RPD, 1000), tpm: num(env.MISTRAL_TPM, 800000) },
-      budgetKey: "mistral/ministral-14b-2512", resetHourUtc: 0, paid: false, maxTokensParam: "max_tokens",
-    });
-  }
-
   const orKey = env.OPENROUTER_API_KEY;
   if (orKey) {
     const orLimits: Limits = { rpm: num(env.OPENROUTER_RPM, 18), rpd: num(env.OPENROUTER_RPD, 50) };
