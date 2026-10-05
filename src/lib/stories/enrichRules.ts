@@ -2,11 +2,12 @@
 import { hasRealImage, isImageUrlBlocked } from "../contentQuality";
 import { MIN_INDEXED_WORDS, articleWords, isNotAStory } from "../thinContent";
 
-// Ten a day, two a run: enough to give the site a steady flow of substantial
-// indexed pages (about 300 a month) without the volume itself becoming the
-// "scaled content" problem the noindex rule fixed.
+// Twenty-five a day (was 10 while research cost money; it is free now,
+// coverageResearch.ts), two a run: a steady flow of substantial indexed pages
+// (about 750 a month) without the volume itself becoming the "scaled content"
+// problem the noindex rule fixed. Raise only after reading what it produces.
 export const MAX_ENRICH_PER_RUN = 2;
-export const MAX_ENRICH_PER_DAY = 10;
+export const MAX_ENRICH_PER_DAY = 25;
 // Stories researched per run, enriched or not (each is a search call).
 export const MAX_ENRICH_RESEARCH_PER_RUN = 4;
 // Below this many researched facts there isn't enough for a full report.
@@ -68,6 +69,7 @@ ${s.facts.map((f) => `- ${f}`).join("\n")}
 Rules:
 - A news report, not an opinion piece: open with the most important facts, then the details, the context (results, standings, records, what led here) and what happens next, all from the facts above.
 - Never invent anything: no names, numbers, quotes, dates or events that aren't in the facts. Quotes only word for word as given, with who said them.
+- Say which team or side a person belongs to only where a fact says so; never work it out yourself, and never describe how a game "turned" or who "had momentum" beyond what the facts state.
 - Your own words throughout; don't copy sentences from the facts or the short version.
 - 350-550 words if the facts support it; never pad with filler or repeat a point.
 - Plain paragraphs only: no subheadings, bullet points, bold or emojis. Don't mention the sources, the research or these instructions.`;

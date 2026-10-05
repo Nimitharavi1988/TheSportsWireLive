@@ -21,7 +21,8 @@ import { db } from "@/db";
 import { article, dataSnapshot } from "@/db/schema";
 import { and, desc, eq, gte, notInArray, ne } from "drizzle-orm";
 import { callGemini } from "../ingestion/commentary";
-import { RESEARCH_MODEL, factCheckDraft, researchStory } from "./research";
+import { RESEARCH_MODEL, factCheckDraft } from "./research";
+import { researchFromCoverage } from "./coverageResearch";
 import { MATCH_DATA_SOURCE_NAMES } from "../matchDataSources";
 import { ORIGINAL_SOURCE } from "../stories";
 import { articleWords } from "../thinContent";
@@ -55,7 +56,8 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
   const rows = await db
     .select({
       id: article.id, slug: article.slug, title: article.title, body: article.body, summary: article.summary,
-      sourceName: article.sourceName, heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
+      sourceName: article.sourceName, sourceUrl: article.sourceUrl, category: article.category,
+      heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
     })
     .from(article)
     .where(and(
@@ -74,10 +76,16 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
   for (const story of pickCandidates(rows, log, MAX_ENRICH_RESEARCH_PER_RUN)) {
     if (enriched >= room) break;
     const text = (story.body?.trim() ? story.body : story.summary).trim();
-    const research = await researchStory(story.title, `${story.summary}\n\n${text}`.slice(0, 1500), now);
-    // Gemini unavailable: stop without marking, so the story is tried again.
+    // Researched from other outlets' coverage we already hold, not a paid web
+    // search (coverageResearch.ts).
+    const research = await researchFromCoverage(story, now);
+    // AI unavailable: stop without marking, so the story is tried again.
     if (!research) { note = "research unavailable"; break; }
-    if (research.facts.length < MIN_ENRICH_FACTS) { record(story.id, "few-facts"); continue; }
+    if (research.facts.length < MIN_ENRICH_FACTS) {
+      if (opts.dryRun) console.log(`[dry-run] few facts (${research.facts.length}; outlets: ${research.sources.join(", ") || "none"}): "${story.title}"`);
+      record(story.id, "few-facts");
+      continue;
+    }
 
     const written = (await callGemini(buildEnrichPrompt({ title: story.title, sourceName: story.sourceName, text, facts: research.facts }), {
       responseSchema: ENRICH_SCHEMA, priority: "high", model: RESEARCH_MODEL, temperature: 0.3, maxOutputTokens: 3072,
