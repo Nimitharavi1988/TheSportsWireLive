@@ -44,7 +44,7 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
         db.select({
           id: article.id, title: article.title, category: article.category, sourceName: article.sourceName,
           homeTeam: article.homeTeam, awayTeam: article.awayTeam, seriesLabel: article.seriesLabel, leagueLabel: article.leagueLabel,
-          venue: article.venue, publishedAt: article.publishedAt, body: article.body, heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
+          venue: article.venue, publishedAt: article.publishedAt, body: article.body, heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl, trendingScore: article.trendingScore,
         }).from(article)
           .where(and(
             eq(article.status, "published"),
@@ -71,6 +71,7 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
         // Match rows are scorecards, not stories to narrate.
         if (isMatchDataSource(a.sourceName)) continue;
         if (isSimilarToAny(a.title, titles)) continue;
+        if (d.reels.minTrending && (a.trendingScore ?? 0) < d.reels.minTrending) continue;
         checked++;
         if (!a.heroImageUrl) continue;
         attempts++;

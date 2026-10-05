@@ -46,7 +46,9 @@ export interface FacebookDestination {
   // limits above apply again by themselves — see effectiveDestination.
   boost?: { until: Date; dailyCap: number; reels?: { dailyCap: number; perRunCap: number } };
   // Automatic Reels for this Page (topicReels.ts): own daily limit, daytime only.
-  reels?: { dailyCap: number; perRunCap: number };
+  // minTrending: skip stories scoring below this (Article.trendingScore) — the bottom of
+  // the queue made weak reels (Greenfield's average score was 38 vs 55 on the main Page).
+  reels?: { dailyCap: number; perRunCap: number; minTrending?: number };
   matches: (a: DestinationCandidate) => boolean;
   // The post's hashtags, when this Page wants its own (default: the main
   // Page's topic tags + #SportsWireLive — hashtagRepertoire.ts).
@@ -118,7 +120,7 @@ export const INDIA_CRICKET_PAGE: FacebookDestination = {
   activeHours: { timeZone: "Asia/Kolkata", start: 7, end: 23 },
   sport: "cricket",
   alsoTitleLike: ["asian games"],
-  reels: { dailyCap: 24, perRunCap: 1 },
+  reels: { dailyCap: 24, perRunCap: 1, minTrending: 35 },
   matches: isCricketOrAsianGames,
   // #INDvWI, the player, #TeamIndia — not the main Page's brand tag.
   hashtags: (title) => selectIndiaCricketHashtags(title),

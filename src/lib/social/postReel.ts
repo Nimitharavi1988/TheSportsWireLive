@@ -183,8 +183,7 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
   const emoji = categoryEmoji(article.category);
   const creditLine = article.heroImageCredit ? `\n\n📷 ${article.heroImageCredit}` : "";
   const hashtags = (topicPage?.hashtags ? topicPage.hashtags(article.title, article.category) : selectFacebookHashtags(article.title, article.category)).join(" ");
-  const followLine = topicPage ? `👍 Follow for more: https://www.facebook.com/${topicPage.pageId}\n` : "";
-  const description = `${emoji} ${captions?.facebook ?? article.title}\n\n${followLine}Full breakdown: ${articleUrl}${creditLine}\n\n${hashtags}`;
+  const description = `${emoji} ${captions?.facebook ?? article.title}\n\nFull breakdown: ${articleUrl}${creditLine}\n\n${hashtags}`;
 
   return recordAttempt(article, "facebook", async () => {
     console.log("[facebook reel] Starting upload...");
