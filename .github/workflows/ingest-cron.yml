@@ -63,6 +63,7 @@ jobs:
           LLM_PAID_DAILY_CALLS: ${{ vars.LLM_PAID_DAILY_CALLS }}
           GEMINI_FREE_API_KEY: ${{ secrets.GEMINI_FREE_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       # Official YouTube videos (src/lib/videos/youtubeSync.ts): new uploads
       # from the channels' RSS feeds, and highlights linked to the match
@@ -128,6 +129,7 @@ jobs:
           LLM_PAID_DAILY_CALLS: ${{ vars.LLM_PAID_DAILY_CALLS }}
           GEMINI_FREE_API_KEY: ${{ secrets.GEMINI_FREE_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
@@ -155,6 +157,7 @@ jobs:
           LLM_PAID_DAILY_CALLS: ${{ vars.LLM_PAID_DAILY_CALLS }}
           GEMINI_FREE_API_KEY: ${{ secrets.GEMINI_FREE_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       # Top-story enrichment (src/lib/stories/enrich.ts): the day's highest-
       # trending short write-ups are researched, rewritten as full reports and
@@ -173,6 +176,7 @@ jobs:
           LLM_PAID_DAILY_CALLS: ${{ vars.LLM_PAID_DAILY_CALLS }}
           GEMINI_FREE_API_KEY: ${{ secrets.GEMINI_FREE_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
       # Spanish site (src/lib/translation/translateArticles.ts, see PLAN.md):
@@ -190,6 +194,7 @@ jobs:
           LLM_PAID_DAILY_CALLS: ${{ vars.LLM_PAID_DAILY_CALLS }}
           GEMINI_FREE_API_KEY: ${{ secrets.GEMINI_FREE_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           TRANSLATION_LOCALES: ${{ vars.TRANSLATION_LOCALES }}
           LIVE_LOCALES: ${{ vars.LIVE_LOCALES }}

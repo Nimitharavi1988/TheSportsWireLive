@@ -175,6 +175,14 @@ describe("providers", () => {
     expect(buildSlots({ GROQ_API_KEY: "" })).toEqual([]);
   });
 
+  it("adds the one Mistral model its free plan allows, after Groq and before OpenRouter", () => {
+    const ids = chainFor(buildSlots({ ...ALL, MISTRAL_API_KEY: "m" }), "standard").map((s) => s.id);
+    expect(ids).toContain("mistral ministral-14b-2512");
+    expect(ids.indexOf("mistral ministral-14b-2512")).toBeGreaterThan(ids.indexOf("groq qwen/qwen3.8-27b"));
+    expect(ids.indexOf("mistral ministral-14b-2512")).toBeLessThan(ids.indexOf("openrouter or-a:free"));
+    expect(buildSlots({ ...ALL, MISTRAL_API_KEY: "m", LLM_DISABLE: "mistral" }).some((s) => s.id.startsWith("mistral"))).toBe(false);
+  });
+
   it("picks free OpenRouter models that can return JSON, avoiding safety and preview ones", () => {
     const m = (id: string, ctx: number, params: string[], price = "0") => ({ id, context_length: ctx, pricing: { prompt: price, completion: price }, supported_parameters: params });
     expect(pickOpenRouterFree([

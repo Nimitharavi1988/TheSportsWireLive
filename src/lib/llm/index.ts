@@ -3,7 +3,7 @@
  * LLM_ROUTER=1. Off by default: the jobs then call Gemini exactly as before.
  * Keys, all optional (a provider without its key is simply not used):
  *   GEMINI_FREE_API_KEY  a Google project with NO billing (the free tier)
- *   GROQ_API_KEY, OPENROUTER_API_KEY, OLLAMA_BASE_URL (+ OLLAMA_MODEL)
+ *   GROQ_API_KEY, MISTRAL_API_KEY, OPENROUTER_API_KEY, OLLAMA_BASE_URL (+ OLLAMA_MODEL)
  *   GEMINI_API_KEY       the billed project: used only if LLM_PAID_DAILY_CALLS > 0
  *   LLM_DISABLE          providers to switch off, e.g. "groq,openrouter"
  * See providers.ts for the free limits each slot assumes.
