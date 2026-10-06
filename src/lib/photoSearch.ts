@@ -1,6 +1,7 @@
 /**
  * Free, properly licensed photos for stories written in admin (the story
- * editor's "Find a photo"). Two free sources, no API key:
+ * editor's "Find a photo"). Two free sources, no API key, plus Pexels (stock
+ * photos, needs PEXELS_API_KEY in the environment; skipped without it):
  *
  * - Openverse (openverse.org, run by WordPress): searches Wikimedia Commons,
  *   Flickr and other open collections at once. Asked for commercially
@@ -8,6 +9,11 @@
  * - Wikimedia Commons directly: newer uploads Openverse hasn't indexed yet
  *   (checked 2026-09-27: "Greenfield stadium" found three recent CC BY-SA
  *   4.0 photos of the ground there).
+ *
+ * - Pexels (2026-10-06): generic stock sport photography (a cricket match, a
+ *   stadium) for stories not about a named person. Titles start "Stock photo:"
+ *   so nobody mistakes one for a photo of the event. The automatic draft
+ *   picker never uses it (it takes Wikimedia Commons only).
  *
  * Only licences that allow commercial use and changes (resizing/cropping)
  * are offered: CC BY, CC BY-SA, CC0, public domain. Never non-commercial
@@ -17,7 +23,7 @@
  */
 import { decodeHtmlEntities } from "./htmlEntities";
 
-export type PhotoSourceId = "openverse" | "commons";
+export type PhotoSourceId = "openverse" | "commons" | "pexels";
 
 export interface PhotoResult {
   id: string;
@@ -198,6 +204,50 @@ export async function photoReachable(url: string): Promise<boolean> {
   }
 }
 
+interface PexelsPhoto {
+  id: number;
+  width: number;
+  height: number;
+  url: string;
+  photographer?: string;
+  alt?: string;
+  src: { original?: string; large2x?: string; large?: string; medium?: string };
+}
+
+// One Pexels result -> PhotoResult (pure, unit-tested). The Pexels licence
+// allows free commercial use and changes; it names the photographer as a courtesy.
+export function fromPexels(p: PexelsPhoto): PhotoResult | null {
+  const importUrl = p.src.large2x ?? p.src.large ?? p.src.original;
+  if (!importUrl || !p.url || !p.width || !p.height) return null;
+  const creator = (p.photographer ?? "").trim() || "Unknown author";
+  const alt = (p.alt ?? "").replace(/\s+/g, " ").trim();
+  return {
+    id: `pexels:${p.id}`,
+    source: "pexels",
+    title: `Stock photo: ${alt || "Pexels photo"}`,
+    creator,
+    license: "Pexels License",
+    landingUrl: p.url,
+    sourceName: "Pexels",
+    thumbUrl: p.src.medium ?? p.src.large ?? importUrl,
+    importUrl,
+    width: p.width,
+    height: p.height,
+    credit: photoCredit(creator, "Pexels License", "Pexels"),
+  };
+}
+
+// Generic stock photos. Without PEXELS_API_KEY this source is simply absent.
+export async function searchPexels(query: string): Promise<PhotoResult[]> {
+  const key = process.env.PEXELS_API_KEY;
+  if (!key) return [];
+  const params = new URLSearchParams({ query, per_page: String(PER_SOURCE), orientation: "landscape" });
+  const res = await fetch(`https://api.pexels.com/v1/search?${params}`, { headers: { Authorization: key, "User-Agent": USER_AGENT } });
+  if (!res.ok) throw new Error(`api.pexels.com answered ${res.status}`);
+  const data = (await res.json()) as { photos?: PexelsPhoto[] };
+  return (data.photos ?? []).flatMap((p) => fromPexels(p) ?? []);
+}
+
 async function getJson(url: string): Promise<unknown> {
   const res = await fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "application/json" } });
   if (!res.ok) throw new Error(`${new URL(url).host} answered ${res.status}`);
@@ -240,15 +290,15 @@ export function photoKey(r: Pick<PhotoResult, "importUrl" | "landingUrl">): stri
   return r.landingUrl.replace(/^https?:\/\//, "").replace(/[?#].*$/, "").toLowerCase();
 }
 
-// Both sources, Commons first (most specific), duplicates (the same
+// All sources, Commons first (most specific), Pexels stock last, duplicates (the same
 // Commons file found by both) dropped; landscape photos — the shape a story
 // photo is shown in — before portrait ones. A failing source is reported,
 // not fatal.
 export async function searchPhotos(query: string): Promise<{ results: PhotoResult[]; failed: string[] }> {
-  const [commons, openverse] = await Promise.allSettled([searchCommons(query), searchOpenverse(query)]);
+  const [commons, openverse, pexels] = await Promise.allSettled([searchCommons(query), searchOpenverse(query), searchPexels(query)]);
   const failed: string[] = [];
   const lists: PhotoResult[][] = [];
-  for (const [name, r] of [["Wikimedia Commons", commons], ["Openverse", openverse]] as const) {
+  for (const [name, r] of [["Wikimedia Commons", commons], ["Openverse", openverse], ["Pexels", pexels]] as const) {
     if (r.status === "fulfilled") lists.push(r.value);
     else {
       failed.push(name);
