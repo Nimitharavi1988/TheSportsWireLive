@@ -12,6 +12,7 @@ import { hasRealImage } from "../contentQuality";
 import { isSimilarToAny } from "../titleSimilarity";
 import { TOPIC_DESTINATIONS, destinationRunCap, effectiveDestination, localDayStart, prioritise } from "./facebookDestinations";
 import { postReel } from "./postReel";
+import { dramaBoost } from "./drama";
 
 const POOL_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 const SIMILARITY_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -65,7 +66,9 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
       let checked = 0;
       let attempts = 0;
       let postedNow = 0;
-      for (const a of prioritise(pool, now)) {
+      // Drama first within each freshness tier (prioritise keeps the incoming order): social/drama.ts.
+      const ranked = [...pool].sort((a, b) => (b.trendingScore ?? 0) + dramaBoost(b.title) - ((a.trendingScore ?? 0) + dramaBoost(a.title)));
+      for (const a of prioritise(ranked, now)) {
         if (postedNow >= runCap || attempts >= MAX_ATTEMPTS || checked >= MAX_PHOTO_CHECKS) break;
         if (done.has(a.id) || !a.body || !hasRealImage(a) || !d.matches(a)) continue;
         // Match rows are scorecards, not stories to narrate.
