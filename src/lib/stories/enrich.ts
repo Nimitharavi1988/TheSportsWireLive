@@ -28,8 +28,8 @@ import { ORIGINAL_SOURCE } from "../stories";
 import { articleWords } from "../thinContent";
 import { articleUrl, submitToIndexNow } from "../indexNow";
 import {
-  MAX_ENRICH_PER_DAY, MAX_ENRICH_PER_RUN, MAX_ENRICH_RESEARCH_PER_RUN, MIN_ENRICHED_WORDS, MIN_ENRICH_FACTS,
-  buildEnrichPrompt, creditLine, enrichedToday, pickCandidates, pruneLog, unsupportedFigures, type EnrichLogEntry, type EnrichResult,
+  MIN_ENRICHED_WORDS, MIN_ENRICH_FACTS,
+  buildEnrichPrompt, creditLine, enrichLimitsFrom, enrichedToday, mentionsItsInputs, mergeLogs, pickCandidates, pruneLog, unsupportedFigures, type EnrichLogEntry, type EnrichResult,
 } from "./enrichRules";
 
 const LOG_KEY = "enrich:log";
@@ -50,7 +50,8 @@ const ENRICH_SCHEMA = { type: "OBJECT", properties: { paragraphs: { type: "ARRAY
 // of saving anything (no story change, no log, no IndexNow).
 export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: boolean } = {}): Promise<{ enriched: number; note: string }> {
   let log = pruneLog(await readLog(), now);
-  const room = Math.min(MAX_ENRICH_PER_RUN, MAX_ENRICH_PER_DAY - enrichedToday(log, now));
+  const limits = enrichLimitsFrom(process.env);
+  const room = Math.min(limits.perRun, limits.perDay - enrichedToday(log, now));
   if (room <= 0) return { enriched: 0, note: "daily limit reached" };
 
   const rows = await db
@@ -73,7 +74,7 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
   let note = "ok";
   const record = (id: string, result: EnrichResult, detail?: EnrichLogEntry["detail"]) => { log = [...log, { id, at: now.toISOString(), result, ...(detail ? { detail } : {}) }]; };
 
-  for (const story of pickCandidates(rows, log, MAX_ENRICH_RESEARCH_PER_RUN)) {
+  for (const story of pickCandidates(rows, log, limits.researchPerRun)) {
     if (enriched >= room) break;
     const text = (story.body?.trim() ? story.body : story.summary).trim();
     // Researched from other outlets' coverage we already hold, not a paid web
@@ -99,6 +100,13 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
     const body = checked.body.split(/\n\n+/).map((p) => p.replace(/^##\s+/, "")).join("\n\n");
     const words = articleWords({ body, summary: null });
     if (words < MIN_ENRICHED_WORDS) { record(story.id, "too-short", { facts: research.facts.length, outlets: research.sources.length, words }); continue; }
+    // The writer talking about its own inputs ("the provided facts..."): never shown.
+    const leaked = mentionsItsInputs(body);
+    if (leaked) {
+      if (opts.dryRun) console.log(`[dry-run] mentions its inputs ("${leaked}"): "${story.title}"`);
+      record(story.id, "failed", { facts: research.facts.length, words, why: `mentions its inputs: ${leaked}` });
+      continue;
+    }
     // A figure the research never gave: the writer invented or mangled it.
     const unsupported = unsupportedFigures(body, research.facts, story.title);
     if (unsupported.length > 0) {
@@ -122,7 +130,9 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
     await submitToIndexNow([articleUrl(story.slug)]);
   }
 
-  if (!opts.dryRun) await writeLog(log);
+  // Merged with what is stored now: a local run and the workflow may both have
+  // written since this one read the log.
+  if (!opts.dryRun) await writeLog(pruneLog(mergeLogs(await readLog(), log), now));
   return { enriched, note };
 }
 

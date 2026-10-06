@@ -169,6 +169,10 @@ jobs:
       - if: ${{ !cancelled() }}
         run: npx tsx src/lib/stories/enrich.ts
         env:
+          # Raise without a deploy; empty = the defaults in enrichRules.ts.
+          ENRICH_MAX_PER_DAY: ${{ vars.ENRICH_MAX_PER_DAY }}
+          ENRICH_MAX_PER_RUN: ${{ vars.ENRICH_MAX_PER_RUN }}
+          ENRICH_MAX_RESEARCH_PER_RUN: ${{ vars.ENRICH_MAX_RESEARCH_PER_RUN }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SITE_URL: ${{ vars.SITE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

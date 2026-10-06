@@ -563,3 +563,11 @@ describe("write-up number check", () => {
     expect(ungroundedNumbers("Attendance: 40542.", source)).toEqual([]);
   });
 });
+
+describe("mistral small model", () => {
+  it("adds ministral-8b after the 14B when a Mistral key is set", () => {
+    const ids = buildSlots({ MISTRAL_API_KEY: "m" }).map((s) => s.id);
+    expect(ids).toEqual(["mistral ministral-14b-2512", "mistral ministral-8b-2512"]);
+    expect(buildSlots({ MISTRAL_API_KEY: "m", LLM_DISABLE: "mistral" })).toEqual([]);
+  });
+});
