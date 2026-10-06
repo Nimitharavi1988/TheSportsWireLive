@@ -31,6 +31,9 @@ export interface DraftFacts {
   // for this story, and the shape the piece should take (DRAFT_FORMATS).
   webFacts?: string[];
   format?: DraftFormat;
+  // Clean drafts (the local script): no [ADD]/[CHECK] notes in the text; a point
+  // the facts can't support is left out instead.
+  noNotes?: boolean;
 }
 
 // Shapes the automatic drafts rotate through, so the Analysis section doesn't
@@ -85,7 +88,7 @@ Rules:
 - Don't work out facts that aren't stated either — e.g. don't give a series' length from the fixtures listed (more may exist), or a team's form from one result.
 - Everything in your own words: never copy or closely paraphrase sentences from the facts (the ground notes come from Wikipedia, the recent coverage from other stories).
 - The ground is background: use one or two details that matter to the match, not its history or awards. Focus on the brief.
-- Where the piece needs a fact you don't have, write a note in square brackets for the writer, e.g. [ADD: pitch report from the curator] or [ADD: confirmed XI].
+${f.noNotes ? "- Never write [ADD] or [CHECK] notes or any square-bracket note: where you lack a fact, leave that point out and write the piece from what the facts support." : "- Where the piece needs a fact you don't have, write a note in square brackets for the writer, e.g. [ADD: pitch report from the curator] or [ADD: confirmed XI]."}
 - Write it as an editorial, not a wire report: the headline states an angle or asks the real question (e.g. "Why the opening slot is the real selection puzzle"), not just the fixture or a name; open on the point, not the scene; take a position the facts support and say what it means. A viewpoint is fine, an invented fact never is.
 - Never say anything about a named person's character, motives, reputation or past conduct unless a fact states it, attributed to who said it. No "baggage", "liability", "distractions" or similar judgments of a real person.
 - Never describe an action or event the facts don't state (a coach "walking off", a player "prompting" something). If it isn't in the facts, leave it out.

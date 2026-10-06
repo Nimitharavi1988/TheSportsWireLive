@@ -115,7 +115,9 @@ export async function paidReviewDraft(draft: ReviewedText, facts: string[]): Pro
     if (!text) return null;
     // An answer that can't be read is a verdict on this draft (skip it), not on
     // the service: the run goes on.
-    return parseReview(JSON.parse(text)) ?? { verdict: "reject", problems: ["the review answer could not be read"] };
+    const parsed = parseReview(JSON.parse(text));
+    if (!parsed) console.error(`Paid review answer unreadable: ${text.slice(0, 300).replace(/\s+/g, " ")}`);
+    return parsed ?? { verdict: "reject", problems: ["the review answer could not be read"] };
   } catch (err) {
     console.error("Paid review error:", err);
     return null;

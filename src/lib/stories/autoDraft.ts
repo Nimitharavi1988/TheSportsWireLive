@@ -180,7 +180,7 @@ export async function autoDraftStories(now: Date = new Date(), opts: AutoDraftOp
         if (paidReviewCalls() >= (opts.paidReviewMax ?? 30)) return { drafted, note: "paid call limit reached for this run" };
         notePaidCall();
       }
-      draft = await requestDraft({ ...facts, webFacts: research.facts, format }, RESEARCH_MODEL, paidKey);
+      draft = await requestDraft({ ...facts, webFacts: research.facts, format, noNotes: opts.reviewPack }, RESEARCH_MODEL, paidKey);
     } catch (err) {
       // Out of credit, busy or not configured: stop, try again next run.
       if (err instanceof AiDraftError) return { drafted, note: err.message };
