@@ -89,6 +89,8 @@ export function pickUsablePhoto(results: PhotoResult[], subject: string, alsoMat
 // People named at least twice in the story, most mentioned first: the players
 // worth searching a photo for (pure, unit-tested).
 const NOT_A_NAME = /football|stadium|night|league|conference|division|bowl|week|state|university|college|field|park|center|centre|network|sports|news|press|association|coach|season|quarter|half|world|series|trophy|cup|first|second|third|fourth|sunday|monday|tuesday|wednesday|thursday|friday|saturday/i;
+// Two-word places and teams that look like a name ("West Indies" found Usain Bolt and Obama).
+const NOT_A_PERSON_PLACE = /\b(?:west indies|new zealand|south africa|sri lanka|united states|new york|new england|new orleans|los angeles|las vegas|kansas city|green bay|tampa bay|san francisco|san diego|san jose|saint louis|north carolina|south carolina|india|england|australia|pakistan|zimbabwe|bangladesh|afghanistan|ireland|scotland|netherlands)\b/i;
 export function candidatePeople(body: string, clubNames: string[], max = 4): string[] {
   const clubs = clubNames.map((c) => c.toLowerCase());
   const names = new Set<string>();
@@ -98,7 +100,7 @@ export function candidatePeople(body: string, clubNames: string[], max = 4): str
     let name = m[1].replace(/\s+(Jr\.?|III|II)$/, "").replace(/^(?:The|A|An|On|In|At|With|After|Before|During|When|While|But|And|Meanwhile|However|For|By|From|Both|Each|This|That|His|Her|Their|Its|Our|Despite|Following)\s+/, "");
     name = name.replace(/['’]s$/, "");
     if (!/\s/.test(name)) continue;
-    if (NOT_A_NAME.test(name)) continue;
+    if (NOT_A_NAME.test(name) || NOT_A_PERSON_PLACE.test(name)) continue;
     // A club or its city ("San Francisco", "San Francisco 49ers") is not a person.
     if (clubs.some((c) => c.includes(name.toLowerCase()) || name.toLowerCase().includes(c))) continue;
     names.add(name);

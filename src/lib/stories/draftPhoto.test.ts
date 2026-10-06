@@ -49,3 +49,10 @@ describe("people detection edge cases", () => {
     expect(candidatePeople(body, ["San Francisco 49ers", "Denver Broncos"])).toEqual(["Brock Purdy"]);
   });
 });
+
+describe("countries and teams are not people", () => {
+  it("skips West Indies, New Zealand and the like", () => {
+    const body = "West Indies won the toss. West Indies chased well. Shai Hope scored, and Hope stayed. New Zealand watched. New Zealand waited.";
+    expect(candidatePeople(body, [])).toEqual(["Shai Hope"]);
+  });
+});
