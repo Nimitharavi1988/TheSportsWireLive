@@ -160,7 +160,10 @@ export const CRICKETLIVE_PAGE: FacebookDestination = {
   // Own stories, not Greenfield's; reels at midday IST only (11:00-16:00) — its
   // reels got 72-179 plays at 12-15h IST against 1-48 early morning and evening.
   notAlsoOn: "india-cricket",
-  reels: { dailyCap: 10, perRunCap: 1, activeHours: { timeZone: "Asia/Kolkata", start: 11, end: 16 } },
+  // minTrending 25 (Greenfield: 35): it gets the stories Greenfield left, so a floor keeps
+  // the weakest of them out of its reels. Supply swings with the news: 112 cricket stories
+  // scored 30+ on 3 Oct, 3 on 5 Oct (a quiet day) — so 25, not 30, to keep a few a day.
+  reels: { dailyCap: 10, perRunCap: 1, minTrending: 25, activeHours: { timeZone: "Asia/Kolkata", start: 11, end: 16 } },
   // First day of posting (4 Oct IST): 30 posts and 30 reels, still one of each per run.
   boost: { until: new Date("2026-10-04T18:30:00Z"), dailyCap: 30, reels: { dailyCap: 30, perRunCap: 1 } },
 };

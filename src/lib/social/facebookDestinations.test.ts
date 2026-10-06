@@ -164,3 +164,10 @@ describe("prioritise: the first hour comes first", () => {
     expect(prioritise(pool, now).map((a) => a.title)).toEqual(["fresh", "later-today"]);
   });
 });
+
+describe("reel quality floors", () => {
+  it("both cricket Pages skip weak stories; the new Page's floor is a little lower than Greenfield's", () => {
+    expect(INDIA_CRICKET_PAGE.reels?.minTrending).toBe(35);
+    expect(CRICKETLIVE_PAGE.reels?.minTrending).toBe(25);
+  });
+});
