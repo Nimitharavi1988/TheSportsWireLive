@@ -4,6 +4,7 @@ import { article, vertical } from "@/db/schema";
 import { and, count, eq, gte, inArray, isNotNull, ne, notInArray } from "drizzle-orm";
 import { commentaryRunBudget, dailyCommentaryCapFrom, scaledReserve } from "./commentaryBudget";
 import { runPool } from "./pool";
+import { bestSource, minGroundingChars } from "./groundingRules";
 import { COVERAGE_WINDOW_MS, COVERED_REASON, createCoverageIndex } from "./coverageIndex";
 import { isNotAStory } from "../thinContent";
 import { ORIGINAL_SOURCE } from "../stories";
@@ -214,7 +215,40 @@ interface Grounding {
 // variable could be overwritten by another item before it is read.
 const groundingFailures = new WeakMap<RawMatchItem, string>();
 
+// Stories left unwritten this run because their source text was too thin or
+// off-topic (groundingRules.ts), reported at the end of the run.
+let thinSourceSkips = 0;
+
+// The text a story is written from: the feed snippet and/or the source page,
+// whichever is longest and about the headline. Too little real text means no
+// write-up (groundingRules.ts); MIN_GROUNDING_CHARS=0 restores the old rule.
 async function resolveGrounding(item: RawMatchItem): Promise<Grounding | null> {
+  const min = minGroundingChars(process.env.MIN_GROUNDING_CHARS);
+  if (min === 0) return resolveGroundingLegacy(item);
+  groundingFailures.delete(item);
+  const snippet = item.sourceSnippet?.trim() ?? "";
+  const candidates: string[] = snippet ? [snippet] : [];
+  let imageUrl: string | undefined;
+  let pageProblem = "";
+  // The page is read whenever the snippet alone is too short to write from (a
+  // Google News link can never be read: isGoogleNewsRedirect).
+  if (!isGoogleNewsRedirect(item.sourceUrl) && (snippet.length < min || !item.heroImageUrl)) {
+    const extracted = await extractArticleContentDetailed(item.sourceUrl);
+    if (!("failure" in extracted)) {
+      candidates.push(extracted.text);
+      imageUrl = extracted.imageUrl;
+    } else {
+      pageProblem = `source page unreadable (${extracted.failure})`;
+    }
+  }
+  const best = bestSource(item.title, candidates, min);
+  if ("text" in best) return { text: best.text, imageUrl };
+  thinSourceSkips++;
+  groundingFailures.set(item, pageProblem ? `${pageProblem}; ${best.problem}` : best.problem);
+  return null;
+}
+
+async function resolveGroundingLegacy(item: RawMatchItem): Promise<Grounding | null> {
   groundingFailures.delete(item);
   const snippet = item.sourceSnippet?.trim();
   if (snippet && snippet.length >= THIN_SNIPPET_THRESHOLD) {
@@ -1019,6 +1053,7 @@ export async function runIngest() {
   await runPool(rawItems, itemConcurrency, (item) => [dedupeHashFor(item), ...keysFor(item)], processItem);
 
   logTimingSummary("ingest");
+  if (thinSourceSkips > 0) console.log(`[ingest] ${thinSourceSkips} stories left unwritten: source text too thin or not about the headline (MIN_GROUNDING_CHARS=${minGroundingChars(process.env.MIN_GROUNDING_CHARS)}).`);
   if (aiUnavailableReason()) console.warn(`[ingest] ${aiUnavailableReason()} — stories were left pending, not rejected; they will be written once the AI is back.`);
   console.log(
     `Ingest run complete: ${ingested} new articles (${flagged} flagged), ${staleSkipped} stale RSS items skipped (older than ${MAX_RSS_ITEM_AGE_MS / 86400000}d), ${crossProviderSkipped} matches already stored from another provider (${crossProviderRefreshed} scored from a superseding one), ${reopenedFromDirect} Google-News-rejected stories reopened from the publisher's own feed, ` +
