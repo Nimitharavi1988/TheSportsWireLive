@@ -25,7 +25,12 @@ export const MIN_INDEXED_WORDS = 300;
 
 // Titles that are never a news story of their own: fan-site threads, stream
 // listings, TV guides and live blogs.
-const NOT_A_STORY = "open thread|open chat|game thread|live stream|how to watch|where to watch|live updates|live blog";
+// Promotional and betting items (2026-10-06, after Prime Day deal lists, a
+// FanDuel promo code and betting picks went out on the Facebook Page): plain
+// phrases, no word boundaries, so this one string works as both a JavaScript
+// and a Postgres regular expression (indexableArticleSql below).
+const PROMO = "promo code|bonus code|bonus bets|free bets|prime day|black friday|cyber monday|deals on|best deals|deals live|% off|discount|gift guide|giveaway|best bets|player props|prop bets|against the spread|picks against|parlay|sportsbook|moneyline|betting odds|opening lines| odds |odds:|odds,|odds for|early odds";
+const NOT_A_STORY = `open thread|open chat|game thread|live stream|how to watch|where to watch|live updates|live blog|${PROMO}`;
 const NOT_A_STORY_RE = new RegExp(NOT_A_STORY, "i");
 
 export function isNotAStory(title: string): boolean {
