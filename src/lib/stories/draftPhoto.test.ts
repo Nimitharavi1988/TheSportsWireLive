@@ -56,3 +56,22 @@ describe("countries and teams are not people", () => {
     expect(candidatePeople(body, [])).toEqual(["Shai Hope"]);
   });
 });
+
+describe("photo source and age", () => {
+  it("accepts only Wikimedia Commons, and only recent photos", () => {
+    expect(isUsablePhoto({ ...photo("Josh_Allen_2024.jpg"), sourceName: "Flickr" })).toBe(false); // unvetted titles
+    expect(isUsablePhoto({ ...photo("Josh_Allen_2024.jpg"), sourceName: "Wikimedia Commons" })).toBe(true);
+    expect(isUsablePhoto(photo("Jameis_Winston_2018_training_camp.jpg"))).toBe(false); // old team's uniform
+    expect(isUsablePhoto(photo("Josh_Allen_TD_celly_2025.jpg"))).toBe(true);
+  });
+});
+
+describe("photo fit", () => {
+  it("prefers a photo in the story's club colours, then a recent one", async () => {
+    const { scorePhoto } = await import("./autoDraftRules");
+    expect(scorePhoto({ title: "Jameis Winston New York Giants 2025" }, ["Giants", "Cardinals"])).toBe(3);
+    expect(scorePhoto({ title: "Jameis Winston loses the ball (51585644409)" }, ["Giants", "Cardinals"])).toBe(0);
+    expect(scorePhoto({ title: "Saquon Barkley 2019" }, ["Eagles"])).toBe(0);
+    expect(scorePhoto({ title: "Saquon Barkley Philadelphia Eagles" }, ["Eagles"])).toBe(2);
+  });
+});

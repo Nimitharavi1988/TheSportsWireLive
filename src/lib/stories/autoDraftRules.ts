@@ -61,16 +61,21 @@ export function pickPhoto(results: PhotoResult[], subject: string): PhotoResult 
 // a real photograph, recent, of the subject.
 const NOT_A_PHOTO = /uniform|logo|headquarters|topps|trading card|\bcards?\b|helmet|jersey|\bkits?\b|wordmark|flag|\bmap\b|diagram|\bseal\b|crest|badge|banner|poster|stamp|signature|autograph|statue|cartoon|sticker|stadium|arena|aerial|exterior|interior|building|roster|season|draft|logo|symbol|icon|screenshot/i;
 
-export function isUsablePhoto(r: Pick<PhotoResult, "title" | "width" | "height" | "importUrl">): boolean {
+export function isUsablePhoto(r: Pick<PhotoResult, "title" | "width" | "height" | "importUrl"> & { sourceName?: string }): boolean {
   // File names use underscores, which would defeat the word-boundary checks.
   const title = r.title.toLowerCase().replace(/_/g, " ");
   // Result titles carry no extension; the image address does.
   if (!/\.jpe?g$/.test((r.importUrl ?? title).split("?")[0].toLowerCase())) return false; // photographs, not PNG charts or SVG art
   if (NOT_A_PHOTO.test(title)) return false;
   if (r.width < 800) return false;
-  // Any year in the file name must be recent: a 1958 card or a 2005 game is not this week's story.
+  // Wikimedia Commons only: Flickr titles are whatever the uploader typed (a
+  // draft got a stranger eating chicken wings, 2026-10-06). No source name (a
+  // stored photo being re-checked) is judged on its address alone.
+  if (r.sourceName && r.sourceName !== "Wikimedia Commons") return false;
+  // Any year in the file name must be recent: a 1958 card is not this week's
+  // story, and a 2018 camp photo shows a player in his old team's uniform.
   const years = title.match(/\b(19|20)\d{2}\b/g)?.map(Number) ?? [];
-  return years.every((y) => y >= 2014);
+  return years.every((y) => y >= 2022);
 }
 
 // The first usable photo whose file title names the subject by surname, or by a
@@ -84,6 +89,16 @@ export function pickUsablePhoto(results: PhotoResult[], subject: string, alsoMat
   return results
     .filter((r) => isUsablePhoto(r) && needles.some((n) => r.title.toLowerCase().includes(n)))
     .sort((a, b) => year(b) - year(a))[0] ?? null;
+}
+
+// How well a photo fits the story: +2 when its title names one of the story's
+// clubs (so the player is shown in that club's colours), +1 when it is from
+// 2024 or later. A player photographed years ago may wear another team's kit
+// (pure, unit-tested).
+export function scorePhoto(r: Pick<PhotoResult, "title">, clubWords: string[]): number {
+  const t = r.title.toLowerCase().replace(/_/g, " ");
+  const year = Math.max(0, ...(t.match(/\b(?:19|20)\d{2}\b/g)?.map(Number) ?? []));
+  return (clubWords.some((w) => w.length >= 4 && t.includes(w.toLowerCase())) ? 2 : 0) + (year >= 2024 ? 1 : 0);
 }
 
 // People named at least twice in the story, most mentioned first: the players

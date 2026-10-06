@@ -27,7 +27,7 @@ import { fetchStoryIdeas, markStoryIdea } from "../storyIdeasData";
 import type { StoryIdea } from "../storyIdeas";
 import {
   MAX_DRAFTS_PER_DAY, MAX_DRAFTS_PER_RUN, MAX_RESEARCH_PER_RUN, MAX_UNREVIEWED, MIN_WEB_FACTS,
-  candidatePeople, cleanDraftProblem, draftBodyWithChecks, pickUsablePhoto, draftProblem, editorNotes, pickFormat, pickIdeas, pickPhoto, reviewPackKey, suggestedWriter,
+  candidatePeople, cleanDraftProblem, draftBodyWithChecks, pickUsablePhoto, scorePhoto, draftProblem, editorNotes, pickFormat, pickIdeas, pickPhoto, reviewPackKey, suggestedWriter,
   type ReviewPack,
 } from "./autoDraftRules";
 import { unsupportedFigures } from "./enrichRules";
@@ -70,10 +70,18 @@ async function suggestPhoto(subject: string | null): Promise<PhotoResult | null>
 export async function suggestCleanPhoto(body: string, tags: { kind: string; slug: string }[]): Promise<{ photo: PhotoResult; subject: string } | null> {
   const clubNames = tags.filter((t) => t.kind === "club").map((t) => TRACKED_CLUBS.find((c) => c.slug === t.slug)?.name).filter((n): n is string => !!n);
   try {
-    for (const name of candidatePeople(body, clubNames)) {
+    // The best-fitting photo among the people the story names: one showing
+    // the player in a club's colours, or recent, beats the first one found.
+    const clubWords = clubNames.map((c) => c.split(" ").pop() ?? "");
+    let best: { photo: PhotoResult; subject: string; score: number } | null = null;
+    for (const name of candidatePeople(body, clubNames, 6)) {
       const photo = pickUsablePhoto((await searchPhotos(name)).results, name);
-      if (photo) return { photo, subject: name };
+      if (!photo) continue;
+      const score = scorePhoto(photo, clubWords);
+      if (!best || score > best.score) best = { photo, subject: name, score };
+      if (score >= 2) break;
     }
+    if (best) return { photo: best.photo, subject: best.subject };
     for (const club of clubNames) {
       const photo = pickUsablePhoto((await searchPhotos(club)).results, club);
       if (photo) return { photo, subject: club };

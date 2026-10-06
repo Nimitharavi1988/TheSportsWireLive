@@ -7,6 +7,7 @@
  *   npx tsx scripts/fixDraftPhotos.ts --apply         save the proposed photos
  *   options: --hours N (24)  look at original stories updated in the last N hours
  *            --all   re-pick every story in the window, not only those with an obviously wrong photo
+ *            --drafts-only   leave published stories alone
  *            --skip "text"   leave stories whose title contains this text alone
  *            --env path/to/.dev.vars
  *
@@ -31,6 +32,7 @@ async function main() {
   }
   const apply = process.argv.includes("--apply");
   const all = process.argv.includes("--all");
+  const draftsOnly = process.argv.includes("--drafts-only");
   const si = process.argv.indexOf("--skip");
   const skip = si >= 0 ? (process.argv[si + 1] ?? "").toLowerCase() : "";
   const hi = process.argv.indexOf("--hours");
@@ -44,7 +46,7 @@ async function main() {
 
   const rows = await db.select().from(article).where(and(
     eq(article.sourceName, "Sports Wire Live"),
-    inArray(article.status, ["published", "draft"]),
+    inArray(article.status, draftsOnly ? ["draft"] : ["published", "draft"]),
     gte(article.updatedAt, new Date(Date.now() - hours * 3600e3)),
   ));
   for (const row of rows) {
