@@ -87,6 +87,9 @@ Rules:
 - The ground is background: use one or two details that matter to the match, not its history or awards. Focus on the brief.
 - Where the piece needs a fact you don't have, write a note in square brackets for the writer, e.g. [ADD: pitch report from the curator] or [ADD: confirmed XI].
 - Write it as an editorial, not a wire report: the headline states an angle or asks the real question (e.g. "Why the opening slot is the real selection puzzle"), not just the fixture or a name; open on the point, not the scene; take a position the facts support and say what it means. A viewpoint is fine, an invented fact never is.
+- Never say anything about a named person's character, motives, reputation or past conduct unless a fact states it, attributed to who said it. No "baggage", "liability", "distractions" or similar judgments of a real person.
+- Never describe an action or event the facts don't state (a coach "walking off", a player "prompting" something). If it isn't in the facts, leave it out.
+- No outlook filler: no "looking ahead", "must sustain", "will determine whether" or "the clock is ticking" unless a fact names the next game or date.
 - Clear, specific sports-journalism English; vary sentence length; no clichés, no hype, no filler.
 - 450-700 words if the facts support it; shorter is better than padding.
 - "blocks": the story in order, one paragraph per item; up to three subheadings, each its own item (short, no "##").

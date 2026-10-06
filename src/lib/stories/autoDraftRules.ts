@@ -4,6 +4,8 @@ import type { AiDraft } from "../aiDraft";
 import type { DraftFormat } from "../aiDraft";
 import type { PhotoResult } from "../photoSearch";
 import { STORY_LIMITS } from "../stories";
+import { articleWords } from "../thinContent";
+import { MIN_ENRICHED_WORDS, isRepetitive, mentionsItsInputs } from "./enrichRules";
 
 // Few and good (2026-10-04, was 2 a run / 6 a day): each draft now costs a
 // web-research and a fact-check call, and a pile of AI drafts is exactly the
@@ -96,6 +98,12 @@ export function draftBodyWithChecks(draft: Pick<AiDraft, "body" | "checks">): st
 export function cleanDraftProblem(draft: AiDraft): string | null {
   const base = draftProblem(draft);
   if (base) return base;
+  // A story written here is always indexed (thinContent.ts exempts originals),
+  // so a short one would be a thin indexed page: it needs the same bar as an
+  // enriched report.
+  if (articleWords({ body: draft.body, summary: null }) < MIN_ENRICHED_WORDS) return "under the length bar";
+  if (mentionsItsInputs(draft.body)) return "talks about its own inputs";
+  if (isRepetitive(draft.body)) return "repetitive prose";
   if (/\[(ADD|CHECK)\b/i.test(`${draft.title} ${draft.summary} ${draft.body}`)) return "has notes or gaps in the text";
   return null;
 }

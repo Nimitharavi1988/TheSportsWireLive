@@ -30,6 +30,7 @@ import {
   cleanDraftProblem, draftBodyWithChecks, draftProblem, editorNotes, pickFormat, pickIdeas, pickPhoto, reviewPackKey, suggestedWriter,
   type ReviewPack,
 } from "./autoDraftRules";
+import { unsupportedFigures } from "./enrichRules";
 import { researchFromCoverage } from "./coverageResearch";
 import { gatherDraftFacts, seriesLabelFor } from "../draftFacts";
 import { AiDraftError, requestDraft, type AiDraft } from "../aiDraft";
@@ -159,7 +160,11 @@ export async function autoDraftStories(now: Date = new Date(), opts: AutoDraftOp
       continue;
     }
     const facts = await gatherDraftFacts({ brief: idea.brief, category: idea.sport, storyKind: idea.storyKind, seriesKey: idea.seriesKey, tags: idea.tags });
-    const format = pickFormat(idea.kind);
+    // The opinion "feature" format invited sweeping claims about named people
+    // (a draft on a player's "past" and "liability", 2026-10-06), so drafts
+    // meant for one-click approval use a more factual shape instead.
+    const picked = pickFormat(idea.kind);
+    const format = opts.reviewPack && picked === "feature" ? "takeaways" : picked;
     let draft: AiDraft;
     try {
       draft = await requestDraft({ ...facts, webFacts: research.facts, format }, RESEARCH_MODEL);
@@ -183,6 +188,15 @@ export async function autoDraftStories(now: Date = new Date(), opts: AutoDraftOp
       console.log(`Auto-draft skipped "${idea.headline}" (too little left after the fact-check).`);
       await markStoryIdea(idea.key, "dismissed");
       continue;
+    }
+    if (opts.reviewPack) {
+      // A figure the research never gave: the writer invented or mangled it.
+      const unsupported = unsupportedFigures(checkedDraft.body, [...research.facts, ...facts.fixtures], draft.title);
+      if (unsupported.length > 0) {
+        console.log(`Auto-draft skipped "${idea.headline}" (figures not in the facts: ${unsupported.join(", ")}).`);
+        await markStoryIdea(idea.key, "dismissed");
+        continue;
+      }
     }
     const subject = photoSubject(idea.tags);
     const photo = await suggestPhoto(subject);
