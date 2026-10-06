@@ -8,6 +8,7 @@
  *   options: --hours N (24)  look at original stories updated in the last N hours
  *            --all   re-pick every story in the window, not only those with an obviously wrong photo
  *            --drafts-only   leave published stories alone
+ *            --only "text"   touch only stories whose title contains this text
  *            --skip "text"   leave stories whose title contains this text alone
  *            --env path/to/.dev.vars
  *
@@ -33,6 +34,8 @@ async function main() {
   const apply = process.argv.includes("--apply");
   const all = process.argv.includes("--all");
   const draftsOnly = process.argv.includes("--drafts-only");
+  const oi = process.argv.indexOf("--only");
+  const only = oi >= 0 ? (process.argv[oi + 1] ?? "").toLowerCase() : "";
   const si = process.argv.indexOf("--skip");
   const skip = si >= 0 ? (process.argv[si + 1] ?? "").toLowerCase() : "";
   const hi = process.argv.indexOf("--hours");
@@ -54,6 +57,7 @@ async function main() {
     // The stored URL ends in the file name; judge it the way a search result is judged.
     const fileName = decodeURIComponent(current.split("?")[0].split("/").pop() ?? "").replace(/^\d+px-/, "");
     if (skip && row.title.toLowerCase().includes(skip)) continue;
+    if (only && !row.title.toLowerCase().includes(only)) continue;
     if (!all && current && isUsablePhoto({ title: fileName, width: 1600, height: 1000, importUrl: current })) continue;
     const tags = await db.select({ kind: articleTag.kind, slug: articleTag.slug }).from(articleTag).where(eq(articleTag.articleId, row.id));
     const found = await suggestCleanPhoto(row.body ?? "", tags);
