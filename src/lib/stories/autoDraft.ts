@@ -27,7 +27,7 @@ import { fetchStoryIdeas, markStoryIdea } from "../storyIdeasData";
 import type { StoryIdea } from "../storyIdeas";
 import {
   MAX_DRAFTS_PER_DAY, MAX_DRAFTS_PER_RUN, MAX_RESEARCH_PER_RUN, MAX_UNREVIEWED, MIN_WEB_FACTS,
-  cleanDraftProblem, draftBodyWithChecks, draftProblem, editorNotes, pickFormat, pickIdeas, pickPhoto, reviewPackKey, suggestedWriter,
+  candidatePeople, cleanDraftProblem, draftBodyWithChecks, pickUsablePhoto, draftProblem, editorNotes, pickFormat, pickIdeas, pickPhoto, reviewPackKey, suggestedWriter,
   type ReviewPack,
 } from "./autoDraftRules";
 import { unsupportedFigures } from "./enrichRules";
@@ -61,6 +61,27 @@ async function suggestPhoto(subject: string | null): Promise<PhotoResult | null>
     console.error("Auto-draft photo search failed:", err);
     return null;
   }
+}
+
+// Photo for a clean draft: a named player from the story first (a real
+// photograph of someone the story is about), then one of the clubs; never a
+// uniform chart, logo, old card or building (autoDraftRules.ts isUsablePhoto).
+// null when nothing suitable exists: the draft isn't saved without a photo.
+export async function suggestCleanPhoto(body: string, tags: { kind: string; slug: string }[]): Promise<{ photo: PhotoResult; subject: string } | null> {
+  const clubNames = tags.filter((t) => t.kind === "club").map((t) => TRACKED_CLUBS.find((c) => c.slug === t.slug)?.name).filter((n): n is string => !!n);
+  try {
+    for (const name of candidatePeople(body, clubNames)) {
+      const photo = pickUsablePhoto((await searchPhotos(name)).results, name);
+      if (photo) return { photo, subject: name };
+    }
+    for (const club of clubNames) {
+      const photo = pickUsablePhoto((await searchPhotos(club)).results, club);
+      if (photo) return { photo, subject: club };
+    }
+  } catch (err) {
+    console.error("Auto-draft photo search failed:", err);
+  }
+  return null;
 }
 
 async function autoDraftCounts(now: Date) {
@@ -211,8 +232,21 @@ export async function autoDraftStories(now: Date = new Date(), opts: AutoDraftOp
         continue;
       }
     }
-    const subject = photoSubject(idea.tags);
-    const photo = await suggestPhoto(subject);
+    let subject = photoSubject(idea.tags);
+    let photo: PhotoResult | null;
+    if (opts.reviewPack) {
+      // Clean drafts are approved without editing, so the photo must be right.
+      const found = await suggestCleanPhoto(checkedDraft.body, idea.tags);
+      if (!found) {
+        console.log(`Auto-draft skipped "${idea.headline}" (no suitable photo).`);
+        await markStoryIdea(idea.key, "dismissed");
+        continue;
+      }
+      photo = found.photo;
+      subject = found.subject;
+    } else {
+      photo = await suggestPhoto(subject);
+    }
     const notes = editorNotes({ writer: suggestedWriter(idea.sport), sources: research.sources, removed: checked.removed.length, photoSubject: photo ? subject : null });
     let finalDraft = checkedDraft;
     const reviewNotes: string[] = [];

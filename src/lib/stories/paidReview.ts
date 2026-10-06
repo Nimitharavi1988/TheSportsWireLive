@@ -60,6 +60,16 @@ Verdict:
 "problems": each problem found, one short line each (empty for "pass"). Be strict: when unsure whether a claim is in the facts, treat it as unsupported.`;
 }
 
+// The model sometimes puts the whole corrected story into one field, as
+// "Headline\nSummary: ...\nBody:\n...". Splits that back into its parts, or
+// returns null when the markers aren't there (pure, unit-tested).
+export function splitPackedText(packed: string): ReviewedText | null {
+  const m = /^([\s\S]*?)\r?\n\s*Summary:\s*([\s\S]*?)\r?\n\s*Body:\s*([\s\S]+)$/i.exec(packed.trim());
+  if (!m) return null;
+  const [title, summary, body] = [m[1], m[2], m[3]].map((x) => x.trim());
+  return title && summary && body ? { title: title.replace(/^(?:Headline|Title):\s*/i, ""), summary, body } : null;
+}
+
 // The model's answer in a safe shape (pure, unit-tested).
 export function parseReview(raw: unknown): DraftReview | null {
   if (!raw || typeof raw !== "object") return null;
@@ -69,7 +79,11 @@ export function parseReview(raw: unknown): DraftReview | null {
   const problems = Array.isArray(r.problems) ? r.problems.filter((p): p is string => typeof p === "string" && p.trim().length > 0).map((p) => p.trim()) : [];
   if (verdict !== "fix") return { verdict, problems };
   const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
-  const corrected = { title: str(r.correctedTitle), summary: str(r.correctedSummary), body: str(r.correctedBody) };
+  let corrected: Partial<ReviewedText> = { title: str(r.correctedTitle), summary: str(r.correctedSummary), body: str(r.correctedBody) };
+  if (!corrected.body) {
+    const packed = splitPackedText(str(r.correctedTitle));
+    if (packed) corrected = packed;
+  }
   // A "fix" must at least carry a corrected body; an unchanged headline or
   // summary is simply left out by the model.
   if (!corrected.body) return null;
@@ -120,7 +134,11 @@ export async function paidReviewDraft(draft: ReviewedText, facts: string[]): Pro
     // An answer that can't be read is a verdict on this draft (skip it), not on
     // the service: the run goes on.
     const parsed = parseReview(JSON.parse(text));
-    if (!parsed) console.error(`Paid review answer unreadable: ${text.slice(0, 300).replace(/\s+/g, " ")}`);
+    if (!parsed) {
+      const raw = JSON.parse(text) as Record<string, unknown>;
+      const shape = Object.entries(raw).map(([k, v]) => `${k}=${typeof v === "string" ? `string(${v.length})` : Array.isArray(v) ? `array(${v.length})` : typeof v}`).join(", ");
+      console.error(`Paid review answer unreadable, shape: ${shape}; finishReason ${data.candidates?.[0]?.finishReason}`);
+    }
     return parsed ?? { verdict: "reject", problems: ["the review answer could not be read"] };
   } catch (err) {
     console.error("Paid review error:", err);

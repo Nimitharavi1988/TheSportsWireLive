@@ -55,6 +55,55 @@ export function pickPhoto(results: PhotoResult[], subject: string): PhotoResult 
   return results.find((r) => r.title.toLowerCase().includes(surname)) ?? null;
 }
 
+// ---- Photos for clean drafts (2026-10-06) ---------------------------------
+// The first drafts got a uniform chart, a 1958 trading card, a headquarters
+// building and a logo (a name-only match on the file title). A usable photo is
+// a real photograph, recent, of the subject.
+const NOT_A_PHOTO = /uniform|logo|headquarters|topps|trading card|\bcards?\b|helmet|jersey|\bkits?\b|wordmark|flag|\bmap\b|diagram|\bseal\b|crest|badge|banner|poster|stamp|signature|autograph|statue|cartoon|sticker|stadium|arena|aerial|exterior|interior|building|roster|season|draft|logo|symbol|icon|screenshot/i;
+
+export function isUsablePhoto(r: Pick<PhotoResult, "title" | "width" | "height">): boolean {
+  // File names use underscores, which would defeat the word-boundary checks.
+  const title = r.title.toLowerCase().replace(/_/g, " ");
+  if (!/\.jpe?g$/.test(title)) return false; // photographs, not PNG charts or SVG art
+  if (NOT_A_PHOTO.test(title)) return false;
+  if (r.width < 800) return false;
+  // Any year in the file name must be recent: a 1958 card or a 2005 game is not this week's story.
+  const years = title.match(/\b(19|20)\d{2}\b/g)?.map(Number) ?? [];
+  return years.every((y) => y >= 2014);
+}
+
+// The first usable photo whose file title names the subject by surname, or by a
+// nickname given in `alsoMatch` (pure, unit-tested).
+export function pickUsablePhoto(results: PhotoResult[], subject: string, alsoMatch: string[] = []): PhotoResult | null {
+  const surname = subject.trim().split(/\s+/).pop()?.toLowerCase();
+  const needles = [surname, ...alsoMatch.map((n) => n.toLowerCase())].filter((n): n is string => !!n && n.length >= 3);
+  if (needles.length === 0) return null;
+  return results.find((r) => isUsablePhoto(r) && needles.some((n) => r.title.toLowerCase().includes(n))) ?? null;
+}
+
+// People named at least twice in the story, most mentioned first: the players
+// worth searching a photo for (pure, unit-tested).
+const NOT_A_NAME = /football|stadium|night|league|conference|division|bowl|week|state|university|college|field|park|center|centre|network|sports|news|press|association|coach|season|quarter|half|world|series|trophy|cup|first|second|third|fourth|sunday|monday|tuesday|wednesday|thursday|friday|saturday/i;
+export function candidatePeople(body: string, clubNames: string[], max = 4): string[] {
+  const clubs = clubNames.map((c) => c.toLowerCase());
+  const names = new Set<string>();
+  // Two capitalised words ("Tetairoa McMillan", "Amon-Ra St. Brown" up to its last part), after any
+  // sentence-opening word ("The Carolina" is not a person).
+  for (const m of body.matchAll(/\b([A-Z][A-Za-z'’-]*[a-z]\s+[A-Z][A-Za-z'’-]*[a-z](?:\s+(?:Jr\.?|III|II))?)\b/g)) {
+    const name = m[1].replace(/\s+(Jr\.?|III|II)$/, "").replace(/^(?:The|A|An|On|In|At|With|After|Before|During|When|While|But|And|Meanwhile|However|For|By|From|Both|Each|This|That|His|Her|Their|Its|Our|Despite|Following)\s+/, "");
+    if (!/\s/.test(name)) continue;
+    if (NOT_A_NAME.test(name)) continue;
+    if (clubs.some((c) => c.includes(name.toLowerCase()) || name.toLowerCase().includes(c))) continue;
+    names.add(name);
+  }
+  // Mentions are counted by surname: a player is named in full once, then "McMillan".
+  const mentions = (name: string) => {
+    const surname = name.split(" ").pop()!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return (body.match(new RegExp(`\\b${surname}\\b`, "g")) ?? []).length;
+  };
+  return [...names].map((name) => ({ name, n: mentions(name) })).filter((x) => x.n >= 2).sort((a, b) => b.n - a.n).map((x) => x.name).slice(0, max);
+}
+
 // Notes for the editor at the end of the draft, each kept as a [CHECK: …]
 // line so the story can't be published until they're read and deleted.
 export function editorNotes(n: { writer: string; sources: string[]; removed: number; photoSubject: string | null }): string[] {
