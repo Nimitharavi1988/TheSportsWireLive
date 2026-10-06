@@ -61,6 +61,11 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
           .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, key), eq(socialPost.status, "posted"), gte(socialPost.postedAt, new Date(now.getTime() - SIMILARITY_WINDOW_MS)))),
       ]);
       const done = new Set(doneRows.map((r) => r.articleId));
+      // Stories the main Page already has a Facebook reel for: skipped up front, not
+      // after a wasted attempt (postReel refuses them anyway — reelDuplicates.ts).
+      const mainReelRows = await db.select({ articleId: socialPost.articleId }).from(socialPost)
+        .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, "reel"), inArray(socialPost.status, ["posted", "queued"])));
+      for (const r of mainReelRows) done.add(r.articleId);
       if (d.notAlsoOn) {
         const siblingRows = await db.select({ articleId: socialPost.articleId }).from(socialPost)
           .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, `${d.notAlsoOn}-reel`), inArray(socialPost.status, ["posted", "queued"])));
