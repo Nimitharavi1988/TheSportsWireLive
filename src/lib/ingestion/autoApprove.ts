@@ -10,7 +10,6 @@ import { isPushWorthy } from "../pushWorthy";
 import { postToTopicPages } from "../social/topicPosting";
 import { freshnessMultiplier } from "../social/freshness";
 import { postTopicReels } from "../social/topicReels";
-import { dramaBoost } from "../social/drama";
 import { postArticleToFacebook } from "../social/facebook";
 import { timed, logTimingSummary } from "./timing";
 import { postInstagramPoster } from "../social/postInstagramPoster";
@@ -571,8 +570,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
       .limit(6)
   ).map((r) => r.category);
   const igByTrending = orderForVariety(
-    // Reels lead with drama (officiating, rows, shock finishes): see social/drama.ts.
-    [...igPool].sort((a, b) => socialSelectionScore(b) + dramaBoost(b.title) - (socialSelectionScore(a) + dramaBoost(a.title))),
+    [...igPool].sort((a, b) => socialSelectionScore(b) - socialSelectionScore(a)),
     recentIgCategories,
     isMatchDataSource
   );

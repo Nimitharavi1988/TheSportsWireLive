@@ -298,6 +298,8 @@ const SPORT_POOLS: [string, ReelMusicStyle[]][] = [
   ["baseball", ["groove", "drive", "anthem", "chill"]],
 ];
 
+const ORIGINAL_STYLES: ReelMusicStyle[] = ["drive", "anthem", "trap", "chill", "smooth", "ambient", "cinematic"];
+
 export function stylePoolFor(story: { title?: string; category?: string }): ReelMusicStyle[] {
   const mood = MOODS.find((m) => m.re.test(story.title ?? ""));
   if (mood) return mood.pool;
@@ -309,7 +311,8 @@ export function stylePoolFor(story: { title?: string; category?: string }): Reel
 // Stable pick per story, so reruns of the same story keep the same track
 // while the feed as a whole rotates through all of them.
 export function musicStyleFor(id: string, story?: { title?: string; category?: string }): ReelMusicStyle {
-  const pool = story ? stylePoolFor(story) : REEL_MUSIC_STYLE_NAMES;
+  // Without a story (the main Page and Instagram): the original seven styles, rotated as before.
+  const pool = story ? stylePoolFor(story) : ORIGINAL_STYLES;
   let h = 0;
   for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return pool[h % pool.length];

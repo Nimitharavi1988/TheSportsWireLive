@@ -55,3 +55,12 @@ describe("musicStyleFor", () => {
     expect(stylePoolFor({ title: "Practice report", category: "rugby" })).toEqual(REEL_MUSIC_STYLE_NAMES);
   });
 });
+
+describe("main Page and Instagram keep the original music rotation", () => {
+  const original = ["drive", "anthem", "trap", "chill", "smooth", "ambient", "cinematic"];
+  it("picks only from the original seven styles when no story is given", () => {
+    for (const id of ["a", "b", "c", "yww5d3q1lr3wbty2edd4vll0", "ofcecoqaz4k4tw8j5mtmvbhg", "x"]) {
+      expect(original).toContain(musicStyleFor(id));
+    }
+  });
+});

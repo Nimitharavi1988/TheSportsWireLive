@@ -166,8 +166,6 @@ async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, ca
       "Instagram reel publish"
     );
     if (!published.id) throw new Error("Instagram returned no media id");
-    // Instagram comments can't carry a clickable link, so the follow prompt @-mentions the account.
-    await commentOnReel(published.id, "🔔 Follow @sportswirelivenews for daily sports news", accessToken, "instagram reel");
     return published.id as string;
   });
 }
@@ -210,7 +208,8 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
       }),
       "Facebook reel publish"
     );
-    await commentOnReel(start.video_id, `👍 Follow for more sports news: https://www.facebook.com/${pageId}`, accessToken, "facebook reel");
+    // Topic Pages only: the main Page's reels are unchanged (no comment).
+    if (topicPage) await commentOnReel(start.video_id, `👍 Follow for more sports news: https://www.facebook.com/${pageId}`, accessToken, "facebook reel");
     return start.video_id as string;
   }, topicPage ? `${topicPage.key}-reel` : DESTINATION);
 }
@@ -258,7 +257,8 @@ export async function postReel(
   console.log("Reel content:", JSON.stringify(content));
   const captions = await generateSocialCaptions(article.title, article.body);
 
-  const music = opts.music ?? musicStyleFor(article.id, { title: article.title, category: article.category });
+  // Topic Pages pick music by the story's mood and sport; the main Page and Instagram keep the original rotation.
+  const music = opts.music ?? musicStyleFor(article.id, opts.topicPage ? { title: article.title, category: article.category } : undefined);
   console.log(`Rendering reel (music: ${music}, theme: ${opts.theme ?? "default"}, font: ${opts.font ?? "default"})...`);
   const mp4 = await renderReel({ content, heroImageUrl: article.heroImageUrl, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme: opts.theme, font: opts.font });
   console.log(`Rendered ${(mp4.length / 1024 / 1024).toFixed(1)} MB`);

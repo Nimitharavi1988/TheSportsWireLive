@@ -18,9 +18,9 @@ describe("reelNeeds: one Facebook reel per story across our Pages", () => {
     expect(reelNeeds([fb("india-cricket-reel")], { instagram: false, facebook: true, topicKey: "cricketlive" }).needFacebook).toBe(true);
   });
 
-  it("the main Page skips a story any topic Page already has, or it already has", () => {
-    expect(reelNeeds([fb("india-cricket-reel")], { instagram: true, facebook: true }).needFacebook).toBe(false);
-    expect(reelNeeds([fb("cricketlive-reel")], { instagram: true, facebook: true }).needFacebook).toBe(false);
+  it("the main Page is unchanged: only its own earlier reel stops it, never a topic Page's", () => {
+    expect(reelNeeds([fb("india-cricket-reel")], { instagram: true, facebook: true }).needFacebook).toBe(true);
+    expect(reelNeeds([fb("cricketlive-reel")], { instagram: true, facebook: true }).needFacebook).toBe(true);
     expect(reelNeeds([fb("reel")], { instagram: true, facebook: true }).needFacebook).toBe(false);
   });
 
