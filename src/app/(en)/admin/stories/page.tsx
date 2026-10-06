@@ -37,6 +37,7 @@ export default async function StoriesPage() {
       <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mb: 3 }}>
         <Typography variant="h4">Stories</Typography>
         <Stack direction="row" spacing={1}>
+          <Link href="/admin/stories/review"><Button variant="outlined">Review drafts</Button></Link>
           <Link href="/admin/stories/ideas"><Button variant="outlined">Story ideas</Button></Link>
           <Link href="/admin/stories/new"><Button variant="contained">Write a story</Button></Link>
         </Stack>

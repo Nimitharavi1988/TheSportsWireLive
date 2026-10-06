@@ -89,6 +89,33 @@ export function draftBodyWithChecks(draft: Pick<AiDraft, "body" | "checks">): st
   return [draft.body, ...checks].join("\n\n");
 }
 
+// Review-pack drafts (the local draft script, 2026-10-06): the story text is
+// saved CLEAN, with no [ADD]/[CHECK] notes in it, so a reviewer reads it, reads
+// the pack beside it and approves, with no editing. A draft that still has a
+// gap or a note in the text is not saved (pure, unit-tested).
+export function cleanDraftProblem(draft: AiDraft): string | null {
+  const base = draftProblem(draft);
+  if (base) return base;
+  if (/\[(ADD|CHECK)\b/i.test(`${draft.title} ${draft.summary} ${draft.body}`)) return "has notes or gaps in the text";
+  return null;
+}
+
+// What the reviewer sees beside a clean draft (stored as a DataSnapshot row
+// "draft:review:<id>", shown on /admin/stories/review).
+export interface ReviewPack {
+  writer: string;
+  format: string;
+  kind: string;
+  sport: string;
+  sources: string[];
+  facts: string[];
+  checks: string[];
+  removed: number;
+  photoSubject: string | null;
+  createdAt: string;
+}
+export const reviewPackKey = (articleId: string) => `draft:review:${articleId}`;
+
 // Whether a draft is worth a writer's time (pure, unit-tested).
 export function draftProblem(draft: AiDraft): string | null {
   if (draft.title.length < STORY_LIMITS.title.min || draft.title.length > STORY_LIMITS.title.max) return "headline length";

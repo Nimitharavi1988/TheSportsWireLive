@@ -20,15 +20,17 @@
  * queue or the Gemini budget.
  */
 import { db } from "@/db";
-import { article, articleTag, vertical } from "@/db/schema";
+import { article, articleTag, dataSnapshot, vertical } from "@/db/schema";
 import { and, eq, gte, isNull, count } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { fetchStoryIdeas, markStoryIdea } from "../storyIdeasData";
 import type { StoryIdea } from "../storyIdeas";
 import {
   MAX_DRAFTS_PER_DAY, MAX_DRAFTS_PER_RUN, MAX_RESEARCH_PER_RUN, MAX_UNREVIEWED, MIN_WEB_FACTS,
-  draftBodyWithChecks, draftProblem, editorNotes, pickFormat, pickIdeas, pickPhoto, suggestedWriter,
+  cleanDraftProblem, draftBodyWithChecks, draftProblem, editorNotes, pickFormat, pickIdeas, pickPhoto, reviewPackKey, suggestedWriter,
+  type ReviewPack,
 } from "./autoDraftRules";
+import { researchFromCoverage } from "./coverageResearch";
 import { gatherDraftFacts, seriesLabelFor } from "../draftFacts";
 import { AiDraftError, requestDraft, type AiDraft } from "../aiDraft";
 import { RESEARCH_MODEL, factCheckDraft, researchStory } from "./research";
@@ -68,7 +70,7 @@ async function autoDraftCounts(now: Date) {
   return { unreviewed: unreviewed.n, today: today.n };
 }
 
-async function saveDraft(idea: StoryIdea, draft: AiDraft, photo: PhotoResult | null, verticalId: string, now: Date): Promise<string> {
+async function saveDraft(idea: StoryIdea, draft: AiDraft, photo: PhotoResult | null, verticalId: string, now: Date, pack?: ReviewPack): Promise<string> {
   const id = createId();
   const slug = storySlug(draft.title, now.getTime());
   const seriesLabel = idea.seriesKey ? await seriesLabelFor(idea.seriesKey) : null;
@@ -78,7 +80,8 @@ async function saveDraft(idea: StoryIdea, draft: AiDraft, photo: PhotoResult | n
     verticalId,
     title: draft.title,
     summary: draft.summary,
-    body: draftBodyWithChecks(draft),
+    // A review-pack draft keeps its text clean; the checks live in the pack.
+    body: pack ? draft.body : draftBodyWithChecks(draft),
     // Linked from Commons, not copied to our storage: this runs on GitHub
     // Actions, which has no access to the media bucket. Picking it again
     // with Find a photo in the editor copies it over.
@@ -102,14 +105,35 @@ async function saveDraft(idea: StoryIdea, draft: AiDraft, photo: PhotoResult | n
   });
   const tags = idea.tags.filter(isKnownTag);
   if (tags.length > 0) await db.insert(articleTag).values(tags.map((t) => ({ articleId: id, kind: t.kind, slug: t.slug }))).onConflictDoNothing();
+  if (pack) {
+    await db.insert(dataSnapshot).values({ key: reviewPackKey(id), data: pack, sourceUrl: "internal:draft-review", fetchedAt: now })
+      .onConflictDoUpdate({ target: dataSnapshot.key, set: { data: pack, fetchedAt: now } });
+  }
   await markStoryIdea(idea.key, "used", id);
   return id;
 }
 
-export async function autoDraftStories(now: Date = new Date()): Promise<{ drafted: number; note: string }> {
+// The workflow uses the defaults. The local script (scripts/draftLocal.ts)
+// raises the limits, researches from stored coverage instead of paid web
+// search (freeResearch) and saves clean drafts with a review pack beside them
+// (reviewPack) for one-click approval at /admin/stories/review.
+export interface AutoDraftOptions {
+  perRun?: number;
+  perDay?: number;
+  researchPerRun?: number;
+  maxUnreviewed?: number;
+  freeResearch?: boolean;
+  reviewPack?: boolean;
+}
+
+export async function autoDraftStories(now: Date = new Date(), opts: AutoDraftOptions = {}): Promise<{ drafted: number; note: string }> {
+  const perRun = opts.perRun ?? MAX_DRAFTS_PER_RUN;
+  const perDay = opts.perDay ?? MAX_DRAFTS_PER_DAY;
+  const researchPerRun = opts.researchPerRun ?? MAX_RESEARCH_PER_RUN;
+  const maxUnreviewed = opts.maxUnreviewed ?? MAX_UNREVIEWED;
   const counts = await autoDraftCounts(now);
-  if (counts.unreviewed >= MAX_UNREVIEWED) return { drafted: 0, note: `${counts.unreviewed} drafts still waiting for review` };
-  const room = Math.min(MAX_DRAFTS_PER_RUN, MAX_DRAFTS_PER_DAY - counts.today, MAX_UNREVIEWED - counts.unreviewed);
+  if (counts.unreviewed >= maxUnreviewed) return { drafted: 0, note: `${counts.unreviewed} drafts still waiting for review` };
+  const room = Math.min(perRun, perDay - counts.today, maxUnreviewed - counts.unreviewed);
   if (room <= 0) return { drafted: 0, note: "daily limit reached" };
 
   const [sports] = await db.select({ id: vertical.id }).from(vertical).where(eq(vertical.name, "sports")).limit(1);
@@ -122,8 +146,10 @@ export async function autoDraftStories(now: Date = new Date()): Promise<{ drafte
   for (const idea of pickIdeas(await fetchStoryIdeas(now), 12)) {
     if (drafted >= room) break;
     // Each idea tried costs a search call, drafted or not.
-    if (++researched > MAX_RESEARCH_PER_RUN) break;
-    const research = await researchStory(idea.headline, idea.brief, now);
+    if (++researched > researchPerRun) break;
+    const research = opts.freeResearch
+      ? await researchFromCoverage({ id: `idea:${idea.key}`, title: idea.headline, summary: idea.brief, sourceName: ORIGINAL_SOURCE, sourceUrl: "", category: idea.sport }, now)
+      : await researchStory(idea.headline, idea.brief, now);
     // Gemini unavailable: stop, try again next run.
     if (!research) return { drafted, note: "research unavailable" };
     if (research.facts.length < MIN_WEB_FACTS) {
@@ -142,7 +168,7 @@ export async function autoDraftStories(now: Date = new Date()): Promise<{ drafte
       if (err instanceof AiDraftError) return { drafted, note: err.message };
       throw err;
     }
-    const problem = draftProblem(draft);
+    const problem = opts.reviewPack ? cleanDraftProblem(draft) : draftProblem(draft);
     if (problem) {
       // Not retried — it would cost a call every run.
       console.log(`Auto-draft skipped "${idea.headline}" (${problem}).`);
@@ -153,7 +179,7 @@ export async function autoDraftStories(now: Date = new Date()): Promise<{ drafte
     const checked = await factCheckDraft([...research.facts, ...facts.fixtures], draft.body);
     if (!checked) return { drafted, note: "fact-check unavailable" };
     const checkedDraft = { ...draft, body: checked.body };
-    if (draftProblem(checkedDraft)) {
+    if (opts.reviewPack ? cleanDraftProblem(checkedDraft) : draftProblem(checkedDraft)) {
       console.log(`Auto-draft skipped "${idea.headline}" (too little left after the fact-check).`);
       await markStoryIdea(idea.key, "dismissed");
       continue;
@@ -161,7 +187,14 @@ export async function autoDraftStories(now: Date = new Date()): Promise<{ drafte
     const subject = photoSubject(idea.tags);
     const photo = await suggestPhoto(subject);
     const notes = editorNotes({ writer: suggestedWriter(idea.sport), sources: research.sources, removed: checked.removed.length, photoSubject: photo ? subject : null });
-    await saveDraft(idea, { ...checkedDraft, checks: [...notes, ...draft.checks] }, photo, sports.id, now);
+    const checks = [...notes, ...draft.checks];
+    const pack: ReviewPack | undefined = opts.reviewPack
+      ? {
+          writer: suggestedWriter(idea.sport), format, kind: idea.kind, sport: idea.sport, sources: research.sources,
+          facts: research.facts, checks, removed: checked.removed.length, photoSubject: photo ? subject : null, createdAt: now.toISOString(),
+        }
+      : undefined;
+    await saveDraft(idea, { ...checkedDraft, checks }, photo, sports.id, now, pack);
     console.log(`Auto-draft saved: "${draft.title}" (${idea.kind}, ${idea.sport}, ${format}, ${research.facts.length} facts, ${checked.removed.length} removed).`);
     drafted++;
   }
