@@ -29,7 +29,7 @@ export const MIN_INDEXED_WORDS = 300;
 // FanDuel promo code and betting picks went out on the Facebook Page): plain
 // phrases, no word boundaries, so this one string works as both a JavaScript
 // and a Postgres regular expression (indexableArticleSql below).
-const PROMO = "promo code|bonus code|bonus bets|free bets|prime day|black friday|cyber monday|deals on|best deals|deals live|% off|discount|gift guide|giveaway|best bets|player props|prop bets|against the spread|picks against|parlay|sportsbook|moneyline|betting odds|opening lines| odds |odds:|odds,|odds for|early odds";
+const PROMO = "promo code|bonus code|bonus bets|free bets|prime day|black friday|cyber monday|deals on|best deals|deals live|% off|discount|gift guide|giveaway|best bets|player props|prop bets|against the spread|picks against|parlay|sportsbook|moneyline|betting odds|opening lines| odds |odds:|odds,|odds for|early odds|big deal days|prime big deal|deal days|tickets today|get tickets|get playoff tickets|buy tickets|ticket prices|tickets for|tickets are|ticket's for|half price|half-price|price drop|where to buy|how to buy|buying guide|we rate the|best headphones|best gear|shop the|on sale now|limited time";
 const NOT_A_STORY = `open thread|open chat|game thread|live stream|how to watch|where to watch|live updates|live blog|${PROMO}`;
 const NOT_A_STORY_RE = new RegExp(NOT_A_STORY, "i");
 
