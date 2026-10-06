@@ -143,6 +143,19 @@ function buildAllSlots(env: Record<string, string | undefined>, openRouterModels
     });
   }
 
+  // ministral-8b-2512: its own allowance on the same free plan (188 requests a
+  // minute, tested 2026-10-06) and valid JSON on a test call, so it adds
+  // throughput after the 14B when that one is busy. ministral-3b answered the
+  // same test with a JSON shape that ignored the instruction, so it is not used.
+  if (mistralKey) {
+    slots.push({
+      id: "mistral ministral-8b-2512", provider: "openai", baseUrl: "https://api.mistral.ai/v1", apiKey: mistralKey,
+      model: "ministral-8b-2512", tiers: ["lite", "standard"],
+      limits: { rpm: num(env.MISTRAL_8B_RPM, 150), rpd: num(env.MISTRAL_8B_RPD, 4000), tpm: num(env.MISTRAL_8B_TPM, 500000) },
+      budgetKey: "mistral/ministral-8b-2512", resetHourUtc: 0, paid: false, maxTokensParam: "max_tokens",
+    });
+  }
+
   const orKey = env.OPENROUTER_API_KEY;
   if (orKey) {
     const orLimits: Limits = { rpm: num(env.OPENROUTER_RPM, 18), rpd: num(env.OPENROUTER_RPD, 50) };

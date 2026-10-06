@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildEnrichPrompt, creditLine, enrichedToday, pickCandidates, pruneLog, unsupportedFigures, type EnrichCandidate, type EnrichLogEntry } from "./enrichRules";
+import { buildEnrichPrompt, creditLine, enrichedToday, pickCandidates, pruneLog, unsupportedFigures, enrichLimitsFrom, mentionsItsInputs, mergeLogs, type EnrichCandidate, type EnrichLogEntry } from "./enrichRules";
 
 const words = (n: number) => Array.from({ length: n }, (_, i) => `w${i}`).join(" ");
 const story = (id: string, over: Partial<EnrichCandidate> = {}): EnrichCandidate => ({
@@ -59,5 +59,40 @@ describe("enriching top stories", () => {
     const p = buildEnrichPrompt({ title: "Rays beat Yankees", sourceName: "MLB.com", text: "Short.", facts: ["Rays won 1-0"] });
     expect(p).toContain("Headline (keep the story about exactly this): Rays beat Yankees");
     expect(p).toContain("- Rays won 1-0");
+  });
+});
+
+describe("enrichment limits and the shared log", () => {
+  it("reads the limits from the environment, falling back for empty or invalid values", () => {
+    expect(enrichLimitsFrom({})).toEqual({ perRun: 2, perDay: 15, researchPerRun: 4 });
+    expect(enrichLimitsFrom({ ENRICH_MAX_PER_DAY: "60", ENRICH_MAX_PER_RUN: " 4 ", ENRICH_MAX_RESEARCH_PER_RUN: "12" })).toEqual({ perRun: 4, perDay: 60, researchPerRun: 12 });
+    for (const bad of ["", "  ", "abc", "0", "-3"]) expect(enrichLimitsFrom({ ENRICH_MAX_PER_DAY: bad }).perDay).toBe(15);
+  });
+  it("merges two logs without losing or duplicating entries", () => {
+    const a: EnrichLogEntry[] = [{ id: "1", at: "2026-10-06T10:00:00Z", result: "enriched" }];
+    const b: EnrichLogEntry[] = [{ id: "1", at: "2026-10-06T10:00:00Z", result: "enriched" }, { id: "2", at: "2026-10-06T09:00:00Z", result: "few-facts" }];
+    const m = mergeLogs(a, b);
+    expect(m.map((e) => e.id)).toEqual(["2", "1"]);
+    expect(mergeLogs([], [])).toEqual([]);
+  });
+});
+
+describe("an article that talks about its own inputs", () => {
+  it("is caught", () => {
+    for (const bad of [
+      "While the provided facts do not repeat his all-time goal record, he is 41.",
+      "No further schedule details or opponent information are provided beyond the home opener.",
+      "The verified facts say little.",
+      "According to the research, the team won.",
+      "The report concludes with his own words.",
+    ]) expect(mentionsItsInputs(bad)).not.toBeNull();
+  });
+  it("leaves ordinary reporting alone", () => {
+    for (const ok of [
+      "Rosenhaus told ESPN he will begin negotiations.",
+      "The Panthers beat the Lions 32-26 in Charlotte.",
+      "Details of the contract were not disclosed.",
+      "The report from Sunday said he was fine.",
+    ]) expect(mentionsItsInputs(ok)).toBeNull();
   });
 });

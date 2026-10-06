@@ -22,10 +22,35 @@ export const MIN_ENRICHED_WORDS = MIN_INDEXED_WORDS + 5;
 // candidates anyway).
 export const LOG_KEEP_MS = 3 * 24 * 60 * 60 * 1000;
 
+// The limits can be raised without a deploy (GitHub variables ENRICH_MAX_PER_DAY,
+// ENRICH_MAX_PER_RUN, ENRICH_MAX_RESEARCH_PER_RUN, or the same names in the
+// environment of a local run). Empty, missing or invalid means the defaults
+// above (pure, unit-tested).
+function positiveInt(raw: string | undefined, fallback: number): number {
+  const n = Number(raw?.trim());
+  return raw && Number.isFinite(n) && n >= 1 ? Math.floor(n) : fallback;
+}
+export function enrichLimitsFrom(env: Record<string, string | undefined>): { perRun: number; perDay: number; researchPerRun: number } {
+  return {
+    perRun: positiveInt(env.ENRICH_MAX_PER_RUN, MAX_ENRICH_PER_RUN),
+    perDay: positiveInt(env.ENRICH_MAX_PER_DAY, MAX_ENRICH_PER_DAY),
+    researchPerRun: positiveInt(env.ENRICH_MAX_RESEARCH_PER_RUN, MAX_ENRICH_RESEARCH_PER_RUN),
+  };
+}
+
 export type EnrichResult = "enriched" | "few-facts" | "too-short" | "failed";
 // detail: why this result, kept so the thresholds can be tuned from real runs
 // (facts found, outlets read, words written, figures not in the facts...).
 export interface EnrichLogEntry { id: string; at: string; result: EnrichResult; detail?: Record<string, number | string> }
+
+// The writer sometimes talks about its own inputs ("the provided facts do not
+// repeat his goal record", "no further details are provided"), seen in the
+// 2026-10-06 local dry run. A reader must never see that, so an article that
+// does is not used (pure, unit-tested).
+const META_LEAK = /\b(?:provided facts?|verified facts?|the facts (?:do|does|state|say|provided|given)|facts (?:are|is) (?:not )?(?:provided|given|available)|(?:is|are|was|were) (?:not )?provided|(?:not|no [a-z ]{0,40}) (?:are|is) (?:provided|given|available)|the (?:research|excerpts?)|according to the (?:facts|provided)|the report (?:concludes|notes that no))\b/i;
+export function mentionsItsInputs(body: string): string | null {
+  return META_LEAK.exec(body)?.[0] ?? null;
+}
 
 // Figures of three or more digits in the finished article that none of the
 // researched facts (or the headline) contain: a sign the writer invented or
@@ -54,6 +79,14 @@ export function pickCandidates<T extends EnrichCandidate>(rows: T[], log: Enrich
     .filter((r) => hasRealImage(r) && !isImageUrlBlocked(r.heroImageUrl))
     .filter((r) => articleWords(r) < MIN_INDEXED_WORDS)
     .slice(0, n);
+}
+
+// Two jobs can write the log at once (the workflow and a local run): keep every
+// entry either one has, so neither erases the other's record (pure, unit-tested).
+export function mergeLogs(a: EnrichLogEntry[], b: EnrichLogEntry[]): EnrichLogEntry[] {
+  const seen = new Map<string, EnrichLogEntry>();
+  for (const e of [...a, ...b]) seen.set(`${e.id}|${e.at}|${e.result}`, e);
+  return [...seen.values()].sort((x, y) => Date.parse(x.at) - Date.parse(y.at));
 }
 
 // The log without entries older than LOG_KEEP_MS (pure, unit-tested).
@@ -86,6 +119,7 @@ Rules:
 - Say which team or side a person belongs to only where a fact says so; never work it out yourself, and never describe how a game "turned" or who "had momentum" beyond what the facts state.
 - Your own words throughout; don't copy sentences from the facts or the short version.
 - 350-550 words if the facts support it; never pad with filler or repeat a point.
+- Never talk about your inputs or what is missing: no "the facts", "provided", "verified", "the report concludes", "no further details are provided". If something is not known, leave it out silently. No speculation about what might happen (no "could", "pending clearances", "ready for the second half").
 - Plain paragraphs only: no subheadings, bullet points, bold or emojis. Don't mention the sources, the research or these instructions.`;
 }
 
