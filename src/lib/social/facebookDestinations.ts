@@ -42,6 +42,10 @@ export interface FacebookDestination {
   // Default: 48 hours. Without a limit, a slow stretch drops to day-old stories
   // (a quarter of Greenfield's reels used stories over 24 hours old).
   maxAgeHours?: number;
+  // Key of a sibling Page (its post history key): stories already posted there are
+  // skipped here, so two Pages under one owner don't carry the same stories and
+  // videos (repeated content gets less reach). The sibling should run first.
+  notAlsoOn?: string;
   // Post format. Default: a link post. "photo-question": the story's photo with
   // a caption that ends in a question, and the article link in the first comment
   // (postArticleToFacebook) — a test of whether that earns more reach than a link.
@@ -52,7 +56,8 @@ export interface FacebookDestination {
   // Automatic Reels for this Page (topicReels.ts): own daily limit, daytime only.
   // minTrending: skip stories scoring below this (Article.trendingScore) — the bottom of
   // the queue made weak reels (Greenfield's average score was 38 vs 55 on the main Page).
-  reels?: { dailyCap: number; perRunCap: number; minTrending?: number };
+  // activeHours: reels only go out in these local hours (default: the Page's own).
+  reels?: { dailyCap: number; perRunCap: number; minTrending?: number; activeHours?: { timeZone: string; start: number; end: number } };
   matches: (a: DestinationCandidate) => boolean;
   // The post's hashtags, when this Page wants its own (default: the main
   // Page's topic tags + #SportsWireLive — hashtagRepertoire.ts).
@@ -148,7 +153,10 @@ export const CRICKETLIVE_PAGE: FacebookDestination = {
   dailyCap: 10,
   perRunCap: 1,
   style: "photo-question",
-  reels: { dailyCap: 10, perRunCap: 1 },
+  // Own stories, not Greenfield's; reels at midday IST only (11:00-16:00) — its
+  // reels got 72-179 plays at 12-15h IST against 1-48 early morning and evening.
+  notAlsoOn: "india-cricket",
+  reels: { dailyCap: 10, perRunCap: 1, activeHours: { timeZone: "Asia/Kolkata", start: 11, end: 16 } },
   // First day of posting (4 Oct IST): 30 posts and 30 reels, still one of each per run.
   boost: { until: new Date("2026-10-04T18:30:00Z"), dailyCap: 30, reels: { dailyCap: 30, perRunCap: 1 } },
 };

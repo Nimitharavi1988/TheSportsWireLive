@@ -58,6 +58,11 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
       .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, d.key), eq(socialPost.status, "posted"), gte(socialPost.postedAt, new Date(now.getTime() - SIMILARITY_WINDOW_MS)))),
   ]);
   const posted = new Set(postedRows.map((r) => r.articleId));
+  if (d.notAlsoOn) {
+    const siblingRows = await db.select({ articleId: socialPost.articleId }).from(socialPost)
+      .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, d.notAlsoOn), inArray(socialPost.status, ["posted", "queued"])));
+    for (const r of siblingRows) posted.add(r.articleId);
+  }
   const chosenTitles = recentTitleRows.map((r) => r.title);
 
   const toPost: { id: string; title: string }[] = [];

@@ -113,7 +113,7 @@ describe("effectiveDestination (first-day boost)", () => {
     expect(during.reels).toEqual({ dailyCap: 30, perRunCap: 1 });
     const after = effectiveDestination(CRICKETLIVE_PAGE, new Date("2026-10-04T18:30:00Z"));
     expect(after.dailyCap).toBe(10);
-    expect(after.reels).toEqual({ dailyCap: 10, perRunCap: 1 });
+    expect(after.reels).toMatchObject({ dailyCap: 10, perRunCap: 1 });
   });
 
   it("leaves Pages without a boost unchanged", () => {
@@ -126,5 +126,25 @@ describe("story age limit", () => {
     expect(INDIA_CRICKET_PAGE.maxAgeHours).toBe(24);
     expect(CRICKETLIVE_PAGE.maxAgeHours).toBe(24);
     expect(SPANISH_PAGE.maxAgeHours).toBeUndefined();
+  });
+});
+
+describe("Sportswirecricketlive own content and reel hours", () => {
+  it("skips stories Greenfield took, and posts reels only at midday IST", () => {
+    expect(CRICKETLIVE_PAGE.notAlsoOn).toBe(INDIA_CRICKET_PAGE.key);
+    expect(INDIA_CRICKET_PAGE.notAlsoOn).toBeUndefined();
+    expect(CRICKETLIVE_PAGE.reels?.activeHours).toEqual({ timeZone: "Asia/Kolkata", start: 11, end: 16 });
+  });
+
+  it("paces its reels inside those hours and posts none outside them", () => {
+    const reels = { ...CRICKETLIVE_PAGE.reels!, activeHours: CRICKETLIVE_PAGE.reels!.activeHours!, overnight: false };
+    expect(destinationRunCap(reels, 0, new Date("2026-10-06T07:30:00Z"))).toBe(1); // 13:00 IST
+    expect(destinationRunCap(reels, 0, new Date("2026-10-06T03:00:00Z"))).toBe(0); // 08:30 IST
+    expect(destinationRunCap(reels, 0, new Date("2026-10-06T13:00:00Z"))).toBe(0); // 18:30 IST
+  });
+
+  it("is listed after Greenfield, so Greenfield picks first", () => {
+    const keys = TOPIC_DESTINATIONS.map((d) => d.key);
+    expect(keys.indexOf("india-cricket")).toBeLessThan(keys.indexOf("cricketlive"));
   });
 });

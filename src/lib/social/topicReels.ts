@@ -6,7 +6,7 @@
  */
 import { db } from "@/db";
 import { article, socialPost } from "@/db/schema";
-import { and, count, desc, eq, gte, like, ilike, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, like, ilike, or } from "drizzle-orm";
 import { isMatchDataSource } from "../matchDataSources";
 import { hasRealImage } from "../contentQuality";
 import { isSimilarToAny } from "../titleSimilarity";
@@ -35,7 +35,7 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
         .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, key), gte(socialPost.createdAt, dayStart)));
       const posted = today.filter((r) => r.status === "posted").length;
       const failed = today.filter((r) => r.status === "failed").length;
-      const runCap = destinationRunCap({ ...d.reels, activeHours: d.activeHours, overnight: false }, posted, now);
+      const runCap = destinationRunCap({ ...d.reels, activeHours: d.reels.activeHours ?? d.activeHours, overnight: false }, posted, now);
       if (runCap === 0 || failed >= MAX_FAILED_PER_DAY) {
         console.log(`[reel:${d.key}] posted=${posted} failed=${failed} runCap=${runCap} — skipping`);
         continue;
@@ -61,6 +61,11 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
           .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, key), eq(socialPost.status, "posted"), gte(socialPost.postedAt, new Date(now.getTime() - SIMILARITY_WINDOW_MS)))),
       ]);
       const done = new Set(doneRows.map((r) => r.articleId));
+      if (d.notAlsoOn) {
+        const siblingRows = await db.select({ articleId: socialPost.articleId }).from(socialPost)
+          .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, `${d.notAlsoOn}-reel`), inArray(socialPost.status, ["posted", "queued"])));
+        for (const r of siblingRows) done.add(r.articleId);
+      }
       const titles = recentTitles.map((r) => r.title);
 
       let checked = 0;
