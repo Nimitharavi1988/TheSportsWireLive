@@ -7,8 +7,9 @@ import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import Chip from "@mui/material/Chip";
 import Alert from "@mui/material/Alert";
+import Link from "next/link";
 import TextField from "@mui/material/TextField";
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { article, dataSnapshot } from "@/db/schema";
 import { getSession } from "@/lib/auth";
@@ -28,7 +29,8 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
   const drafts = await db
     .select()
     .from(article)
-    .where(and(eq(article.sourceName, ORIGINAL_SOURCE), eq(article.status, "draft"), isNull(article.reviewedBy)))
+    // Drafts a person has opened and saved in the editor stay here until published.
+    .where(and(eq(article.sourceName, ORIGINAL_SOURCE), eq(article.status, "draft")))
     .orderBy(asc(article.createdAt))
     .limit(40);
   const packs = drafts.length
@@ -45,7 +47,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
       <SiteBreadcrumbs steps={[{ name: "Admin", href: "/admin" }, { name: "Stories", href: "/admin/stories" }]} current="Review drafts" />
       <Typography variant="h4" sx={{ mb: 1 }}>Review drafts</Typography>
       <Typography sx={{ color: "text.secondary", mb: 3 }}>
-        Read each story and the checks beside it. Approve only a story you have read and are satisfied is accurate: the name you enter is shown as its byline and your login is recorded as the approver.
+        Read each story and the checks beside it. To change the text or search for a different photo, use Edit text or photo (it opens the full editor, where you can also publish); the story stays on this page until it is published. Approve only a story you have read and are satisfied is accurate: the name you enter is shown as its byline and your login is recorded as the approver.
       </Typography>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {approved && <Alert severity="success" sx={{ mb: 2 }}>Published: {approved}</Alert>}
@@ -61,6 +63,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
                   <Chip size="small" variant="outlined" label={categoryChipStyle(d.category).label} />
                   <Chip size="small" variant="outlined" label={pack.kind} />
                   <Chip size="small" variant="outlined" label={`${pack.facts.length} researched facts`} />
+                  {d.reviewedBy && <Chip size="small" color="info" variant="outlined" label="Edited" />}
                   {pack.removed > 0 && <Chip size="small" color="warning" variant="outlined" label={`${pack.removed} claim(s) cut by the fact-check`} />}
                 </Stack>
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>{d.title}</Typography>
@@ -96,6 +99,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { sm: "center" } }}>
                     <TextField name="byline" size="small" label="Byline name" defaultValue={defaultByline} required sx={{ minWidth: 240 }} />
                     <Button type="submit" variant="contained">Approve &amp; publish</Button>
+                    <Link href={`/admin/stories/${d.id}`}><Button variant="outlined" type="button">Edit text or photo</Button></Link>
                   </Stack>
                 </form>
               </Card>

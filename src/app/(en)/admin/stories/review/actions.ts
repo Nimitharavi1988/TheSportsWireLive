@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { article, author } from "@/db/schema";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
@@ -23,7 +23,7 @@ export async function approveReviewedDraft(formData: FormData): Promise<void> {
 
   if (!byline) return back("Add the name for the byline.");
   const [row] = await db.select().from(article).where(and(
-    eq(article.id, id), eq(article.sourceName, ORIGINAL_SOURCE), eq(article.status, "draft"), isNull(article.reviewedBy),
+    eq(article.id, id), eq(article.sourceName, ORIGINAL_SOURCE), eq(article.status, "draft"),
   )).limit(1);
   if (!row) return back("That draft is no longer waiting for review.");
 
