@@ -31,6 +31,7 @@ import {
   type ReviewPack,
 } from "./autoDraftRules";
 import { unsupportedFigures } from "./enrichRules";
+import { applyReview, paidReviewCalls, paidReviewDraft } from "./paidReview";
 import { researchFromCoverage } from "./coverageResearch";
 import { gatherDraftFacts, seriesLabelFor } from "../draftFacts";
 import { AiDraftError, requestDraft, type AiDraft } from "../aiDraft";
@@ -125,6 +126,10 @@ export interface AutoDraftOptions {
   maxUnreviewed?: number;
   freeResearch?: boolean;
   reviewPack?: boolean;
+  // A paid model reviews and corrects each draft before it is saved (paidReview.ts).
+  paidReview?: boolean;
+  // Hard cap on paid review calls for this process.
+  paidReviewMax?: number;
 }
 
 export async function autoDraftStories(now: Date = new Date(), opts: AutoDraftOptions = {}): Promise<{ drafted: number; note: string }> {
@@ -201,14 +206,40 @@ export async function autoDraftStories(now: Date = new Date(), opts: AutoDraftOp
     const subject = photoSubject(idea.tags);
     const photo = await suggestPhoto(subject);
     const notes = editorNotes({ writer: suggestedWriter(idea.sport), sources: research.sources, removed: checked.removed.length, photoSubject: photo ? subject : null });
-    const checks = [...notes, ...draft.checks];
+    let finalDraft = checkedDraft;
+    const reviewNotes: string[] = [];
+    if (opts.reviewPack && opts.paidReview) {
+      if (paidReviewCalls() >= (opts.paidReviewMax ?? 30)) return { drafted, note: "paid review limit reached for this run" };
+      const review = await paidReviewDraft(
+        { title: checkedDraft.title, summary: checkedDraft.summary, body: checkedDraft.body },
+        [...research.facts, ...facts.fixtures],
+      );
+      // Not available (no key, out of credit): stop, nothing unreviewed is saved.
+      if (!review) return { drafted, note: "paid review unavailable" };
+      const outcome = applyReview({ title: checkedDraft.title, summary: checkedDraft.summary, body: checkedDraft.body }, review);
+      if (!outcome.ok) {
+        console.log(`Auto-draft skipped "${idea.headline}" (${outcome.reason}).`);
+        await markStoryIdea(idea.key, "dismissed");
+        continue;
+      }
+      finalDraft = { ...checkedDraft, ...outcome.text };
+      reviewNotes.push(...outcome.notes);
+      // What is left after the corrections must still clear every check.
+      const afterReview = cleanDraftProblem(finalDraft);
+      if (afterReview) {
+        console.log(`Auto-draft skipped "${idea.headline}" (after the paid review: ${afterReview}).`);
+        await markStoryIdea(idea.key, "dismissed");
+        continue;
+      }
+    }
+    const checks = [...reviewNotes, ...notes, ...draft.checks];
     const pack: ReviewPack | undefined = opts.reviewPack
       ? {
           writer: suggestedWriter(idea.sport), format, kind: idea.kind, sport: idea.sport, sources: research.sources,
           facts: research.facts, checks, removed: checked.removed.length, photoSubject: photo ? subject : null, createdAt: now.toISOString(),
         }
       : undefined;
-    await saveDraft(idea, { ...checkedDraft, checks }, photo, sports.id, now, pack);
+    await saveDraft(idea, { ...finalDraft, checks }, photo, sports.id, now, pack);
     console.log(`Auto-draft saved: "${draft.title}" (${idea.kind}, ${idea.sport}, ${format}, ${research.facts.length} facts, ${checked.removed.length} removed).`);
     drafted++;
   }
