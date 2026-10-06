@@ -2,6 +2,7 @@
 import { hasRealImage, isImageUrlBlocked } from "../contentQuality";
 import { MIN_INDEXED_WORDS, articleWords, isNotAStory } from "../thinContent";
 import { ungroundedNumbers } from "../llm/grounding";
+import { significantWords, sharesWords } from "../titleSimilarity";
 
 // Fifteen a day from 2026-10-06 (the pilot ran at 6 first; was 10 while research
 // cost money, it is free now, so
@@ -50,6 +51,39 @@ export interface EnrichLogEntry { id: string; at: string; result: EnrichResult; 
 const META_LEAK = /\b(?:provided facts?|verified facts?|the facts (?:do|does|state|say|provided|given)|facts (?:are|is) (?:not )?(?:provided|given|available)|(?:is|are|was|were) (?:not )?provided|(?:not|no [a-z ]{0,40}) (?:are|is) (?:provided|given|available)|the (?:research|excerpts?)|according to the (?:facts|provided)|the report (?:concludes|notes that no))\b/i;
 export function mentionsItsInputs(body: string): string | null {
   return META_LEAK.exec(body)?.[0] ?? null;
+}
+
+// Machine-sounding prose: the same sentence opening three or more times
+// ("Dave Williams stated that ..." seven times in one article, 2026-10-06), or
+// the same seven words twice. Such an article is not used (pure, unit-tested).
+export function isRepetitive(body: string): boolean {
+  const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s'-]/g, " ").split(/\s+/).filter(Boolean);
+  const openings = new Map<string, number>();
+  for (const sentence of body.split(/(?<=[.!?])\s+/)) {
+    const w = words(sentence);
+    if (w.length < 6) continue;
+    const key = w.slice(0, 4).join(" ");
+    openings.set(key, (openings.get(key) ?? 0) + 1);
+  }
+  if ([...openings.values()].some((n) => n >= 3)) return true;
+  const all = words(body);
+  const seen = new Set<string>();
+  for (let i = 0; i + 7 <= all.length; i++) {
+    const gram = all.slice(i, i + 7).join(" ");
+    if (seen.has(gram)) return true;
+    seen.add(gram);
+  }
+  return false;
+}
+
+// One enriched report per event: four near-identical Ovechkin pieces were
+// written on 2026-10-06, which reads as the scaled content the site is
+// avoiding. A story whose headline is about the same event as one already
+// enriched (in the last two days, or earlier this run) is skipped
+// (pure, unit-tested).
+export function sameEventAsEnriched(title: string, enrichedTitles: string[]): boolean {
+  const words = significantWords(title);
+  return enrichedTitles.some((t) => sharesWords(words, significantWords(t), 0.25, 2));
 }
 
 // Figures of three or more digits in the finished article that none of the

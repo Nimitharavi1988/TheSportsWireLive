@@ -19,7 +19,7 @@
  */
 import { db } from "@/db";
 import { article, dataSnapshot } from "@/db/schema";
-import { and, desc, eq, gte, notInArray, ne } from "drizzle-orm";
+import { and, desc, eq, gte, like, notInArray, ne } from "drizzle-orm";
 import { callGemini } from "../ingestion/commentary";
 import { RESEARCH_MODEL, factCheckDraft } from "./research";
 import { researchFromCoverage } from "./coverageResearch";
@@ -29,7 +29,7 @@ import { articleWords } from "../thinContent";
 import { articleUrl, submitToIndexNow } from "../indexNow";
 import {
   MIN_ENRICHED_WORDS, MIN_ENRICH_FACTS,
-  buildEnrichPrompt, creditLine, enrichLimitsFrom, enrichedToday, mentionsItsInputs, mergeLogs, pickCandidates, pruneLog, unsupportedFigures, type EnrichLogEntry, type EnrichResult,
+  buildEnrichPrompt, creditLine, enrichLimitsFrom, enrichedToday, isRepetitive, mentionsItsInputs, mergeLogs, sameEventAsEnriched, pickCandidates, pruneLog, unsupportedFigures, type EnrichLogEntry, type EnrichResult,
 } from "./enrichRules";
 
 const LOG_KEY = "enrich:log";
@@ -70,12 +70,24 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
     .orderBy(desc(article.trendingScore))
     .limit(60);
 
+  // Titles already enriched in the last two days: one report per event.
+  const enrichedTitles = (await db.select({ title: article.title }).from(article).where(and(
+    eq(article.status, "published"),
+    gte(article.updatedAt, new Date(now.getTime() - 48 * 60 * 60 * 1000)),
+    like(article.body, "%This report also draws on coverage%"),
+  ))).map((r) => r.title);
+
   let enriched = 0;
   let note = "ok";
   const record = (id: string, result: EnrichResult, detail?: EnrichLogEntry["detail"]) => { log = [...log, { id, at: now.toISOString(), result, ...(detail ? { detail } : {}) }]; };
 
   for (const story of pickCandidates(rows, log, limits.researchPerRun)) {
     if (enriched >= room) break;
+    if (sameEventAsEnriched(story.title, enrichedTitles)) {
+      if (opts.dryRun) console.log(`[dry-run] same event as an enriched story: "${story.title}"`);
+      record(story.id, "failed", { why: "same event as an enriched story" });
+      continue;
+    }
     const text = (story.body?.trim() ? story.body : story.summary).trim();
     // Researched from other outlets' coverage we already hold, not a paid web
     // search (coverageResearch.ts).
@@ -100,6 +112,11 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
     const body = checked.body.split(/\n\n+/).map((p) => p.replace(/^##\s+/, "")).join("\n\n");
     const words = articleWords({ body, summary: null });
     if (words < MIN_ENRICHED_WORDS) { record(story.id, "too-short", { facts: research.facts.length, outlets: research.sources.length, words }); continue; }
+    if (isRepetitive(body)) {
+      if (opts.dryRun) console.log(`[dry-run] repetitive prose: "${story.title}"`);
+      record(story.id, "failed", { facts: research.facts.length, words, why: "repetitive prose" });
+      continue;
+    }
     // The writer talking about its own inputs ("the provided facts..."): never shown.
     const leaked = mentionsItsInputs(body);
     if (leaked) {
@@ -123,6 +140,7 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
       continue;
     }
     await db.update(article).set({ body: finalBody, updatedAt: new Date() }).where(eq(article.id, story.id));
+    enrichedTitles.push(story.title);
     record(story.id, "enriched", { facts: research.facts.length, outlets: research.sources.length, words, removed: checked.removed.length });
     enriched++;
     console.log(`Enriched: "${story.title}" (${articleWords({ body: finalBody, summary: null })} words, ${research.facts.length} facts, ${checked.removed.length} removed by the check).`);

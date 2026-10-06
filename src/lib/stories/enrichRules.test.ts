@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildEnrichPrompt, creditLine, enrichedToday, pickCandidates, pruneLog, unsupportedFigures, enrichLimitsFrom, mentionsItsInputs, mergeLogs, type EnrichCandidate, type EnrichLogEntry } from "./enrichRules";
+import { buildEnrichPrompt, creditLine, enrichedToday, pickCandidates, pruneLog, unsupportedFigures, enrichLimitsFrom, mentionsItsInputs, isRepetitive, sameEventAsEnriched, mergeLogs, type EnrichCandidate, type EnrichLogEntry } from "./enrichRules";
 
 const words = (n: number) => Array.from({ length: n }, (_, i) => `w${i}`).join(" ");
 const story = (id: string, over: Partial<EnrichCandidate> = {}): EnrichCandidate => ({
@@ -94,5 +94,33 @@ describe("an article that talks about its own inputs", () => {
       "Details of the contract were not disclosed.",
       "The report from Sunday said he was fine.",
     ]) expect(mentionsItsInputs(ok)).toBeNull();
+  });
+});
+
+describe("repetitive prose and same-event enrichment", () => {
+  it("catches an article that opens most sentences the same way, or repeats a phrase", () => {
+    const bad = [
+      "Dave Williams stated that he sent texts to players and an executive.",
+      "Dave Williams stated that he texted Sean Burke during the game.",
+      "Dave Williams stated that he also contacted Mike Vasil and a front office executive.",
+      "Dave Williams stated that all of them replied that they knew.",
+    ].join(" ");
+    expect(isRepetitive(bad)).toBe(true);
+    expect(isRepetitive("He reached 30 goals in every season of his career except 2020-21. Later he reached 30 goals in every season of his career except 2020-21.")).toBe(true);
+  });
+  it("leaves normal reporting alone", () => {
+    const ok = "The Panthers beat the Lions 32-26 in Charlotte on Sunday night. Chuba Hubbard scored from 15 yards in the first quarter. Jared Goff passed for 412 yards, but the Lions' final drive ended in a four-and-out. Cris Collinsworth called it a disaster. The Panthers moved atop the NFC South at 2-2.";
+    expect(isRepetitive(ok)).toBe(false);
+  });
+  it("treats the four Ovechkin retirement headlines as one event, but not different Chiefs stories", () => {
+    const done = ["NHL’s all-time leading goalscorer Alex Ovechkin to retire at end of season"];
+    for (const t of [
+      "Who can break Alex Ovechkin's goal record as Capitals star plays final season?",
+      "Evgeni Malkin responds to Alex Ovechkin’s retirement announcment",
+      "Alex Ovechkin announces retirement to Capitals teammates to start 22nd season",
+    ]) expect(sameEventAsEnriched(t, done)).toBe(true);
+    const chiefs = ["Chiefs News: Chiefs have shown interest in bringing back Tyreek Hill"];
+    expect(sameEventAsEnriched("Chiefs’ Tyquan Thornton to have surgery with ‘12 to 16-week’ recovery timeline", chiefs)).toBe(false);
+    expect(sameEventAsEnriched("Detroit Lions grades: Defense is beyond embarrassing vs. Panthers", chiefs)).toBe(false);
   });
 });
