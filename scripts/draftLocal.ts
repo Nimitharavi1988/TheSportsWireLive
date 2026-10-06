@@ -6,8 +6,9 @@
  *
  *   npx tsx scripts/draftLocal.ts                  up to 6 drafts
  *   options: --count N (6)  --rounds N (6)  --research N (10)  --max-waiting N (15)
- *            --no-paid-review  skip the paid review pass (free providers only)
- *            --max-paid N (30)  most paid review calls this run (about 4 cents per 10)
+ *            --no-paid-review  skip the paid steps (free providers only)
+ *            --free-write      free models write the first draft (paid review only)
+ *            --max-paid N (40)  most paid calls this run, writing + review (about 3 cents a draft)
  *            --env path/to/.dev.vars (default: .dev.vars, then the main checkout's)
  *
  * Then sign in to the admin and open Stories > Review drafts
@@ -71,17 +72,18 @@ async function main() {
   const rounds = arg("rounds", 6);
   const researchPerRun = arg("research", 10);
   const maxWaiting = arg("max-waiting", 15);
-  const maxPaid = arg("max-paid", 30);
+  const maxPaid = arg("max-paid", 40);
+  const paidWrite = !process.argv.includes("--free-write");
   const paidReview = Boolean(process.env.GEMINI_PAID_REVIEW_KEY);
 
   // Imported after the environment is set: the database client reads it on load.
   const { autoDraftStories } = await import("../src/lib/stories/autoDraft");
-  console.log(`Local drafts (unpublished; free providers${paidReview ? " + paid review pass, max " + maxPaid + " calls" : ", no paid review"}), target ${target}, up to ${rounds} rounds, env ${file}`);
+  console.log(`Local drafts (unpublished; free providers${paidReview ? (paidWrite ? " + paid writing and review" : " + paid review") + ", max " + maxPaid + " calls" : ", no paid steps"}), target ${target}, up to ${rounds} rounds, env ${file}`);
 
   let total = 0;
   for (let r = 1; r <= rounds && total < target; r++) {
     const { drafted, note } = await autoDraftStories(new Date(), {
-      perRun: Math.min(2, target - total), perDay: 1000, researchPerRun, maxUnreviewed: maxWaiting, freeResearch: true, reviewPack: true, paidReview, paidReviewMax: maxPaid,
+      perRun: Math.min(2, target - total), perDay: 1000, researchPerRun, maxUnreviewed: maxWaiting, freeResearch: true, reviewPack: true, paidReview, paidWrite: paidReview && paidWrite, paidReviewMax: maxPaid,
     });
     total += drafted;
     console.log(`Round ${r}: ${drafted} saved (${note}).`);

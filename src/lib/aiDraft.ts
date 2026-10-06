@@ -136,10 +136,12 @@ export class AiDraftError extends Error {}
 // model: the editor's button uses the lite tier; the automatic drafts pass
 // standard Flash (stories/research.ts RESEARCH_MODEL), which needs its hidden
 // reasoning turned off or it uses up the output cap (see commentary.ts).
-export async function requestDraft(facts: DraftFacts, model: string = MODEL): Promise<AiDraft> {
+// directKey: call Gemini directly with this key, bypassing the router (the local
+// draft script's paid write pass; stories/paidReview.ts).
+export async function requestDraft(facts: DraftFacts, model: string = MODEL, directKey?: string): Promise<AiDraft> {
   // With the AI router on (the ingest job; the website's admin button has no
   // router and keeps the direct call below) the draft goes through its budget.
-  const router = await getRouter();
+  const router = directKey ? null : await getRouter();
   if (router) {
     const result = await router.json({
       prompt: buildDraftPrompt(facts),
@@ -154,7 +156,7 @@ export async function requestDraft(facts: DraftFacts, model: string = MODEL): Pr
     }
     return toAiDraft(result.data as { title?: string; summary?: string; blocks?: Block[]; checks?: string[] });
   }
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = directKey ?? process.env.GEMINI_API_KEY;
   if (!apiKey) throw new AiDraftError("AI drafting isn't set up on the site yet (GEMINI_API_KEY is missing in Cloudflare).");
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: "POST",

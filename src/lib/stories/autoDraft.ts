@@ -31,7 +31,7 @@ import {
   type ReviewPack,
 } from "./autoDraftRules";
 import { unsupportedFigures } from "./enrichRules";
-import { applyReview, paidReviewCalls, paidReviewDraft } from "./paidReview";
+import { applyReview, notePaidCall, paidReviewCalls, paidReviewDraft } from "./paidReview";
 import { researchFromCoverage } from "./coverageResearch";
 import { gatherDraftFacts, seriesLabelFor } from "../draftFacts";
 import { AiDraftError, requestDraft, type AiDraft } from "../aiDraft";
@@ -128,6 +128,9 @@ export interface AutoDraftOptions {
   reviewPack?: boolean;
   // A paid model reviews and corrects each draft before it is saved (paidReview.ts).
   paidReview?: boolean;
+  // The paid model also writes the first draft: the free models' drafts were
+  // all rejected by the review (2026-10-06), so they are no use as a base.
+  paidWrite?: boolean;
   // Hard cap on paid review calls for this process.
   paidReviewMax?: number;
 }
@@ -172,7 +175,12 @@ export async function autoDraftStories(now: Date = new Date(), opts: AutoDraftOp
     const format = opts.reviewPack && picked === "feature" ? "takeaways" : picked;
     let draft: AiDraft;
     try {
-      draft = await requestDraft({ ...facts, webFacts: research.facts, format }, RESEARCH_MODEL);
+      const paidKey = opts.paidWrite ? process.env.GEMINI_PAID_REVIEW_KEY : undefined;
+      if (paidKey) {
+        if (paidReviewCalls() >= (opts.paidReviewMax ?? 30)) return { drafted, note: "paid call limit reached for this run" };
+        notePaidCall();
+      }
+      draft = await requestDraft({ ...facts, webFacts: research.facts, format }, RESEARCH_MODEL, paidKey);
     } catch (err) {
       // Out of credit, busy or not configured: stop, try again next run.
       if (err instanceof AiDraftError) return { drafted, note: err.message };

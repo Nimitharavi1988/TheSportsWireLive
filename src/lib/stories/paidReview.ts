@@ -84,6 +84,8 @@ export function applyReview(original: ReviewedText, review: DraftReview): { ok: 
 
 let paidCalls = 0;
 export const paidReviewCalls = () => paidCalls;
+// A paid call made elsewhere (the paid write pass) counts toward the same cap.
+export const notePaidCall = () => { paidCalls++; };
 
 export async function paidReviewDraft(draft: ReviewedText, facts: string[]): Promise<DraftReview | null> {
   const key = process.env.GEMINI_PAID_REVIEW_KEY;
