@@ -18,7 +18,9 @@ export interface ReviewedText { title: string; summary: string; body: string }
 export interface DraftReview {
   verdict: "pass" | "fix" | "reject";
   problems: string[];
-  corrected?: ReviewedText;
+  // A part the reviewer left out (it needed no change) is empty here and
+  // keeps the original text in applyReview.
+  corrected?: Partial<ReviewedText>;
 }
 
 const REVIEW_SCHEMA = {
@@ -68,8 +70,9 @@ export function parseReview(raw: unknown): DraftReview | null {
   if (verdict !== "fix") return { verdict, problems };
   const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
   const corrected = { title: str(r.correctedTitle), summary: str(r.correctedSummary), body: str(r.correctedBody) };
-  // A "fix" without all three corrected parts can't be used.
-  if (!corrected.title || !corrected.summary || !corrected.body) return null;
+  // A "fix" must at least carry a corrected body; an unchanged headline or
+  // summary is simply left out by the model.
+  if (!corrected.body) return null;
   return { verdict, problems, corrected };
 }
 
@@ -78,7 +81,8 @@ export function parseReview(raw: unknown): DraftReview | null {
 export function applyReview(original: ReviewedText, review: DraftReview): { ok: true; text: ReviewedText; notes: string[] } | { ok: false; reason: string } {
   if (review.verdict === "reject") return { ok: false, reason: `paid review rejected it: ${review.problems.slice(0, 3).join("; ") || "unsupported claims"}` };
   if (review.verdict === "pass") return { ok: true, text: original, notes: ["Paid review: passed, no problems found."] };
-  const corrected = review.corrected!;
+  const c = review.corrected!;
+  const corrected: ReviewedText = { title: c.title || original.title, summary: c.summary || original.summary, body: c.body || original.body };
   return { ok: true, text: corrected, notes: [`Paid review corrected ${review.problems.length} problem(s):`, ...review.problems.map((p) => `  - ${p}`)] };
 }
 
