@@ -3,13 +3,13 @@ import { hasRealImage, isImageUrlBlocked } from "../contentQuality";
 import { MIN_INDEXED_WORDS, articleWords, isNotAStory } from "../thinContent";
 import { ungroundedNumbers } from "../llm/grounding";
 
-// Six a day for the pilot (2026-10-05; the plan is 15 once the output has been
-// read; was 10 while research cost money, it is free now,
+// Fifteen a day from 2026-10-06 (the pilot ran at 6 first; was 10 while research
+// cost money, it is free now, so
 // coverageResearch.ts), two a run: a steady flow of substantial indexed pages
 // (about 180 a month at 6, 450 at 15) without the volume itself becoming the "scaled content"
 // problem the noindex rule fixed. Raise only after reading what it produces.
 export const MAX_ENRICH_PER_RUN = 2;
-export const MAX_ENRICH_PER_DAY = 6;
+export const MAX_ENRICH_PER_DAY = 15;
 // Stories researched per run, enriched or not (each is a search call).
 export const MAX_ENRICH_RESEARCH_PER_RUN = 4;
 // Below this many researched facts there isn't enough for a full report.
