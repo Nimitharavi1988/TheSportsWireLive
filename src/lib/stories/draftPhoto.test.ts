@@ -3,7 +3,8 @@ import { candidatePeople, isUsablePhoto, pickUsablePhoto } from "./autoDraftRule
 import { splitPackedText } from "./paidReview";
 import type { PhotoResult } from "../photoSearch";
 
-const photo = (title: string, width = 1600, height = 1000): PhotoResult => ({ id: title, source: "commons", title, creator: "x", license: "CC BY", landingUrl: "u", sourceName: "Wikimedia Commons", thumbUrl: "t", importUrl: "i", width, height } as PhotoResult);
+// file is the file name; real search results carry the title without an extension and the extension in the image address.
+const photo = (file: string, width = 1600, height = 1000): PhotoResult => ({ id: file, source: "commons", title: file.replace(/\.(jpe?g|png)$/i, ""), creator: "x", license: "CC BY", landingUrl: "u", sourceName: "Wikimedia Commons", thumbUrl: "t", importUrl: `https://upload.wikimedia.org/${file}`, width, height } as PhotoResult);
 
 describe("clean draft photos", () => {
   it("rejects the kinds of file the first drafts got", () => {
@@ -23,8 +24,8 @@ describe("clean draft photos", () => {
   });
   it("picks the first usable photo that names the subject", () => {
     const results = [photo("Washington_Football_Team_vs._New_Orleans_Saints_2021.jpg"), photo("Falcons_uniforms.png"), photo("Kyle_Pitts_Atlanta_Falcons_2023.jpg"), photo("Kyle_Pitts_2019.jpg")];
-    expect(pickUsablePhoto(results, "Kyle Pitts")?.title).toBe("Kyle_Pitts_Atlanta_Falcons_2023.jpg");
-    expect(pickUsablePhoto(results, "Atlanta Falcons")?.title).toBe("Kyle_Pitts_Atlanta_Falcons_2023.jpg");
+    expect(pickUsablePhoto(results, "Kyle Pitts")?.title).toBe("Kyle_Pitts_Atlanta_Falcons_2023"); // the newest usable one
+    expect(pickUsablePhoto(results, "Atlanta Falcons")?.title).toBe("Kyle_Pitts_Atlanta_Falcons_2023");
     expect(pickUsablePhoto([photo("Washington_Football_Team_vs._New_Orleans_Saints_2021.jpg")], "Atlanta Falcons")).toBeNull();
   });
   it("finds the people a story names more than once, most mentioned first, and not the clubs", () => {

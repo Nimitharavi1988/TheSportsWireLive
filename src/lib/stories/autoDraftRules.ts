@@ -61,10 +61,11 @@ export function pickPhoto(results: PhotoResult[], subject: string): PhotoResult 
 // a real photograph, recent, of the subject.
 const NOT_A_PHOTO = /uniform|logo|headquarters|topps|trading card|\bcards?\b|helmet|jersey|\bkits?\b|wordmark|flag|\bmap\b|diagram|\bseal\b|crest|badge|banner|poster|stamp|signature|autograph|statue|cartoon|sticker|stadium|arena|aerial|exterior|interior|building|roster|season|draft|logo|symbol|icon|screenshot/i;
 
-export function isUsablePhoto(r: Pick<PhotoResult, "title" | "width" | "height">): boolean {
+export function isUsablePhoto(r: Pick<PhotoResult, "title" | "width" | "height" | "importUrl">): boolean {
   // File names use underscores, which would defeat the word-boundary checks.
   const title = r.title.toLowerCase().replace(/_/g, " ");
-  if (!/\.jpe?g$/.test(title)) return false; // photographs, not PNG charts or SVG art
+  // Result titles carry no extension; the image address does.
+  if (!/\.jpe?g$/.test((r.importUrl ?? title).split("?")[0].toLowerCase())) return false; // photographs, not PNG charts or SVG art
   if (NOT_A_PHOTO.test(title)) return false;
   if (r.width < 800) return false;
   // Any year in the file name must be recent: a 1958 card or a 2005 game is not this week's story.
@@ -78,7 +79,11 @@ export function pickUsablePhoto(results: PhotoResult[], subject: string, alsoMat
   const surname = subject.trim().split(/\s+/).pop()?.toLowerCase();
   const needles = [surname, ...alsoMatch.map((n) => n.toLowerCase())].filter((n): n is string => !!n && n.length >= 3);
   if (needles.length === 0) return null;
-  return results.find((r) => isUsablePhoto(r) && needles.some((n) => r.title.toLowerCase().includes(n))) ?? null;
+  // Newest first: a 2025 photo beats a 2018 one of the same player.
+  const year = (r: PhotoResult) => Math.max(0, ...(r.title.match(/\b(?:19|20)\d{2}\b/g)?.map(Number) ?? []));
+  return results
+    .filter((r) => isUsablePhoto(r) && needles.some((n) => r.title.toLowerCase().includes(n)))
+    .sort((a, b) => year(b) - year(a))[0] ?? null;
 }
 
 // People named at least twice in the story, most mentioned first: the players
