@@ -25,13 +25,21 @@ export const MIN_INDEXED_WORDS = 300;
 
 // Titles that are never a news story of their own: fan-site threads, stream
 // listings, TV guides and live blogs.
-// Promotional and betting items (2026-10-06, after Prime Day deal lists, a
-// FanDuel promo code and betting picks went out on the Facebook Page): plain
+// Advertising only (2026-10-06, after Prime Day deal lists and sportsbook promo
+// codes went out on the Facebook Page): promo and bonus codes, shopping deals
+// and ticket-sale pitches. Betting ANALYSIS (odds, picks, props), "how to
+// watch" pages and live blogs are real content and are not in this list. Plain
 // phrases, no word boundaries, so this one string works as both a JavaScript
 // and a Postgres regular expression (indexableArticleSql below).
-const PROMO = "promo code|bonus code|bonus bets|free bets|prime day|black friday|cyber monday|deals on|best deals|deals live|% off|discount|gift guide|giveaway|best bets|player props|prop bets|against the spread|picks against|parlay|sportsbook|moneyline|betting odds|opening lines| odds |odds:|odds,|odds for|early odds|big deal days|prime big deal|deal days|tickets today|get tickets|get playoff tickets|buy tickets|ticket prices|tickets for|tickets are|ticket's for|half price|half-price|price drop|where to buy|how to buy|buying guide|we rate the|best headphones|best gear|shop the|on sale now|limited time";
+const PROMO = "promo code|promo codes|bonus code|bonus bets|free bets|sportsbook promo|prime day|prime big deal|big deal days|black friday|cyber monday|deals on|best deals|deals live|% off|discount|gift guide|giveaway|half price|half-price|price drop|where to buy|how to buy|buying guide|we rate the|best headphones|best gear|shop the|on sale now|limited time|tickets today|get tickets|get playoff tickets|buy tickets";
 const NOT_A_STORY = `open thread|open chat|game thread|live stream|how to watch|where to watch|live updates|live blog|${PROMO}`;
 const NOT_A_STORY_RE = new RegExp(NOT_A_STORY, "i");
+
+// An advertisement: kept off the Facebook and Instagram Pages and out of search.
+const PROMO_RE = new RegExp(PROMO, "i");
+export function isPromotional(title: string): boolean {
+  return PROMO_RE.test(title);
+}
 
 export function isNotAStory(title: string): boolean {
   return NOT_A_STORY_RE.test(title);

@@ -12,7 +12,7 @@ import { article, socialPost } from "@/db/schema";
 import { and, count, desc, eq, gte, inArray, like, ilike, or } from "drizzle-orm";
 import { isMatchDataSource } from "../matchDataSources";
 import { hasRealImage } from "../contentQuality";
-import { isNotAStory } from "../thinContent";
+import { isPromotional } from "../thinContent";
 import { isSimilarToAny } from "../titleSimilarity";
 import { postArticleToFacebook } from "./facebook";
 import { editionConditions } from "../i18n/overlay";
@@ -71,8 +71,8 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
   for (const a of prioritise(pool, now)) {
     if (toPost.length >= limit) break;
     if (posted.has(a.id) || !d.matches(a)) continue;
-    // Never a promotional, betting or "how to watch" item (thinContent.ts).
-    if (isNotAStory(a.title)) continue;
+    // Never an advertisement (thinContent.ts).
+    if (isPromotional(a.title)) continue;
     const matchData = isMatchDataSource(a.sourceName);
     // Every post needs a real picture (match rows can publish without one —
     // see isAutoApprovable); match data only once there's a result (not

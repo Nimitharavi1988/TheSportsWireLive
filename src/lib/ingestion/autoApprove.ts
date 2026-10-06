@@ -4,7 +4,7 @@ import { eq, and, inArray, gte, lt, count, desc } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { submitToIndexNow, articleUrl } from "../indexNow";
 import { isMatchDataSource } from "../matchDataSources";
-import { isNotAStory, isThinRewrite } from "../thinContent";
+import { isPromotional, isThinRewrite } from "../thinContent";
 import { isHighlightWorthy } from "../highlightWorthy";
 import { isPushWorthy } from "../pushWorthy";
 import { postToTopicPages } from "../social/topicPosting";
@@ -348,10 +348,10 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   const fbRecentTitles = fbRecentTitleRows.map((r) => r.title);
   const igRecentTitles = igRecentTitleRows.map((r) => r.title);
 
-  // Never promotional or betting items, or listings ("how to watch"), on the
-  // Pages: Prime Day deal lists, a FanDuel promo code and betting picks were
-  // posted before this (thinContent.ts isNotAStory).
-  const postableStory = (a: { title: string }) => !isNotAStory(a.title);
+  // Never an advertisement on the Pages: Prime Day deal lists and sportsbook promo
+  // codes were posted before this (thinContent.ts isPromotional). Betting
+  // analysis and "how to watch" stories are real content and still post.
+  const postableStory = (a: { title: string }) => !isPromotional(a.title);
   const freshCandidates: SocialCandidate[] = toApprove.filter((a) => postable(a) && postableStory(a)).map((a) => ({
     id: a.id, slug: a.slug, title: a.title, trendingScore: a.trendingScore, category: a.category, sourceName: a.sourceName, publishedAt: a.publishedAt,
   }));

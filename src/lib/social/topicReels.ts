@@ -9,7 +9,7 @@ import { article, socialPost } from "@/db/schema";
 import { and, count, desc, eq, gte, inArray, like, ilike, or } from "drizzle-orm";
 import { isMatchDataSource } from "../matchDataSources";
 import { hasRealImage } from "../contentQuality";
-import { isNotAStory } from "../thinContent";
+import { isPromotional } from "../thinContent";
 import { isSimilarToAny } from "../titleSimilarity";
 import { TOPIC_DESTINATIONS, destinationRunCap, effectiveDestination, localDayStart, prioritise } from "./facebookDestinations";
 import { postReel } from "./postReel";
@@ -82,8 +82,8 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
       for (const a of prioritise(ranked, now)) {
         if (postedNow >= runCap || attempts >= MAX_ATTEMPTS || checked >= MAX_PHOTO_CHECKS) break;
         if (done.has(a.id) || !a.body || !hasRealImage(a) || !d.matches(a)) continue;
-        // Never a promotional, betting or "how to watch" item (thinContent.ts).
-        if (isNotAStory(a.title)) continue;
+        // Never an advertisement (thinContent.ts).
+        if (isPromotional(a.title)) continue;
         // Match rows are scorecards, not stories to narrate.
         if (isMatchDataSource(a.sourceName)) continue;
         if (isSimilarToAny(a.title, titles)) continue;
