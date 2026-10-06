@@ -81,14 +81,29 @@ export function isUsablePhoto(r: Pick<PhotoResult, "title" | "width" | "height" 
 // The first usable photo whose file title names the subject by surname, or by a
 // nickname given in `alsoMatch` (pure, unit-tested).
 export function pickUsablePhoto(results: PhotoResult[], subject: string, alsoMatch: string[] = []): PhotoResult | null {
-  const surname = subject.trim().split(/\s+/).pop()?.toLowerCase();
-  const needles = [surname, ...alsoMatch.map((n) => n.toLowerCase())].filter((n): n is string => !!n && n.length >= 3);
-  if (needles.length === 0) return null;
+  return usablePhotos(results, subject, alsoMatch)[0] ?? null;
+}
+
+// All usable photos naming the subject, newest first, so a caller can skip one
+// whose address turns out to be dead (pure, unit-tested).
+export function usablePhotos(results: PhotoResult[], subject: string, alsoMatch: string[] = []): PhotoResult[] {
+  const norm = (s: string) => s.toLowerCase().replace(/_/g, " ").replace(/['’.]/g, "");
+  // Every word of the subject's name must be in the file title: a surname alone
+  // ("Yadav") found "Dr. Raj Kumar Yadav of the Competition Commission" for
+  // the cricketer Prince Yadav. Nicknames in `alsoMatch` match on their own.
+  const words = norm(subject).split(/\s+/).filter((w) => w.length >= 2);
+  const nicknames = alsoMatch.map(norm).filter((n) => n.length >= 3);
+  if (words.length === 0 && nicknames.length === 0) return [];
   // Newest first: a 2025 photo beats a 2018 one of the same player.
-  const year = (r: PhotoResult) => Math.max(0, ...(r.title.match(/\b(?:19|20)\d{2}\b/g)?.map(Number) ?? []));
+  const year = (r: PhotoResult) => Math.max(0, ...(norm(r.title).match(/\b(?:19|20)\d{2}\b/g)?.map(Number) ?? []));
   return results
-    .filter((r) => isUsablePhoto(r) && needles.some((n) => r.title.toLowerCase().includes(n)))
-    .sort((a, b) => year(b) - year(a))[0] ?? null;
+    .filter((r) => {
+      if (!isUsablePhoto(r)) return false;
+      const t = norm(r.title);
+      // The name as a phrase, not just its words anywhere ("Raj Kumar Yadav with Kuldeep Dalal" has both Kuldeep and Yadav).
+      return (words.length > 0 && t.includes(words.join(" "))) || nicknames.some((n) => t.includes(n));
+    })
+    .sort((a, b) => year(b) - year(a));
 }
 
 // How well a photo fits the story: +2 when its title names one of the story's

@@ -27,7 +27,7 @@ import { fetchStoryIdeas, markStoryIdea } from "../storyIdeasData";
 import type { StoryIdea } from "../storyIdeas";
 import {
   MAX_DRAFTS_PER_DAY, MAX_DRAFTS_PER_RUN, MAX_RESEARCH_PER_RUN, MAX_UNREVIEWED, MIN_WEB_FACTS,
-  candidatePeople, cleanDraftProblem, draftBodyWithChecks, pickUsablePhoto, scorePhoto, draftProblem, editorNotes, pickFormat, pickIdeas, pickPhoto, reviewPackKey, suggestedWriter,
+  candidatePeople, cleanDraftProblem, draftBodyWithChecks, scorePhoto, usablePhotos, draftProblem, editorNotes, pickFormat, pickIdeas, pickPhoto, reviewPackKey, suggestedWriter,
   type ReviewPack,
 } from "./autoDraftRules";
 import { unsupportedFigures } from "./enrichRules";
@@ -36,7 +36,7 @@ import { researchFromCoverage } from "./coverageResearch";
 import { gatherDraftFacts, seriesLabelFor } from "../draftFacts";
 import { AiDraftError, requestDraft, type AiDraft } from "../aiDraft";
 import { RESEARCH_MODEL, factCheckDraft, researchStory } from "./research";
-import { searchPhotos, type PhotoResult } from "../photoSearch";
+import { photoReachable, searchPhotos, type PhotoResult } from "../photoSearch";
 import { ORIGINAL_SOURCE, ORIGINAL_TRENDING_SCORE, storySlug } from "../stories";
 import { isKnownTag } from "../tags";
 import { articleUrl } from "../indexNow";
@@ -67,6 +67,14 @@ async function suggestPhoto(subject: string | null): Promise<PhotoResult | null>
 // photograph of someone the story is about), then one of the clubs; never a
 // uniform chart, logo, old card or building (autoDraftRules.ts isUsablePhoto).
 // null when nothing suitable exists: the draft isn't saved without a photo.
+// The first photo (of the first few) whose address really serves an image.
+async function firstReachable(photos: PhotoResult[]): Promise<PhotoResult | null> {
+  for (const photo of photos.slice(0, 6)) {
+    if (await photoReachable(photo.importUrl)) return photo;
+  }
+  return null;
+}
+
 export async function suggestCleanPhoto(body: string, tags: { kind: string; slug: string }[]): Promise<{ photo: PhotoResult; subject: string } | null> {
   const clubNames = tags.filter((t) => t.kind === "club").map((t) => TRACKED_CLUBS.find((c) => c.slug === t.slug)?.name).filter((n): n is string => !!n);
   try {
@@ -75,15 +83,18 @@ export async function suggestCleanPhoto(body: string, tags: { kind: string; slug
     const clubWords = clubNames.map((c) => c.split(" ").pop() ?? "");
     let best: { photo: PhotoResult; subject: string; score: number } | null = null;
     for (const name of candidatePeople(body, clubNames, 6)) {
-      const photo = pickUsablePhoto((await searchPhotos(name)).results, name);
+      const photo = await firstReachable(usablePhotos((await searchPhotos(name)).results, name));
       if (!photo) continue;
       const score = scorePhoto(photo, clubWords);
       if (!best || score > best.score) best = { photo, subject: name, score };
       if (score >= 2) break;
     }
-    if (best) return { photo: best.photo, subject: best.subject };
+    // A photo must show the story's club or be recent (score 1+): a namesake
+    // ("Josh Allen OLB 2022" for the Bills quarterback) or an unrelated shot
+    // scores 0 and is not used.
+    if (best && best.score >= 1) return { photo: best.photo, subject: best.subject };
     for (const club of clubNames) {
-      const photo = pickUsablePhoto((await searchPhotos(club)).results, club);
+      const photo = await firstReachable(usablePhotos((await searchPhotos(club)).results, club));
       if (photo) return { photo, subject: club };
     }
   } catch (err) {

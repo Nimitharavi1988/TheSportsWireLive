@@ -75,3 +75,21 @@ describe("photo fit", () => {
     expect(scorePhoto({ title: "Saquon Barkley Philadelphia Eagles" }, ["Eagles"])).toBe(2);
   });
 });
+
+describe("usable photos list", () => {
+  it("returns every usable photo naming the subject, newest first, so a dead one can be skipped", async () => {
+    const { usablePhotos } = await import("./autoDraftRules");
+    const list = usablePhotos([photo("Tetairoa_McMillan_2023.jpg"), photo("Tetairoa_McMillan_2025.jpg"), photo("Tetairoa_McMillan_logo.jpg"), photo("Someone_Else_2025.jpg")], "Tetairoa McMillan");
+    expect(list.map((r) => r.title)).toEqual(["Tetairoa_McMillan_2025", "Tetairoa_McMillan_2023"]);
+  });
+});
+
+describe("full-name matching", () => {
+  it("does not take a different person with the same surname", async () => {
+    const { usablePhotos } = await import("./autoDraftRules");
+    const results = [photo("Dr._Raj_Kumar_Yadav_with_Mr._Kuldeep_Dalal.jpg"), photo("Prince_Yadav_2025.jpg"), photo("Ja'Marr_Chase_2024.jpg")];
+    expect(usablePhotos(results, "Prince Yadav").map((r) => r.title)).toEqual(["Prince_Yadav_2025"]);
+    expect(usablePhotos(results, "Ja’Marr Chase").map((r) => r.title)).toEqual(["Ja'Marr_Chase_2024"]);
+    expect(usablePhotos(results, "Kuldeep Yadav")).toEqual([]);
+  });
+});

@@ -8,6 +8,7 @@
  *   options: --hours N (24)  look at original stories updated in the last N hours
  *            --all   re-pick every story in the window, not only those with an obviously wrong photo
  *            --drafts-only   leave published stories alone
+ *            --broken   only stories whose current photo no longer loads (checks every address)
  *            --only "text"   touch only stories whose title contains this text
  *            --skip "text"   leave stories whose title contains this text alone
  *            --env path/to/.dev.vars
@@ -33,6 +34,7 @@ async function main() {
   }
   const apply = process.argv.includes("--apply");
   const all = process.argv.includes("--all");
+  const brokenOnly = process.argv.includes("--broken");
   const draftsOnly = process.argv.includes("--drafts-only");
   const oi = process.argv.indexOf("--only");
   const only = oi >= 0 ? (process.argv[oi + 1] ?? "").toLowerCase() : "";
@@ -46,6 +48,7 @@ async function main() {
   const { and, eq, gte, inArray } = await import("drizzle-orm");
   const { suggestCleanPhoto } = await import("../src/lib/stories/autoDraft");
   const { isUsablePhoto } = await import("../src/lib/stories/autoDraftRules");
+  const { photoReachable } = await import("../src/lib/photoSearch");
 
   const rows = await db.select().from(article).where(and(
     eq(article.sourceName, "Sports Wire Live"),
@@ -58,7 +61,10 @@ async function main() {
     const fileName = decodeURIComponent(current.split("?")[0].split("/").pop() ?? "").replace(/^\d+px-/, "");
     if (skip && row.title.toLowerCase().includes(skip)) continue;
     if (only && !row.title.toLowerCase().includes(only)) continue;
-    if (!all && current && isUsablePhoto({ title: fileName, width: 1600, height: 1000, importUrl: current })) continue;
+    if (brokenOnly) {
+      // Only a photo that no longer loads is replaced.
+      if (current && (await photoReachable(current))) continue;
+    } else if (!all && current && isUsablePhoto({ title: fileName, width: 1600, height: 1000, importUrl: current })) continue;
     const tags = await db.select({ kind: articleTag.kind, slug: articleTag.slug }).from(articleTag).where(eq(articleTag.articleId, row.id));
     const found = await suggestCleanPhoto(row.body ?? "", tags);
     console.log(`\n${row.status.toUpperCase()}: ${row.title}\n  now:      ${fileName || "(none)"}`);

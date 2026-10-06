@@ -180,6 +180,24 @@ export function fromCommons(p: CommonsPage): PhotoResult | null {
   };
 }
 
+// Whether a photo address really serves an image. A search index can list a
+// file that has since been deleted from the source (the Openverse entry for
+// "Tetairoa McMillan.jpeg" outlived the Commons file, 2026-10-06), and a story
+// published with it shows a broken image. HEAD first, then a one-byte GET for
+// servers that refuse HEAD.
+export async function photoReachable(url: string): Promise<boolean> {
+  const headers = { "User-Agent": USER_AGENT };
+  const isImage = (res: Response) => res.ok && (res.headers.get("content-type") ?? "").startsWith("image/");
+  try {
+    const head = await fetch(url, { method: "HEAD", headers, redirect: "follow" });
+    if (isImage(head)) return true;
+    if (head.status !== 405 && head.status !== 403) return false;
+    return isImage(await fetch(url, { headers: { ...headers, Range: "bytes=0-0" }, redirect: "follow" }));
+  } catch {
+    return false;
+  }
+}
+
 async function getJson(url: string): Promise<unknown> {
   const res = await fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "application/json" } });
   if (!res.ok) throw new Error(`${new URL(url).host} answered ${res.status}`);
