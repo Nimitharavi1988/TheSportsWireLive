@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SPANISH_PAGE, spanishPageEnabled, INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, TOPIC_DESTINATIONS, effectiveDestination, destinationRunCap, isCricketOrAsianGames, isIndiaCricket, localDayStart } from "./facebookDestinations";
+import { SPANISH_PAGE, spanishPageEnabled, INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, TOPIC_DESTINATIONS, effectiveDestination, prioritise, destinationRunCap, isCricketOrAsianGames, isIndiaCricket, localDayStart } from "./facebookDestinations";
 
 const story = (over: Partial<Parameters<typeof isIndiaCricket>[0]>) => ({
   category: "cricket", title: "", homeTeam: null, awayTeam: null, seriesLabel: null, leagueLabel: null, venue: null, ...over,
@@ -146,5 +146,21 @@ describe("Sportswirecricketlive own content and reel hours", () => {
   it("is listed after Greenfield, so Greenfield picks first", () => {
     const keys = TOPIC_DESTINATIONS.map((d) => d.key);
     expect(keys.indexOf("india-cricket")).toBeLessThan(keys.indexOf("cricketlive"));
+  });
+});
+
+describe("prioritise: the first hour comes first", () => {
+  const now = new Date("2026-10-06T10:00:00Z");
+  const base = { category: "cricket", homeTeam: null, awayTeam: null, seriesLabel: null, leagueLabel: null, venue: null };
+  const at = (title: string, minutesAgo: number | null) => ({ ...base, title, publishedAt: minutesAgo === null ? null : new Date(now.getTime() - minutesAgo * 60_000) });
+
+  it("puts stories under an hour old first, then under 12 hours, then the rest, keeping the incoming order within each", () => {
+    const pool = [at("old", 30 * 60), at("hours", 5 * 60), at("fresh-b", 40), at("fresh-a", 5), at("undated", null), at("hours-2", 11 * 60)];
+    expect(prioritise(pool, now).map((a) => a.title)).toEqual(["fresh-b", "fresh-a", "hours", "hours-2", "old", "undated"]);
+  });
+
+  it("does not treat a future-dated story as being in its first hour", () => {
+    const pool = [at("later-today", -30), at("fresh", 10)];
+    expect(prioritise(pool, now).map((a) => a.title)).toEqual(["fresh", "later-today"]);
   });
 });

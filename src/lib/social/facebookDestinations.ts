@@ -111,11 +111,15 @@ export function isIndiaWestIndies(a: DestinationCandidate, now: Date): boolean {
 }
 
 const FRESH_MS = 12 * 3600_000;
+const FIRST_HOUR_MS = 3600_000;
 
-// Queue order for a Page: focus stories first, then stories under 12 hours
+// Queue order for a Page: focus stories first, then stories published in the
+// last hour (breaking news is worth most while it is breaking), then stories
+// under 12 hours
 // old, then the rest — each group keeps its incoming (trending) order.
 export function prioritise<T extends DestinationCandidate & { publishedAt: Date | null }>(pool: T[], now: Date): T[] {
-  const tier = (a: T) => (isIndiaWestIndies(a, now) ? 0 : a.publishedAt && now.getTime() - a.publishedAt.getTime() < FRESH_MS ? 1 : 2);
+  const age = (a: T) => (a.publishedAt ? now.getTime() - a.publishedAt.getTime() : Infinity);
+  const tier = (a: T) => (isIndiaWestIndies(a, now) ? 0 : age(a) >= 0 && age(a) < FIRST_HOUR_MS ? 1 : age(a) < FRESH_MS ? 2 : 3);
   return pool.map((a, i) => ({ a, i, t: tier(a) })).sort((x, y) => x.t - y.t || x.i - y.i).map((x) => x.a);
 }
 
