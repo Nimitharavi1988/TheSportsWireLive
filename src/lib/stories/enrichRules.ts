@@ -68,7 +68,8 @@ Verified facts from today's reporting (the ONLY facts you may state):
 ${s.facts.map((f) => `- ${f}`).join("\n")}
 
 Rules:
-- A news report, not an opinion piece: open with the most important facts, then the details, the context (results, standings, records, what led here) and what happens next, all from the facts above.
+- A news report, not an opinion piece: open with the most important facts, then the details and the context (results, standings, records, what led here), all from the facts above. Say what happens next ONLY if a fact names it (a date, an opponent, a decision); otherwise end on the last real fact.
+- No filler: never write general outlook or commentary such as "both teams will need to...", "remains to be seen", "will test whether" or "a catalyst for improvement", and never call a team's form a "surge", "run" or "streak" unless a fact states it. Use more of the facts instead (standings, records, individual numbers, quotes).
 - Never invent anything: no names, numbers, quotes, dates or events that aren't in the facts. Quotes only word for word as given, with who said them.
 - Say which team or side a person belongs to only where a fact says so; never work it out yourself, and never describe how a game "turned" or who "had momentum" beyond what the facts state.
 - Your own words throughout; don't copy sentences from the facts or the short version.
