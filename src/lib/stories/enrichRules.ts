@@ -1,6 +1,7 @@
 /** Pure rules for enriching top stories (enrich.ts): caps, picking, the log. */
 import { hasRealImage, isImageUrlBlocked } from "../contentQuality";
 import { MIN_INDEXED_WORDS, articleWords, isNotAStory } from "../thinContent";
+import { ungroundedNumbers } from "../llm/grounding";
 
 // Six a day for the pilot (2026-10-05; the plan is 15 once the output has been
 // read; was 10 while research cost money, it is free now,
@@ -13,14 +14,25 @@ export const MAX_ENRICH_PER_DAY = 6;
 export const MAX_ENRICH_RESEARCH_PER_RUN = 4;
 // Below this many researched facts there isn't enough for a full report.
 export const MIN_ENRICH_FACTS = 6;
-// The rewritten story must clear the indexing bar with room to spare.
-export const MIN_ENRICHED_WORDS = MIN_INDEXED_WORDS + 30;
+// The rewritten story must clear the indexing bar (the same word count decides
+// indexing, and the credit line adds ~10 more words after this check), so a
+// small margin is enough: 305.
+export const MIN_ENRICHED_WORDS = MIN_INDEXED_WORDS + 5;
 // How long attempts are remembered (stories older than a day aren't
 // candidates anyway).
 export const LOG_KEEP_MS = 3 * 24 * 60 * 60 * 1000;
 
 export type EnrichResult = "enriched" | "few-facts" | "too-short" | "failed";
-export interface EnrichLogEntry { id: string; at: string; result: EnrichResult }
+// detail: why this result, kept so the thresholds can be tuned from real runs
+// (facts found, outlets read, words written, figures not in the facts...).
+export interface EnrichLogEntry { id: string; at: string; result: EnrichResult; detail?: Record<string, number | string> }
+
+// Figures of three or more digits in the finished article that none of the
+// researched facts (or the headline) contain: a sign the writer invented or
+// mangled a number, so the article is not used (pure, unit-tested).
+export function unsupportedFigures(body: string, facts: string[], title: string): string[] {
+  return ungroundedNumbers(body, [title, ...facts].join(String.fromCharCode(10)));
+}
 
 export interface EnrichCandidate {
   id: string;

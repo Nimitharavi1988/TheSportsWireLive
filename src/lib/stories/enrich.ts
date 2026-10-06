@@ -29,7 +29,7 @@ import { articleWords } from "../thinContent";
 import { articleUrl, submitToIndexNow } from "../indexNow";
 import {
   MAX_ENRICH_PER_DAY, MAX_ENRICH_PER_RUN, MAX_ENRICH_RESEARCH_PER_RUN, MIN_ENRICHED_WORDS, MIN_ENRICH_FACTS,
-  buildEnrichPrompt, creditLine, enrichedToday, pickCandidates, pruneLog, type EnrichLogEntry, type EnrichResult,
+  buildEnrichPrompt, creditLine, enrichedToday, pickCandidates, pruneLog, unsupportedFigures, type EnrichLogEntry, type EnrichResult,
 } from "./enrichRules";
 
 const LOG_KEY = "enrich:log";
@@ -71,7 +71,7 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
 
   let enriched = 0;
   let note = "ok";
-  const record = (id: string, result: EnrichResult) => { log = [...log, { id, at: now.toISOString(), result }]; };
+  const record = (id: string, result: EnrichResult, detail?: EnrichLogEntry["detail"]) => { log = [...log, { id, at: now.toISOString(), result, ...(detail ? { detail } : {}) }]; };
 
   for (const story of pickCandidates(rows, log, MAX_ENRICH_RESEARCH_PER_RUN)) {
     if (enriched >= room) break;
@@ -83,7 +83,7 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
     if (!research) { note = "research unavailable"; break; }
     if (research.facts.length < MIN_ENRICH_FACTS) {
       if (opts.dryRun) console.log(`[dry-run] few facts (${research.facts.length}; outlets: ${research.sources.join(", ") || "none"}): "${story.title}"`);
-      record(story.id, "few-facts");
+      record(story.id, "few-facts", { facts: research.facts.length, outlets: research.sources.length });
       continue;
     }
 
@@ -97,7 +97,15 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
     if (!checked) { note = "fact-check unavailable"; break; }
     // The check may return subheadings; a news report is plain paragraphs.
     const body = checked.body.split(/\n\n+/).map((p) => p.replace(/^##\s+/, "")).join("\n\n");
-    if (articleWords({ body, summary: null }) < MIN_ENRICHED_WORDS) { record(story.id, "too-short"); continue; }
+    const words = articleWords({ body, summary: null });
+    if (words < MIN_ENRICHED_WORDS) { record(story.id, "too-short", { facts: research.facts.length, outlets: research.sources.length, words }); continue; }
+    // A figure the research never gave: the writer invented or mangled it.
+    const unsupported = unsupportedFigures(body, research.facts, story.title);
+    if (unsupported.length > 0) {
+      if (opts.dryRun) console.log(`[dry-run] figures not in the facts (${unsupported.join(", ")}): "${story.title}"`);
+      record(story.id, "failed", { facts: research.facts.length, words, why: `figures not in the facts: ${unsupported.join(", ")}` });
+      continue;
+    }
 
     const credit = creditLine(research.sources, story.sourceName);
     const finalBody = credit ? `${body}\n\n${credit}` : body;
@@ -107,7 +115,7 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
       continue;
     }
     await db.update(article).set({ body: finalBody, updatedAt: new Date() }).where(eq(article.id, story.id));
-    record(story.id, "enriched");
+    record(story.id, "enriched", { facts: research.facts.length, outlets: research.sources.length, words, removed: checked.removed.length });
     enriched++;
     console.log(`Enriched: "${story.title}" (${articleWords({ body: finalBody, summary: null })} words, ${research.facts.length} facts, ${checked.removed.length} removed by the check).`);
     // Indexable now (thinContent.ts): tell search engines it changed.

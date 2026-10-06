@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildEnrichPrompt, creditLine, enrichedToday, pickCandidates, pruneLog, type EnrichCandidate, type EnrichLogEntry } from "./enrichRules";
+import { buildEnrichPrompt, creditLine, enrichedToday, pickCandidates, pruneLog, unsupportedFigures, type EnrichCandidate, type EnrichLogEntry } from "./enrichRules";
 
 const words = (n: number) => Array.from({ length: n }, (_, i) => `w${i}`).join(" ");
 const story = (id: string, over: Partial<EnrichCandidate> = {}): EnrichCandidate => ({
@@ -40,6 +40,19 @@ describe("enriching top stories", () => {
     expect(creditLine([], "BBC Sport")).toBeNull();
     // a name with a space is still the original publisher, and repeats are listed once
     expect(creditLine(["Yahoo Sports", "Fox Sports", "fox sports", "MLB.com"], "Yahoo Sports")).toBe("This report also draws on coverage from Fox Sports, MLB.com.");
+  });
+
+  it("flags figures in the article that no researched fact (or the headline) has", () => {
+    const facts = ["The Panthers beat the Lions 32-26.", "Jared Goff passed for 412 yards."];
+    expect(unsupportedFigures("Goff threw for 412 yards in a 32-26 game.", facts, "Panthers hold off Lions")).toEqual([]);
+    expect(unsupportedFigures("Goff threw for 512 yards, a career best 1,250 on the season.", facts, "Panthers hold off Lions")).toEqual(["512", "1250"]);
+    expect(unsupportedFigures("Goff threw 38 passes in 2026.", facts, "x")).toEqual([]); // short numbers and years are not checked
+  });
+
+  it("tells the writer not to pad with outlook or invented streaks", () => {
+    const p = buildEnrichPrompt({ title: "t", sourceName: "s", text: "x", facts: ["f"] });
+    expect(p).toContain("No filler");
+    expect(p).toContain("ONLY if a fact names it");
   });
 
   it("puts the facts and the headline into the prompt", () => {
