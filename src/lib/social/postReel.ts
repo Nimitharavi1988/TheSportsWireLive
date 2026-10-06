@@ -3,7 +3,8 @@ import { socialArticleUrl } from "./trackedLink";
 import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
-import type { FacebookDestination } from "./facebookDestinations";
+import { TOPIC_DESTINATIONS, type FacebookDestination } from "./facebookDestinations";
+import { MAIN_REEL_DESTINATION, reelNeeds } from "./reelDuplicates";
 import { createId } from "@paralleldrive/cuid2";
 import { generatePosterContent, generateSocialCaptions, type SocialCaptions } from "@/lib/ingestion/commentary";
 import { renderReel } from "./reel";
@@ -30,7 +31,7 @@ import { reelTagsFor } from "./reelTags";
 
 const GRAPH = "https://graph.facebook.com/v20.0";
 const RUPLOAD = "https://rupload.facebook.com";
-const DESTINATION = "reel";
+const DESTINATION = MAIN_REEL_DESTINATION;
 
 type ArticleWithVertical = typeof articleTable.$inferSelect & { vertical: typeof verticalTable.$inferSelect };
 
@@ -236,10 +237,13 @@ export async function postReel(
     return none;
   }
 
-  const existing = await db.select({ platform: socialPostTable.platform }).from(socialPostTable)
-    .where(and(eq(socialPostTable.articleId, articleId), inArray(socialPostTable.destination, [DESTINATION, ...(opts.topicPage ? [`${opts.topicPage.key}-reel`] : [])]), eq(socialPostTable.status, "posted")));
-  const needInstagram = opts.instagram && !existing.some((p) => p.platform === "instagram");
-  const needFacebook = opts.facebook && !existing.some((p) => p.platform === "facebook");
+  // One Facebook reel per story across our Pages: repeated videos get less
+  // reach. A topic Page skips a story the main Page (or itself) already has; the
+  // main Page skips a story any topic Page already has. (Instagram: its own row.)
+  const topicReelKeys = TOPIC_DESTINATIONS.map((d) => `${d.key}-reel`);
+  const existing = await db.select({ platform: socialPostTable.platform, destination: socialPostTable.destination }).from(socialPostTable)
+    .where(and(eq(socialPostTable.articleId, articleId), inArray(socialPostTable.destination, [DESTINATION, ...topicReelKeys]), eq(socialPostTable.status, "posted")));
+  const { needInstagram, needFacebook } = reelNeeds(existing, { instagram: opts.instagram, facebook: opts.facebook, topicKey: opts.topicPage?.key });
   if (!needInstagram && !needFacebook) {
     console.log(`[reel] skipped ${articleId}: already has a reel on the requested platform(s)`);
     return none;
