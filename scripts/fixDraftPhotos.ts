@@ -6,6 +6,8 @@
  *   npx tsx scripts/fixDraftPhotos.ts                 list: current photo and the proposed one, change nothing
  *   npx tsx scripts/fixDraftPhotos.ts --apply         save the proposed photos
  *   options: --hours N (24)  look at original stories updated in the last N hours
+ *            --all   re-pick every story in the window, not only those with an obviously wrong photo
+ *            --skip "text"   leave stories whose title contains this text alone
  *            --env path/to/.dev.vars
  *
  * Only stories whose current photo fails the rules are touched. A story with
@@ -28,6 +30,9 @@ async function main() {
     if (m) process.env.DATABASE_URL = m[1].trim().replace(/^"|"$/g, "");
   }
   const apply = process.argv.includes("--apply");
+  const all = process.argv.includes("--all");
+  const si = process.argv.indexOf("--skip");
+  const skip = si >= 0 ? (process.argv[si + 1] ?? "").toLowerCase() : "";
   const hi = process.argv.indexOf("--hours");
   const hours = hi >= 0 && Number(process.argv[hi + 1]) >= 1 ? Number(process.argv[hi + 1]) : 24;
 
@@ -46,7 +51,8 @@ async function main() {
     const current = row.heroImageUrl ?? "";
     // The stored URL ends in the file name; judge it the way a search result is judged.
     const fileName = decodeURIComponent(current.split("?")[0].split("/").pop() ?? "").replace(/^\d+px-/, "");
-    if (current && isUsablePhoto({ title: fileName, width: 1600, height: 1000, importUrl: current })) continue;
+    if (skip && row.title.toLowerCase().includes(skip)) continue;
+    if (!all && current && isUsablePhoto({ title: fileName, width: 1600, height: 1000, importUrl: current })) continue;
     const tags = await db.select({ kind: articleTag.kind, slug: articleTag.slug }).from(articleTag).where(eq(articleTag.articleId, row.id));
     const found = await suggestCleanPhoto(row.body ?? "", tags);
     console.log(`\n${row.status.toUpperCase()}: ${row.title}\n  now:      ${fileName || "(none)"}`);

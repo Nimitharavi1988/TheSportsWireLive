@@ -95,9 +95,11 @@ export function candidatePeople(body: string, clubNames: string[], max = 4): str
   // Two capitalised words ("Tetairoa McMillan", "Amon-Ra St. Brown" up to its last part), after any
   // sentence-opening word ("The Carolina" is not a person).
   for (const m of body.matchAll(/\b([A-Z][A-Za-z'’-]*[a-z]\s+[A-Z][A-Za-z'’-]*[a-z](?:\s+(?:Jr\.?|III|II))?)\b/g)) {
-    const name = m[1].replace(/\s+(Jr\.?|III|II)$/, "").replace(/^(?:The|A|An|On|In|At|With|After|Before|During|When|While|But|And|Meanwhile|However|For|By|From|Both|Each|This|That|His|Her|Their|Its|Our|Despite|Following)\s+/, "");
+    let name = m[1].replace(/\s+(Jr\.?|III|II)$/, "").replace(/^(?:The|A|An|On|In|At|With|After|Before|During|When|While|But|And|Meanwhile|However|For|By|From|Both|Each|This|That|His|Her|Their|Its|Our|Despite|Following)\s+/, "");
+    name = name.replace(/['’]s$/, "");
     if (!/\s/.test(name)) continue;
     if (NOT_A_NAME.test(name)) continue;
+    // A club or its city ("San Francisco", "San Francisco 49ers") is not a person.
     if (clubs.some((c) => c.includes(name.toLowerCase()) || name.toLowerCase().includes(c))) continue;
     names.add(name);
   }

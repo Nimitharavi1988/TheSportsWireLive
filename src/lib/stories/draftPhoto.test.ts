@@ -42,3 +42,10 @@ describe("a review that packs the corrected story into one field", () => {
     expect(splitPackedText("Just a headline")).toBeNull();
   });
 });
+
+describe("people detection edge cases", () => {
+  it("does not take a city or a possessive club reference for a person", () => {
+    const body = "San Francisco's offense stalled. San Francisco's defense held. Brock Purdy threw twice, and Purdy ran once. San Francisco won.";
+    expect(candidatePeople(body, ["San Francisco 49ers", "Denver Broncos"])).toEqual(["Brock Purdy"]);
+  });
+});
