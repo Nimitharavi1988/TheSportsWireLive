@@ -26,9 +26,9 @@ const REVIEW_SCHEMA = {
   properties: {
     verdict: { type: "STRING", enum: ["pass", "fix", "reject"] },
     problems: { type: "ARRAY", items: { type: "STRING" } },
-    title: { type: "STRING" },
-    summary: { type: "STRING" },
-    body: { type: "STRING" },
+    correctedTitle: { type: "STRING", description: "Only for a fix: the corrected headline, just the headline" },
+    correctedSummary: { type: "STRING", description: "Only for a fix: the corrected summary, just the summary" },
+    correctedBody: { type: "STRING", description: "Only for a fix: the full corrected story text, paragraphs separated by blank lines" },
   },
   required: ["verdict", "problems"],
 };
@@ -53,7 +53,7 @@ Look for, in this order:
 
 Verdict:
 - "pass": none of the above.
-- "fix": a few small problems. Return the full corrected headline, summary and body: repair a wrong detail only when the facts state the right one, otherwise DELETE the sentence. Never add any fact that is not in the FACTS. Keep the voice and structure; keep subheadings as lines starting with "## ".
+- "fix": a few small problems. Return the full corrected text in correctedTitle (the headline only), correctedSummary (the summary only) and correctedBody (the whole story, paragraphs separated by blank lines): repair a wrong detail only when the facts state the right one, otherwise DELETE the sentence. Never add any fact that is not in the FACTS. Keep the voice and structure; keep subheadings as lines starting with "## ".
 - "reject": the draft contradicts itself or the facts in a way you cannot repair by deleting a sentence or two, or most of it is unsupported.
 "problems": each problem found, one short line each (empty for "pass"). Be strict: when unsure whether a claim is in the facts, treat it as unsupported.`;
 }
@@ -67,7 +67,7 @@ export function parseReview(raw: unknown): DraftReview | null {
   const problems = Array.isArray(r.problems) ? r.problems.filter((p): p is string => typeof p === "string" && p.trim().length > 0).map((p) => p.trim()) : [];
   if (verdict !== "fix") return { verdict, problems };
   const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
-  const corrected = { title: str(r.title), summary: str(r.summary), body: str(r.body) };
+  const corrected = { title: str(r.correctedTitle), summary: str(r.correctedSummary), body: str(r.correctedBody) };
   // A "fix" without all three corrected parts can't be used.
   if (!corrected.title || !corrected.summary || !corrected.body) return null;
   return { verdict, problems, corrected };
@@ -110,7 +110,10 @@ export async function paidReviewDraft(draft: ReviewedText, facts: string[]): Pro
     }
     const data = await res.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    return text ? parseReview(JSON.parse(text)) : null;
+    if (!text) return null;
+    // An answer that can't be read is a verdict on this draft (skip it), not on
+    // the service: the run goes on.
+    return parseReview(JSON.parse(text)) ?? { verdict: "reject", problems: ["the review answer could not be read"] };
   } catch (err) {
     console.error("Paid review error:", err);
     return null;

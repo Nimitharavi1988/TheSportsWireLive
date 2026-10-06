@@ -14,8 +14,8 @@ describe("paid draft review", () => {
   it("reads the model's answer safely", () => {
     expect(parseReview({ verdict: "pass", problems: [] })).toEqual({ verdict: "pass", problems: [] });
     expect(parseReview({ verdict: "reject", problems: ["The Raiders are already 3-1", " "] })).toEqual({ verdict: "reject", problems: ["The Raiders are already 3-1"] });
-    expect(parseReview({ verdict: "fix", problems: ["Hutchinson is a defensive end"], title: "T", summary: "S", body: "B" })?.corrected).toEqual({ title: "T", summary: "S", body: "B" });
-    expect(parseReview({ verdict: "fix", problems: ["x"], title: "T", summary: "", body: "B" })).toBeNull(); // a fix needs all three parts
+    expect(parseReview({ verdict: "fix", problems: ["Hutchinson is a defensive end"], correctedTitle: "T", correctedSummary: "S", correctedBody: "B" })?.corrected).toEqual({ title: "T", summary: "S", body: "B" });
+    expect(parseReview({ verdict: "fix", problems: ["x"], correctedTitle: "T", correctedSummary: "", correctedBody: "B" })).toBeNull(); // a fix needs all three parts
     expect(parseReview({ verdict: "maybe" })).toBeNull();
     expect(parseReview(null)).toBeNull();
     expect(parseReview("pass")).toBeNull();
