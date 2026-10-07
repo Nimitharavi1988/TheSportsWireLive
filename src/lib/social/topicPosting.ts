@@ -69,7 +69,7 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
 
   const toPost: { id: string; title: string }[] = [];
   const limit = dryRun ? d.dailyCap : runCap;
-  for (const a of prioritise(pool, now)) {
+  for (const a of prioritise(pool, now, d.focus)) {
     if (toPost.length >= limit) break;
     if (posted.has(a.id) || !d.matches(a)) continue;
     // Never an advertisement (thinContent.ts).

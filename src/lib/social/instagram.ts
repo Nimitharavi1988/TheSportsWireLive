@@ -5,7 +5,7 @@ import { eq, and, notInArray } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { generateSocialCaptions } from "@/lib/ingestion/commentary";
 import { selectInstagramHashtags } from "./hashtagRepertoire";
-import { resolvePageAccessToken } from "./facebook";
+import { resolvePageAccessToken, translationFor } from "./facebook";
 import { TOPIC_INSTAGRAM_KEYS, type FacebookDestination } from "./facebookDestinations";
 
 
@@ -65,9 +65,16 @@ export async function postArticleToInstagram(articleId: string, topicPage?: Face
   // on the same limitation). Hashtags come from hashtagRepertoire.ts's
   // deterministic signal-based selection, not the model's judgment.
   // Best-effort: falls back to just the real title on any Gemini failure.
-  const captions = article.body ? await generateSocialCaptions(article.title, article.body) : null;
-  const captionBody = captions?.instagram ?? article.title;
-  const hashtags = selectInstagramHashtags(article.title, article.category).join(" ");
+  // A language edition's account (the Spanish Page's) posts the translated
+  // story with a caption and hashtags in that language — as its Facebook Page.
+  const tr = topicPage?.locale ? await translationFor(articleId, topicPage.locale) : null;
+  if (topicPage?.locale && !tr) return false; // not translated (yet): nothing to post
+  const postTitle = tr?.title ?? article.title;
+  const postBody = tr ? tr.body : article.body;
+  const captions = postBody ? await generateSocialCaptions(postTitle, postBody, topicPage?.locale) : null;
+  const captionBody = captions?.instagram ?? postTitle;
+  const pickHashtags = topicPage?.locale && topicPage.hashtags ? topicPage.hashtags : selectInstagramHashtags;
+  const hashtags = pickHashtags(article.title, article.category).join(" ");
   const caption = `${emoji} ${captionBody}\n\n${hashtags}`;
 
   const [socialPost] = await db.insert(socialPostTable)

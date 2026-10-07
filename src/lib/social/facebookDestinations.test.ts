@@ -69,9 +69,9 @@ describe("Spanish Page", () => {
     expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "1" } as unknown as NodeJS.ProcessEnv)).toBe(true);
     expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "0" } as unknown as NodeJS.ProcessEnv)).toBe(false);
   });
-  it("has the real Page id and no Instagram (captions would be English)", () => {
+  it("has the real Page id and its own Instagram", () => {
     expect(SPANISH_PAGE.pageId).toBeTruthy();
-    expect(SPANISH_PAGE.instagramId).toBeUndefined();
+    expect(SPANISH_PAGE.instagramId).toBeTruthy();
   });
   it("is a language-edition Page covering the Spanish sports", () => {
     expect(SPANISH_PAGE.locale).toBe("es");
@@ -188,7 +188,19 @@ describe("Sport Pages", () => {
     expect(FIGHT_PAGE.categories).toEqual(["mma", "boxing"]);
   });
   it("lists the Instagram-linked Pages so the main account's checks leave them out", () => {
-    expect(TOPIC_INSTAGRAM_KEYS.sort()).toEqual(["cricketlive", "football", "us-sports"]);
+    expect([...TOPIC_INSTAGRAM_KEYS].sort()).toEqual(["cricketlive", "es", "football", "us-sports"]);
     expect(TOPIC_INSTAGRAM_KEYS).not.toContain("main");
+  });
+});
+
+describe("Football Page focus (Messi, 7 Oct)", () => {
+  const story = (title: string) => ({ category: "football", title, homeTeam: null, awayTeam: null, seriesLabel: null, leagueLabel: null, venue: null, publishedAt: new Date("2026-10-07T00:00:00Z") });
+  const pool = [story("Tuchel on the Nations League"), story("Gracias, Leo: the night the Monumental said goodbye to Messi"), story("Messina sign a striker")];
+  it("puts Messi stories first until the focus ends", () => {
+    const during = prioritise(pool, new Date("2026-10-07T12:00:00Z"), FOOTBALL_PAGE.focus);
+    expect(during[0].title).toContain("Messi");
+    expect(during[1].title).toContain("Tuchel"); // "Messina" is not Messi
+    const after = prioritise(pool, new Date("2026-10-07T22:30:00Z"), FOOTBALL_PAGE.focus);
+    expect(after[0].title).toContain("Tuchel");
   });
 });

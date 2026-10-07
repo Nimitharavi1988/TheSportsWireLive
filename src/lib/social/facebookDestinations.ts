@@ -61,6 +61,9 @@ export interface FacebookDestination {
   // The Instagram account linked to this Page: each story posted to the Page
   // also goes there as a photo post (topicPosting.ts). Unset = Facebook only.
   instagramId?: string;
+  // Stories to put at the front of this Page's queue until a date (a big story
+  // the Page should lead with), matched on the headline. Ends by itself.
+  focus?: { terms: RegExp; until: Date };
   matches: (a: DestinationCandidate) => boolean;
   // The post's hashtags, when this Page wants its own (default: the main
   // Page's topic tags + #SportsWireLive — hashtagRepertoire.ts).
@@ -120,9 +123,10 @@ const FIRST_HOUR_MS = 3600_000;
 // last hour (breaking news is worth most while it is breaking), then stories
 // under 12 hours
 // old, then the rest — each group keeps its incoming (trending) order.
-export function prioritise<T extends DestinationCandidate & { publishedAt: Date | null }>(pool: T[], now: Date): T[] {
+export function prioritise<T extends DestinationCandidate & { publishedAt: Date | null }>(pool: T[], now: Date, focus?: FacebookDestination["focus"]): T[] {
   const age = (a: T) => (a.publishedAt ? now.getTime() - a.publishedAt.getTime() : Infinity);
-  const tier = (a: T) => (isIndiaWestIndies(a, now) ? 0 : age(a) >= 0 && age(a) < FIRST_HOUR_MS ? 1 : age(a) < FRESH_MS ? 2 : 3);
+  const focused = (a: T) => Boolean(focus && now < focus.until && focus.terms.test(a.title));
+  const tier = (a: T) => (isIndiaWestIndies(a, now) || focused(a) ? 0 : age(a) >= 0 && age(a) < FIRST_HOUR_MS ? 1 : age(a) < FRESH_MS ? 2 : 3);
   return pool.map((a, i) => ({ a, i, t: tier(a) })).sort((x, y) => x.t - y.t || x.i - y.i).map((x) => x.a);
 }
 
@@ -180,6 +184,9 @@ export const CRICKETLIVE_PAGE: FacebookDestination = {
 // Plain link posts, no reels yet. Ids checked live against the token.
 const SPORT_PAGE_DEFAULTS = { tokenEnv: "FACEBOOK_PAGE_ACCESS_TOKEN", maxAgeHours: 24, matches: () => true } as const;
 
+// "Messi" as a whole word (not "Messina").
+const MESSI = /(^|[^a-z])messi([^a-z]|$)/i;
+
 export const FOOTBALL_PAGE: FacebookDestination = {
   ...SPORT_PAGE_DEFAULTS,
   key: "football",
@@ -191,6 +198,9 @@ export const FOOTBALL_PAGE: FacebookDestination = {
   // UK/Europe evening is the peak; still awake for the Americas' afternoon.
   activeHours: { timeZone: "Europe/London", start: 7, end: 23 },
   sport: "football",
+  // Messi's farewell (Argentina, 6-7 Oct 2026): his stories lead the queue for the
+  // rest of 7 Oct, UK time (the Page's day ends 23:00 London = 22:00 UTC).
+  focus: { terms: MESSI, until: new Date("2026-10-07T22:00:00Z") },
 };
 
 export const US_SPORTS_PAGE: FacebookDestination = {
@@ -225,7 +235,7 @@ export const FIGHT_PAGE: FacebookDestination = {
 // The Page exists (2026-10-07, under the main Business): ON by default, posting
 // with the main token. FACEBOOK_ES_ENABLED=0 turns it off; FACEBOOK_PAGE_ES_ID and
 // FACEBOOK_PAGE_ES_ACCESS_TOKEN, when set, override the Page and token.
-// Facebook only: its Instagram would need Spanish captions (instagram.ts writes English).
+// Its Instagram posts the same translated stories with Spanish captions (instagram.ts).
 // Audience: US Hispanic, Latin America and Spain — so the posting day runs 8:00-23:00
 // Mexico City time (mid-day for the Americas; late evening in Spain).
 const SPANISH_PAGE_ID = "1343775455488735";
@@ -247,6 +257,7 @@ export const SPANISH_PAGE: FacebookDestination = {
   locale: "es",
   matches: () => true,
   hashtags: (title, category) => selectSpanishHashtags(title, category),
+  instagramId: "17841471180978125", // @sportswireliveinspanish
 };
 
 export const TOPIC_DESTINATIONS: FacebookDestination[] = [INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, FOOTBALL_PAGE, US_SPORTS_PAGE, FIGHT_PAGE, ...(spanishPageEnabled() ? [SPANISH_PAGE] : [])];
