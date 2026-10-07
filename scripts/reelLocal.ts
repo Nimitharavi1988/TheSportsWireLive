@@ -5,6 +5,8 @@
  *   npx tsx scripts/reelLocal.ts --title "Gracias, Leo"              render + save a copy, post NOTHING
  *   npx tsx scripts/reelLocal.ts --title "Gracias, Leo" --post       also post to the main Facebook Page and Instagram
  *   options: --id <articleId> (repeatable)  --title "start of a published story's headline" (repeatable)
+ *            --es  make the SPANISH reel from the published Spanish version (render only, never posted)
+ *            --topic india-cricket  post to that topic Page only (Greenfield); needs FACEBOOK_PAGE_2_ACCESS_TOKEN in .dev.vars
  *            --dir path (default ./reels-local)  --music style  --theme name  --font name
  *            --env path/to/.dev.vars (default: .dev.vars, then the main checkout's)
  *
@@ -17,7 +19,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const FREE_KEYS = ["DATABASE_URL", "GEMINI_FREE_API_KEY", "GROQ_API_KEY", "MISTRAL_API_KEY", "OPENROUTER_API_KEY", "FACEBOOK_PAGE_ID", "FACEBOOK_PAGE_ACCESS_TOKEN", "INSTAGRAM_BUSINESS_ACCOUNT_ID"];
+const FREE_KEYS = ["DATABASE_URL", "GEMINI_FREE_API_KEY", "GROQ_API_KEY", "MISTRAL_API_KEY", "OPENROUTER_API_KEY", "FACEBOOK_PAGE_ID", "FACEBOOK_PAGE_ACCESS_TOKEN", "FACEBOOK_PAGE_2_ACCESS_TOKEN", "INSTAGRAM_BUSINESS_ACCOUNT_ID"];
 function values(name: string): string[] {
   const out: string[] = [];
   process.argv.forEach((a, i) => { if (a === `--${name}` && process.argv[i + 1]) out.push(process.argv[i + 1]); });
@@ -47,6 +49,13 @@ async function main() {
   const { and, eq, like } = await import("drizzle-orm");
   const { postReel } = await import("../src/lib/social/postReel");
 
+  const { TOPIC_DESTINATIONS } = await import("../src/lib/social/facebookDestinations");
+  const topicKey = values("topic")[0];
+  const topicPage = topicKey ? TOPIC_DESTINATIONS.find((d) => d.key === topicKey) : undefined;
+  if (topicKey && !topicPage) { console.error(`Unknown topic Page "${topicKey}".`); process.exit(1); }
+  if (post && topicPage && !process.env[topicPage.tokenEnv]) { console.error(`${topicPage.tokenEnv} is not set in .dev.vars.`); process.exit(1); }
+  if (post && !topicPage && !process.env.FACEBOOK_PAGE_ACCESS_TOKEN) console.error("Note: FACEBOOK_PAGE_ACCESS_TOKEN is empty in .dev.vars; the main Page posts only if the database holds a token for it.");
+
   const ids = values("id");
   for (const t of values("title")) {
     const rows = await db.select({ id: article.id, title: article.title }).from(article).where(and(like(article.title, `${t}%`), eq(article.status, "published")));
@@ -67,7 +76,7 @@ async function main() {
     console.log(`\n=== ${row.title} (${spanish ? "Spanish, render only" : post ? "render + POST to the main Page and Instagram" : "render only"})`);
     try {
       const r = await postReel(id, {
-        instagram: post && !spanish, facebook: post && !spanish, saveCopyTo: dir, renderOnly: !post || !!spanish, spanish,
+        instagram: post && !spanish && !topicPage, facebook: post && !spanish, topicPage, saveCopyTo: dir, renderOnly: !post || !!spanish, spanish,
         music: values("music")[0] as never, theme: values("theme")[0] as never, font: values("font")[0] as never,
       });
       if (post) console.log(`Instagram: ${r.instagramPosted ? "posted" : "not posted"}. Facebook: ${r.facebookPosted ? "posted" : "not posted"}.`);
