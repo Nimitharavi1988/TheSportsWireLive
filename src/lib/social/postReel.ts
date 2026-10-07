@@ -221,7 +221,9 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
 // brand green / Poppins.
 export async function postReel(
   articleId: string,
-  opts: { instagram: boolean; facebook: boolean; topicPage?: FacebookDestination; music?: ReelMusicStyle; theme?: ReelTheme; font?: ReelFont }
+  // saveCopyTo: a folder to keep the rendered MP4 in (scripts/reelLocal.ts). renderOnly:
+  // render (and save) without posting anywhere, and without the one-reel-per-story check.
+  opts: { instagram: boolean; facebook: boolean; topicPage?: FacebookDestination; music?: ReelMusicStyle; theme?: ReelTheme; font?: ReelFont; saveCopyTo?: string; renderOnly?: boolean }
 ): Promise<{ instagramPosted: boolean; facebookPosted: boolean }> {
   const none = { instagramPosted: false, facebookPosted: false };
   const [row] = await db.select({ article: articleTable, vertical: verticalTable })
@@ -242,8 +244,10 @@ export async function postReel(
   const topicReelKeys = TOPIC_DESTINATIONS.map((d) => `${d.key}-reel`);
   const existing = await db.select({ platform: socialPostTable.platform, destination: socialPostTable.destination }).from(socialPostTable)
     .where(and(eq(socialPostTable.articleId, articleId), inArray(socialPostTable.destination, [DESTINATION, ...topicReelKeys]), eq(socialPostTable.status, "posted")));
-  const { needInstagram, needFacebook } = reelNeeds(existing, { instagram: opts.instagram, facebook: opts.facebook, topicKey: opts.topicPage?.key });
-  if (!needInstagram && !needFacebook) {
+  const { needInstagram, needFacebook } = opts.renderOnly
+    ? { needInstagram: false, needFacebook: false }
+    : reelNeeds(existing, { instagram: opts.instagram, facebook: opts.facebook, topicKey: opts.topicPage?.key });
+  if (!opts.renderOnly && !needInstagram && !needFacebook) {
     console.log(`[reel] skipped ${articleId}: already has a reel on the requested platform(s)`);
     return none;
   }
@@ -262,6 +266,15 @@ export async function postReel(
   console.log(`Rendering reel (music: ${music}, theme: ${opts.theme ?? "default"}, font: ${opts.font ?? "default"})...`);
   const mp4 = await renderReel({ content, heroImageUrl: article.heroImageUrl, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme: opts.theme, font: opts.font });
   console.log(`Rendered ${(mp4.length / 1024 / 1024).toFixed(1)} MB`);
+  if (opts.saveCopyTo) {
+    const { mkdirSync, writeFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    mkdirSync(opts.saveCopyTo, { recursive: true });
+    const file = join(opts.saveCopyTo, `${article.slug.slice(0, 80)}.mp4`);
+    writeFileSync(file, mp4);
+    console.log(`Saved a copy: ${file}`);
+  }
+  if (opts.renderOnly) return none;
 
   const siteUrl = process.env.SITE_URL ?? "https://sportswirelive.com";
   const articleUrl = socialArticleUrl(siteUrl, article.slug, "facebook");

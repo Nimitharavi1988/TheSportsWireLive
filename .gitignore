@@ -43,3 +43,4 @@ npm-debug.log*
 
 # generated entity list exports (scripts/exportSportsLists.ts)
 sports-lists/
+reels-local/
