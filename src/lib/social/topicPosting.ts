@@ -15,6 +15,7 @@ import { hasRealImage } from "../contentQuality";
 import { isPromotional } from "../thinContent";
 import { isSimilarToAny } from "../titleSimilarity";
 import { postArticleToFacebook } from "./facebook";
+import { postArticleToInstagram } from "./instagram";
 import { editionConditions } from "../i18n/overlay";
 import { TOPIC_DESTINATIONS, destinationRunCap, effectiveDestination, localDayStart, prioritise, type FacebookDestination } from "./facebookDestinations";
 
@@ -91,6 +92,7 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
   console.log(`[facebook:${d.key}] postedToday=${postedToday} runCap=${runCap} toPost=${toPost.length}`);
 
   if (dryRun) return toPost;
+  let instagramOn = Boolean(d.instagramId);
   for (const a of toPost) {
     try {
       const ok = await postArticleToFacebook(a.id, d);
@@ -99,6 +101,16 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
       console.error(`[facebook:${d.key}] post failed for ${a.id}:`, err);
       // Same token/limit error would repeat for every story — stop this Page for this run.
       break;
+    }
+    // The Page's own Instagram gets the same story (a photo post; skipped
+    // without a hero photo). Its failure never stops the Facebook posts.
+    if (!instagramOn) continue;
+    try {
+      const ok = await postArticleToInstagram(a.id, d);
+      console.log(`[instagram:${d.key}] ${ok ? "posted" : "skipped (already posted or no photo)"} ${a.id}`);
+    } catch (err) {
+      console.error(`[instagram:${d.key}] post failed for ${a.id}:`, err);
+      instagramOn = false;
     }
   }
   return toPost;

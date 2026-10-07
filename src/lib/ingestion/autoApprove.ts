@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { article, socialPost } from "@/db/schema";
-import { eq, and, inArray, gte, lt, count, desc } from "drizzle-orm";
+import { eq, and, inArray, notInArray, gte, lt, count, desc } from "drizzle-orm";
+import { TOPIC_INSTAGRAM_KEYS } from "../social/facebookDestinations";
 import { createId } from "@paralleldrive/cuid2";
 import { submitToIndexNow, articleUrl } from "../indexNow";
 import { isMatchDataSource } from "../matchDataSources";
@@ -332,7 +333,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     db.select({ articleId: socialPost.articleId }).from(socialPost)
       .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, "main"), inArray(socialPost.status, ["posted", "queued"]))),
     db.select({ articleId: socialPost.articleId }).from(socialPost)
-      .where(and(eq(socialPost.platform, "instagram"), inArray(socialPost.status, ["posted", "queued"]))),
+      .where(and(eq(socialPost.platform, "instagram"), notInArray(socialPost.destination, TOPIC_INSTAGRAM_KEYS), inArray(socialPost.status, ["posted", "queued"]))),
     // Same-event dedup: titles of everything actually posted in the last 24h,
     // used to keep a same-day near-duplicate (different source, same real
     // story) from also reaching the Page — see titleSimilarity.ts.
@@ -341,7 +342,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
       .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, "main"), eq(socialPost.status, "posted"), gte(socialPost.postedAt, similarityCutoff))),
     db.select({ title: article.title }).from(socialPost)
       .innerJoin(article, eq(socialPost.articleId, article.id))
-      .where(and(eq(socialPost.platform, "instagram"), eq(socialPost.status, "posted"), gte(socialPost.postedAt, similarityCutoff))),
+      .where(and(eq(socialPost.platform, "instagram"), notInArray(socialPost.destination, TOPIC_INSTAGRAM_KEYS), eq(socialPost.status, "posted"), gte(socialPost.postedAt, similarityCutoff))),
   ]);
   const fbPostedIds = new Set(fbPostedRows.map((r) => r.articleId));
   const igPostedIds = new Set(igPostedRows.map((r) => r.articleId));
@@ -540,7 +541,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   // publishes (status "posted") — a failed/rate-limited attempt doesn't
   // consume Meta's real 100/day limit, so it shouldn't consume ours either.
   const [{ value: instagramPostedToday }] = await db.select({ value: count() }).from(socialPost)
-    .where(and(eq(socialPost.platform, "instagram"), eq(socialPost.status, "posted"), gte(socialPost.postedAt, todayStart)));
+    .where(and(eq(socialPost.platform, "instagram"), notInArray(socialPost.destination, TOPIC_INSTAGRAM_KEYS), eq(socialPost.status, "posted"), gte(socialPost.postedAt, todayStart)));
   const instagramRemainingToday = Math.max(0, MAX_INSTAGRAM_POSTS_PER_DAY - instagramPostedToday);
   const instagramExpectedByNow = Math.round(
     (MAX_INSTAGRAM_POSTS_PER_DAY * weightedRunsElapsed(currentRunIndex)) / TOTAL_HOURLY_WEIGHT
@@ -569,7 +570,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   const recentIgCategories = (
     await db.select({ category: article.category }).from(socialPost)
       .innerJoin(article, eq(socialPost.articleId, article.id))
-      .where(and(eq(socialPost.platform, "instagram"), eq(socialPost.status, "posted")))
+      .where(and(eq(socialPost.platform, "instagram"), notInArray(socialPost.destination, TOPIC_INSTAGRAM_KEYS), eq(socialPost.status, "posted")))
       .orderBy(desc(socialPost.postedAt))
       .limit(6)
   ).map((r) => r.category);

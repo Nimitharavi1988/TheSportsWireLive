@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SPANISH_PAGE, spanishPageEnabled, INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, TOPIC_DESTINATIONS, effectiveDestination, prioritise, destinationRunCap, isCricketOrAsianGames, isIndiaCricket, localDayStart } from "./facebookDestinations";
+import { SPANISH_PAGE, FOOTBALL_PAGE, US_SPORTS_PAGE, FIGHT_PAGE, TOPIC_INSTAGRAM_KEYS, spanishPageEnabled, INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, TOPIC_DESTINATIONS, effectiveDestination, prioritise, destinationRunCap, isCricketOrAsianGames, isIndiaCricket, localDayStart } from "./facebookDestinations";
 
 const story = (over: Partial<Parameters<typeof isIndiaCricket>[0]>) => ({
   category: "cricket", title: "", homeTeam: null, awayTeam: null, seriesLabel: null, leagueLabel: null, venue: null, ...over,
@@ -62,13 +62,16 @@ describe("destinationRunCap (India cricket Page: 30/day over 7:00-23:00 IST)", (
   });
 });
 
-describe("Spanish Page (flagged)", () => {
-  it("is off unless the flag AND the Page id are set", () => {
-    expect(spanishPageEnabled({} as NodeJS.ProcessEnv)).toBe(false);
-    expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "1" } as unknown as NodeJS.ProcessEnv)).toBe(false);
-    expect(spanishPageEnabled({ FACEBOOK_PAGE_ES_ID: "123" } as unknown as NodeJS.ProcessEnv)).toBe(false);
-    expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "0", FACEBOOK_PAGE_ES_ID: "123" } as unknown as NodeJS.ProcessEnv)).toBe(false);
-    expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "1", FACEBOOK_PAGE_ES_ID: "123" } as unknown as NodeJS.ProcessEnv)).toBe(true);
+describe("Spanish Page", () => {
+  it("is on by default; FACEBOOK_ES_ENABLED=0 turns it off", () => {
+    expect(spanishPageEnabled({} as NodeJS.ProcessEnv)).toBe(true);
+    expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "" } as unknown as NodeJS.ProcessEnv)).toBe(true);
+    expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "1" } as unknown as NodeJS.ProcessEnv)).toBe(true);
+    expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "0" } as unknown as NodeJS.ProcessEnv)).toBe(false);
+  });
+  it("has the real Page id and no Instagram (captions would be English)", () => {
+    expect(SPANISH_PAGE.pageId).toBeTruthy();
+    expect(SPANISH_PAGE.instagramId).toBeUndefined();
   });
   it("is a language-edition Page covering the Spanish sports", () => {
     expect(SPANISH_PAGE.locale).toBe("es");
@@ -169,5 +172,23 @@ describe("reel quality floors", () => {
   it("both cricket Pages skip weak stories; the new Page's floor is a little lower than Greenfield's", () => {
     expect(INDIA_CRICKET_PAGE.reels?.minTrending).toBe(35);
     expect(CRICKETLIVE_PAGE.reels?.minTrending).toBe(25);
+  });
+});
+
+describe("Sport Pages", () => {
+  it("are all posted to, each with its own history key", () => {
+    const keys = TOPIC_DESTINATIONS.map((d) => d.key);
+    for (const k of ["football", "us-sports", "fight"]) expect(keys).toContain(k);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+  it("keep soccer and American football apart", () => {
+    expect(FOOTBALL_PAGE.categories ?? [FOOTBALL_PAGE.sport]).toEqual(["football"]);
+    expect(US_SPORTS_PAGE.categories).toEqual(expect.arrayContaining(["american-football", "college-football", "basketball", "wnba", "baseball", "hockey"]));
+    expect(US_SPORTS_PAGE.categories).not.toContain("football");
+    expect(FIGHT_PAGE.categories).toEqual(["mma", "boxing"]);
+  });
+  it("lists the Instagram-linked Pages so the main account's checks leave them out", () => {
+    expect(TOPIC_INSTAGRAM_KEYS.sort()).toEqual(["cricketlive", "football", "us-sports"]);
+    expect(TOPIC_INSTAGRAM_KEYS).not.toContain("main");
   });
 });
