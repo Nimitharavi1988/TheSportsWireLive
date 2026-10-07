@@ -1,11 +1,12 @@
 import { categoryEmoji } from "@/lib/categoryDisplay";
 import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, notInArray } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import { generateSocialCaptions } from "@/lib/ingestion/commentary";
 import { selectInstagramHashtags } from "./hashtagRepertoire";
-import { resolvePageAccessToken } from "./facebook";
+import { resolvePageAccessToken, translationFor } from "./facebook";
+import { TOPIC_INSTAGRAM_KEYS, type FacebookDestination } from "./facebookDestinations";
 
 
 
@@ -20,12 +21,15 @@ import { resolvePageAccessToken } from "./facebook";
 // guarantee "at least one post this run" can tell that apart from a real
 // success and correctly move on to the next candidate article instead of
 // mistaking a skip for a completed post.
-export async function postArticleToInstagram(articleId: string): Promise<boolean> {
+// topicPage: post to that Page's own Instagram account (facebookDestinations.ts,
+// instagramId) with its own post history, instead of the main account.
+export async function postArticleToInstagram(articleId: string, topicPage?: FacebookDestination): Promise<boolean> {
+  const destination = topicPage?.key ?? "main";
   // Idempotency guard — same reasoning as postArticleToFacebook's (see
   // facebook.ts): a repeated call for an already-posted article must be a
   // safe no-op, not a second real post.
   const [alreadyPosted] = await db.select({ id: socialPostTable.id }).from(socialPostTable)
-    .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.platform, "instagram"), eq(socialPostTable.status, "posted")))
+    .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.platform, "instagram"), topicPage ? eq(socialPostTable.destination, destination) : notInArray(socialPostTable.destination, TOPIC_INSTAGRAM_KEYS), eq(socialPostTable.status, "posted")))
     .limit(1);
   if (alreadyPosted) return false;
 
@@ -37,9 +41,9 @@ export async function postArticleToInstagram(articleId: string): Promise<boolean
   if (!row) throw new Error(`Article not found: ${articleId}`);
   const article = { ...row.article, vertical: row.vertical };
 
-  const igUserId = article.vertical.instagramBusinessAccountId ?? process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
-  const pageId = article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
-  const rawToken = article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+  const igUserId = topicPage ? topicPage.instagramId : article.vertical.instagramBusinessAccountId ?? process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
+  const pageId = topicPage ? topicPage.pageId : article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
+  const rawToken = topicPage ? process.env[topicPage.tokenEnv] : article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
   const imageUrl = article.heroImageUrl;
 
   if (!igUserId || !pageId || !rawToken || !imageUrl) {
@@ -61,13 +65,20 @@ export async function postArticleToInstagram(articleId: string): Promise<boolean
   // on the same limitation). Hashtags come from hashtagRepertoire.ts's
   // deterministic signal-based selection, not the model's judgment.
   // Best-effort: falls back to just the real title on any Gemini failure.
-  const captions = article.body ? await generateSocialCaptions(article.title, article.body) : null;
-  const captionBody = captions?.instagram ?? article.title;
-  const hashtags = selectInstagramHashtags(article.title, article.category).join(" ");
+  // A language edition's account (the Spanish Page's) posts the translated
+  // story with a caption and hashtags in that language — as its Facebook Page.
+  const tr = topicPage?.locale ? await translationFor(articleId, topicPage.locale) : null;
+  if (topicPage?.locale && !tr) return false; // not translated (yet): nothing to post
+  const postTitle = tr?.title ?? article.title;
+  const postBody = tr ? tr.body : article.body;
+  const captions = postBody ? await generateSocialCaptions(postTitle, postBody, topicPage?.locale) : null;
+  const captionBody = captions?.instagram ?? postTitle;
+  const pickHashtags = topicPage?.locale && topicPage.hashtags ? topicPage.hashtags : selectInstagramHashtags;
+  const hashtags = pickHashtags(article.title, article.category).join(" ");
   const caption = `${emoji} ${captionBody}\n\n${hashtags}`;
 
   const [socialPost] = await db.insert(socialPostTable)
-    .values({ id: createId(), articleId, platform: "instagram", status: "queued" })
+    .values({ id: createId(), articleId, platform: "instagram", destination, status: "queued" })
     .returning();
 
   try {

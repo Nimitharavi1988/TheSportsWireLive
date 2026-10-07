@@ -58,6 +58,12 @@ export interface FacebookDestination {
   // the queue made weak reels (Greenfield's average score was 38 vs 55 on the main Page).
   // activeHours: reels only go out in these local hours (default: the Page's own).
   reels?: { dailyCap: number; perRunCap: number; minTrending?: number; activeHours?: { timeZone: string; start: number; end: number } };
+  // The Instagram account linked to this Page: each story posted to the Page
+  // also goes there as a photo post (topicPosting.ts). Unset = Facebook only.
+  instagramId?: string;
+  // Stories to put at the front of this Page's queue until a date (a big story
+  // the Page should lead with), matched on the headline. Ends by itself.
+  focus?: { terms: RegExp; until: Date };
   matches: (a: DestinationCandidate) => boolean;
   // The post's hashtags, when this Page wants its own (default: the main
   // Page's topic tags + #SportsWireLive — hashtagRepertoire.ts).
@@ -117,9 +123,10 @@ const FIRST_HOUR_MS = 3600_000;
 // last hour (breaking news is worth most while it is breaking), then stories
 // under 12 hours
 // old, then the rest — each group keeps its incoming (trending) order.
-export function prioritise<T extends DestinationCandidate & { publishedAt: Date | null }>(pool: T[], now: Date): T[] {
+export function prioritise<T extends DestinationCandidate & { publishedAt: Date | null }>(pool: T[], now: Date, focus?: FacebookDestination["focus"]): T[] {
   const age = (a: T) => (a.publishedAt ? now.getTime() - a.publishedAt.getTime() : Infinity);
-  const tier = (a: T) => (isIndiaWestIndies(a, now) ? 0 : age(a) >= 0 && age(a) < FIRST_HOUR_MS ? 1 : age(a) < FRESH_MS ? 2 : 3);
+  const focused = (a: T) => Boolean(focus && now < focus.until && focus.terms.test(a.title));
+  const tier = (a: T) => (isIndiaWestIndies(a, now) || focused(a) ? 0 : age(a) >= 0 && age(a) < FIRST_HOUR_MS ? 1 : age(a) < FRESH_MS ? 2 : 3);
   return pool.map((a, i) => ({ a, i, t: tier(a) })).sort((x, y) => x.t - y.t || x.i - y.i).map((x) => x.a);
 }
 
@@ -166,23 +173,82 @@ export const CRICKETLIVE_PAGE: FacebookDestination = {
   reels: { dailyCap: 10, perRunCap: 1, minTrending: 25, activeHours: { timeZone: "Asia/Kolkata", start: 11, end: 16 } },
   // First day of posting (4 Oct IST): 30 posts and 30 reels, still one of each per run.
   boost: { until: new Date("2026-10-04T18:30:00Z"), dailyCap: 30, reels: { dailyCap: 30, perRunCap: 1 } },
+  instagramId: "17841422405517404", // @sportswirecricketlive
+};
+
+// ---- Sport Pages (2026-10-07) -------------------------------------------
+// One Page (+ its Instagram) per audience, all under the main Business, so
+// they post with the main FACEBOOK_PAGE_ACCESS_TOKEN exchanged for each Page's
+// own token. Categories are the stored Article.category values: soccer is
+// "football"; American football is "american-football" and "college-football".
+// Plain link posts, no reels yet. Ids checked live against the token.
+const SPORT_PAGE_DEFAULTS = { tokenEnv: "FACEBOOK_PAGE_ACCESS_TOKEN", maxAgeHours: 24, matches: () => true } as const;
+
+// "Messi" as a whole word (not "Messina").
+const MESSI = /(^|[^a-z])messi([^a-z]|$)/i;
+
+export const FOOTBALL_PAGE: FacebookDestination = {
+  ...SPORT_PAGE_DEFAULTS,
+  key: "football",
+  label: "SportsWire Football Live Page",
+  pageId: "1344971308703586",
+  instagramId: "17841462310314966", // @sportswirefootballlive
+  dailyCap: 20,
+  perRunCap: 2,
+  // UK/Europe evening is the peak; still awake for the Americas' afternoon.
+  activeHours: { timeZone: "Europe/London", start: 7, end: 23 },
+  sport: "football",
+  // Messi's farewell (Argentina, 6-7 Oct 2026): his stories lead the queue for the
+  // rest of 7 Oct, UK time (the Page's day ends 23:00 London = 22:00 UTC).
+  focus: { terms: MESSI, until: new Date("2026-10-07T22:00:00Z") },
+};
+
+export const US_SPORTS_PAGE: FacebookDestination = {
+  ...SPORT_PAGE_DEFAULTS,
+  key: "us-sports",
+  label: "SportsWire US Live Page",
+  pageId: "1456000910921996",
+  instagramId: "17841424699143294", // @sportswireuslive
+  dailyCap: 24,
+  perRunCap: 2,
+  activeHours: { timeZone: "America/New_York", start: 8, end: 24 },
+  sport: "american-football",
+  categories: ["american-football", "college-football", "basketball", "wnba", "baseball", "hockey"],
+};
+
+export const FIGHT_PAGE: FacebookDestination = {
+  ...SPORT_PAGE_DEFAULTS,
+  key: "fight",
+  label: "SportsWire Fight Live Page",
+  pageId: "1423517120834814",
+  // No Instagram linked to this Page yet (checked 2026-10-07).
+  // Fewer stories exist (about 30 MMA + boxing a day), so a smaller cap.
+  dailyCap: 8,
+  perRunCap: 1,
+  activeHours: { timeZone: "America/New_York", start: 10, end: 24 },
+  sport: "mma",
+  categories: ["mma", "boxing"],
 };
 
 // ---- Spanish Page (language edition "es") -------------------------------
 // Posts translated stories, in Spanish, linking to es.sportswirelive.com.
-// OFF until the Page exists: set FACEBOOK_ES_ENABLED=1 together with
-// FACEBOOK_PAGE_ES_ID (variable) and FACEBOOK_PAGE_ES_ACCESS_TOKEN (secret).
+// The Page exists (2026-10-07, under the main Business): ON by default, posting
+// with the main token. FACEBOOK_ES_ENABLED=0 turns it off; FACEBOOK_PAGE_ES_ID and
+// FACEBOOK_PAGE_ES_ACCESS_TOKEN, when set, override the Page and token.
+// Its Instagram posts the same translated stories with Spanish captions (instagram.ts).
 // Audience: US Hispanic, Latin America and Spain — so the posting day runs 8:00-23:00
 // Mexico City time (mid-day for the Americas; late evening in Spain).
+const SPANISH_PAGE_ID = "1343775455488735";
+
 export function spanishPageEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.FACEBOOK_ES_ENABLED === "1" && Boolean(env.FACEBOOK_PAGE_ES_ID);
+  return env.FACEBOOK_ES_ENABLED !== "0";
 }
 
 export const SPANISH_PAGE: FacebookDestination = {
   key: "es",
   label: "Spanish Page",
-  pageId: process.env.FACEBOOK_PAGE_ES_ID ?? "",
-  tokenEnv: "FACEBOOK_PAGE_ES_ACCESS_TOKEN",
+  pageId: process.env.FACEBOOK_PAGE_ES_ID || SPANISH_PAGE_ID,
+  tokenEnv: process.env.FACEBOOK_PAGE_ES_ACCESS_TOKEN ? "FACEBOOK_PAGE_ES_ACCESS_TOKEN" : "FACEBOOK_PAGE_ACCESS_TOKEN",
   dailyCap: 24,
   perRunCap: 2,
   activeHours: { timeZone: "America/Mexico_City", start: 8, end: 23 },
@@ -191,9 +257,10 @@ export const SPANISH_PAGE: FacebookDestination = {
   locale: "es",
   matches: () => true,
   hashtags: (title, category) => selectSpanishHashtags(title, category),
+  instagramId: "17841471180978125", // @sportswireliveinspanish
 };
 
-export const TOPIC_DESTINATIONS: FacebookDestination[] = [INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, ...(spanishPageEnabled() ? [SPANISH_PAGE] : [])];
+export const TOPIC_DESTINATIONS: FacebookDestination[] = [INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, FOOTBALL_PAGE, US_SPORTS_PAGE, FIGHT_PAGE, ...(spanishPageEnabled() ? [SPANISH_PAGE] : [])];
 
 // The destination with its boost limits applied while the boost is active
 // (otherwise unchanged).
@@ -232,3 +299,9 @@ export function destinationRunCap(d: Pick<FacebookDestination, "dailyCap" | "per
   const expected = Math.ceil(d.dailyCap * elapsed) || 1;
   return Math.max(0, Math.min(d.perRunCap, expected - postedToday, d.dailyCap - postedToday));
 }
+
+// Post-history keys of the topic Pages' Instagram accounts. The main Instagram's
+// own checks (already posted, daily limit, similar titles: autoApprove.ts,
+// socialPoster.ts) leave these out, so a sport account's posts never block or
+// count against the main account.
+export const TOPIC_INSTAGRAM_KEYS: string[] = TOPIC_DESTINATIONS.filter((d) => d.instagramId).map((d) => d.key);

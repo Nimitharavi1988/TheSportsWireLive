@@ -59,7 +59,7 @@ export async function resolvePageAccessToken(pageId: string, token: string): Pro
 // `destination`: a topic Page (facebookDestinations.ts) instead of the main
 // Page. Its own page id/token, and its own history — the guard below is per
 // destination, so posting a story to one Page doesn't block it for another.
-async function translationFor(articleId: string, locale: string): Promise<{ title: string; body: string | null; slug: string } | null> {
+export async function translationFor(articleId: string, locale: string): Promise<{ title: string; body: string | null; slug: string } | null> {
   const rows = await db.select({ title: articleTranslationTable.title, body: articleTranslationTable.body, slug: articleTranslationTable.slug })
     .from(articleTranslationTable)
     .where(and(eq(articleTranslationTable.articleId, articleId), eq(articleTranslationTable.locale, locale), eq(articleTranslationTable.status, "translated")))

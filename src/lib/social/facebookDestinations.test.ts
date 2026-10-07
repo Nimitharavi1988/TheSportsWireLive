@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SPANISH_PAGE, spanishPageEnabled, INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, TOPIC_DESTINATIONS, effectiveDestination, prioritise, destinationRunCap, isCricketOrAsianGames, isIndiaCricket, localDayStart } from "./facebookDestinations";
+import { SPANISH_PAGE, FOOTBALL_PAGE, US_SPORTS_PAGE, FIGHT_PAGE, TOPIC_INSTAGRAM_KEYS, spanishPageEnabled, INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, TOPIC_DESTINATIONS, effectiveDestination, prioritise, destinationRunCap, isCricketOrAsianGames, isIndiaCricket, localDayStart } from "./facebookDestinations";
 
 const story = (over: Partial<Parameters<typeof isIndiaCricket>[0]>) => ({
   category: "cricket", title: "", homeTeam: null, awayTeam: null, seriesLabel: null, leagueLabel: null, venue: null, ...over,
@@ -62,13 +62,16 @@ describe("destinationRunCap (India cricket Page: 30/day over 7:00-23:00 IST)", (
   });
 });
 
-describe("Spanish Page (flagged)", () => {
-  it("is off unless the flag AND the Page id are set", () => {
-    expect(spanishPageEnabled({} as NodeJS.ProcessEnv)).toBe(false);
-    expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "1" } as unknown as NodeJS.ProcessEnv)).toBe(false);
-    expect(spanishPageEnabled({ FACEBOOK_PAGE_ES_ID: "123" } as unknown as NodeJS.ProcessEnv)).toBe(false);
-    expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "0", FACEBOOK_PAGE_ES_ID: "123" } as unknown as NodeJS.ProcessEnv)).toBe(false);
-    expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "1", FACEBOOK_PAGE_ES_ID: "123" } as unknown as NodeJS.ProcessEnv)).toBe(true);
+describe("Spanish Page", () => {
+  it("is on by default; FACEBOOK_ES_ENABLED=0 turns it off", () => {
+    expect(spanishPageEnabled({} as NodeJS.ProcessEnv)).toBe(true);
+    expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "" } as unknown as NodeJS.ProcessEnv)).toBe(true);
+    expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "1" } as unknown as NodeJS.ProcessEnv)).toBe(true);
+    expect(spanishPageEnabled({ FACEBOOK_ES_ENABLED: "0" } as unknown as NodeJS.ProcessEnv)).toBe(false);
+  });
+  it("has the real Page id and its own Instagram", () => {
+    expect(SPANISH_PAGE.pageId).toBeTruthy();
+    expect(SPANISH_PAGE.instagramId).toBeTruthy();
   });
   it("is a language-edition Page covering the Spanish sports", () => {
     expect(SPANISH_PAGE.locale).toBe("es");
@@ -169,5 +172,35 @@ describe("reel quality floors", () => {
   it("both cricket Pages skip weak stories; the new Page's floor is a little lower than Greenfield's", () => {
     expect(INDIA_CRICKET_PAGE.reels?.minTrending).toBe(35);
     expect(CRICKETLIVE_PAGE.reels?.minTrending).toBe(25);
+  });
+});
+
+describe("Sport Pages", () => {
+  it("are all posted to, each with its own history key", () => {
+    const keys = TOPIC_DESTINATIONS.map((d) => d.key);
+    for (const k of ["football", "us-sports", "fight"]) expect(keys).toContain(k);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+  it("keep soccer and American football apart", () => {
+    expect(FOOTBALL_PAGE.categories ?? [FOOTBALL_PAGE.sport]).toEqual(["football"]);
+    expect(US_SPORTS_PAGE.categories).toEqual(expect.arrayContaining(["american-football", "college-football", "basketball", "wnba", "baseball", "hockey"]));
+    expect(US_SPORTS_PAGE.categories).not.toContain("football");
+    expect(FIGHT_PAGE.categories).toEqual(["mma", "boxing"]);
+  });
+  it("lists the Instagram-linked Pages so the main account's checks leave them out", () => {
+    expect([...TOPIC_INSTAGRAM_KEYS].sort()).toEqual(["cricketlive", "es", "football", "us-sports"]);
+    expect(TOPIC_INSTAGRAM_KEYS).not.toContain("main");
+  });
+});
+
+describe("Football Page focus (Messi, 7 Oct)", () => {
+  const story = (title: string) => ({ category: "football", title, homeTeam: null, awayTeam: null, seriesLabel: null, leagueLabel: null, venue: null, publishedAt: new Date("2026-10-07T00:00:00Z") });
+  const pool = [story("Tuchel on the Nations League"), story("Gracias, Leo: the night the Monumental said goodbye to Messi"), story("Messina sign a striker")];
+  it("puts Messi stories first until the focus ends", () => {
+    const during = prioritise(pool, new Date("2026-10-07T12:00:00Z"), FOOTBALL_PAGE.focus);
+    expect(during[0].title).toContain("Messi");
+    expect(during[1].title).toContain("Tuchel"); // "Messina" is not Messi
+    const after = prioritise(pool, new Date("2026-10-07T22:30:00Z"), FOOTBALL_PAGE.focus);
+    expect(after[0].title).toContain("Tuchel");
   });
 });
