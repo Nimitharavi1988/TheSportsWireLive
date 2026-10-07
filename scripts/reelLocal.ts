@@ -43,7 +43,7 @@ async function main() {
   const post = process.argv.includes("--post");
   const dir = resolve(values("dir")[0] ?? "reels-local");
   const { db } = await import("../src/db");
-  const { article } = await import("../src/db/schema");
+  const { article, articleTranslation } = await import("../src/db/schema");
   const { and, eq, like } = await import("drizzle-orm");
   const { postReel } = await import("../src/lib/social/postReel");
 
@@ -58,10 +58,16 @@ async function main() {
   for (const id of ids) {
     const [row] = await db.select({ title: article.title, status: article.status }).from(article).where(eq(article.id, id)).limit(1);
     if (!row || row.status !== "published") { console.log(`Skipping ${id}: not a published story.`); continue; }
-    console.log(`\n=== ${row.title} (${post ? "render + POST to the main Page and Instagram" : "render only"})`);
+    let spanish: { title: string; body: string } | undefined;
+    if (process.argv.includes("--es")) {
+      const [tr] = await db.select({ title: articleTranslation.title, body: articleTranslation.body }).from(articleTranslation).where(and(eq(articleTranslation.articleId, id), eq(articleTranslation.locale, "es"), eq(articleTranslation.status, "translated"))).limit(1);
+      if (!tr?.title || !tr.body) { console.log(`Skipping ${id}: no Spanish version yet.`); continue; }
+      spanish = { title: tr.title, body: tr.body };
+    }
+    console.log(`\n=== ${row.title} (${spanish ? "Spanish, render only" : post ? "render + POST to the main Page and Instagram" : "render only"})`);
     try {
       const r = await postReel(id, {
-        instagram: post, facebook: post, saveCopyTo: dir, renderOnly: !post,
+        instagram: post && !spanish, facebook: post && !spanish, saveCopyTo: dir, renderOnly: !post || !!spanish, spanish,
         music: values("music")[0] as never, theme: values("theme")[0] as never, font: values("font")[0] as never,
       });
       if (post) console.log(`Instagram: ${r.instagramPosted ? "posted" : "not posted"}. Facebook: ${r.facebookPosted ? "posted" : "not posted"}.`);

@@ -223,7 +223,7 @@ export async function postReel(
   articleId: string,
   // saveCopyTo: a folder to keep the rendered MP4 in (scripts/reelLocal.ts). renderOnly:
   // render (and save) without posting anywhere, and without the one-reel-per-story check.
-  opts: { instagram: boolean; facebook: boolean; topicPage?: FacebookDestination; music?: ReelMusicStyle; theme?: ReelTheme; font?: ReelFont; saveCopyTo?: string; renderOnly?: boolean }
+  opts: { instagram: boolean; facebook: boolean; topicPage?: FacebookDestination; music?: ReelMusicStyle; theme?: ReelTheme; font?: ReelFont; saveCopyTo?: string; renderOnly?: boolean; spanish?: { title: string; body: string } }
 ): Promise<{ instagramPosted: boolean; facebookPosted: boolean }> {
   const none = { instagramPosted: false, facebookPosted: false };
   const [row] = await db.select({ article: articleTable, vertical: verticalTable })
@@ -253,7 +253,18 @@ export async function postReel(
   }
 
   console.log("Generating reel copy...");
-  const content = await generatePosterContent(article.title, article.body);
+  // The free models sometimes slip a year or number the story never states
+  // (a 2026 retirement became "2024"): retry up to 3 times, accepting only copy
+  // whose years and figures all appear in the story text.
+  const sourceText = `${opts.spanish?.title ?? article.title}\n${opts.spanish?.body ?? article.body}`;
+  const numbersOk = (c: { eyebrow: string; hook: string; rows: { label: string; value: string }[] }) =>
+    [c.eyebrow, c.hook, ...c.rows.map((r) => r.value)].join(" ").match(/\d[\d.,]*/g)?.every((n) => sourceText.includes(n.replace(/[.,]+$/, ""))) ?? true;
+  let content = null;
+  for (let attempt = 0; attempt < 3 && !content; attempt++) {
+    const c = await generatePosterContent(opts.spanish?.title ?? article.title, opts.spanish?.body ?? article.body, opts.spanish ? "es" : undefined);
+    if (c && numbersOk(c)) content = c;
+    else if (c) console.log(`[reel] copy had a number not in the story, retrying: ${JSON.stringify(c)}`);
+  }
   if (!content) {
     console.log(`[reel] skipped ${articleId}: no reel copy (too few real facts, or the copy call failed)`);
     return none;
@@ -264,13 +275,13 @@ export async function postReel(
   // Topic Pages pick music by the story's mood and sport; the main Page and Instagram keep the original rotation.
   const music = opts.music ?? musicStyleFor(article.id, opts.topicPage ? { title: article.title, category: article.category } : undefined);
   console.log(`Rendering reel (music: ${music}, theme: ${opts.theme ?? "default"}, font: ${opts.font ?? "default"})...`);
-  const mp4 = await renderReel({ content, heroImageUrl: article.heroImageUrl, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme: opts.theme, font: opts.font });
+  const mp4 = await renderReel({ content, heroImageUrl: article.heroImageUrl, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme: opts.theme, font: opts.font, locale: opts.spanish ? "es" : undefined });
   console.log(`Rendered ${(mp4.length / 1024 / 1024).toFixed(1)} MB`);
   if (opts.saveCopyTo) {
     const { mkdirSync, writeFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     mkdirSync(opts.saveCopyTo, { recursive: true });
-    const file = join(opts.saveCopyTo, `${article.slug.slice(0, 80)}.mp4`);
+    const file = join(opts.saveCopyTo, `${opts.spanish ? "es-" : ""}${article.slug.slice(0, 80)}.mp4`);
     writeFileSync(file, mp4);
     console.log(`Saved a copy: ${file}`);
   }

@@ -168,15 +168,15 @@ function FactText({ th, row, index, total }: { th: Theme; row: { label: string; 
 }
 
 // Opaque branded end card, fading in over everything.
-function EndCard({ th }: { th: Theme }) {
+function EndCard({ th, es }: { th: Theme; es?: boolean }) {
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "Poppins", background: `radial-gradient(circle at 50% 40%, ${th.shade(0.78)} 0%, ${th.shade(0.92)} 70%)` }}>
       <Wordmark th={th} size={60} />
       <div style={{ display: "flex", width: 160, height: 10, borderRadius: 5, background: th.accent, margin: "56px 0" }} />
       {/* Asking for comments: they're what gets a reel shown to more people. */}
-      <div style={{ display: "flex", color: "white", ...th.head(76) }}>What's your take?</div>
-      <div style={{ display: "flex", color: "rgba(255,255,255,0.85)", fontSize: 44, fontWeight: 600, marginTop: 14 }}>Tell us in the comments</div>
-      <div style={{ display: "flex", color: th.accent, fontSize: 42, fontWeight: 700, marginTop: 80 }}>Full story: link in bio</div>
+      <div style={{ display: "flex", color: "white", ...th.head(76) }}>{es ? "¿Qué opinas?" : "What's your take?"}</div>
+      <div style={{ display: "flex", color: "rgba(255,255,255,0.85)", fontSize: 44, fontWeight: 600, marginTop: 14 }}>{es ? "Cuéntanoslo en los comentarios" : "Tell us in the comments"}</div>
+      <div style={{ display: "flex", color: th.accent, fontSize: 42, fontWeight: 700, marginTop: 80 }}>{es ? "Nota completa: enlace en la bio" : "Full story: link in bio"}</div>
       <div style={{ display: "flex", color: "rgba(255,255,255,0.7)", fontSize: 34, fontWeight: 600, marginTop: 18 }}>Follow @sportswirelivenews</div>
     </div>
   );
@@ -251,6 +251,8 @@ export async function renderReel(params: {
   font?: ReelFont;
   // Also keep the layer PNGs here (for previewing); otherwise a temp dir.
   keepScenesDir?: string;
+  // Spanish end card (2026-10-07).
+  locale?: "es";
 }): Promise<Buffer> {
   const ffmpegPath = (await import("ffmpeg-static")).default as unknown as string | null;
   if (!ffmpegPath) throw new Error("ffmpeg-static has no binary for this platform");
@@ -306,7 +308,7 @@ export async function renderReel(params: {
     const endPath = join(workDir, "layer-end.png");
     const [chromePng, endPng, ...textPngs] = await Promise.all([
       renderLayer(<ChromeLayer th={th} credit={params.credit} darkFrom={darkFrom} darkTo={darkTo} darkEnd={darkEnd} portrait={Boolean(cropped)} />, fonts),
-      renderLayer(<EndCard th={th} />, fonts),
+      renderLayer(<EndCard th={th} es={params.locale === "es"} />, fonts),
       ...texts.map((s) => renderLayer(s.node, fonts)),
     ]);
     await Promise.all([
