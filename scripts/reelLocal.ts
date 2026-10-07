@@ -6,6 +6,8 @@
  *   npx tsx scripts/reelLocal.ts --title "Gracias, Leo" --post       also post to the main Facebook Page and Instagram
  *   options: --id <articleId> (repeatable)  --title "start of a published story's headline" (repeatable)
  *            --es  make the SPANISH reel from the published Spanish version (render only, never posted)
+ *            --post-es  with --es: POST the Spanish reel to the Spanish Facebook Page and its Instagram account
+ *            --post-football  POST the English reel to the football Facebook Page and its Instagram account
  *            --topic india-cricket  post to that topic Page only (Greenfield); needs FACEBOOK_PAGE_2_ACCESS_TOKEN in .dev.vars
  *            --dir path (default ./reels-local)  --music style  --theme name  --font name
  *            --env path/to/.dev.vars (default: .dev.vars, then the main checkout's)
@@ -19,7 +21,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const FREE_KEYS = ["DATABASE_URL", "GEMINI_FREE_API_KEY", "GROQ_API_KEY", "MISTRAL_API_KEY", "OPENROUTER_API_KEY", "FACEBOOK_PAGE_ID", "FACEBOOK_PAGE_ACCESS_TOKEN", "FACEBOOK_PAGE_2_ACCESS_TOKEN", "INSTAGRAM_BUSINESS_ACCOUNT_ID"];
+const FREE_KEYS = ["DATABASE_URL", "GEMINI_FREE_API_KEY", "GROQ_API_KEY", "MISTRAL_API_KEY", "OPENROUTER_API_KEY", "FACEBOOK_PAGE_ID", "FACEBOOK_PAGE_ACCESS_TOKEN", "FACEBOOK_PAGE_2_ACCESS_TOKEN", "FACEBOOK_PAGE_ES_ACCESS_TOKEN", "FACEBOOK_PAGE_FOOTBALL_ACCESS_TOKEN", "FACEBOOK_PAGE_ES_ID", "INSTAGRAM_ES_ACCOUNT_ID", "INSTAGRAM_BUSINESS_ACCOUNT_ID"];
 function values(name: string): string[] {
   const out: string[] = [];
   process.argv.forEach((a, i) => { if (a === `--${name}` && process.argv[i + 1]) out.push(process.argv[i + 1]); });
@@ -43,6 +45,10 @@ async function main() {
   process.env.SITE_URL ??= "https://sportswirelive.com";
 
   const post = process.argv.includes("--post");
+  const postEs = process.argv.includes("--post-es");
+  const postFootball = process.argv.includes("--post-football");
+  if (postFootball && !process.env.FACEBOOK_PAGE_FOOTBALL_ACCESS_TOKEN) process.env.FACEBOOK_PAGE_FOOTBALL_ACCESS_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+  if (postEs && !process.env.FACEBOOK_PAGE_ES_ACCESS_TOKEN) process.env.FACEBOOK_PAGE_ES_ACCESS_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN; // one all-pages token
   const dir = resolve(values("dir")[0] ?? "reels-local");
   const { db } = await import("../src/db");
   const { article, articleTranslation } = await import("../src/db/schema");
@@ -67,16 +73,16 @@ async function main() {
   for (const id of ids) {
     const [row] = await db.select({ title: article.title, status: article.status }).from(article).where(eq(article.id, id)).limit(1);
     if (!row || row.status !== "published") { console.log(`Skipping ${id}: not a published story.`); continue; }
-    let spanish: { title: string; body: string } | undefined;
+    let spanish: { title: string; body: string; slug?: string } | undefined;
     if (process.argv.includes("--es")) {
-      const [tr] = await db.select({ title: articleTranslation.title, body: articleTranslation.body }).from(articleTranslation).where(and(eq(articleTranslation.articleId, id), eq(articleTranslation.locale, "es"), eq(articleTranslation.status, "translated"))).limit(1);
+      const [tr] = await db.select({ title: articleTranslation.title, body: articleTranslation.body, slug: articleTranslation.slug }).from(articleTranslation).where(and(eq(articleTranslation.articleId, id), eq(articleTranslation.locale, "es"), eq(articleTranslation.status, "translated"))).limit(1);
       if (!tr?.title || !tr.body) { console.log(`Skipping ${id}: no Spanish version yet.`); continue; }
-      spanish = { title: tr.title, body: tr.body };
+      spanish = { title: tr.title, body: tr.body, slug: tr.slug ?? undefined };
     }
-    console.log(`\n=== ${row.title} (${spanish ? "Spanish, render only" : post ? "render + POST to the main Page and Instagram" : "render only"})`);
+    console.log(`\n=== ${row.title} (${postFootball && !spanish ? "POST to the football Page and Instagram" : spanish ? (postEs ? "Spanish, POST to the Spanish Page and Instagram" : "Spanish, render only") : post ? "render + POST to the main Page and Instagram" : "render only"})`);
     try {
       const r = await postReel(id, {
-        instagram: post && !spanish && !topicPage, facebook: post && !spanish, topicPage, saveCopyTo: dir, renderOnly: !post || !!spanish, spanish,
+        instagram: post && !spanish && !topicPage, facebook: post && !spanish, topicPage, saveCopyTo: dir, renderOnly: spanish ? !postEs : !(post || postFootball), footballPost: !spanish && postFootball ? true : undefined, spanish, spanishPost: spanish && postEs ? { facebook: true, instagram: true } : undefined,
         music: values("music")[0] as never, theme: values("theme")[0] as never, font: values("font")[0] as never,
       });
       if (post) console.log(`Instagram: ${r.instagramPosted ? "posted" : "not posted"}. Facebook: ${r.facebookPosted ? "posted" : "not posted"}.`);

@@ -11,7 +11,7 @@ import { renderReel } from "./reel";
 import { musicStyleFor, type ReelMusicStyle } from "./reelMusic";
 import type { ReelTheme, ReelFont } from "./reelThemes";
 import { resolvePageAccessToken } from "./facebook";
-import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepertoire";
+import { selectInstagramHashtags, selectFacebookHashtags, selectSpanishHashtags } from "./hashtagRepertoire";
 import { reelTagsFor } from "./reelTags";
 
 // Posts a story as a Reel to Instagram and the main Facebook Page. Runs in
@@ -99,10 +99,13 @@ async function recordAttempt(article: ArticleWithVertical, platform: "instagram"
   }
 }
 
-async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null): Promise<boolean> {
-  const igUserId = article.vertical.instagramBusinessAccountId ?? process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
-  const pageId = article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
-  const rawToken = article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+// es: post to the Spanish Page's Instagram account instead, with this Spanish caption (scripts/reelLocal.ts --post-es).
+interface SpanishTarget { pageId: string; igUserId: string; tokenEnv: string; caption: string; destination: string; follow: string }
+
+async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null, es?: SpanishTarget): Promise<boolean> {
+  const igUserId = es ? es.igUserId : article.vertical.instagramBusinessAccountId ?? process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
+  const pageId = es ? es.pageId : article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
+  const rawToken = es ? process.env[es.tokenEnv] : article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
   if (!igUserId || !pageId || !rawToken) return false;
   const accessToken = await resolvePageAccessToken(pageId, rawToken);
 
@@ -112,8 +115,8 @@ async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, ca
   const creditLine = article.heroImageCredit ? `\n\n📷 ${article.heroImageCredit}` : "";
   // 4 specific tags + brand: more than that reads as spam and adds no reach.
   const hashtags = selectInstagramHashtags(article.title, article.category, 4).join(" ");
-  const caption = `${emoji} ${captions?.instagram ?? article.title}\n\n💬 What's your take? Tell us in the comments\n👉 Full breakdown — link in bio\n🔔 Follow @sportswirelivenews for daily sports news${creditLine}\n\n${hashtags}`;
-  const tags = reelTagsFor(article.title, article.category);
+  const caption = es ? es.caption : `${emoji} ${captions?.instagram ?? article.title}\n\n💬 What's your take? Tell us in the comments\n👉 Full breakdown — link in bio\n🔔 Follow @sportswirelivenews for daily sports news${creditLine}\n\n${hashtags}`;
+  const tags = es ? { collaborators: [] as string[], userTags: [] as never[] } : reelTagsFor(article.title, article.category);
 
   const createContainer = (withTags: boolean) =>
     fetch(`${GRAPH}/${igUserId}/media`, {
@@ -167,22 +170,22 @@ async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, ca
     );
     if (!published.id) throw new Error("Instagram returned no media id");
     return published.id as string;
-  });
+  }, es ? es.destination : undefined);
 }
 
 // topicPage: post to a topic Page (facebookDestinations.ts) instead of the
 // main Page — its own token and posting history, and a caption that points
 // viewers at the Page (Follow) as well as the article.
-async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null, articleUrl: string, topicPage?: FacebookDestination): Promise<boolean> {
-  const pageId = topicPage ? topicPage.pageId : article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
-  const rawToken = topicPage ? process.env[topicPage.tokenEnv] : article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null, articleUrl: string, topicPage?: FacebookDestination, es?: SpanishTarget): Promise<boolean> {
+  const pageId = es ? es.pageId : topicPage ? topicPage.pageId : article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
+  const rawToken = es ? process.env[es.tokenEnv] : topicPage ? process.env[topicPage.tokenEnv] : article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
   if (!pageId || !rawToken) return false;
   const accessToken = await resolvePageAccessToken(pageId, rawToken);
 
   const emoji = categoryEmoji(article.category);
   const creditLine = article.heroImageCredit ? `\n\n📷 ${article.heroImageCredit}` : "";
   const hashtags = (topicPage?.hashtags ? topicPage.hashtags(article.title, article.category) : selectFacebookHashtags(article.title, article.category)).join(" ");
-  const description = `${emoji} ${captions?.facebook ?? article.title}\n\nFull breakdown: ${articleUrl}${creditLine}\n\n${hashtags}`;
+  const description = es ? es.caption : `${emoji} ${captions?.facebook ?? article.title}\n\nFull breakdown: ${articleUrl}${creditLine}\n\n${hashtags}`;
 
   return recordAttempt(article, "facebook", async () => {
     console.log("[facebook reel] Starting upload...");
@@ -209,9 +212,9 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
       "Facebook reel publish"
     );
     // Topic Pages only: the main Page's reels are unchanged (no comment).
-    if (topicPage) await commentOnReel(start.video_id, `👍 Follow for more sports news: https://www.facebook.com/${pageId}`, accessToken, "facebook reel");
+    if (topicPage || es) await commentOnReel(start.video_id, es ? `${es.follow} https://www.facebook.com/${pageId}` : `👍 Follow for more sports news: https://www.facebook.com/${pageId}`, accessToken, "facebook reel");
     return start.video_id as string;
-  }, topicPage ? `${topicPage.key}-reel` : DESTINATION);
+  }, es ? es.destination : topicPage ? `${topicPage.key}-reel` : DESTINATION);
 }
 
 // Renders one reel for a story and posts it to whichever of Instagram /
@@ -223,7 +226,7 @@ export async function postReel(
   articleId: string,
   // saveCopyTo: a folder to keep the rendered MP4 in (scripts/reelLocal.ts). renderOnly:
   // render (and save) without posting anywhere, and without the one-reel-per-story check.
-  opts: { instagram: boolean; facebook: boolean; topicPage?: FacebookDestination; music?: ReelMusicStyle; theme?: ReelTheme; font?: ReelFont; saveCopyTo?: string; renderOnly?: boolean; spanish?: { title: string; body: string } }
+  opts: { instagram: boolean; facebook: boolean; topicPage?: FacebookDestination; music?: ReelMusicStyle; theme?: ReelTheme; font?: ReelFont; saveCopyTo?: string; renderOnly?: boolean; spanish?: { title: string; body: string; slug?: string }; spanishPost?: { facebook: boolean; instagram: boolean }; footballPost?: boolean }
 ): Promise<{ instagramPosted: boolean; facebookPosted: boolean }> {
   const none = { instagramPosted: false, facebookPosted: false };
   const [row] = await db.select({ article: articleTable, vertical: verticalTable })
@@ -244,10 +247,10 @@ export async function postReel(
   const topicReelKeys = TOPIC_DESTINATIONS.map((d) => `${d.key}-reel`);
   const existing = await db.select({ platform: socialPostTable.platform, destination: socialPostTable.destination }).from(socialPostTable)
     .where(and(eq(socialPostTable.articleId, articleId), inArray(socialPostTable.destination, [DESTINATION, ...topicReelKeys]), eq(socialPostTable.status, "posted")));
-  const { needInstagram, needFacebook } = opts.renderOnly
+  const { needInstagram, needFacebook } = opts.renderOnly || opts.spanishPost || opts.footballPost
     ? { needInstagram: false, needFacebook: false }
     : reelNeeds(existing, { instagram: opts.instagram, facebook: opts.facebook, topicKey: opts.topicPage?.key });
-  if (!opts.renderOnly && !needInstagram && !needFacebook) {
+  if (!opts.renderOnly && !opts.spanishPost && !opts.footballPost && !needInstagram && !needFacebook) {
     console.log(`[reel] skipped ${articleId}: already has a reel on the requested platform(s)`);
     return none;
   }
@@ -286,6 +289,69 @@ export async function postReel(
     console.log(`Saved a copy: ${file}`);
   }
   if (opts.renderOnly) return none;
+
+  // The football Page and its Instagram account (English): same video, English captions, the main-site link.
+  if (opts.footballPost) {
+    const pageId = process.env.FACEBOOK_PAGE_FOOTBALL_ID ?? "1344971308703586";
+    const igUserId = process.env.INSTAGRAM_FOOTBALL_ACCOUNT_ID ?? "17841462310314966";
+    const prior = await db.select({ platform: socialPostTable.platform }).from(socialPostTable)
+      .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.destination, "football-reel"), eq(socialPostTable.status, "posted")));
+    const done = new Set(prior.map((p) => p.platform));
+    const link = socialArticleUrl(process.env.SITE_URL ?? "https://sportswirelive.com", article.slug, "facebook");
+    const credit = article.heroImageCredit ? `
+
+📷 ${article.heroImageCredit}` : "";
+    const emoji = categoryEmoji(article.category);
+    const fbTags = selectFacebookHashtags(article.title, article.category).join(" ");
+    const igTags = selectInstagramHashtags(article.title, article.category, 4).join(" ");
+    const target = (caption: string): SpanishTarget => ({ pageId, igUserId, tokenEnv: "FACEBOOK_PAGE_FOOTBALL_ACCESS_TOKEN", caption, destination: "football-reel", follow: "👍 Follow for more football news:" });
+    const fbCaption = `${emoji} ${captions?.facebook ?? article.title}
+
+Full breakdown: ${link}${credit}
+
+${fbTags}`;
+    const igCaption = `${emoji} ${captions?.instagram ?? article.title}
+
+💬 What's your take? Tell us in the comments
+👉 Full breakdown — link in bio${credit}
+
+${igTags}`;
+    const facebookPosted = !done.has("facebook") ? await postReelToFacebook(article, mp4, null, link, undefined, target(fbCaption)) : false;
+    const instagramPosted = !done.has("instagram") ? await postReelToInstagram(article, mp4, null, target(igCaption)) : false;
+    return { instagramPosted, facebookPosted };
+  }
+
+  // The Spanish Page and its Instagram account: Spanish captions, the es. article link, the same
+  // video. Never doubles up: an earlier "es-reel" post of this story on a platform is skipped.
+  if (opts.spanish && opts.spanishPost) {
+    const pageId = process.env.FACEBOOK_PAGE_ES_ID ?? "1343775455488735";
+    const igUserId = process.env.INSTAGRAM_ES_ACCOUNT_ID ?? "17841471180978125";
+    const prior = await db.select({ platform: socialPostTable.platform }).from(socialPostTable)
+      .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.destination, "es-reel"), eq(socialPostTable.status, "posted")));
+    const done = new Set(prior.map((p) => p.platform));
+    const es = opts.spanish;
+    const link = `https://es.sportswirelive.com/article/${es.slug ?? article.slug}`;
+    const esCaps = await generateSocialCaptions(es.title, es.body, "es");
+    const tags = selectSpanishHashtags(es.title, article.category).join(" ");
+    const credit = article.heroImageCredit ? `
+
+📷 ${article.heroImageCredit}` : "";
+    const target = (caption: string): SpanishTarget => ({ pageId, igUserId, tokenEnv: "FACEBOOK_PAGE_ES_ACCESS_TOKEN", caption, destination: "es-reel", follow: "👍 Síguenos para más noticias deportivas:" });
+    const fbCaption = `${esCaps?.facebook ?? es.title}
+
+Nota completa: ${link}${credit}
+
+${tags}`;
+    const igCaption = `${esCaps?.instagram ?? es.title}
+
+💬 ¿Qué opinas? Cuéntanoslo en los comentarios
+👉 Nota completa: enlace en la bio${credit}
+
+${tags}`;
+    const facebookPosted = opts.spanishPost.facebook && !done.has("facebook") ? await postReelToFacebook(article, mp4, null, link, undefined, target(fbCaption)) : false;
+    const instagramPosted = opts.spanishPost.instagram && !done.has("instagram") ? await postReelToInstagram(article, mp4, null, target(igCaption)) : false;
+    return { instagramPosted, facebookPosted };
+  }
 
   const siteUrl = process.env.SITE_URL ?? "https://sportswirelive.com";
   const articleUrl = socialArticleUrl(siteUrl, article.slug, "facebook");

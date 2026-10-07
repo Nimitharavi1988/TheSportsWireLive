@@ -139,7 +139,15 @@ export async function paidReviewDraft(draft: ReviewedText, facts: string[]): Pro
       const shape = Object.entries(raw).map(([k, v]) => `${k}=${typeof v === "string" ? `string(${v.length})` : Array.isArray(v) ? `array(${v.length})` : typeof v}`).join(", ");
       console.error(`Paid review answer unreadable, shape: ${shape}; finishReason ${data.candidates?.[0]?.finishReason}`);
     }
-    return parsed ?? { verdict: "reject", problems: ["the review answer could not be read"] };
+    // An unreadable "fix" still names the problems it found: keep them, so a
+    // person can see what was wrong rather than only that the answer failed.
+    if (parsed) return parsed;
+    let found: string[] = [];
+    try {
+      const raw = JSON.parse(text) as { problems?: unknown };
+      if (Array.isArray(raw.problems)) found = raw.problems.filter((p): p is string => typeof p === "string");
+    } catch { /* keep the generic reason */ }
+    return { verdict: "reject", problems: found.length ? [`the review answer could not be read; it found: ${found.join(" | ")}`] : ["the review answer could not be read"] };
   } catch (err) {
     console.error("Paid review error:", err);
     return null;
