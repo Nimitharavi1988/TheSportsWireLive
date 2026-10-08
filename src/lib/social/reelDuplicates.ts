@@ -14,7 +14,8 @@ export function reelNeeds(
   want: { instagram: boolean; facebook: boolean; topicKey?: string }
 ): { needInstagram: boolean; needFacebook: boolean } {
   const ownKey = want.topicKey ? `${want.topicKey}-reel` : null;
-  const needInstagram = want.instagram && !existing.some((p) => p.platform === "instagram" && p.destination === MAIN_REEL_DESTINATION);
+  // A topic Page's own Instagram account keeps its own history too ("<key>-reel").
+  const needInstagram = want.instagram && !existing.some((p) => p.platform === "instagram" && (p.destination === MAIN_REEL_DESTINATION || p.destination === ownKey));
   const needFacebook =
     want.facebook &&
     !existing.some((p) => p.platform === "facebook" && (p.destination === MAIN_REEL_DESTINATION || p.destination === ownKey));

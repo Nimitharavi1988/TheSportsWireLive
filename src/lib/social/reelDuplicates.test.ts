@@ -29,4 +29,12 @@ describe("reelNeeds: one Facebook reel per story across our Pages", () => {
     expect(reelNeeds([ig], { instagram: true, facebook: true }).needInstagram).toBe(false);
     expect(reelNeeds([ig], { instagram: true, facebook: true }).needFacebook).toBe(true);
   });
+
+  it("a topic Page's Instagram skips a story it (or the main account) already has a reel of", () => {
+    const own = { platform: "instagram", destination: "football-reel" };
+    expect(reelNeeds([own], { instagram: true, facebook: true, topicKey: "football" }).needInstagram).toBe(false);
+    expect(reelNeeds([ig], { instagram: true, facebook: true, topicKey: "football" }).needInstagram).toBe(false);
+    expect(reelNeeds([own], { instagram: true, facebook: true, topicKey: "us-sports" }).needInstagram).toBe(true);
+    expect(reelNeeds([own], { instagram: true, facebook: true }).needInstagram).toBe(true); // main account unchanged
+  });
 });
