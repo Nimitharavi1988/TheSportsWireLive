@@ -13,6 +13,7 @@ import { isPromotional } from "../thinContent";
 import { isSimilarToAny } from "../titleSimilarity";
 import { TOPIC_DESTINATIONS, destinationRunCap, effectiveDestination, localDayStart, prioritise } from "./facebookDestinations";
 import { postReel } from "./postReel";
+import { breakingSlotFor, findBreaking } from "./breakingNews";
 import { dramaBoost } from "./drama";
 import { editionConditions } from "../i18n/overlay";
 
@@ -38,7 +39,10 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
       const posted = today.filter((r) => r.status === "posted").length;
       const failed = today.filter((r) => r.status === "failed").length;
       const runCap = destinationRunCap({ ...d.reels, activeHours: d.reels.activeHours ?? d.activeHours, overnight: false }, posted, now);
-      if (runCap === 0 || failed >= MAX_FAILED_PER_DAY) {
+      // Breaking news can go past the pacing, the reel hours and the daily cap, by up to
+      // `breaking.reelAllowance` a day (breakingNews.ts).
+      let breakingRoom = d.breaking ? Math.max(0, d.reels.dailyCap + d.breaking.reelAllowance - posted) : 0;
+      if ((runCap === 0 && breakingRoom === 0) || failed >= MAX_FAILED_PER_DAY) {
         console.log(`[reel:${d.key}] posted=${posted} failed=${failed} runCap=${runCap} — skipping`);
         continue;
       }
@@ -80,17 +84,28 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
       let checked = 0;
       let attempts = 0;
       let postedNow = 0;
+      let normalPosted = 0;
+      let breakingPosted = 0;
+      const breakingIds = d.breaking ? findBreaking(pool, now, d.breaking.minOutlets) : new Set<string>();
       // Drama first within each freshness tier (prioritise keeps the incoming order): social/drama.ts.
       const ranked = [...pool].sort((a, b) => (b.trendingScore ?? 0) + dramaBoost(b.title) - ((a.trendingScore ?? 0) + dramaBoost(a.title)));
       for (const a of prioritise(ranked, now)) {
-        if (postedNow >= runCap || attempts >= MAX_ATTEMPTS || checked >= MAX_PHOTO_CHECKS) break;
+        const normalDone = normalPosted >= runCap;
+        const breakingDone = breakingRoom <= 0 || breakingPosted >= 1;
+        if ((normalDone && breakingDone) || attempts >= MAX_ATTEMPTS || checked >= MAX_PHOTO_CHECKS) break;
+        // Each Page takes its own half of the breaking stories; once the normal pacing is
+        // used up (or outside the reel hours) only breaking stories are tried.
+        const isBreaking = breakingIds.has(a.id);
+        if (isBreaking && (!d.breaking || breakingSlotFor(a.id) !== d.breaking.slot)) continue;
+        if (normalDone && !isBreaking) continue;
         if (done.has(a.id) || !a.body || !hasRealImage(a) || !d.matches(a)) continue;
         // Never an advertisement (thinContent.ts).
         if (isPromotional(a.title)) continue;
         // Match rows are scorecards, not stories to narrate.
         if (isMatchDataSource(a.sourceName)) continue;
         if (isSimilarToAny(a.title, titles)) continue;
-        if (d.reels.minTrending && (a.trendingScore ?? 0) < d.reels.minTrending) continue;
+        // A new story's score is still low in its first hour, so breaking news skips the floor.
+        if (!isBreaking && d.reels.minTrending && (a.trendingScore ?? 0) < d.reels.minTrending) continue;
         checked++;
         if (!a.heroImageUrl) continue;
         attempts++;
@@ -100,6 +115,12 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
           console.log(`[reel:${d.key}] ${r.facebookPosted ? "posted" : "not posted"} ${a.id} ("${a.title.slice(0, 60)}")`);
           if (r.facebookPosted) {
             postedNow++;
+            if (normalPosted < runCap) normalPosted++;
+            else {
+              breakingPosted++;
+              breakingRoom--;
+              console.log(`[reel:${d.key}] breaking reel: ${a.id}`);
+            }
             titles.push(a.title);
           }
         } catch (err) {

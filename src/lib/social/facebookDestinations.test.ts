@@ -225,3 +225,16 @@ describe("reel caption test", () => {
     expect(INDIA_CRICKET_PAGE.reels?.perRunCap).toBe(1);
   });
 });
+
+describe("breaking news lanes", () => {
+  it("both cricket Pages have an allowance and take different halves of the stories", () => {
+    expect(INDIA_CRICKET_PAGE.breaking).toEqual({ allowance: 4, reelAllowance: 2, slot: 0 });
+    expect(CRICKETLIVE_PAGE.breaking).toEqual({ allowance: 4, reelAllowance: 2, slot: 1 });
+    expect(SPANISH_PAGE.breaking).toBeUndefined();
+  });
+
+  it("leaves the normal limits as they were", () => {
+    expect(INDIA_CRICKET_PAGE.dailyCap).toBe(30);
+    expect(INDIA_CRICKET_PAGE.reels?.dailyCap).toBe(24);
+  });
+});

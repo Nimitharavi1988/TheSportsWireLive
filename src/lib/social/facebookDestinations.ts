@@ -57,6 +57,11 @@ export interface FacebookDestination {
   // The same idea for this Page's reels: half the stories get a reel description that ends in a
   // question (the other half the usual one), by the same story split; link tagged question|control.
   reelCaptionTest?: boolean;
+  // Breaking news (breakingNews.ts): stories under an hour old that several outlets cover can
+  // go past the pacing and the daily cap — `allowance` more posts a day, `reelAllowance` more
+  // reels, and those reels skip the minimum score and the reel hours. `slot` splits breaking
+  // stories between Pages that share them (each takes its own half, by story id).
+  breaking?: { allowance: number; reelAllowance: number; slot: 0 | 1; minOutlets?: number };
   // Higher limits until a date (a Page's first day), after which the normal
   // limits above apply again by themselves — see effectiveDestination.
   boost?: { until: Date; dailyCap: number; reels?: { dailyCap: number; perRunCap: number } };
@@ -154,6 +159,7 @@ export const INDIA_CRICKET_PAGE: FacebookDestination = {
   maxAgeHours: 24,
   captionTest: true,
   reelCaptionTest: true,
+  breaking: { allowance: 4, reelAllowance: 2, slot: 0 },
   reels: { dailyCap: 24, perRunCap: 1, minTrending: 35 },
   matches: isCricketOrAsianGames,
   // #INDvWI, the player, #TeamIndia — not the main Page's brand tag.
@@ -178,6 +184,7 @@ export const CRICKETLIVE_PAGE: FacebookDestination = {
   style: "photo-question",
   captionTest: false,
   reelCaptionTest: false,
+  breaking: { allowance: 4, reelAllowance: 2, slot: 1 },
   // Own stories, not Greenfield's; reels at midday IST only (11:00-16:00) — its
   // reels got 72-179 plays at 12-15h IST against 1-48 early morning and evening.
   notAlsoOn: "india-cricket",

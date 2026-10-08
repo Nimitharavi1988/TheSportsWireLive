@@ -14,6 +14,7 @@ import { isMatchDataSource } from "../matchDataSources";
 import { hasRealImage } from "../contentQuality";
 import { isPromotional } from "../thinContent";
 import { isSimilarToAny } from "../titleSimilarity";
+import { breakingSlotFor, findBreaking } from "./breakingNews";
 import { postArticleToFacebook } from "./facebook";
 import { postArticleToInstagram } from "./instagram";
 import { editionConditions } from "../i18n/overlay";
@@ -21,6 +22,8 @@ import { TOPIC_DESTINATIONS, destinationRunCap, effectiveDestination, localDaySt
 
 const POOL_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 const SIMILARITY_WINDOW_MS = 24 * 60 * 60 * 1000;
+// Most breaking posts one run may add beyond its normal pacing.
+const BREAKING_PER_RUN = 2;
 
 // dryRun: select and report only — no token needed, nothing is posted.
 async function postToDestination(d: FacebookDestination, now: Date, dryRun: boolean): Promise<{ id: string; title: string }[]> {
@@ -32,7 +35,9 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
   const [{ value: postedToday }] = await db.select({ value: count() }).from(socialPost)
     .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, d.key), gte(socialPost.createdAt, dayStart)));
   const runCap = destinationRunCap(d, postedToday, now);
-  if (runCap === 0) {
+  // Breaking news can go past the pacing and the daily cap, by up to `breaking.allowance` a day.
+  let breakingRoom = d.breaking ? Math.max(0, d.dailyCap + d.breaking.allowance - postedToday) : 0;
+  if (runCap === 0 && breakingRoom === 0) {
     console.log(`[facebook:${d.key}] postedToday=${postedToday} runCap=0`);
     return [];
   }
@@ -69,8 +74,16 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
 
   const toPost: { id: string; title: string }[] = [];
   const limit = dryRun ? d.dailyCap : runCap;
+  // Breaking news (breakingNews.ts): each Page takes its own half of the breaking stories
+  // (breaking.slot), so two Pages never carry the same one; the other half is left alone here.
+  const breakingIds = d.breaking ? findBreaking(pool, now, d.breaking.minOutlets) : new Set<string>();
+  let normalPicked = 0;
+  let breakingPicked = 0;
   for (const a of prioritise(pool, now, d.focus)) {
-    if (toPost.length >= limit) break;
+    if (normalPicked >= limit && (breakingRoom <= 0 || breakingPicked >= BREAKING_PER_RUN)) break;
+    const isBreaking = breakingIds.has(a.id);
+    if (isBreaking && (!d.breaking || breakingSlotFor(a.id) !== d.breaking.slot)) continue;
+    if (normalPicked >= limit && !isBreaking) continue;
     if (posted.has(a.id) || !d.matches(a)) continue;
     // Never an advertisement (thinContent.ts).
     if (isPromotional(a.title)) continue;
@@ -88,6 +101,13 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
     if (!matchData && isSimilarToAny(a.title, chosenTitles)) continue;
     toPost.push(a);
     chosenTitles.push(a.title);
+    // Normal pacing first; a breaking story past it uses the breaking allowance.
+    if (normalPicked < limit) normalPicked++;
+    else {
+      breakingPicked++;
+      breakingRoom--;
+      console.log(`[facebook:${d.key}] breaking: ${a.id} ("${a.title.slice(0, 60)}")`);
+    }
   }
   console.log(`[facebook:${d.key}] postedToday=${postedToday} runCap=${runCap} toPost=${toPost.length}`);
 
