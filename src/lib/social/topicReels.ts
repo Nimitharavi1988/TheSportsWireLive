@@ -14,6 +14,7 @@ import { isSimilarToAny } from "../titleSimilarity";
 import { TOPIC_DESTINATIONS, destinationRunCap, effectiveDestination, localDayStart, prioritise } from "./facebookDestinations";
 import { postReel } from "./postReel";
 import { dramaBoost } from "./drama";
+import { editionConditions } from "../i18n/overlay";
 
 const POOL_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 const SIMILARITY_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -50,7 +51,9 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
         }).from(article)
           .where(and(
             eq(article.status, "published"),
-            or(like(article.category, `${d.sport}%`), ...(d.alsoTitleLike ?? []).map((t) => ilike(article.title, `%${t}%`))),
+            or(...(d.categories ?? [d.sport]).map((c) => like(article.category, `${c}%`)), ...(d.alsoTitleLike ?? []).map((t) => ilike(article.title, `%${t}%`))),
+            // A language edition's Page: only stories with a live translation.
+            ...(d.locale ? editionConditions(d.locale) : []),
             gte(article.publishedAt, new Date(now.getTime() - (d.maxAgeHours ? d.maxAgeHours * 3600_000 : POOL_WINDOW_MS))),
           ))
           .orderBy(desc(article.trendingScore), desc(article.publishedAt))
@@ -92,7 +95,8 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
         if (!a.heroImageUrl) continue;
         attempts++;
         try {
-          const r = await postReel(a.id, { instagram: false, facebook: true, topicPage: d });
+          // Instagram too only where the Page opts in (reels.instagram) and has an account.
+          const r = await postReel(a.id, { instagram: Boolean(d.reels.instagram && d.instagramId), facebook: true, topicPage: d });
           console.log(`[reel:${d.key}] ${r.facebookPosted ? "posted" : "not posted"} ${a.id} ("${a.title.slice(0, 60)}")`);
           if (r.facebookPosted) {
             postedNow++;

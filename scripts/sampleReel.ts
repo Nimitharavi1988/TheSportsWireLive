@@ -5,6 +5,7 @@ import { article } from "@/db/schema";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { generatePosterContent } from "@/lib/ingestion/commentary";
 import { renderReel } from "@/lib/social/reel";
+import { translationFor } from "@/lib/social/facebook";
 import { musicStyleFor, type ReelMusicStyle } from "@/lib/social/reelMusic";
 import type { ReelTheme, ReelFont } from "@/lib/social/reelThemes";
 
@@ -29,7 +30,11 @@ async function main() {
   if (!story?.heroImageUrl || !story.body) throw new Error("No story with a photo and body found");
   console.log(`Story: ${story.title} (${story.id})`);
 
-  const content = await generatePosterContent(story.title, story.body);
+  // LOCALE=es: the Spanish Page's reel text, from the story's translation.
+  const locale = process.env.LOCALE;
+  const tr = locale ? await translationFor(story.id, locale) : null;
+  if (locale && !tr?.body) throw new Error(`No ${locale} translation for this story`);
+  const content = await generatePosterContent(tr?.title ?? story.title, tr?.body ?? story.body, locale);
   if (!content) throw new Error("Poster content generation failed");
   console.log(JSON.stringify(content, null, 2));
 
@@ -42,6 +47,7 @@ async function main() {
     theme: process.env.THEME as ReelTheme | undefined,
     font: process.env.FONT as ReelFont | undefined,
     keepScenesDir: outDir,
+    language: locale,
   });
   await writeFile(join(outDir, "reel.mp4"), mp4);
   console.log(`Wrote ${join(outDir, "reel.mp4")} (${(mp4.length / 1024 / 1024).toFixed(1)} MB)`);

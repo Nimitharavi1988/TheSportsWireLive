@@ -437,10 +437,14 @@ export interface PosterContent {
 // table) for the Instagram poster format — see instagramPoster.tsx for the
 // actual image rendering. Grounded strictly in the article's own text, same
 // no-invented-facts policy as generateCommentary/generateMatchRecap above.
-export async function generatePosterContent(title: string, body: string): Promise<PosterContent | null> {
+// language: "es" writes the poster/reel text in Spanish (the Spanish Page's reels).
+export async function generatePosterContent(title: string, body: string, language?: string): Promise<PosterContent | null> {
   if (!body || body.trim().length < 40) return null;
 
-  const parsed = await callGemini(buildPosterPrompt(title, body), {
+  const languageRule = language === "es"
+    ? "\n\nLANGUAGE: Write the eyebrow, hook and every row label and value in neutral Spanish for US Hispanic, Latin American and Spanish readers (no regional slang). Keep names of people, teams and competitions as they are normally written."
+    : "";
+  const parsed = await callGemini(buildPosterPrompt(title, body) + languageRule, {
     priority: "low",
     model: COPY_MODEL,
     temperature: 0.5,

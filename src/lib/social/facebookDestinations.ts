@@ -57,7 +57,8 @@ export interface FacebookDestination {
   // minTrending: skip stories scoring below this (Article.trendingScore) — the bottom of
   // the queue made weak reels (Greenfield's average score was 38 vs 55 on the main Page).
   // activeHours: reels only go out in these local hours (default: the Page's own).
-  reels?: { dailyCap: number; perRunCap: number; minTrending?: number; activeHours?: { timeZone: string; start: number; end: number } };
+  // instagram: also post each reel to the Page's own Instagram (instagramId).
+  reels?: { dailyCap: number; perRunCap: number; minTrending?: number; activeHours?: { timeZone: string; start: number; end: number }; instagram?: boolean };
   // The Instagram account linked to this Page: each story posted to the Page
   // also goes there as a photo post (topicPosting.ts). Unset = Facebook only.
   instagramId?: string;
@@ -258,6 +259,9 @@ export const SPANISH_PAGE: FacebookDestination = {
   matches: () => true,
   hashtags: (title, category) => selectSpanishHashtags(title, category),
   instagramId: "17841471180978125", // @sportswireliveinspanish
+  // Its own Spanish reels (Spanish text, caption and link) on Facebook and Instagram
+  // (postReel.ts): 6 a day to start, during its posting hours.
+  reels: { dailyCap: 6, perRunCap: 1, instagram: true },
 };
 
 export const TOPIC_DESTINATIONS: FacebookDestination[] = [INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, FOOTBALL_PAGE, US_SPORTS_PAGE, FIGHT_PAGE, ...(spanishPageEnabled() ? [SPANISH_PAGE] : [])];
@@ -304,4 +308,4 @@ export function destinationRunCap(d: Pick<FacebookDestination, "dailyCap" | "per
 // own checks (already posted, daily limit, similar titles: autoApprove.ts,
 // socialPoster.ts) leave these out, so a sport account's posts never block or
 // count against the main account.
-export const TOPIC_INSTAGRAM_KEYS: string[] = TOPIC_DESTINATIONS.filter((d) => d.instagramId).map((d) => d.key);
+export const TOPIC_INSTAGRAM_KEYS: string[] = TOPIC_DESTINATIONS.filter((d) => d.instagramId).flatMap((d) => [d.key, `${d.key}-reel`]);

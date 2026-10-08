@@ -10,6 +10,7 @@ import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { loadHeroImageDataUri, BRAND_GREEN } from "./instagramPoster";
 import { generateReelMusic, type ReelMusicStyle } from "./reelMusic";
 import { REEL_THEMES, DEFAULT_REEL_THEME, REEL_FONTS, DEFAULT_REEL_FONT, type ReelTheme, type ReelFont } from "./reelThemes";
+import { categoryLabelEs } from "../i18n/es";
 
 const execFileAsync = promisify(execFile);
 
@@ -168,16 +169,23 @@ function FactText({ th, row, index, total }: { th: Theme; row: { label: string; 
 }
 
 // Opaque branded end card, fading in over everything.
-function EndCard({ th }: { th: Theme }) {
+// End-card wording per language ("es": the Spanish Page's reels).
+const END_CARD = {
+  en: { ask: "What's your take?", comments: "Tell us in the comments", story: "Full story: link in bio", follow: "Follow @sportswirelivenews" },
+  es: { ask: "¿Qué opinas?", comments: "Cuéntanos en los comentarios", story: "Nota completa: enlace en la bio", follow: "Síguenos para más deportes" },
+};
+
+function EndCard({ th, language }: { th: Theme; language?: string }) {
+  const t = language === "es" ? END_CARD.es : END_CARD.en;
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "Poppins", background: `radial-gradient(circle at 50% 40%, ${th.shade(0.78)} 0%, ${th.shade(0.92)} 70%)` }}>
       <Wordmark th={th} size={60} />
       <div style={{ display: "flex", width: 160, height: 10, borderRadius: 5, background: th.accent, margin: "56px 0" }} />
       {/* Asking for comments: they're what gets a reel shown to more people. */}
-      <div style={{ display: "flex", color: "white", ...th.head(76) }}>What's your take?</div>
-      <div style={{ display: "flex", color: "rgba(255,255,255,0.85)", fontSize: 44, fontWeight: 600, marginTop: 14 }}>Tell us in the comments</div>
-      <div style={{ display: "flex", color: th.accent, fontSize: 42, fontWeight: 700, marginTop: 80 }}>Full story: link in bio</div>
-      <div style={{ display: "flex", color: "rgba(255,255,255,0.7)", fontSize: 34, fontWeight: 600, marginTop: 18 }}>Follow @sportswirelivenews</div>
+      <div style={{ display: "flex", color: "white", ...th.head(76) }}>{t.ask}</div>
+      <div style={{ display: "flex", color: "rgba(255,255,255,0.85)", fontSize: 44, fontWeight: 600, marginTop: 14 }}>{t.comments}</div>
+      <div style={{ display: "flex", color: th.accent, fontSize: 42, fontWeight: 700, marginTop: 80 }}>{t.story}</div>
+      <div style={{ display: "flex", color: "rgba(255,255,255,0.7)", fontSize: 34, fontWeight: 600, marginTop: 18 }}>{t.follow}</div>
     </div>
   );
 }
@@ -251,6 +259,8 @@ export async function renderReel(params: {
   font?: ReelFont;
   // Also keep the layer PNGs here (for previewing); otherwise a temp dir.
   keepScenesDir?: string;
+  // "es": Spanish sport label, photo credit and end card (the Spanish Page).
+  language?: string;
 }): Promise<Buffer> {
   const ffmpegPath = (await import("ffmpeg-static")).default as unknown as string | null;
   if (!ffmpegPath) throw new Error("ffmpeg-static has no binary for this platform");
@@ -283,7 +293,7 @@ export async function renderReel(params: {
 
   // Text scenes back to back; the end card starts where the last fact ends.
   const texts: { node: ReactElement; seconds: number }[] = [
-    { node: <HookText th={th} content={params.content} sportLabel={sport?.label ?? null} />, seconds: HOOK_SECONDS },
+    { node: <HookText th={th} content={params.content} sportLabel={params.language === "es" && params.category ? categoryLabelEs(params.category.split("/")[0]) : sport?.label ?? null} />, seconds: HOOK_SECONDS },
     ...facts.map((row, i) => ({ node: <FactText th={th} row={row} index={i} total={facts.length} />, seconds: FACT_SECONDS })),
   ];
   const starts: number[] = [];
@@ -305,8 +315,8 @@ export async function renderReel(params: {
     const textPaths = texts.map((_, i) => join(workDir, `layer-text-${i + 1}.png`));
     const endPath = join(workDir, "layer-end.png");
     const [chromePng, endPng, ...textPngs] = await Promise.all([
-      renderLayer(<ChromeLayer th={th} credit={params.credit} darkFrom={darkFrom} darkTo={darkTo} darkEnd={darkEnd} portrait={Boolean(cropped)} />, fonts),
-      renderLayer(<EndCard th={th} />, fonts),
+      renderLayer(<ChromeLayer th={th} credit={params.language === "es" ? params.credit?.replace(/^Photo via /i, "Foto vía ").replace(/^Photo: /i, "Foto: ") : params.credit} darkFrom={darkFrom} darkTo={darkTo} darkEnd={darkEnd} portrait={Boolean(cropped)} />, fonts),
+      renderLayer(<EndCard th={th} language={params.language} />, fonts),
       ...texts.map((s) => renderLayer(s.node, fonts)),
     ]);
     await Promise.all([
