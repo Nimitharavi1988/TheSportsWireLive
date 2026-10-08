@@ -1,5 +1,6 @@
 import { categoryEmoji } from "@/lib/categoryDisplay";
 import { socialArticleUrl } from "./trackedLink";
+import { captionVariantFor } from "./captionVariant";
 import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
@@ -281,7 +282,11 @@ export async function postReel(
   }
   console.log("Reel content:", JSON.stringify(content));
   // Fallback for a language edition: its own headline, never the English one.
-  const captions = (await generateSocialCaptions(textTitle, textBody, locale)) ?? (locale ? { facebook: textTitle, instagram: textTitle } : null);
+  // Greenfield's reel A/B test (reelCaptionTest): half the stories get a description that ends
+  // in a pick-a-side question (reel viewers can't tap the link, so comments are the signal to win),
+  // half the usual one. Each story's link is tagged utm_content=question|control.
+  const reelVariant = opts.topicPage?.reelCaptionTest ? (captionVariantFor(articleId) === "hook" ? "question" : "control") : undefined;
+  const captions = (await generateSocialCaptions(textTitle, textBody, locale, reelVariant === "question" ? "question" : undefined)) ?? (locale ? { facebook: textTitle, instagram: textTitle } : null);
 
   // Topic Pages pick music by the story's mood and sport; the main Page and Instagram keep the original rotation.
   const music = opts.music ?? musicStyleFor(article.id, opts.topicPage ? { title: article.title, category: article.category } : undefined);
@@ -290,7 +295,7 @@ export async function postReel(
   console.log(`Rendered ${(mp4.length / 1024 / 1024).toFixed(1)} MB`);
 
   const siteUrl = locale ? `https://${LOCALES[locale].host}` : process.env.SITE_URL ?? "https://sportswirelive.com";
-  const articleUrl = socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "facebook");
+  const articleUrl = socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "facebook", reelVariant);
   const instagramPosted = needInstagram ? await postReelToInstagram(article, mp4, captions, opts.topicPage) : false;
   const facebookPosted = needFacebook ? await postReelToFacebook(article, mp4, captions, articleUrl, opts.topicPage) : false;
   return { instagramPosted, facebookPosted };

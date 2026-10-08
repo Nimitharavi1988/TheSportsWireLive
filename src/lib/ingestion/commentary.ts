@@ -328,7 +328,7 @@ function buildSocialCaptionsPrompt(title: string, body: string, language?: strin
   const facebookCta = facebookStyle === "hook"
     ? facebookHook
     : facebookStyle === "question"
-    ? "- End with ONE genuine pick-a-side, prediction or reaction question that people can answer in a few words, about something the facts actually raise (never generic like \"What do you think?\"). For a match preview or a player milestone, open with the fixture, number or record. Do NOT tell readers to click a link — it is added in the first comment."
+    ? "- End with ONE genuine pick-a-side, prediction or reaction question that people can answer in a few words, about something the facts actually raise (never generic like \"What do you think?\"). For a match preview or a player milestone, open with the fixture, number or record. Do NOT tell readers to click a link — it is added separately."
     : "- End with a clear call to action telling readers to click the link to read more (your own wording, doesn't need to be verbatim).";
   const languageRule = language === "es"
     ? "\nLANGUAGE: Write BOTH captions in neutral Spanish for US Hispanic, Latin American and Spanish readers (no regional slang). Keep names of people, teams and competitions as they are normally written.\n"

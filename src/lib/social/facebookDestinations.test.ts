@@ -212,3 +212,16 @@ describe("hook-first caption test", () => {
     expect(SPANISH_PAGE.captionTest).toBeUndefined();
   });
 });
+
+describe("reel caption test", () => {
+  it("runs on Greenfield's reels only", () => {
+    expect(INDIA_CRICKET_PAGE.reelCaptionTest).toBe(true);
+    expect(CRICKETLIVE_PAGE.reelCaptionTest).toBe(false);
+    expect(SPANISH_PAGE.reelCaptionTest).toBeUndefined();
+  });
+
+  it("keeps Greenfield's reel volume as it was (24 a day, 1 per run)", () => {
+    expect(INDIA_CRICKET_PAGE.reels?.dailyCap).toBe(24);
+    expect(INDIA_CRICKET_PAGE.reels?.perRunCap).toBe(1);
+  });
+});
