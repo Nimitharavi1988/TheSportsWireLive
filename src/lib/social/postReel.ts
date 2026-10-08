@@ -10,7 +10,8 @@ import { generatePosterContent, generateSocialCaptions, type SocialCaptions } fr
 import { renderReel } from "./reel";
 import { musicStyleFor, type ReelMusicStyle } from "./reelMusic";
 import type { ReelTheme, ReelFont } from "./reelThemes";
-import { resolvePageAccessToken } from "./facebook";
+import { resolvePageAccessToken, translationFor } from "./facebook";
+import { LOCALES } from "@/lib/i18n/locales";
 import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepertoire";
 import { reelTagsFor } from "./reelTags";
 
@@ -99,10 +100,12 @@ async function recordAttempt(article: ArticleWithVertical, platform: "instagram"
   }
 }
 
-async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null): Promise<boolean> {
-  const igUserId = article.vertical.instagramBusinessAccountId ?? process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
-  const pageId = article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
-  const rawToken = article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+// topicPage: that Page's own Instagram account (instagramId), its own reel
+// history ("<key>-reel") and, for a language edition, captions in that language.
+async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null, topicPage?: FacebookDestination): Promise<boolean> {
+  const igUserId = topicPage ? topicPage.instagramId : article.vertical.instagramBusinessAccountId ?? process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
+  const pageId = topicPage ? topicPage.pageId : article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
+  const rawToken = topicPage ? process.env[topicPage.tokenEnv] : article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
   if (!igUserId || !pageId || !rawToken) return false;
   const accessToken = await resolvePageAccessToken(pageId, rawToken);
 
@@ -111,8 +114,12 @@ async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, ca
   const emoji = categoryEmoji(article.category);
   const creditLine = article.heroImageCredit ? `\n\n📷 ${article.heroImageCredit}` : "";
   // 4 specific tags + brand: more than that reads as spam and adds no reach.
-  const hashtags = selectInstagramHashtags(article.title, article.category, 4).join(" ");
-  const caption = `${emoji} ${captions?.instagram ?? article.title}\n\n💬 What's your take? Tell us in the comments\n👉 Full breakdown — link in bio\n🔔 Follow @sportswirelivenews for daily sports news${creditLine}\n\n${hashtags}`;
+  const spanish = topicPage?.locale === "es";
+  const hashtags = (spanish && topicPage?.hashtags ? topicPage.hashtags(article.title, article.category).slice(0, 5) : selectInstagramHashtags(article.title, article.category, 4)).join(" ");
+  const cta = spanish
+    ? "💬 ¿Qué opinas? Cuéntanos en los comentarios\n👉 Toda la información — enlace en la bio\n🔔 Síguenos para más noticias deportivas"
+    : `💬 What's your take? Tell us in the comments\n👉 Full breakdown — link in bio\n🔔 ${topicPage ? "Follow us for daily sports news" : "Follow @sportswirelivenews for daily sports news"}`;
+  const caption = `${emoji} ${captions?.instagram ?? article.title}\n\n${cta}${creditLine}\n\n${hashtags}`;
   const tags = reelTagsFor(article.title, article.category);
 
   const createContainer = (withTags: boolean) =>
@@ -167,7 +174,7 @@ async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, ca
     );
     if (!published.id) throw new Error("Instagram returned no media id");
     return published.id as string;
-  });
+  }, topicPage ? `${topicPage.key}-reel` : DESTINATION);
 }
 
 // topicPage: post to a topic Page (facebookDestinations.ts) instead of the
@@ -182,7 +189,8 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
   const emoji = categoryEmoji(article.category);
   const creditLine = article.heroImageCredit ? `\n\n📷 ${article.heroImageCredit}` : "";
   const hashtags = (topicPage?.hashtags ? topicPage.hashtags(article.title, article.category) : selectFacebookHashtags(article.title, article.category)).join(" ");
-  const description = `${emoji} ${captions?.facebook ?? article.title}\n\nFull breakdown: ${articleUrl}${creditLine}\n\n${hashtags}`;
+  const spanish = topicPage?.locale === "es";
+  const description = `${emoji} ${captions?.facebook ?? article.title}\n\n${spanish ? "Toda la información" : "Full breakdown"}: ${articleUrl}${creditLine}\n\n${hashtags}`;
 
   return recordAttempt(article, "facebook", async () => {
     console.log("[facebook reel] Starting upload...");
@@ -209,7 +217,7 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
       "Facebook reel publish"
     );
     // Topic Pages only: the main Page's reels are unchanged (no comment).
-    if (topicPage) await commentOnReel(start.video_id, `👍 Follow for more sports news: https://www.facebook.com/${pageId}`, accessToken, "facebook reel");
+    if (topicPage) await commentOnReel(start.video_id, `👍 ${spanish ? "Síguenos para más noticias deportivas" : "Follow for more sports news"}: https://www.facebook.com/${pageId}`, accessToken, "facebook reel");
     return start.video_id as string;
   }, topicPage ? `${topicPage.key}-reel` : DESTINATION);
 }
@@ -242,30 +250,48 @@ export async function postReel(
   const topicReelKeys = TOPIC_DESTINATIONS.map((d) => `${d.key}-reel`);
   const existing = await db.select({ platform: socialPostTable.platform, destination: socialPostTable.destination }).from(socialPostTable)
     .where(and(eq(socialPostTable.articleId, articleId), inArray(socialPostTable.destination, [DESTINATION, ...topicReelKeys]), eq(socialPostTable.status, "posted")));
-  const { needInstagram, needFacebook } = reelNeeds(existing, { instagram: opts.instagram, facebook: opts.facebook, topicKey: opts.topicPage?.key });
+  // A language edition's Page (Spanish) makes its own reel, in its language, of the
+  // translated story: a different video for a different audience, so only its own
+  // history counts (not the English Pages' reels of the same story).
+  const locale = opts.topicPage?.locale;
+  const tr = locale ? await translationFor(articleId, locale) : null;
+  if (locale && !tr?.body) {
+    console.log(`[reel] skipped ${articleId}: no ${locale} translation yet`);
+    return none;
+  }
+  const ownKey = opts.topicPage ? `${opts.topicPage.key}-reel` : null;
+  const { needInstagram, needFacebook } = locale
+    ? {
+      needInstagram: opts.instagram && !existing.some((p) => p.platform === "instagram" && p.destination === ownKey),
+      needFacebook: opts.facebook && !existing.some((p) => p.platform === "facebook" && p.destination === ownKey),
+    }
+    : reelNeeds(existing, { instagram: opts.instagram, facebook: opts.facebook, topicKey: opts.topicPage?.key });
   if (!needInstagram && !needFacebook) {
     console.log(`[reel] skipped ${articleId}: already has a reel on the requested platform(s)`);
     return none;
   }
+  const textTitle = tr?.title ?? article.title;
+  const textBody = tr?.body ?? article.body;
 
   console.log("Generating reel copy...");
-  const content = await generatePosterContent(article.title, article.body);
+  const content = await generatePosterContent(textTitle, textBody, locale);
   if (!content) {
     console.log(`[reel] skipped ${articleId}: no reel copy (too few real facts, or the copy call failed)`);
     return none;
   }
   console.log("Reel content:", JSON.stringify(content));
-  const captions = await generateSocialCaptions(article.title, article.body);
+  // Fallback for a language edition: its own headline, never the English one.
+  const captions = (await generateSocialCaptions(textTitle, textBody, locale)) ?? (locale ? { facebook: textTitle, instagram: textTitle } : null);
 
   // Topic Pages pick music by the story's mood and sport; the main Page and Instagram keep the original rotation.
   const music = opts.music ?? musicStyleFor(article.id, opts.topicPage ? { title: article.title, category: article.category } : undefined);
   console.log(`Rendering reel (music: ${music}, theme: ${opts.theme ?? "default"}, font: ${opts.font ?? "default"})...`);
-  const mp4 = await renderReel({ content, heroImageUrl: article.heroImageUrl, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme: opts.theme, font: opts.font });
+  const mp4 = await renderReel({ content, heroImageUrl: article.heroImageUrl, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme: opts.theme, font: opts.font, language: locale });
   console.log(`Rendered ${(mp4.length / 1024 / 1024).toFixed(1)} MB`);
 
-  const siteUrl = process.env.SITE_URL ?? "https://sportswirelive.com";
-  const articleUrl = socialArticleUrl(siteUrl, article.slug, "facebook");
-  const instagramPosted = needInstagram ? await postReelToInstagram(article, mp4, captions) : false;
+  const siteUrl = locale ? `https://${LOCALES[locale].host}` : process.env.SITE_URL ?? "https://sportswirelive.com";
+  const articleUrl = socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "facebook");
+  const instagramPosted = needInstagram ? await postReelToInstagram(article, mp4, captions, opts.topicPage) : false;
   const facebookPosted = needFacebook ? await postReelToFacebook(article, mp4, captions, articleUrl, opts.topicPage) : false;
   return { instagramPosted, facebookPosted };
 }

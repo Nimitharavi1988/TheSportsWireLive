@@ -188,7 +188,7 @@ describe("Sport Pages", () => {
     expect(FIGHT_PAGE.categories).toEqual(["mma", "boxing"]);
   });
   it("lists the Instagram-linked Pages so the main account's checks leave them out", () => {
-    expect([...TOPIC_INSTAGRAM_KEYS].sort()).toEqual(["cricketlive", "es", "football", "us-sports"]);
+    expect([...TOPIC_INSTAGRAM_KEYS].sort()).toEqual(["cricketlive", "cricketlive-reel", "es", "es-reel", "football", "football-reel", "us-sports", "us-sports-reel"]);
     expect(TOPIC_INSTAGRAM_KEYS).not.toContain("main");
   });
 });
