@@ -121,7 +121,9 @@ const SPORT_TAGS: Partial<Record<string, SportTags>> = {
 // Ordered by specificity — a real player match is the most engaging/
 // targeted tag available, then confirmed league/event tags, then generic
 // sport tags, then a single general tag as filler if nothing else matched.
-function selectAllRelevantTags(title: string, category: string): string[] {
+// Name- and event-based tags only (the players, clubs and fixtures a headline is
+// about) — none of the sport-wide or generic ones. Language-neutral.
+function specificTags(title: string, category: string): string[] {
   const sport = SPORT_TAGS[category];
   const tags: string[] = [];
 
@@ -136,10 +138,12 @@ function selectAllRelevantTags(title: string, category: string): string[] {
     for (const [tag, pattern] of sport.conditional) {
       if (pattern.test(title)) tags.push(tag);
     }
-    tags.push(...sport.base);
   }
-  tags.push(...GENERAL_TAGS.slice(0, 1));
   return [...new Set(tags)];
+}
+
+function selectAllRelevantTags(title: string, category: string): string[] {
+  return [...new Set([...specificTags(title, category), ...(SPORT_TAGS[category]?.base ?? []), ...GENERAL_TAGS.slice(0, 1)])];
 }
 
 // Brand tags, always last. Tapping one shows only our own posts — the one
@@ -183,7 +187,9 @@ const SPANISH_SPORT_TAGS: Record<string, string> = {
 
 export function selectSpanishHashtags(title: string, category: string): string[] {
   const sport = SPANISH_SPORT_TAGS[category] ?? SPANISH_SPORT_TAGS[category.split("/")[0]];
-  const topic = selectAllRelevantTags(title, category).find((t) => t !== sport);
+  // The topic tag is a name or event from the headline (player, club, fixture), never an
+  // English sport-wide or generic tag (#Tennis next to #Tenis, #SportsNews): else #Deportes.
+  const topic = specificTags(title, category).find((t) => t !== sport) ?? "#Deportes";
   return [...new Set([sport, topic, FACEBOOK_BRAND_TAG].filter((t): t is string => Boolean(t)))].slice(0, 3);
 }
 
