@@ -64,6 +64,8 @@ export interface FacebookDestination {
   instagramId?: string;
   // That account's @name, shown on the reels' end card ("Follow @...").
   instagramHandle?: string;
+  // A link post also gets the direct article link as its first comment.
+  linkComment?: boolean;
   // Stories to put at the front of this Page's queue until a date (a big story
   // the Page should lead with), matched on the headline. Ends by itself.
   focus?: { terms: RegExp; until: Date };
@@ -269,6 +271,7 @@ export const SPANISH_PAGE: FacebookDestination = {
   hashtags: (title, category) => selectSpanishHashtags(title, category),
   instagramId: "17841471180978125", // @sportswireliveinspanish
   instagramHandle: "sportswireliveinspanish",
+  linkComment: true,
   // Its own Spanish reels (Spanish text, caption and link) on Facebook and Instagram
   // (postReel.ts): 6 a day to start, during its posting hours.
   reels: { dailyCap: 6, perRunCap: 1, instagram: true },

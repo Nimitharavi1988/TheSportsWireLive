@@ -73,12 +73,30 @@ export async function translationFor(articleId: string, locale: string): Promise
 // out (the caller falls back to a link post). A comment that fails after the
 // photo is up is logged, not thrown: the photo is already public, and falling
 // back would post the story twice.
-async function postPhotoWithLinkComment(pageId: string, token: string, photoUrl: string, caption: string, link: string): Promise<string | null> {
+// The article link as a comment on a Page post (best-effort: the post is already
+// public, so a failed comment is logged, never thrown). Spanish for a Spanish Page.
+async function commentLink(postId: string, token: string, link: string, locale?: string): Promise<void> {
+  try {
+    const res = await fetch(`https://graph.facebook.com/v20.0/${postId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: `${locale === "es" ? "Lee la nota completa" : "Read the full story"}: ${link}`, access_token: token }),
+    });
+    if (!res.ok) {
+      const c = await res.json().catch(() => ({}));
+      console.warn(`[facebook] link comment failed on ${postId}: ${c?.error?.message ?? res.status}`);
+    }
+  } catch (err) {
+    console.warn(`[facebook] link comment errored on ${postId}:`, err);
+  }
+}
+
+async function postPhotoWithLinkComment(pageId: string, token: string, photoUrl: string, caption: string, link: string, locale?: string): Promise<string | null> {
   try {
     const res = await fetch(`https://graph.facebook.com/v20.0/${pageId}/photos`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: photoUrl, caption: `${caption}\n\n👇 Full story in the first comment`, access_token: token }),
+      body: JSON.stringify({ url: photoUrl, caption: `${caption}\n\n👇 ${locale === "es" ? "Nota completa en el primer comentario" : "Full story in the first comment"}`, access_token: token }),
     });
     const data = await res.json();
     if (!res.ok || !(data?.post_id ?? data?.id)) {
@@ -86,15 +104,7 @@ async function postPhotoWithLinkComment(pageId: string, token: string, photoUrl:
       return null;
     }
     const postId: string = data.post_id ?? data.id;
-    const commentRes = await fetch(`https://graph.facebook.com/v20.0/${postId}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: `Read the full story: ${link}`, access_token: token }),
-    });
-    if (!commentRes.ok) {
-      const c = await commentRes.json().catch(() => ({}));
-      console.warn(`[facebook] link comment failed on ${postId}: ${c?.error?.message ?? commentRes.status}`);
-    }
+    await commentLink(postId, token, link, locale);
     return postId;
   } catch (err) {
     console.warn("[facebook] photo post errored, falling back to a link post:", err);
@@ -175,7 +185,7 @@ export async function postArticleToFacebook(articleId: string, destination?: Fac
     // null when the photo post fails, so the story still goes out as a normal
     // link post below.
     const photoId = photoStyle && article.heroImageUrl
-      ? await postPhotoWithLinkComment(pageId, postToken, article.heroImageUrl, message, link)
+      ? await postPhotoWithLinkComment(pageId, postToken, article.heroImageUrl, message, link, destination?.locale)
       : null;
     let externalId: string;
     if (photoId) {
@@ -195,6 +205,8 @@ export async function postArticleToFacebook(articleId: string, destination?: Fac
         throw new Error(data?.error?.message ?? `Facebook API error (${res.status})`);
       }
       externalId = data.id;
+      // A link post can also carry the direct link as its first comment (destination.linkComment).
+      if (destination?.linkComment) await commentLink(externalId, postToken, link, destination.locale);
     }
 
     await db.update(socialPostTable)
