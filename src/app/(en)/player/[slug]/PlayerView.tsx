@@ -46,9 +46,12 @@ export async function playerMetadata(slug: string, locale?: string) {
   const t = getDict(locale);
   const sportLabel = locale ? categoryLabel(player.sport, t) : categoryChipStyle(player.sport).label;
   const role = player.role === "coach" ? (locale ? ` (${t.entity.coach})` : " (Coach)") : "";
+  // With an approved profile, the search snippet is its opening sentence(s) instead of the generic line.
+  const profile = locale ? null : await fetchPlayerProfile(slug);
+  const lead = profile?.text.split(/(?<=[.!?])\s+/).reduce((acc, s) => (acc.length + s.length < 158 ? `${acc} ${s}`.trim() : acc), "");
   return {
     title: t.entity.playerTitle(player.name, role, sportLabel),
-    description: t.entity.playerDescription(player.name, sportLabel),
+    description: lead || t.entity.playerDescription(player.name, sportLabel),
     alternates: { canonical: `/player/${player.slug}` },
   };
 }
@@ -102,6 +105,13 @@ export async function PlayerView({ slug, locale }: { slug: string; locale?: stri
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
+      {profile && (
+        // Only what the approved profile itself says: name and description, no invented fields.
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@type": "Person", name: player.name, description: profile.text.split(/\n\s*\n/)[0], url: `${siteUrl}/player/${player.slug}` }) }}
+        />
+      )}
       <Box
         sx={{
           display: "grid",
