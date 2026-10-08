@@ -226,7 +226,7 @@ export async function postReel(
   articleId: string,
   // saveCopyTo: a folder to keep the rendered MP4 in (scripts/reelLocal.ts). renderOnly:
   // render (and save) without posting anywhere, and without the one-reel-per-story check.
-  opts: { instagram: boolean; facebook: boolean; topicPage?: FacebookDestination; music?: ReelMusicStyle; theme?: ReelTheme; font?: ReelFont; saveCopyTo?: string; renderOnly?: boolean; spanish?: { title: string; body: string; slug?: string }; spanishPost?: { facebook: boolean; instagram: boolean }; footballPost?: boolean }
+  opts: { instagram: boolean; facebook: boolean; topicPage?: FacebookDestination; music?: ReelMusicStyle; theme?: ReelTheme; font?: ReelFont; saveCopyTo?: string; renderOnly?: boolean; spanish?: { title: string; body: string; slug?: string }; spanishPost?: { facebook: boolean; instagram: boolean }; footballPost?: boolean; allowRepeat?: boolean }
 ): Promise<{ instagramPosted: boolean; facebookPosted: boolean }> {
   const none = { instagramPosted: false, facebookPosted: false };
   const [row] = await db.select({ article: articleTable, vertical: verticalTable })
@@ -249,7 +249,7 @@ export async function postReel(
     .where(and(eq(socialPostTable.articleId, articleId), inArray(socialPostTable.destination, [DESTINATION, ...topicReelKeys]), eq(socialPostTable.status, "posted")));
   const { needInstagram, needFacebook } = opts.renderOnly || opts.spanishPost || opts.footballPost
     ? { needInstagram: false, needFacebook: false }
-    : reelNeeds(existing, { instagram: opts.instagram, facebook: opts.facebook, topicKey: opts.topicPage?.key });
+    : reelNeeds(opts.allowRepeat ? existing.filter((p) => p.destination === `${opts.topicPage?.key}-reel`) : existing, { instagram: opts.instagram, facebook: opts.facebook, topicKey: opts.topicPage?.key });
   if (!opts.renderOnly && !opts.spanishPost && !opts.footballPost && !needInstagram && !needFacebook) {
     console.log(`[reel] skipped ${articleId}: already has a reel on the requested platform(s)`);
     return none;

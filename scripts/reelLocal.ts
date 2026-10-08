@@ -7,6 +7,7 @@
  *   options: --id <articleId> (repeatable)  --title "start of a published story's headline" (repeatable)
  *            --es  make the SPANISH reel from the published Spanish version (render only, never posted)
  *            --post-es  with --es: POST the Spanish reel to the Spanish Facebook Page and its Instagram account
+ *            --allow-repeat  with --topic: post even though the main Page already has this reel (only its own earlier post blocks it)
  *            --post-football  POST the English reel to the football Facebook Page and its Instagram account
  *            --topic india-cricket  post to that topic Page only (Greenfield); needs FACEBOOK_PAGE_2_ACCESS_TOKEN in .dev.vars
  *            --dir path (default ./reels-local)  --music style  --theme name  --font name
@@ -82,7 +83,7 @@ async function main() {
     console.log(`\n=== ${row.title} (${postFootball && !spanish ? "POST to the football Page and Instagram" : spanish ? (postEs ? "Spanish, POST to the Spanish Page and Instagram" : "Spanish, render only") : post ? "render + POST to the main Page and Instagram" : "render only"})`);
     try {
       const r = await postReel(id, {
-        instagram: post && !spanish && !topicPage, facebook: post && !spanish, topicPage, saveCopyTo: dir, renderOnly: spanish ? !postEs : !(post || postFootball), footballPost: !spanish && postFootball ? true : undefined, spanish, spanishPost: spanish && postEs ? { facebook: true, instagram: true } : undefined,
+        instagram: post && !spanish && !topicPage, facebook: post && !spanish, topicPage, allowRepeat: process.argv.includes("--allow-repeat"), saveCopyTo: dir, renderOnly: spanish ? !postEs : !(post || postFootball), footballPost: !spanish && postFootball ? true : undefined, spanish, spanishPost: spanish && postEs ? { facebook: true, instagram: true } : undefined,
         music: values("music")[0] as never, theme: values("theme")[0] as never, font: values("font")[0] as never,
       });
       if (post) console.log(`Instagram: ${r.instagramPosted ? "posted" : "not posted"}. Facebook: ${r.facebookPosted ? "posted" : "not posted"}.`);
