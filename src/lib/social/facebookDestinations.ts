@@ -62,6 +62,8 @@ export interface FacebookDestination {
   // The Instagram account linked to this Page: each story posted to the Page
   // also goes there as a photo post (topicPosting.ts). Unset = Facebook only.
   instagramId?: string;
+  // That account's @name, shown on the reels' end card ("Follow @...").
+  instagramHandle?: string;
   // Stories to put at the front of this Page's queue until a date (a big story
   // the Page should lead with), matched on the headline. Ends by itself.
   focus?: { terms: RegExp; until: Date };
@@ -171,10 +173,11 @@ export const CRICKETLIVE_PAGE: FacebookDestination = {
   // minTrending 25 (Greenfield: 35): it gets the stories Greenfield left, so a floor keeps
   // the weakest of them out of its reels. Supply swings with the news: 112 cricket stories
   // scored 30+ on 3 Oct, 3 on 5 Oct (a quiet day) — so 25, not 30, to keep a few a day.
-  reels: { dailyCap: 10, perRunCap: 1, minTrending: 25, activeHours: { timeZone: "Asia/Kolkata", start: 11, end: 16 } },
+  reels: { dailyCap: 10, perRunCap: 1, minTrending: 25, activeHours: { timeZone: "Asia/Kolkata", start: 11, end: 16 }, instagram: true },
   // First day of posting (4 Oct IST): 30 posts and 30 reels, still one of each per run.
   boost: { until: new Date("2026-10-04T18:30:00Z"), dailyCap: 30, reels: { dailyCap: 30, perRunCap: 1 } },
   instagramId: "17841422405517404", // @sportswirecricketlive
+  instagramHandle: "sportswirecricketlive",
 };
 
 // ---- Sport Pages (2026-10-07) -------------------------------------------
@@ -194,6 +197,9 @@ export const FOOTBALL_PAGE: FacebookDestination = {
   label: "SportsWire Football Live Page",
   pageId: "1344971308703586",
   instagramId: "17841462310314966", // @sportswirefootballlive
+  instagramHandle: "sportswirefootballlive",
+  // Reels (2026-10-08): 8 a day on Facebook and Instagram, strongest stories only.
+  reels: { dailyCap: 8, perRunCap: 1, minTrending: 30, instagram: true },
   dailyCap: 20,
   perRunCap: 2,
   // UK/Europe evening is the peak; still awake for the Americas' afternoon.
@@ -210,6 +216,8 @@ export const US_SPORTS_PAGE: FacebookDestination = {
   label: "SportsWire US Live Page",
   pageId: "1456000910921996",
   instagramId: "17841424699143294", // @sportswireuslive
+  instagramHandle: "sportswireuslive",
+  reels: { dailyCap: 10, perRunCap: 1, minTrending: 30, instagram: true },
   dailyCap: 24,
   perRunCap: 2,
   activeHours: { timeZone: "America/New_York", start: 8, end: 24 },
@@ -222,7 +230,8 @@ export const FIGHT_PAGE: FacebookDestination = {
   key: "fight",
   label: "SportsWire Fight Live Page",
   pageId: "1423517120834814",
-  // No Instagram linked to this Page yet (checked 2026-10-07).
+  // No Instagram linked to this Page yet (checked 2026-10-08): reels on Facebook only.
+  reels: { dailyCap: 4, perRunCap: 1, minTrending: 20 },
   // Fewer stories exist (about 30 MMA + boxing a day), so a smaller cap.
   dailyCap: 8,
   perRunCap: 1,
@@ -259,6 +268,7 @@ export const SPANISH_PAGE: FacebookDestination = {
   matches: () => true,
   hashtags: (title, category) => selectSpanishHashtags(title, category),
   instagramId: "17841471180978125", // @sportswireliveinspanish
+  instagramHandle: "sportswireliveinspanish",
   // Its own Spanish reels (Spanish text, caption and link) on Facebook and Instagram
   // (postReel.ts): 6 a day to start, during its posting hours.
   reels: { dailyCap: 6, perRunCap: 1, instagram: true },

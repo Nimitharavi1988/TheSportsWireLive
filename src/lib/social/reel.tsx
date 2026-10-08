@@ -175,8 +175,10 @@ const END_CARD = {
   es: { ask: "¿Qué opinas?", comments: "Cuéntanos en los comentarios", story: "Nota completa: enlace en la bio", follow: "Síguenos para más deportes" },
 };
 
-function EndCard({ th, language }: { th: Theme; language?: string }) {
-  const t = language === "es" ? END_CARD.es : END_CARD.en;
+function EndCard({ th, language, followHandle }: { th: Theme; language?: string; followHandle?: string | null }) {
+  const base = language === "es" ? END_CARD.es : END_CARD.en;
+  // A topic Page's reel follows its own account, not the main one's.
+  const t = followHandle === undefined ? base : { ...base, follow: followHandle ? `${language === "es" ? "Síguenos" : "Follow"} @${followHandle}` : language === "es" ? "Síguenos para más deportes" : "Follow us for more sports news" };
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "Poppins", background: `radial-gradient(circle at 50% 40%, ${th.shade(0.78)} 0%, ${th.shade(0.92)} 70%)` }}>
       <Wordmark th={th} size={60} />
@@ -261,6 +263,8 @@ export async function renderReel(params: {
   keepScenesDir?: string;
   // "es": Spanish sport label, photo credit and end card (the Spanish Page).
   language?: string;
+  // undefined: the main account's end card; a topic Page passes its @name (null: none).
+  followHandle?: string | null;
 }): Promise<Buffer> {
   const ffmpegPath = (await import("ffmpeg-static")).default as unknown as string | null;
   if (!ffmpegPath) throw new Error("ffmpeg-static has no binary for this platform");
@@ -316,7 +320,7 @@ export async function renderReel(params: {
     const endPath = join(workDir, "layer-end.png");
     const [chromePng, endPng, ...textPngs] = await Promise.all([
       renderLayer(<ChromeLayer th={th} credit={params.language === "es" ? params.credit?.replace(/^Photo via /i, "Foto vía ").replace(/^Photo: /i, "Foto: ") : params.credit} darkFrom={darkFrom} darkTo={darkTo} darkEnd={darkEnd} portrait={Boolean(cropped)} />, fonts),
-      renderLayer(<EndCard th={th} language={params.language} />, fonts),
+      renderLayer(<EndCard th={th} language={params.language} followHandle={params.followHandle} />, fonts),
       ...texts.map((s) => renderLayer(s.node, fonts)),
     ]);
     await Promise.all([
