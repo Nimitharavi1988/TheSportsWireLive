@@ -11,11 +11,29 @@ export interface PlayerProfile {
 export const profileKey = (slug: string) => `profile:player:${slug}`;
 export const profileDraftKey = (slug: string) => `profile:draft:player:${slug}`;
 
-export const MIN_PROFILE_WORDS = 90;
-export const MAX_PROFILE_WORDS = 230;
+export const MIN_PROFILE_WORDS = 230;
+export const MAX_PROFILE_WORDS = 480;
 
-export function buildProfileResearchBrief(name: string, sport: string): string {
-  return `A short factual profile of ${name} (${sport}): current club or team and role, career path, main honours and records with dates, and anything notable in the last 12 months. Prefer official club, league and governing-body pages and major outlets.`;
+export function buildProfileResearchBrief(name: string, sport: string, part: "history" | "now"): string {
+  const sources = "Prefer official club, league and governing-body pages and major outlets.";
+  return part === "history"
+    ? `The background and career history of ${name} (${sport}): date and place of birth, early life and how they got into the sport, youth career and debut, each club or team in order with the years and notable moments, international career, and key turning points. ${sources}`
+    : `${name} (${sport}) now: current club or team and role, main honours and records with dates, career totals, and anything notable in the last 12 months. ${sources}`;
+}
+
+// The search prompt for one part of a profile (pure). Unlike a news story's research, this is about a person's whole career.
+export function buildProfileSearchPrompt(name: string, sport: string, part: "history" | "now", today: Date): string {
+  const date = today.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  return `Today is ${date}. You are the research desk for a sports news site preparing a profile page of ${name} (${sport}).
+
+Use Google Search to find: ${buildProfileResearchBrief(name, sport, part)}
+
+Rules:
+- Only facts you found in search results. Nothing from memory, nothing inferred.
+- Leave out anything uncertain, or where sources disagree.
+- Give dates and years with each fact.
+- Up to 20 facts, one per line, each line starting with "FACT: ".
+- No commentary, no opinions, no introduction.`;
 }
 
 export function buildProfilePrompt(name: string, sport: string, facts: string[], asOf: string): string {
@@ -25,7 +43,7 @@ FACTS:
 ${facts.map((f) => `- ${f}`).join("\n")}
 
 Rules:
-- ${MIN_PROFILE_WORDS + 20} to ${MAX_PROFILE_WORDS - 50} words, two short paragraphs, plain neutral prose, in the third person.
+- ${MIN_PROFILE_WORDS + 30} to ${MAX_PROFILE_WORDS - 60} words in four short paragraphs, plain neutral prose, in the third person: (1) who they are and where they come from, (2) how their career developed, club by club or step by step, with years, (3) international and major honours and records, (4) where they are now.
 - Every sentence must be supported by the facts. No hype, no predictions, no opinions, no quotes unless a fact gives one with who said it.
 - Date anything that can change ("As of ${asOf}, ...").
 - Do not mention the facts, sources or this task. Output the profile text only, paragraphs separated by a blank line.`;

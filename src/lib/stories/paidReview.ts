@@ -120,7 +120,7 @@ export async function paidReviewDraft(draft: ReviewedText, facts: string[]): Pro
           responseMimeType: "application/json",
           responseSchema: REVIEW_SCHEMA,
           temperature: 0,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 8192,
         },
       }),
     });

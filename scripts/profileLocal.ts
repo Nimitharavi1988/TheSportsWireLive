@@ -60,7 +60,19 @@ async function main() {
 
   // ---- draft ----
   if (!process.env.GEMINI_API_KEY) { console.error("GEMINI_API_KEY (paid) is not in .dev.vars; needed for research and the fact-check."); process.exit(1); }
-  const { researchStory, RESEARCH_MODEL } = await import("../src/lib/stories/research");
+  const { RESEARCH_MODEL, parseFacts, groundingSources } = await import("../src/lib/stories/research");
+  const search = async (prompt: string) => {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${RESEARCH_MODEL}:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-goog-api-key": process.env.GEMINI_API_KEY! },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], tools: [{ google_search: {} }], generationConfig: { thinkingConfig: { thinkingBudget: 0 }, temperature: 0.1, maxOutputTokens: 4096 } }),
+    });
+    const j = await r.json().catch(() => null);
+    const c = j?.candidates?.[0];
+    const sources = groundingSources(c?.groundingMetadata?.groundingChunks);
+    const text = (c?.content?.parts ?? []).map((x: { text?: string }) => x.text ?? "").join("\n");
+    return sources.length === 0 ? { facts: [] as string[], sources } : { facts: parseFacts(text), sources };
+  };
   const { paidReviewDraft, applyReview } = await import("../src/lib/stories/paidReview");
 
   let players = values("slug").map((s) => TRACKED_PLAYERS.find((p) => p.slug === s)).filter((p): p is NonNullable<typeof p> => Boolean(p));
@@ -77,15 +89,19 @@ async function main() {
   const asOf = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   for (const p of players) {
     console.log(`\n=== ${p.name}`);
-    const research = await researchStory(`${p.name} profile`, P.buildProfileResearchBrief(p.name, p.sport));
-    if (!research || research.facts.length < 6) { console.log(`Skipped: only ${research?.facts.length ?? 0} researched facts.`); continue; }
+    const today = new Date();
+    const past = await search(P.buildProfileSearchPrompt(p.name, p.sport, "history", today));
+    const now = await search(P.buildProfileSearchPrompt(p.name, p.sport, "now", today));
+    console.log(`Research: ${past.facts.length} history facts, ${now.facts.length} current facts.`);
+    const research = { facts: [...new Set([...past.facts, ...now.facts])], sources: [...new Set([...past.sources, ...now.sources])] };
+    if (past.facts.length < 5 || now.facts.length < 5) { console.log("Skipped: too few researched facts for the history or the current part."); continue; }
 
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${RESEARCH_MODEL}:generateContent`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-goog-api-key": process.env.GEMINI_API_KEY! },
       body: JSON.stringify({
         contents: [{ parts: [{ text: P.buildProfilePrompt(p.name, p.sport, research.facts, asOf) }] }],
-        generationConfig: { thinkingConfig: { thinkingBudget: 0 }, temperature: 0.3, maxOutputTokens: 2048 },
+        generationConfig: { thinkingConfig: { thinkingBudget: 0 }, temperature: 0.3, maxOutputTokens: 3072 },
       }),
     });
     const data = await res.json().catch(() => null);
