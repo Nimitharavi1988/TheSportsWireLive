@@ -316,10 +316,18 @@ export async function verifyCommentaryHasSubstance(title: string, commentary: st
 // can never be attached to an article it doesn't actually apply to. One
 // call produces both platform captions together (cheaper than two calls,
 // and keeps the two versions consistent with the same underlying facts).
-function buildSocialCaptionsPrompt(title: string, body: string, language?: string, facebookStyle?: "question"): string {
+function buildSocialCaptionsPrompt(title: string, body: string, language?: string, facebookStyle?: "question" | "hook"): string {
   // "question": a photo post whose link goes in the first comment (see
   // postArticleToFacebook) — the caption invites a reply instead of asking for a click.
-  const facebookCta = facebookStyle === "question"
+  // "hook": a link post whose first sentence must work on its own — Facebook cuts the
+  // caption after ~125 characters behind "See more", which hid the closing call to action.
+  const facebookHook = [
+    "- HOOK FIRST: Facebook cuts the caption after roughly 125 characters behind a \"See more\" button, so the FIRST SENTENCE (under 110 characters) must stand alone and make someone want to open the story: lead with the most surprising or consequential real fact (a name, number or result) or the tension in the story, not scene-setting.",
+    "- Close with one short line saying what the full story adds beyond this caption, naming something specific from the facts (a number, a quote, a next step). Do NOT use \"Click the link to read more\" or other stock wording.",
+  ].join("\n");
+  const facebookCta = facebookStyle === "hook"
+    ? facebookHook
+    : facebookStyle === "question"
     ? "- End with ONE genuine pick-a-side, prediction or reaction question that people can answer in a few words, about something the facts actually raise (never generic like \"What do you think?\"). For a match preview or a player milestone, open with the fixture, number or record. Do NOT tell readers to click a link — it is added in the first comment."
     : "- End with a clear call to action telling readers to click the link to read more (your own wording, doesn't need to be verbatim).";
   const languageRule = language === "es"
@@ -359,7 +367,7 @@ export interface SocialCaptions {
 }
 
 // language: "es" writes the captions in Spanish (the Spanish Page); default English.
-export async function generateSocialCaptions(title: string, body: string, language?: string, facebookStyle?: "question"): Promise<SocialCaptions | null> {
+export async function generateSocialCaptions(title: string, body: string, language?: string, facebookStyle?: "question" | "hook"): Promise<SocialCaptions | null> {
   if (!body || body.trim().length < 40) return null;
 
   const parsed = await callGemini(buildSocialCaptionsPrompt(title, body, language, facebookStyle), {

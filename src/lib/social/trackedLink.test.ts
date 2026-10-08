@@ -9,3 +9,10 @@ describe("socialArticleUrl", () => {
     expect(url.searchParams.get("utm_medium")).toBe("social");
   });
 });
+
+describe("socialArticleUrl content tag", () => {
+  it("adds utm_content only when asked", () => {
+    expect(new URL(socialArticleUrl("https://sportswirelive.com", "s", "facebook")).searchParams.has("utm_content")).toBe(false);
+    expect(new URL(socialArticleUrl("https://sportswirelive.com", "s", "facebook", "hook")).searchParams.get("utm_content")).toBe("hook");
+  });
+});

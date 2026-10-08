@@ -50,6 +50,10 @@ export interface FacebookDestination {
   // a caption that ends in a question, and the article link in the first comment
   // (postArticleToFacebook) — a test of whether that earns more reach than a link.
   style?: "photo-question";
+  // A/B test of hook-first captions on link posts: half the stories (by id) get the hook-first
+  // caption, half the current one, and each link is tagged utm_content=hook|control
+  // (captionVariant.ts). Not applied to photo-question posts.
+  captionTest?: boolean;
   // Higher limits until a date (a Page's first day), after which the normal
   // limits above apply again by themselves — see effectiveDestination.
   boost?: { until: Date; dailyCap: number; reels?: { dailyCap: number; perRunCap: number } };
@@ -145,6 +149,7 @@ export const INDIA_CRICKET_PAGE: FacebookDestination = {
   alsoTitleLike: ["asian games"],
   // News only: nothing older than a day (Sportswirecricketlive inherits this).
   maxAgeHours: 24,
+  captionTest: true,
   reels: { dailyCap: 24, perRunCap: 1, minTrending: 35 },
   matches: isCricketOrAsianGames,
   // #INDvWI, the player, #TeamIndia — not the main Page's brand tag.
@@ -167,6 +172,7 @@ export const CRICKETLIVE_PAGE: FacebookDestination = {
   dailyCap: 10,
   perRunCap: 1,
   style: "photo-question",
+  captionTest: false,
   // Own stories, not Greenfield's; reels at midday IST only (11:00-16:00) — its
   // reels got 72-179 plays at 12-15h IST against 1-48 early morning and evening.
   notAlsoOn: "india-cricket",

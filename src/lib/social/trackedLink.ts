@@ -6,6 +6,7 @@
 // caption shows the link as visible text, so it should stay short. The
 // article page's canonical URL has no query string, so search engines
 // never index the tagged variant.
-export function socialArticleUrl(siteUrl: string, slug: string, source: "facebook" | "instagram"): string {
-  return `${siteUrl}/article/${slug}?utm_source=${source}&utm_medium=social`;
+// `content`: an optional third tag (utm_content) to tell two versions of a post apart in Analytics.
+export function socialArticleUrl(siteUrl: string, slug: string, source: "facebook" | "instagram", content?: string): string {
+  return `${siteUrl}/article/${slug}?utm_source=${source}&utm_medium=social${content ? `&utm_content=${content}` : ""}`;
 }

@@ -204,3 +204,11 @@ describe("Football Page focus (Messi, 7 Oct)", () => {
     expect(after[0].title).toContain("Tuchel");
   });
 });
+
+describe("hook-first caption test", () => {
+  it("runs on Greenfield only, never on the photo-question Page", () => {
+    expect(INDIA_CRICKET_PAGE.captionTest).toBe(true);
+    expect(CRICKETLIVE_PAGE.captionTest).toBe(false);
+    expect(SPANISH_PAGE.captionTest).toBeUndefined();
+  });
+});

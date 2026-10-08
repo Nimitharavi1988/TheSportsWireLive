@@ -1,5 +1,6 @@
 import { categoryEmoji } from "@/lib/categoryDisplay";
 import { socialArticleUrl } from "./trackedLink";
+import { captionVariantFor } from "./captionVariant";
 import { db } from "@/db";
 import { article as articleTable, articleTranslation as articleTranslationTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
 import { LOCALES } from "@/lib/i18n/locales";
@@ -137,7 +138,9 @@ export async function postArticleToFacebook(articleId: string, destination?: Fac
   const tr = destination?.locale ? await translationFor(articleId, destination.locale) : null;
   if (destination?.locale && !tr) return false; // not translated (yet): nothing to post
   const siteUrl = destination?.locale ? `https://${LOCALES[destination.locale].host}` : (process.env.SITE_URL ?? "http://localhost:3000");
-  const link = socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "facebook");
+  const isPhotoPost = destination?.style === "photo-question" && Boolean(article.heroImageUrl);
+  const variant = destination?.captionTest && !isPhotoPost ? captionVariantFor(articleId) : undefined;
+  const link = socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "facebook", variant);
   const postTitle = tr?.title ?? article.title;
   const postBody = tr ? tr.body : article.body;
   // The link itself is passed as its own `link` field, not pasted into the
@@ -159,8 +162,8 @@ export async function postArticleToFacebook(articleId: string, destination?: Fac
   // falls back to a minimal safe caption (just the real title) on any
   // Gemini failure so a hiccup can never block a Facebook post, same as
   // every other Gemini-dependent step here.
-  const photoStyle = destination?.style === "photo-question" && Boolean(article.heroImageUrl);
-  const captions = postBody ? await generateSocialCaptions(postTitle, postBody, destination?.locale, photoStyle ? "question" : undefined) : null;
+  const photoStyle = isPhotoPost;
+  const captions = postBody ? await generateSocialCaptions(postTitle, postBody, destination?.locale, photoStyle ? "question" : variant === "hook" ? "hook" : undefined) : null;
   const captionBody = captions?.facebook ?? postTitle;
   const hashtags = (destination?.hashtags ?? selectFacebookHashtags)(article.title, article.category).join(" ");
   const message = `${emojiFor(article.category)} ${captionBody}\n\n${hashtags}`;
