@@ -87,7 +87,9 @@ const MAX_INSTAGRAM_POSTS_PER_DAY = 95;
 // Facebook Reels posted alongside the Instagram Reel (see the reel loop
 // below), on top of the normal link posts. Kept modest: link posts are the
 // traffic driver; Reels add reach to people who don't follow the Page yet.
-const MAX_FACEBOOK_REELS_PER_DAY = 15;
+// Raised 15 -> 40 on request (2026-10-08): the 15 were all gone by 04:47 UTC, so
+// the Reels tab sat empty for the rest of the day. Now paced across the day (below).
+const MAX_FACEBOOK_REELS_PER_DAY = 40;
 // Ceiling on ATTEMPTS within a single run (not just successes) — each
 // attempt is a full Gemini content-generation call plus a real git
 // commit/push/deploy-wait cycle, far more expensive than Facebook's plain
@@ -618,7 +620,10 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   // sends readers to the site. Capped per day so the Page isn't flooded.
   const [{ value: facebookReelsToday }] = await db.select({ value: count() }).from(socialPost)
     .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, "reel"), eq(socialPost.status, "posted"), gte(socialPost.postedAt, todayStart)));
-  let facebookReelsRemaining = Math.max(0, MAX_FACEBOOK_REELS_PER_DAY - facebookReelsToday);
+  // Paced like the link posts: the day's reels follow the hourly engagement weights
+  // (+1 so the day can start), instead of all going out in the first hours.
+  const facebookReelsPaceTarget = Math.round((MAX_FACEBOOK_REELS_PER_DAY * weightedRunsElapsed(currentRunIndex)) / TOTAL_HOURLY_WEIGHT) + 1;
+  let facebookReelsRemaining = Math.max(0, Math.min(MAX_FACEBOOK_REELS_PER_DAY, facebookReelsPaceTarget) - facebookReelsToday);
   let instagramAttempts = 0;
   let instagramDone = false;
   for (const article of instagramCandidates) {
