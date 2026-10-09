@@ -156,7 +156,7 @@ export const INDIA_CRICKET_PAGE: FacebookDestination = {
   captionTest: true,
   reelCaptionTest: true,
   breaking: { allowance: 4, reelAllowance: 2, slot: 0 },
-  reels: { dailyCap: 24, perRunCap: 1, minTrending: 35 },
+  reels: { dailyCap: 12, perRunCap: 1, minTrending: 35 },
 };
 
 // Sportswirecricketlive: the test Page for the new approach (2026-10). It posts with the main

@@ -206,8 +206,8 @@ describe("reel caption test", () => {
     expect(SPANISH_PAGE.reelCaptionTest).toBeUndefined();
   });
 
-  it("keeps Greenfield's reel volume as it was (24 a day, 1 per run)", () => {
-    expect(INDIA_CRICKET_PAGE.reels?.dailyCap).toBe(24);
+  it("holds Greenfield's reels to 12 a day, 1 per run (its median was 3 plays at 24)", () => {
+    expect(INDIA_CRICKET_PAGE.reels?.dailyCap).toBe(12);
     expect(INDIA_CRICKET_PAGE.reels?.perRunCap).toBe(1);
   });
 });
@@ -221,7 +221,7 @@ describe("breaking news lanes", () => {
 
   it("leaves the normal limits as they were", () => {
     expect(INDIA_CRICKET_PAGE.dailyCap).toBe(50);
-    expect(INDIA_CRICKET_PAGE.reels?.dailyCap).toBe(24);
+    expect(INDIA_CRICKET_PAGE.reels?.dailyCap).toBe(12);
   });
 });
 
