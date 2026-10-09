@@ -8,7 +8,7 @@ import IconButton from "@mui/material/IconButton";
 import InstallMobileIcon from "@mui/icons-material/InstallMobile";
 import CloseIcon from "@mui/icons-material/Close";
 
-import { dismissInstall, useAppPrompts } from "./appPrompts";
+import { dismissInstall, trackAppEvent, useAppPrompts } from "./appPrompts";
 
 // Chrome/Android/desktop fire `beforeinstallprompt` and let a page trigger
 // the native install dialog programmatically — but only if the page asks;
@@ -26,8 +26,10 @@ export function InstallAppBanner() {
 
   async function install() {
     if (!installEvent) return;
+    trackAppEvent("install_clicked", false);
     await installEvent.prompt();
-    await installEvent.userChoice;
+    const choice = (await installEvent.userChoice) as { outcome?: string };
+    trackAppEvent(choice.outcome === "accepted" ? "install_accepted" : "install_declined", false);
     dismissInstall();
   }
 

@@ -387,3 +387,11 @@ export const pollVoteRelations = relations(pollVote, ({ one }) => ({
 export const articleReactionRelations = relations(articleReaction, ({ one }) => ({
   article: one(article, { fields: [articleReaction.articleId], references: [article.id] }),
 }));
+
+// Anonymous daily counters for app-install funnel (banner shown, accepted,
+// installed, launched from the home screen). No user/device identifiers.
+export const appEvent = pgTable("AppEvent", {
+  day: text("day").notNull(),
+  kind: text("kind").notNull(),
+  count: integer("count").notNull().default(0),
+}, (t) => [primaryKey({ columns: [t.day, t.kind] })]);
