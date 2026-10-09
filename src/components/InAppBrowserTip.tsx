@@ -59,7 +59,7 @@ export function InAppBrowserTip() {
         </Typography>
       </Stack>
       {kind === "android" && (
-        <Button variant="contained" size="small" disableElevation onClick={openInChrome} sx={{ flexShrink: 0, borderRadius: 5, textTransform: "none", fontWeight: 600 }}>
+        <Button variant="outlined" size="small" onClick={openInChrome} sx={{ flexShrink: 0, borderRadius: 5, textTransform: "none", fontWeight: 600 }}>
           Open
         </Button>
       )}

@@ -50,7 +50,7 @@ export function InstallAppBanner() {
         </Typography>
       </Stack>
       {!isIos && (
-        <Button variant="contained" size="small" disableElevation onClick={install} sx={{ flexShrink: 0, borderRadius: 5, textTransform: "none", fontWeight: 600 }}>
+        <Button variant="outlined" size="small" onClick={install} sx={{ flexShrink: 0, borderRadius: 5, textTransform: "none", fontWeight: 600 }}>
           Install
         </Button>
       )}

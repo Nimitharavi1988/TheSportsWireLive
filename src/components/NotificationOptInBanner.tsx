@@ -70,7 +70,7 @@ export function NotificationOptInBanner() {
           Big stories only, never every article.
         </Typography>
       </Stack>
-      <Button variant="contained" size="small" disableElevation onClick={subscribe} disabled={subscribing} sx={{ flexShrink: 0, borderRadius: 5, textTransform: "none", fontWeight: 600 }}>
+      <Button variant="outlined" size="small" onClick={subscribe} disabled={subscribing} sx={{ flexShrink: 0, borderRadius: 5, textTransform: "none", fontWeight: 600 }}>
         Enable
       </Button>
       <IconButton size="small" onClick={dismissNotify} aria-label="Dismiss">
