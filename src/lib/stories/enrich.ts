@@ -29,7 +29,7 @@ import { articleWords } from "../thinContent";
 import { articleUrl, submitToIndexNow } from "../indexNow";
 import {
   MIN_ENRICHED_WORDS, MIN_ENRICH_FACTS,
-  buildEnrichPrompt, creditLine, enrichLimitsFrom, enrichedToday, isRepetitive, mentionsItsInputs, mergeLogs, sameEventAsEnriched, pickCandidates, pruneLog, unsupportedFigures, type EnrichLogEntry, type EnrichResult,
+  acceptShortEnrichment, buildEnrichPrompt, creditLine, enrichLimitsFrom, enrichedToday, enrichedShortToday, isRepetitive, mentionsItsInputs, mergeLogs, sameEventAsEnriched, pickCandidates, pruneLog, unsupportedFigures, type EnrichLogEntry, type EnrichResult,
 } from "./enrichRules";
 
 const LOG_KEY = "enrich:log";
@@ -52,7 +52,9 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
   let log = pruneLog(await readLog(), now);
   const limits = enrichLimitsFrom(process.env);
   const room = Math.min(limits.perRun, limits.perDay - enrichedToday(log, now));
-  if (room <= 0) return { enriched: 0, note: "daily limit reached" };
+  // Short but real results (enrichRules.ts acceptShortEnrichment): their own daily limit.
+  const roomShort = Math.min(limits.perRun, limits.perDayShort - enrichedShortToday(log, now));
+  if (room <= 0 && roomShort <= 0) return { enriched: 0, note: "daily limit reached" };
 
   const rows = await db
     .select({
@@ -78,11 +80,12 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
   ))).map((r) => r.title);
 
   let enriched = 0;
+  let shortCount = 0;
   let note = "ok";
   const record = (id: string, result: EnrichResult, detail?: EnrichLogEntry["detail"]) => { log = [...log, { id, at: now.toISOString(), result, ...(detail ? { detail } : {}) }]; };
 
   for (const story of pickCandidates(rows, log, limits.researchPerRun)) {
-    if (enriched >= room) break;
+    if (enriched >= room && shortCount >= roomShort) break;
     if (sameEventAsEnriched(story.title, enrichedTitles)) {
       if (opts.dryRun) console.log(`[dry-run] same event as an enriched story: "${story.title}"`);
       record(story.id, "failed", { why: "same event as an enriched story" });
@@ -111,7 +114,14 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
     // The check may return subheadings; a news report is plain paragraphs.
     const body = checked.body.split(/\n\n+/).map((p) => p.replace(/^##\s+/, "")).join("\n\n");
     const words = articleWords({ body, summary: null });
-    if (words < MIN_ENRICHED_WORDS) { record(story.id, "too-short", { facts: research.facts.length, outlets: research.sources.length, words }); continue; }
+    // Under the indexing bar: published anyway only if it is a real step up and the short limit has room.
+    let asShort = false;
+    if (words < MIN_ENRICHED_WORDS) {
+      asShort = shortCount < roomShort && acceptShortEnrichment(words, articleWords(story));
+      if (!asShort) { record(story.id, "too-short", { facts: research.facts.length, outlets: research.sources.length, words }); continue; }
+    } else if (enriched >= room) {
+      continue; // full length but the main daily limit is used: left for tomorrow, not logged
+    }
     if (isRepetitive(body)) {
       if (opts.dryRun) console.log(`[dry-run] repetitive prose: "${story.title}"`);
       record(story.id, "failed", { facts: research.facts.length, words, why: "repetitive prose" });
@@ -136,16 +146,16 @@ export async function enrichTopStories(now: Date = new Date(), opts: { dryRun?: 
     const finalBody = credit ? `${body}\n\n${credit}` : body;
     if (opts.dryRun) {
       console.log(`\n=== DRY RUN: "${story.title}" (${story.sourceName}), was ${articleWords(story)} words, now ${articleWords({ body: finalBody, summary: null })}; removed by check: ${JSON.stringify(checked.removed)}\n\n${finalBody}\n`);
-      enriched++;
+      if (asShort) shortCount++; else enriched++;
       continue;
     }
     await db.update(article).set({ body: finalBody, updatedAt: new Date() }).where(eq(article.id, story.id));
     enrichedTitles.push(story.title);
-    record(story.id, "enriched", { facts: research.facts.length, outlets: research.sources.length, words, removed: checked.removed.length });
-    enriched++;
+    record(story.id, asShort ? "enriched-short" : "enriched", { facts: research.facts.length, outlets: research.sources.length, words, removed: checked.removed.length });
+    if (asShort) shortCount++; else enriched++;
     console.log(`Enriched: "${story.title}" (${articleWords({ body: finalBody, summary: null })} words, ${research.facts.length} facts, ${checked.removed.length} removed by the check).`);
-    // Indexable now (thinContent.ts): tell search engines it changed.
-    await submitToIndexNow([articleUrl(story.slug)]);
+    // Indexable now (thinContent.ts): tell search engines it changed. A short one stays noindex.
+    if (!asShort) await submitToIndexNow([articleUrl(story.slug)]);
   }
 
   // Merged with what is stored now: a local run and the workflow may both have

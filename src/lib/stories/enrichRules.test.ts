@@ -64,8 +64,8 @@ describe("enriching top stories", () => {
 
 describe("enrichment limits and the shared log", () => {
   it("reads the limits from the environment, falling back for empty or invalid values", () => {
-    expect(enrichLimitsFrom({})).toEqual({ perRun: 2, perDay: 15, researchPerRun: 4 });
-    expect(enrichLimitsFrom({ ENRICH_MAX_PER_DAY: "60", ENRICH_MAX_PER_RUN: " 4 ", ENRICH_MAX_RESEARCH_PER_RUN: "12" })).toEqual({ perRun: 4, perDay: 60, researchPerRun: 12 });
+    expect(enrichLimitsFrom({})).toEqual({ perRun: 2, perDay: 15, researchPerRun: 4, perDayShort: 20 });
+    expect(enrichLimitsFrom({ ENRICH_MAX_PER_DAY: "60", ENRICH_MAX_PER_RUN: " 4 ", ENRICH_MAX_RESEARCH_PER_RUN: "12" })).toEqual({ perRun: 4, perDay: 60, researchPerRun: 12, perDayShort: 20 });
     for (const bad of ["", "  ", "abc", "0", "-3"]) expect(enrichLimitsFrom({ ENRICH_MAX_PER_DAY: bad }).perDay).toBe(15);
   });
   it("merges two logs without losing or duplicating entries", () => {
@@ -122,5 +122,19 @@ describe("repetitive prose and same-event enrichment", () => {
     const chiefs = ["Chiefs News: Chiefs have shown interest in bringing back Tyreek Hill"];
     expect(sameEventAsEnriched("Chiefs’ Tyquan Thornton to have surgery with ‘12 to 16-week’ recovery timeline", chiefs)).toBe(false);
     expect(sameEventAsEnriched("Detroit Lions grades: Defense is beyond embarrassing vs. Panthers", chiefs)).toBe(false);
+  });
+});
+
+describe("short enrichment", () => {
+  const now = new Date("2026-10-08T12:00:00Z");
+  it("accepts a real step up under the bar, and nothing else", async () => {
+    const { acceptShortEnrichment, enrichedShortToday, enrichLimitsFrom: limits } = await import("./enrichRules");
+    expect(acceptShortEnrichment(250, 100)).toBe(true); // 2.5x, 250 words
+    expect(acceptShortEnrichment(169, 80)).toBe(false); // under 200 words
+    expect(acceptShortEnrichment(240, 200)).toBe(false); // not 1.5x the original
+    expect(acceptShortEnrichment(310, 100)).toBe(false); // full length: the normal path
+    expect(enrichedShortToday([{ id: "a", at: "2026-10-08T01:00:00Z", result: "enriched-short" }, { id: "b", at: "2026-10-08T02:00:00Z", result: "enriched" }], now)).toBe(1);
+    expect(limits({}).perDayShort).toBe(20);
+    expect(limits({ ENRICH_SHORT_MAX_PER_DAY: "30" }).perDayShort).toBe(30);
   });
 });
