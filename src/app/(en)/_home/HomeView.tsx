@@ -942,7 +942,7 @@ export async function HomeView({ category, locale }: { category?: string; locale
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "2fr 1fr", lg: "240px 1fr 340px" },
+          gridTemplateColumns: { xs: "1fr", md: "minmax(0, 2fr) minmax(0, 1fr)", lg: "240px minmax(0, 1fr) 340px" },
           gap: 5,
           alignItems: "start",
         }}
