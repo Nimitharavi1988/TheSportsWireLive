@@ -82,3 +82,13 @@ describe("applyThinCap with its own predicate", () => {
     expect(out).toEqual(["plain", "p1", "indexed"]); // 4 of 5 used: one photo story fits, the rest wait
   });
 });
+
+describe("spelledOut", () => {
+  it("accepts a small number written as a Spanish word or ordinal", async () => {
+    const { spelledOut } = await import("./checks");
+    expect(spelledOut("5", "llegan a la quinta jornada")).toBe(true);
+    expect(spelledOut("5", "cinco partidos")).toBe(true);
+    expect(spelledOut("5", "solo dos partidos")).toBe(false);
+    expect(spelledOut("25", "veinticinco")).toBe(false);
+  });
+});

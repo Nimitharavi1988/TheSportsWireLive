@@ -27,6 +27,16 @@ const ENGLISH_MARKERS = /\b(the|and|with|has|have|will|said|was|were|from|that|t
 
 export type CheckResult = { ok: true } | { ok: false; reason: string };
 
+// "Matchday 5" may come out as "quinta jornada" or "cinco": a small number written as a word is
+// still the number (pure, unit-tested).
+const SPANISH_SMALL: Record<string, string[]> = {
+  "1": ["uno", "una", "primer"], "2": ["dos", "segund"], "3": ["tres", "tercer"], "4": ["cuatro", "cuart"], "5": ["cinco", "quint"],
+  "6": ["seis", "sext"], "7": ["siete", "séptim"], "8": ["ocho", "octav"], "9": ["nueve", "noven"], "10": ["diez", "décim"],
+};
+export function spelledOut(n: string, lowerSpanishText: string): boolean {
+  return (SPANISH_SMALL[n] ?? []).some((w) => new RegExp(`(^|[^a-záéíóúñ])${w}`).test(lowerSpanishText));
+}
+
 export function checkTranslation(src: Fields, out: Partial<Fields> | null | undefined): CheckResult {
   if (!out || !out.title?.trim() || !out.summary?.trim() || !out.body?.trim()) return { ok: false, reason: "empty field" };
 
@@ -42,13 +52,15 @@ export function checkTranslation(src: Fields, out: Partial<Fields> | null | unde
   // headline, not merely somewhere else in the article.
   for (const k of ["title", "summary", "body"] as const) {
     const have = new Set(numbers(out[k]!));
-    const missing = [...new Set(numbers(src[k]))].filter((n) => !have.has(n));
+    const outText = out[k]!.toLowerCase();
+    const missing = [...new Set(numbers(src[k]))].filter((n) => !have.has(n) && !spelledOut(n, outText));
     if (missing.length > 0) return { ok: false, reason: `numbers missing in ${k}: ${missing.slice(0, 5).join(",")}` };
   }
 
   // A story saved with one newline between paragraphs counts as several (the model
   // answers with blank lines, which is the same text).
-  const countParas = (t: string) => t.split(/\n+/).filter((p) => p.trim()).length;
+  // Subheadings ("## ...") are not paragraphs: a translation may attach one to the text below it.
+  const countParas = (t: string) => t.split(/\n+/).filter((p) => p.trim() && !p.trim().startsWith("## ")).length;
   const srcParas = countParas(src.body);
   const outParas = countParas(out.body);
   if (Math.abs(srcParas - outParas) > 1) return { ok: false, reason: `paragraphs ${srcParas} -> ${outParas}` };

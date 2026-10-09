@@ -23,6 +23,7 @@ Compare the Spanish translation with the English original and report ONLY real p
 - sentences left in English (other than proper names, team names, titles of works, quotes in English)
 - wrong sport terminology or an unnatural/ungrammatical phrase a native reader would notice
 Ignore pure style preferences and acceptable regional variants.
+Today is ${new Date().toISOString().slice(0, 10)}: dates in the English original, including 2025 and 2026, are real and in the past or present as written. Never "correct" a year or call it a future date; a year that matches the English is correct.
 
 Verdict:
 - "ok": no real problems
