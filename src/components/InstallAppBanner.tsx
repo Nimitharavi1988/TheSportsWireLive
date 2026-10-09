@@ -38,19 +38,19 @@ export function InstallAppBanner() {
   return (
     <Paper
       variant="outlined"
-      sx={{ p: 1.5, mb: 3, display: "flex", alignItems: "center", gap: 1.5, borderColor: "primary.main", bgcolor: "rgba(29, 107, 63, 0.05)" }}
+      sx={{ py: 0.5, pl: 1.5, pr: 0.5, mb: 2.5, display: "flex", alignItems: "center", gap: 1, borderRadius: 2, borderColor: "divider", bgcolor: "action.hover" }}
     >
-      <InstallMobileIcon sx={{ color: "primary.main" }} />
+      <InstallMobileIcon sx={{ color: "primary.main", fontSize: 20 }} />
       <Stack sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: 14 }}>Get the app</Typography>
+        <Typography sx={{ fontWeight: 600, fontSize: 13, lineHeight: 1.3 }}>Get the app</Typography>
         <Typography variant="caption" sx={{ color: "text.secondary" }}>
           {isIos
-            ? "Tap the Share button, then \"Add to Home Screen\"."
-            : "Install Sports Wire Live for quick access and a full-screen feel."}
+            ? "Tap Share, then Add to Home Screen."
+            : "Quick access, full-screen."}
         </Typography>
       </Stack>
       {!isIos && (
-        <Button variant="contained" size="small" onClick={install} sx={{ flexShrink: 0 }}>
+        <Button variant="text" size="small" onClick={install} sx={{ flexShrink: 0, fontWeight: 700, textTransform: "none" }}>
           Install
         </Button>
       )}

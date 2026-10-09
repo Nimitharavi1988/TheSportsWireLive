@@ -59,7 +59,6 @@ import { HomeStandings } from "@/components/standings/HomeStandings";
 import { HomeMedals } from "@/components/events/HomeMedals";
 import { CollapsibleAdBox } from "@/components/CollapsibleAdBox";
 import { MoreHeadlinesAdTile } from "@/components/MoreHeadlinesAdTile";
-import { HomeBanners } from "@/components/HomeBanners";
 import { fetchLiveNow } from "@/lib/scores/scoreboard";
 import { pickHomeMatches } from "@/lib/homeMatches";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
@@ -911,7 +910,6 @@ export async function HomeView({ category, locale }: { category?: string; locale
         {category ? (loc ? t.home.h1Sport(categoryLabel(category.split("/")[0], t)) : CATEGORY_META[category]?.title ?? t.home.h1) : t.home.h1}
       </Typography>
       {!loc && <GoogleAdSense />}
-      {!loc && <HomeBanners />}
       {!category && <ForYouStrip />}
       {articles.length === 0 && (
         <Box sx={{ textAlign: "center", py: 8 }}>
