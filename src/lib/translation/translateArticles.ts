@@ -1,3 +1,4 @@
+import { hasRealImage } from "../contentQuality";
 import { db } from "@/db";
 import { article, articleTranslation } from "@/db/schema";
 import { isMatchDataSource } from "../matchDataSources";
@@ -72,16 +73,18 @@ const isCappedThin = (a: CappedFields) => isThinRewrite(a) && !isMatchDataSource
 // hour, not counted over a rolling day: the day this went in, the last 24
 // hours already held ~545, so a rolling-day count would have stopped every
 // new Spanish rewrite for ~20 hours.
-async function thinTranslatedLastHour(locale: string): Promise<number> {
+async function thinTranslatedLastHour(locale: string): Promise<{ plain: number; photo: number }> {
   try {
     const rows = await db
-      .select({ sourceName: article.sourceName, title: article.title, body: article.body, summary: article.summary })
+      .select({ sourceName: article.sourceName, title: article.title, body: article.body, summary: article.summary, heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl })
       .from(articleTranslation)
       .innerJoin(article, eq(article.id, articleTranslation.articleId))
       .where(and(eq(articleTranslation.locale, locale), eq(articleTranslation.status, "translated"), gte(articleTranslation.createdAt, new Date(Date.now() - 60 * 60 * 1000))));
-    return rows.filter(isCappedThin).length;
+    const thin = rows.filter(isCappedThin);
+    const photo = thin.filter(hasRealImage).length;
+    return { plain: thin.length - photo, photo };
   } catch {
-    return 0;
+    return { plain: 0, photo: 0 };
   }
 }
 
@@ -109,6 +112,7 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
       .select({
         id: article.id, category: article.category, title: article.title, summary: article.summary, body: article.body,
         trendingScore: article.trendingScore, sourceName: article.sourceName,
+        heroImageUrl: article.heroImageUrl, homeCrestUrl: article.homeCrestUrl,
       })
       .from(article)
       .where(and(
@@ -164,10 +168,12 @@ export async function translateArticles(opts: { dryRun?: boolean } = {}): Promis
         return c.prev.status === "failed";
       })
       .sort((a, b) => priorityScore(b.trendingScore, b.title, locale.priorityTerms) - priorityScore(a.trendingScore, a.title, locale.priorityTerms))
-      .map((c) => ({ ...c, isNew: !c.prev, thin: isCappedThin(c) }));
+      .map((c) => ({ ...c, isNew: !c.prev, thin: isCappedThin(c) && !hasRealImage(c), thinPhoto: isCappedThin(c) && hasRealImage(c) }));
     // Noindex write-ups get a small allowance (locale.thinDailyCap, spread
     // over the day's hours); the site's indexed stories are always translated.
-    const capped = backfill ? ranked : applyThinCap(ranked, await thinTranslatedLastHour(locale.code), Math.ceil(locale.thinDailyCap / 24));
+    // Short write-ups with a real photo (what the Pages can post) have their own, larger allowance.
+    const thinUsed = backfill ? { plain: 0, photo: 0 } : await thinTranslatedLastHour(locale.code);
+    const capped = backfill ? ranked : applyThinCap(applyThinCap(ranked, thinUsed.plain, Math.ceil(locale.thinDailyCap / 24)), thinUsed.photo, Math.ceil(locale.thinPhotoDailyCap / 24), (it) => it.thinPhoto);
     const todo = applyDailyCaps(capped, backfill ? {} : usedToday, backfill ? locale.backfillCaps : locale.dailyCaps).slice(0, maxPerRun);
 
     console.log(`Translation [${locale.code}]: ${candidates.length} recent published, ${todo.length} to translate (cap ${maxPerRun})${opts.dryRun ? " [dry-run]" : ""}`);

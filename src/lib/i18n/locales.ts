@@ -34,6 +34,11 @@ export interface LocaleConfig {
   // reports) and match score cards (their sport's dailyCaps) are not
   // counted. Not applied to backfills.
   thinDailyCap: number;
+  // The same for short write-ups that have a real photo: the ones the edition's Facebook Page and
+  // Instagram can post (a post needs a photo). A separate, larger allowance, since the free AI
+  // tiers have room for it (2026-10-09: Mistral 9% of its day used, Groq 10% of requests) and a
+  // photo-less short rewrite only fills the page. Spread over the day's hours (cap / 24 an hour).
+  thinPhotoDailyCap: number;
 }
 
 export const LOCALES: Record<string, LocaleConfig> = {
@@ -54,6 +59,7 @@ export const LOCALES: Record<string, LocaleConfig> = {
     ],
     backfillCaps: { football: 400, "football/world-cup": 60, basketball: 200, "formula-1": 150, athletics: 100, baseball: 250, "american-football": 300, volleyball: 60, rugby: 60, hockey: 120, wnba: 100, tennis: 150, boxing: 100, mma: 100, motogp: 80, cycling: 80, golf: 80, padel: 120 },
     thinDailyCap: 50,
+    thinPhotoDailyCap: 120,
     dailyCaps: { football: 120, "football/world-cup": 40, basketball: 60, "formula-1": 40, athletics: 20, baseball: 40, "american-football": 60, volleyball: 20, rugby: 20, hockey: 30, wnba: 30, tennis: 30, boxing: 20, mma: 20, motogp: 15, cycling: 15, golf: 15, padel: 25 },
     priorityTerms: [
       "la liga", "real madrid", "barcelona", "barça", "atlético", "atletico", "sevilla", "valencia", "villarreal", "athletic club",

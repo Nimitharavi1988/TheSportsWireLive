@@ -68,3 +68,17 @@ describe("applyDailyCaps", () => {
     expect(out.length).toBe(4);
   });
 });
+
+describe("applyThinCap with its own predicate", () => {
+  it("counts only the group it is asked about and lets everything else through", () => {
+    const items = [
+      { id: "plain", isNew: true, thin: true, photo: false },
+      { id: "p1", isNew: true, thin: false, photo: true },
+      { id: "p2", isNew: true, thin: false, photo: true },
+      { id: "p3", isNew: true, thin: false, photo: true },
+      { id: "indexed", isNew: true, thin: false, photo: false },
+    ];
+    const out = applyThinCap(items, 4, 5, (it) => it.photo).map((i) => i.id);
+    expect(out).toEqual(["plain", "p1", "indexed"]); // 4 of 5 used: one photo story fits, the rest wait
+  });
+});

@@ -83,10 +83,12 @@ export function priorityScore(trendingScore: number, title: string, priorityTerm
 // New translations of capped (noindex) stories, at most `cap` more in the
 // period `usedSoFar` was counted over, highest priority first (items arrive
 // sorted). Other stories and re-translations always pass (pure, unit-tested).
-export function applyThinCap<T extends { isNew: boolean; thin: boolean }>(items: T[], usedToday: number, cap: number): T[] {
+// `isThin` picks which items this cap counts (default: the `thin` flag), so two caps can run
+// one after the other over different groups.
+export function applyThinCap<T extends { isNew: boolean; thin: boolean }>(items: T[], usedToday: number, cap: number, isThin: (item: T) => boolean = (it) => it.thin): T[] {
   let used = usedToday;
   return items.filter((it) => {
-    if (!it.isNew || !it.thin) return true;
+    if (!it.isNew || !isThin(it)) return true;
     if (used >= cap) return false;
     used++;
     return true;
