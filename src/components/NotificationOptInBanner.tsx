@@ -61,16 +61,16 @@ export function NotificationOptInBanner() {
   return (
     <Paper
       variant="outlined"
-      sx={{ py: 0.5, pl: 1.5, pr: 0.5, mb: 2.5, display: "flex", alignItems: "center", gap: 1, borderRadius: 2, borderColor: "divider", bgcolor: "action.hover" }}
+      sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.25, mb: 3, borderRadius: 2, borderColor: "divider" }}
     >
-      <NotificationsActiveIcon sx={{ color: "primary.main", fontSize: 20 }} />
+      <NotificationsActiveIcon sx={{ color: "primary.main", fontSize: 22 }} />
       <Stack sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: 13, lineHeight: 1.3 }}>Breaking news alerts</Typography>
+        <Typography sx={{ fontWeight: 600, fontSize: 14 }}>Breaking news alerts</Typography>
         <Typography variant="caption" sx={{ color: "text.secondary" }}>
           Big stories only, never every article.
         </Typography>
       </Stack>
-      <Button variant="text" size="small" onClick={subscribe} disabled={subscribing} sx={{ flexShrink: 0, fontWeight: 700, textTransform: "none" }}>
+      <Button variant="contained" size="small" disableElevation onClick={subscribe} disabled={subscribing} sx={{ flexShrink: 0, borderRadius: 5, textTransform: "none", fontWeight: 600 }}>
         Enable
       </Button>
       <IconButton size="small" onClick={dismissNotify} aria-label="Dismiss">

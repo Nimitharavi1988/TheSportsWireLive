@@ -38,11 +38,11 @@ export function InstallAppBanner() {
   return (
     <Paper
       variant="outlined"
-      sx={{ py: 0.5, pl: 1.5, pr: 0.5, mb: 2.5, display: "flex", alignItems: "center", gap: 1, borderRadius: 2, borderColor: "divider", bgcolor: "action.hover" }}
+      sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.25, mb: 3, borderRadius: 2, borderColor: "divider" }}
     >
-      <InstallMobileIcon sx={{ color: "primary.main", fontSize: 20 }} />
+      <InstallMobileIcon sx={{ color: "primary.main", fontSize: 22 }} />
       <Stack sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: 13, lineHeight: 1.3 }}>Get the app</Typography>
+        <Typography sx={{ fontWeight: 600, fontSize: 14 }}>Get the app</Typography>
         <Typography variant="caption" sx={{ color: "text.secondary" }}>
           {isIos
             ? "Tap Share, then Add to Home Screen."
@@ -50,7 +50,7 @@ export function InstallAppBanner() {
         </Typography>
       </Stack>
       {!isIos && (
-        <Button variant="text" size="small" onClick={install} sx={{ flexShrink: 0, fontWeight: 700, textTransform: "none" }}>
+        <Button variant="contained" size="small" disableElevation onClick={install} sx={{ flexShrink: 0, borderRadius: 5, textTransform: "none", fontWeight: 600 }}>
           Install
         </Button>
       )}

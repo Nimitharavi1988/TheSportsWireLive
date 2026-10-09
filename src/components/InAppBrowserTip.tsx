@@ -47,11 +47,11 @@ export function InAppBrowserTip() {
   return (
     <Paper
       variant="outlined"
-      sx={{ py: 0.5, pl: 1.5, pr: 0.5, my: 2, display: "flex", alignItems: "center", gap: 1, borderRadius: 2, borderColor: "divider", bgcolor: "action.hover" }}
+      sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.25, mb: 3, borderRadius: 2, borderColor: "divider" }}
     >
-      <OpenInBrowserIcon sx={{ color: "primary.main", fontSize: 20 }} />
+      <OpenInBrowserIcon sx={{ color: "primary.main", fontSize: 22 }} />
       <Stack sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: 13, lineHeight: 1.3 }}>Open in your browser</Typography>
+        <Typography sx={{ fontWeight: 600, fontSize: 14 }}>Open in your browser</Typography>
         <Typography variant="caption" sx={{ color: "text.secondary", lineHeight: 1.3 }}>
           {kind === "android"
             ? "For live alerts and the app."
@@ -59,7 +59,7 @@ export function InAppBrowserTip() {
         </Typography>
       </Stack>
       {kind === "android" && (
-        <Button variant="text" size="small" onClick={openInChrome} sx={{ flexShrink: 0, fontWeight: 700, textTransform: "none" }}>
+        <Button variant="contained" size="small" disableElevation onClick={openInChrome} sx={{ flexShrink: 0, borderRadius: 5, textTransform: "none", fontWeight: 600 }}>
           Open
         </Button>
       )}
