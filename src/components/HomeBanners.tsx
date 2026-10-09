@@ -2,6 +2,7 @@
 
 import { InstallAppBanner } from "./InstallAppBanner";
 import { NotificationOptInBanner } from "./NotificationOptInBanner";
+import { InAppBrowserTip } from "./InAppBrowserTip";
 import { useAppPrompts } from "./appPrompts";
 
 // Shows at most one banner at a time -- stacking "install the app" and
@@ -14,6 +15,7 @@ export function HomeBanners() {
   const { install } = useAppPrompts();
   return (
     <>
+      <InAppBrowserTip />
       <InstallAppBanner />
       {install === "none" && <NotificationOptInBanner />}
     </>

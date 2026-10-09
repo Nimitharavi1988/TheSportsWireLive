@@ -4,6 +4,7 @@ import Container from "@mui/material/Container";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { getDict } from "@/lib/i18n/dictionary";
+import { HomeBanners } from "./HomeBanners";
 
 const FOOTER_LINKS = [
   { href: "/player", label: "Players" },
@@ -35,6 +36,7 @@ export default function SiteFooter({ locale }: { locale?: string }) {
   return (
     <Box component="footer" sx={{ borderTop: "1px solid", borderColor: "divider", mt: 8, py: 4, contentVisibility: "auto", containIntrinsicBlockSize: "auto 200px" }}>
       <Container maxWidth="lg">
+        {!locale && <Box sx={{ display: { lg: "none" } }}><HomeBanners /></Box>}
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={2}

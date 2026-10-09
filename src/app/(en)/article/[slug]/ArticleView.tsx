@@ -40,6 +40,7 @@ import { UpNext } from "@/components/UpNext";
 import { pickOnward, RELATED_COUNT, trendingSince } from "@/lib/articleOnward";
 import { FanEngagementHub } from "@/components/FanEngagementHub";
 import { FollowUs } from "@/components/FollowUs";
+import { InAppBrowserTip } from "@/components/InAppBrowserTip";
 import { ShareButtons } from "@/components/ShareButtons";
 import { displaySummary, splitIntoParagraphs } from "@/lib/articleSummary";
 import { isOriginalStory, storyKindLabel, subheading } from "@/lib/stories";
@@ -727,6 +728,7 @@ export async function ArticleView({ slug, locale }: { slug: string; locale?: str
       <FanEngagementHub articleId={article.id} locale={locale} />
 
       {!loc && <FollowUs />}
+      {!loc && <InAppBrowserTip />}
 
       {/* No source line on the site's own stories — there's nothing to credit. */}
       {!isOriginalStory(article) && (

@@ -58,9 +58,31 @@ function remember(key: string) {
   }
 }
 
+// Anonymous funnel counter; once per browser session per kind. Fire-and-forget.
+export function trackAppEvent(kind: string, oncePerSession = true) {
+  try {
+    const key = `swl-ev-${kind}`;
+    if (oncePerSession) {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+    }
+    const body = JSON.stringify({ kind });
+    if (!navigator.sendBeacon?.("/api/app-event", new Blob([body], { type: "application/json" }))) {
+      void fetch("/api/app-event", { method: "POST", body, headers: { "content-type": "application/json" }, keepalive: true });
+    }
+  } catch {}
+}
+
 export function startAppPrompts() {
   if (started || typeof window === "undefined") return;
   started = true;
+
+  trackAppEvent("session");
+  const standalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  if (standalone) trackAppEvent("standalone_launch");
+  window.addEventListener("appinstalled", () => trackAppEvent("app_installed", false));
 
   const notify =
     !wasDismissed(NOTIFY_DISMISSED) &&
@@ -77,9 +99,11 @@ export function startAppPrompts() {
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     update({ install: "available", installEvent: e as BeforeInstallPromptEvent });
+    trackAppEvent("install_banner_shown");
   });
   if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
     update({ install: "ios", notify });
+    trackAppEvent("ios_banner_shown");
   } else {
     update({ notify });
     setTimeout(() => {

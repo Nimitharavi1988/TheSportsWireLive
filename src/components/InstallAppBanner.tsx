@@ -8,7 +8,7 @@ import IconButton from "@mui/material/IconButton";
 import InstallMobileIcon from "@mui/icons-material/InstallMobile";
 import CloseIcon from "@mui/icons-material/Close";
 
-import { dismissInstall, useAppPrompts } from "./appPrompts";
+import { dismissInstall, trackAppEvent, useAppPrompts } from "./appPrompts";
 
 // Chrome/Android/desktop fire `beforeinstallprompt` and let a page trigger
 // the native install dialog programmatically — but only if the page asks;
@@ -26,8 +26,10 @@ export function InstallAppBanner() {
 
   async function install() {
     if (!installEvent) return;
+    trackAppEvent("install_clicked", false);
     await installEvent.prompt();
-    await installEvent.userChoice;
+    const choice = (await installEvent.userChoice) as { outcome?: string };
+    trackAppEvent(choice.outcome === "accepted" ? "install_accepted" : "install_declined", false);
     dismissInstall();
   }
 
@@ -36,19 +38,19 @@ export function InstallAppBanner() {
   return (
     <Paper
       variant="outlined"
-      sx={{ p: 1.5, mb: 3, display: "flex", alignItems: "center", gap: 1.5, borderColor: "primary.main", bgcolor: "rgba(29, 107, 63, 0.05)" }}
+      sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.25, mb: 3, borderRadius: 2, borderColor: "divider" }}
     >
-      <InstallMobileIcon sx={{ color: "primary.main" }} />
+      <InstallMobileIcon sx={{ color: "primary.main", fontSize: 22 }} />
       <Stack sx={{ flex: 1, minWidth: 0 }}>
         <Typography sx={{ fontWeight: 600, fontSize: 14 }}>Get the app</Typography>
         <Typography variant="caption" sx={{ color: "text.secondary" }}>
           {isIos
-            ? "Tap the Share button, then \"Add to Home Screen\"."
-            : "Install Sports Wire Live for quick access and a full-screen feel."}
+            ? "Tap Share, then Add to Home Screen."
+            : "Quick access, full-screen."}
         </Typography>
       </Stack>
       {!isIos && (
-        <Button variant="contained" size="small" onClick={install} sx={{ flexShrink: 0 }}>
+        <Button variant="outlined" size="small" onClick={install} sx={{ flexShrink: 0, borderRadius: 5, textTransform: "none", fontWeight: 600 }}>
           Install
         </Button>
       )}
