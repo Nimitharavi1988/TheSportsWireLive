@@ -140,7 +140,7 @@ export async function postArticleToFacebook(articleId: string, destination?: Fac
   const siteUrl = destination?.locale ? `https://${LOCALES[destination.locale].host}` : (process.env.SITE_URL ?? "http://localhost:3000");
   const isPhotoPost = destination?.style === "photo-question" && Boolean(article.heroImageUrl);
   const variant = destination?.captionTest && !isPhotoPost ? captionVariantFor(articleId) : undefined;
-  const link = socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "facebook", variant);
+  const link = socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "facebook", variant, destination?.key);
   const postTitle = tr?.title ?? article.title;
   const postBody = tr ? tr.body : article.body;
   // The link itself is passed as its own `link` field, not pasted into the

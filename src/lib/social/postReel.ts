@@ -295,7 +295,7 @@ export async function postReel(
   console.log(`Rendered ${(mp4.length / 1024 / 1024).toFixed(1)} MB`);
 
   const siteUrl = locale ? `https://${LOCALES[locale].host}` : process.env.SITE_URL ?? "https://sportswirelive.com";
-  const articleUrl = socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "facebook", reelVariant);
+  const articleUrl = socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "facebook", reelVariant, opts.topicPage?.key);
   const instagramPosted = needInstagram ? await postReelToInstagram(article, mp4, captions, opts.topicPage) : false;
   const facebookPosted = needFacebook ? await postReelToFacebook(article, mp4, captions, articleUrl, opts.topicPage) : false;
   return { instagramPosted, facebookPosted };

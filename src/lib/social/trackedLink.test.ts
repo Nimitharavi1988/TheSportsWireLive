@@ -16,3 +16,14 @@ describe("socialArticleUrl content tag", () => {
     expect(new URL(socialArticleUrl("https://sportswirelive.com", "s", "facebook", "hook")).searchParams.get("utm_content")).toBe("hook");
   });
 });
+
+describe("socialArticleUrl campaign tag", () => {
+  it("adds utm_campaign only for a Page that asks, and keeps it with the content tag", () => {
+    const plain = new URL(socialArticleUrl("https://sportswirelive.com", "s", "facebook"));
+    expect(plain.searchParams.has("utm_campaign")).toBe(false);
+    const tagged = new URL(socialArticleUrl("https://sportswirelive.com", "s", "facebook", "hook", "india-cricket"));
+    expect(tagged.searchParams.get("utm_campaign")).toBe("india-cricket");
+    expect(tagged.searchParams.get("utm_content")).toBe("hook");
+    expect(tagged.searchParams.get("utm_source")).toBe("facebook");
+  });
+});
