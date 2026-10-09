@@ -1,4 +1,5 @@
 import GoogleAdSense from "@/components/GoogleAdSense";
+import { HomeBanners } from "@/components/HomeBanners";
 import { liveLocales, localeOrigin, localeSportUrl } from "@/lib/i18n/liveLocales";
 import { StoryCard } from "@/components/StoryCard";
 import { AnalysisStrip } from "@/components/AnalysisStrip";
@@ -1212,6 +1213,7 @@ export async function HomeView({ category, locale }: { category?: string; locale
               gridRow: { md: "1" },
             }}
           >
+            {!loc && <Box sx={{ display: { xs: "none", lg: "block" } }}><HomeBanners /></Box>}
             {/* Scores and standings: one design each, above the sticky part (they
                 are taller than a short window, so they scroll with the page). */}
             <ScoresPanel initial={editionSports ? liveMatches.filter((m) => editionSports.some((c) => c === m.sport || c.startsWith(m.sport + "/"))) : liveMatches} sport={category?.split("/")[0]} />

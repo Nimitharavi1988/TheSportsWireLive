@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 const KINDS = new Set([
   "session", "standalone_launch", "install_banner_shown", "ios_banner_shown",
-  "install_clicked", "install_accepted", "install_declined", "app_installed",
+  "inapp_browser_tip_shown", "inapp_browser_tip_clicked", "install_clicked", "install_accepted", "install_declined", "app_installed",
 ]);
 
 export async function POST(request: Request) {

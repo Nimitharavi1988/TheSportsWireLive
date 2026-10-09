@@ -36,7 +36,7 @@ export default function SiteFooter({ locale }: { locale?: string }) {
   return (
     <Box component="footer" sx={{ borderTop: "1px solid", borderColor: "divider", mt: 8, py: 4, contentVisibility: "auto", containIntrinsicBlockSize: "auto 200px" }}>
       <Container maxWidth="lg">
-        {!locale && <HomeBanners />}
+        {!locale && <Box sx={{ display: { lg: "none" } }}><HomeBanners /></Box>}
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={2}
