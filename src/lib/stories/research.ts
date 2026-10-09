@@ -81,9 +81,10 @@ async function researchViaRouter(router: LlmRouter, prompt: string): Promise<Res
 }
 
 export async function researchStory(headline: string, brief: string, today: Date = new Date()): Promise<Research | null> {
-  const router = await getRouter();
+  // RESEARCH_WEB_KEY (scripts/draftLocal.ts --web-research): paid Google-Search research even when the free router is on.
+  const router = process.env.RESEARCH_WEB_KEY ? null : await getRouter();
   if (router) return researchViaRouter(router, buildResearchPrompt(headline, brief, today));
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.RESEARCH_WEB_KEY ?? process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${RESEARCH_MODEL}:generateContent`, {

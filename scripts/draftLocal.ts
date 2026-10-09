@@ -7,6 +7,7 @@
  *   npx tsx scripts/draftLocal.ts                  up to 6 drafts
  *   options: --count N (6)  --rounds N (6)  --research N (10)  --max-waiting N (15)
  *            --no-paid-review  skip the paid steps (free providers only)
+ *            --web-research    research with paid Google Search (about 4 cents an idea) instead of stored coverage; needed for match previews, which have no coverage yet
  *            --free-write      free models write the first draft (paid review only)
  *            --max-paid N (40)  most paid calls this run, writing + review (about 3 cents a draft)
  *            --env path/to/.dev.vars (default: .dev.vars, then the main checkout's)
@@ -54,6 +55,7 @@ function loadFreeKeys(path: string): void {
     if (ALLOWED_KEYS.includes(m[1])) process.env[m[1]] = value;
     // The paid key goes to the review step only, under its own name.
     if (m[1] === PAID_KEY_NAME && !process.argv.includes("--no-paid-review")) process.env.GEMINI_PAID_REVIEW_KEY = value;
+    if (m[1] === PAID_KEY_NAME && process.argv.includes("--web-research")) process.env.RESEARCH_WEB_KEY = value;
   }
 }
 
@@ -83,7 +85,7 @@ async function main() {
   let total = 0;
   for (let r = 1; r <= rounds && total < target; r++) {
     const { drafted, note } = await autoDraftStories(new Date(), {
-      perRun: Math.min(2, target - total), perDay: 1000, researchPerRun, maxUnreviewed: maxWaiting, freeResearch: true, reviewPack: true, paidReview, paidWrite: paidReview && paidWrite, paidReviewMax: maxPaid,
+      perRun: Math.min(2, target - total), perDay: 1000, researchPerRun, maxUnreviewed: maxWaiting, freeResearch: !process.env.RESEARCH_WEB_KEY, reviewPack: true, paidReview, paidWrite: paidReview && paidWrite, paidReviewMax: maxPaid,
     });
     total += drafted;
     console.log(`Round ${r}: ${drafted} saved (${note}).`);
