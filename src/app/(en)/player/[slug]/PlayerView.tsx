@@ -23,6 +23,7 @@ import { LOCALES } from "@/lib/i18n/locales";
 import { editionConditions, fetchTranslationMap, inEdition, localizeRow } from "@/lib/i18n/overlay";
 import { FollowButton } from "@/components/FollowButton";
 import { buildBreadcrumbJsonLd } from "@/lib/breadcrumbs";
+import { fetchPlayerProfile } from "@/lib/profiles";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
@@ -45,9 +46,12 @@ export async function playerMetadata(slug: string, locale?: string) {
   const t = getDict(locale);
   const sportLabel = locale ? categoryLabel(player.sport, t) : categoryChipStyle(player.sport).label;
   const role = player.role === "coach" ? (locale ? ` (${t.entity.coach})` : " (Coach)") : "";
+  // With an approved profile, the search snippet is its opening sentence(s) instead of the generic line.
+  const profile = locale ? null : await fetchPlayerProfile(slug);
+  const lead = profile?.text.split(/(?<=[.!?])\s+/).reduce((acc, s) => (acc.length + s.length < 158 ? `${acc} ${s}`.trim() : acc), "");
   return {
     title: t.entity.playerTitle(player.name, role, sportLabel),
-    description: t.entity.playerDescription(player.name, sportLabel),
+    description: lead || t.entity.playerDescription(player.name, sportLabel),
     alternates: { canonical: `/player/${player.slug}` },
   };
 }
@@ -60,8 +64,10 @@ export async function PlayerView({ slug, locale }: { slug: string; locale?: stri
   const loc = Boolean(locale);
   const catLabel = (c: string) => (loc ? categoryLabel(c, t) : categoryChipStyle(c).label);
 
-  const [photo, rawArticles] = await Promise.all([
+  // An approved written profile (English pages only; see lib/profiles.ts).
+  const [photo, profile, rawArticles] = await Promise.all([
     fetchPersonPhoto(player.name, sportSearchHint(player.sport)),
+    loc ? Promise.resolve(null) : fetchPlayerProfile(player.slug),
     db.select().from(article)
       .where(and(
         eq(article.status, "published"),
@@ -99,6 +105,13 @@ export async function PlayerView({ slug, locale }: { slug: string; locale?: stri
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
+      {profile && (
+        // Only what the approved profile itself says: name and description, no invented fields.
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@type": "Person", name: player.name, description: profile.text.split(/\n\s*\n/)[0], url: `${siteUrl}/player/${player.slug}` }) }}
+        />
+      )}
       <Box
         sx={{
           display: "grid",
@@ -165,6 +178,18 @@ export async function PlayerView({ slug, locale }: { slug: string; locale?: stri
                 {photo.credit}
               </a>
             </Typography>
+          )}
+
+          {profile && (
+            <Box component="section" sx={{ mb: 4 }}>
+              <Typography variant="h6" component="h2" gutterBottom>About {player.name}</Typography>
+              {profile.text.split(/\n\s*\n/).map((para, i) => (
+                <Typography key={i} sx={{ mb: 1.5 }}>{para}</Typography>
+              ))}
+              <Typography variant="caption" sx={{ color: "text.secondary", display: "block" }}>
+                Compiled from published reports{profile.sources.length > 0 ? ` (${profile.sources.slice(0, 4).join(", ")})` : ""}, as of {profile.asOf}. Reviewed by {profile.reviewedBy}.
+              </Typography>
+            </Box>
           )}
 
           {articles.length === 0 ? (

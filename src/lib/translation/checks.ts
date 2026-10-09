@@ -46,8 +46,11 @@ export function checkTranslation(src: Fields, out: Partial<Fields> | null | unde
     if (missing.length > 0) return { ok: false, reason: `numbers missing in ${k}: ${missing.slice(0, 5).join(",")}` };
   }
 
-  const srcParas = src.body.split(/\n\s*\n/).length;
-  const outParas = out.body.split(/\n\s*\n/).length;
+  // A story saved with one newline between paragraphs counts as several (the model
+  // answers with blank lines, which is the same text).
+  const countParas = (t: string) => t.split(/\n+/).filter((p) => p.trim()).length;
+  const srcParas = countParas(src.body);
+  const outParas = countParas(out.body);
   if (Math.abs(srcParas - outParas) > 1) return { ok: false, reason: `paragraphs ${srcParas} -> ${outParas}` };
 
   return { ok: true };

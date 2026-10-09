@@ -19,6 +19,17 @@ export const MIN_ENRICH_FACTS = 6;
 // indexing, and the credit line adds ~10 more words after this check), so a
 // small margin is enough: 305.
 export const MIN_ENRICHED_WORDS = MIN_INDEXED_WORDS + 5;
+// A result under that bar is still published (it stays noindex, so it cannot affect the
+// indexed-content picture) when it is a real step up: at least this many words and at
+// least 1.5x the original. It has its own daily limit and does not use up the main one.
+export const MIN_SHORT_ENRICHED_WORDS = 200;
+export const SHORT_ENRICH_GROWTH = 1.5;
+export const MAX_SHORT_ENRICH_PER_DAY = 20;
+
+// Whether a result under the indexing bar is worth publishing anyway (pure, unit-tested).
+export function acceptShortEnrichment(words: number, originalWords: number): boolean {
+  return words >= MIN_SHORT_ENRICHED_WORDS && words < MIN_ENRICHED_WORDS && words >= originalWords * SHORT_ENRICH_GROWTH;
+}
 // How long attempts are remembered (stories older than a day aren't
 // candidates anyway).
 export const LOG_KEEP_MS = 3 * 24 * 60 * 60 * 1000;
@@ -31,15 +42,16 @@ function positiveInt(raw: string | undefined, fallback: number): number {
   const n = Number(raw?.trim());
   return raw && Number.isFinite(n) && n >= 1 ? Math.floor(n) : fallback;
 }
-export function enrichLimitsFrom(env: Record<string, string | undefined>): { perRun: number; perDay: number; researchPerRun: number } {
+export function enrichLimitsFrom(env: Record<string, string | undefined>): { perRun: number; perDay: number; researchPerRun: number; perDayShort: number } {
   return {
     perRun: positiveInt(env.ENRICH_MAX_PER_RUN, MAX_ENRICH_PER_RUN),
     perDay: positiveInt(env.ENRICH_MAX_PER_DAY, MAX_ENRICH_PER_DAY),
     researchPerRun: positiveInt(env.ENRICH_MAX_RESEARCH_PER_RUN, MAX_ENRICH_RESEARCH_PER_RUN),
+    perDayShort: positiveInt(env.ENRICH_SHORT_MAX_PER_DAY, MAX_SHORT_ENRICH_PER_DAY),
   };
 }
 
-export type EnrichResult = "enriched" | "few-facts" | "too-short" | "failed";
+export type EnrichResult = "enriched" | "enriched-short" | "few-facts" | "too-short" | "failed";
 // detail: why this result, kept so the thresholds can be tuned from real runs
 // (facts found, outlets read, words written, figures not in the facts...).
 export interface EnrichLogEntry { id: string; at: string; result: EnrichResult; detail?: Record<string, number | string> }
@@ -130,6 +142,10 @@ export function pruneLog(log: EnrichLogEntry[], now: Date): EnrichLogEntry[] {
 
 export function enrichedToday(log: EnrichLogEntry[], now: Date): number {
   return log.filter((e) => e.result === "enriched" && now.getTime() - Date.parse(e.at) < 24 * 60 * 60 * 1000).length;
+}
+
+export function enrichedShortToday(log: EnrichLogEntry[], now: Date): number {
+  return log.filter((e) => e.result === "enriched-short" && now.getTime() - Date.parse(e.at) < 24 * 60 * 60 * 1000).length;
 }
 
 // The writing prompt (pure, unit-tested).
