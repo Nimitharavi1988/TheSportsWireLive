@@ -74,7 +74,7 @@ export function ForYouStrip() {
       <Typography sx={{ flex: 1, fontSize: 14 }}>
         {t.stripBefore}<b>{t.stripBold}</b>{t.stripAfter}
       </Typography>
-      <Button component={Link} href="/for-you" size="small" variant="contained" disableElevation sx={{ borderRadius: 5, textTransform: "none", fontWeight: 600, flexShrink: 0 }}>
+      <Button component={Link} href="/for-you" size="small" variant="outlined" sx={{ borderRadius: 5, textTransform: "none", fontWeight: 600, flexShrink: 0 }}>
         {t.getStarted}
       </Button>
       <IconButton
