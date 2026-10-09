@@ -18,7 +18,7 @@ import { breakingSlotFor, findBreaking } from "./breakingNews";
 import { postArticleToFacebook } from "./facebook";
 import { postArticleToInstagram } from "./instagram";
 import { editionConditions } from "../i18n/overlay";
-import { TOPIC_DESTINATIONS, destinationRunCap, effectiveDestination, localDayStart, prioritise, type FacebookDestination } from "./facebookDestinations";
+import { TOPIC_DESTINATIONS, destinationRunCap, localDayStart, prioritise, type FacebookDestination } from "./facebookDestinations";
 
 const POOL_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 const SIMILARITY_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -33,7 +33,7 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
   }
   const dayStart = localDayStart(now, d.activeHours.timeZone);
   const [{ value: postedToday }] = await db.select({ value: count() }).from(socialPost)
-    .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, d.key), gte(socialPost.createdAt, dayStart)));
+    .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, d.key), inArray(socialPost.status, ["posted", "queued"]), gte(socialPost.createdAt, dayStart)));
   const runCap = destinationRunCap(d, postedToday, now);
   // Breaking news can go past the pacing and the daily cap, by up to `breaking.allowance` a day.
   let breakingRoom = d.breaking ? Math.max(0, d.dailyCap + d.breaking.allowance - postedToday) : 0;

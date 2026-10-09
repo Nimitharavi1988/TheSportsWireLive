@@ -316,7 +316,7 @@ export async function verifyCommentaryHasSubstance(title: string, commentary: st
 // can never be attached to an article it doesn't actually apply to. One
 // call produces both platform captions together (cheaper than two calls,
 // and keeps the two versions consistent with the same underlying facts).
-function buildSocialCaptionsPrompt(title: string, body: string, language?: string, facebookStyle?: "question" | "hook"): string {
+export function buildSocialCaptionsPrompt(title: string, body: string, language?: string, facebookStyle?: "question" | "hook"): string {
   // "question": a photo post whose link goes in the first comment (see
   // postArticleToFacebook) — the caption invites a reply instead of asking for a click.
   // "hook": a link post whose first sentence must work on its own — Facebook cuts the

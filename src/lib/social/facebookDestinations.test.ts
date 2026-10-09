@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SPANISH_PAGE, FOOTBALL_PAGE, US_SPORTS_PAGE, FIGHT_PAGE, TOPIC_INSTAGRAM_KEYS, spanishPageEnabled, INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, TOPIC_DESTINATIONS, effectiveDestination, prioritise, destinationRunCap, isCricketOrAsianGames, isIndiaCricket, localDayStart } from "./facebookDestinations";
+import { SPANISH_PAGE, FOOTBALL_PAGE, US_SPORTS_PAGE, FIGHT_PAGE, TOPIC_INSTAGRAM_KEYS, spanishPageEnabled, INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, TOPIC_DESTINATIONS, prioritise, destinationRunCap, isCricketOrAsianGames, isIndiaCricket, localDayStart } from "./facebookDestinations";
 
 const story = (over: Partial<Parameters<typeof isIndiaCricket>[0]>) => ({
   category: "cricket", title: "", homeTeam: null, awayTeam: null, seriesLabel: null, leagueLabel: null, venue: null, ...over,
@@ -51,7 +51,7 @@ describe("destinationRunCap (India cricket Page: 30/day over 7:00-23:00 IST)", (
   });
 
   it("can be daytime-only (reels): nothing overnight, spread over the day", () => {
-    const reels = { ...INDIA_CRICKET_PAGE.reels!, activeHours: INDIA_CRICKET_PAGE.activeHours, overnight: false };
+    const reels = { dailyCap: 4, perRunCap: 1, activeHours: INDIA_CRICKET_PAGE.activeHours, overnight: false };
     expect(destinationRunCap(reels, 0, new Date("2026-09-26T20:30:00Z"))).toBe(0); // 02:00 IST
     expect(destinationRunCap(reels, 0, evening)).toBe(1);
     expect(destinationRunCap(reels, 4, evening)).toBe(0);
@@ -106,21 +106,6 @@ describe("Sportswirecricketlive test Page", () => {
     expect(CRICKETLIVE_PAGE.style).toBe("photo-question");
     expect(INDIA_CRICKET_PAGE.dailyCap).toBe(30);
     expect(INDIA_CRICKET_PAGE.style).toBeUndefined();
-  });
-});
-
-describe("effectiveDestination (first-day boost)", () => {
-  it("applies the boost limits until its end, then the normal limits", () => {
-    const during = effectiveDestination(CRICKETLIVE_PAGE, new Date("2026-10-04T06:00:00Z"));
-    expect(during.dailyCap).toBe(30);
-    expect(during.reels).toEqual({ dailyCap: 30, perRunCap: 1 });
-    const after = effectiveDestination(CRICKETLIVE_PAGE, new Date("2026-10-04T18:30:00Z"));
-    expect(after.dailyCap).toBe(10);
-    expect(after.reels).toMatchObject({ dailyCap: 10, perRunCap: 1 });
-  });
-
-  it("leaves Pages without a boost unchanged", () => {
-    expect(effectiveDestination(INDIA_CRICKET_PAGE, new Date("2026-10-04T06:00:00Z"))).toBe(INDIA_CRICKET_PAGE);
   });
 });
 
@@ -208,7 +193,7 @@ describe("Football Page focus (Messi, 7 Oct)", () => {
 describe("hook-first caption test", () => {
   it("runs on Greenfield only, never on the photo-question Page", () => {
     expect(INDIA_CRICKET_PAGE.captionTest).toBe(true);
-    expect(CRICKETLIVE_PAGE.captionTest).toBe(false);
+    expect(CRICKETLIVE_PAGE.captionTest).toBeUndefined();
     expect(SPANISH_PAGE.captionTest).toBeUndefined();
   });
 });
@@ -216,7 +201,7 @@ describe("hook-first caption test", () => {
 describe("reel caption test", () => {
   it("runs on Greenfield's reels only", () => {
     expect(INDIA_CRICKET_PAGE.reelCaptionTest).toBe(true);
-    expect(CRICKETLIVE_PAGE.reelCaptionTest).toBe(false);
+    expect(CRICKETLIVE_PAGE.reelCaptionTest).toBeUndefined();
     expect(SPANISH_PAGE.reelCaptionTest).toBeUndefined();
   });
 

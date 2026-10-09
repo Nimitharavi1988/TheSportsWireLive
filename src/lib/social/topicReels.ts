@@ -11,7 +11,7 @@ import { isMatchDataSource } from "../matchDataSources";
 import { hasRealImage } from "../contentQuality";
 import { isPromotional } from "../thinContent";
 import { isSimilarToAny } from "../titleSimilarity";
-import { TOPIC_DESTINATIONS, destinationRunCap, effectiveDestination, localDayStart, prioritise } from "./facebookDestinations";
+import { TOPIC_DESTINATIONS, destinationRunCap, localDayStart, prioritise } from "./facebookDestinations";
 import { postReel } from "./postReel";
 import { breakingSlotFor, findBreaking } from "./breakingNews";
 import { dramaBoost } from "./drama";
@@ -28,8 +28,7 @@ const MAX_PHOTO_CHECKS = 15;
 const MAX_ATTEMPTS = 2;
 
 export async function postTopicReels(now: Date = new Date()): Promise<void> {
-  for (const destination of TOPIC_DESTINATIONS) {
-    const d = effectiveDestination(destination, now);
+  for (const d of TOPIC_DESTINATIONS) {
     if (!d.reels || !process.env[d.tokenEnv]) continue;
     try {
       const key = `${d.key}-reel`;

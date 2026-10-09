@@ -62,9 +62,6 @@ export interface FacebookDestination {
   // reels, and those reels skip the minimum score and the reel hours. `slot` splits breaking
   // stories between Pages that share them (each takes its own half, by story id).
   breaking?: { allowance: number; reelAllowance: number; slot: 0 | 1; minOutlets?: number };
-  // Higher limits until a date (a Page's first day), after which the normal
-  // limits above apply again by themselves — see effectiveDestination.
-  boost?: { until: Date; dailyCap: number; reels?: { dailyCap: number; perRunCap: number } };
   // Automatic Reels for this Page (topicReels.ts): own daily limit, daytime only.
   // minTrending: skip stories scoring below this (Article.trendingScore) — the bottom of
   // the queue made weak reels (Greenfield's average score was 38 vs 55 on the main Page).
@@ -121,16 +118,6 @@ export function isCricketOrAsianGames(a: DestinationCandidate): boolean {
   return a.category.startsWith("cricket") || [a.title, a.seriesLabel].some((t) => t && ASIAN_GAMES.test(t));
 }
 
-// India v West Indies ODI series (2nd ODI 30 Sep 2026 IST): its stories go to
-// the front of the India cricket Page's queue until the series is over.
-const INDIA_WI_TERMS = /\b(west indies|windies|indvwi|ind vs wi|india vs wi)\b/i;
-const INDIA_WI_UNTIL = new Date("2026-10-03T00:00:00Z");
-
-export function isIndiaWestIndies(a: DestinationCandidate, now: Date): boolean {
-  if (now >= INDIA_WI_UNTIL) return false;
-  return isIndiaCricket(a) && [a.title, a.seriesLabel, a.homeTeam, a.awayTeam].some((t) => t && INDIA_WI_TERMS.test(t));
-}
-
 const FRESH_MS = 12 * 3600_000;
 const FIRST_HOUR_MS = 3600_000;
 
@@ -141,40 +128,44 @@ const FIRST_HOUR_MS = 3600_000;
 export function prioritise<T extends DestinationCandidate & { publishedAt: Date | null }>(pool: T[], now: Date, focus?: FacebookDestination["focus"]): T[] {
   const age = (a: T) => (a.publishedAt ? now.getTime() - a.publishedAt.getTime() : Infinity);
   const focused = (a: T) => Boolean(focus && now < focus.until && focus.terms.test(a.title));
-  const tier = (a: T) => (isIndiaWestIndies(a, now) || focused(a) ? 0 : age(a) >= 0 && age(a) < FIRST_HOUR_MS ? 1 : age(a) < FRESH_MS ? 2 : 3);
+  const tier = (a: T) => (focused(a) ? 0 : age(a) >= 0 && age(a) < FIRST_HOUR_MS ? 1 : age(a) < FRESH_MS ? 2 : 3);
   return pool.map((a, i) => ({ a, i, t: tier(a) })).sort((x, y) => x.t - y.t || x.i - y.i).map((x) => x.a);
 }
 
+// What the two cricket Pages share. Each Page below lists its own settings in full, so a
+// setting added to one never reaches the other by copying.
+const CRICKET_BASE = {
+  activeHours: { timeZone: "Asia/Kolkata", start: 7, end: 23 },
+  sport: "cricket",
+  alsoTitleLike: ["asian games"],
+  // News only: nothing older than a day.
+  maxAgeHours: 24,
+  matches: isCricketOrAsianGames,
+  // #INDvWI, the player, #TeamIndia — not the main Page's brand tag.
+  hashtags: (title: string) => selectIndiaCricketHashtags(title),
+} satisfies Partial<FacebookDestination>;
+
 export const INDIA_CRICKET_PAGE: FacebookDestination = {
+  ...CRICKET_BASE,
   key: "india-cricket",
   label: "India cricket Page",
   pageId: "359420874511841",
   tokenEnv: "FACEBOOK_PAGE_2_ACCESS_TOKEN",
   dailyCap: 30,
   perRunCap: 3,
-  activeHours: { timeZone: "Asia/Kolkata", start: 7, end: 23 },
-  sport: "cricket",
-  alsoTitleLike: ["asian games"],
-  // News only: nothing older than a day (Sportswirecricketlive inherits this).
-  maxAgeHours: 24,
   captionTest: true,
   reelCaptionTest: true,
   breaking: { allowance: 4, reelAllowance: 2, slot: 0 },
   reels: { dailyCap: 24, perRunCap: 1, minTrending: 35 },
-  matches: isCricketOrAsianGames,
-  // #INDvWI, the player, #TeamIndia — not the main Page's brand tag.
-  hashtags: (title) => selectIndiaCricketHashtags(title),
 };
 
-// Sportswirecricketlive: the same stories, pacing, hashtags and reels as the
-// India cricket Page — same stories, hours and hashtags, under the main
-// Business umbrella — so it posts with the main FACEBOOK_PAGE_ACCESS_TOKEN
-// (exchanged for its own Page token). Its own key means its posting history is
-// separate: a story can go to both Pages. This is the TEST Page for the new
-// approach (2026-10): far fewer posts (10 a day, 4 reels) and the photo +
-// question + link-in-comment format; the India cricket Page stays the control.
+// Sportswirecricketlive: the test Page for the new approach (2026-10). It posts with the main
+// FACEBOOK_PAGE_ACCESS_TOKEN (exchanged for its own Page token) and has its own posting history.
+// Far fewer posts than Greenfield (10 a day, 10 reels), the photo + question + link-in-comment
+// format, its own stories (never one Greenfield took), and reels at midday IST only.
+// Greenfield stays the control.
 export const CRICKETLIVE_PAGE: FacebookDestination = {
-  ...INDIA_CRICKET_PAGE,
+  ...CRICKET_BASE,
   key: "cricketlive",
   label: "Sportswirecricketlive Page",
   pageId: "1389324964254541",
@@ -182,8 +173,6 @@ export const CRICKETLIVE_PAGE: FacebookDestination = {
   dailyCap: 10,
   perRunCap: 1,
   style: "photo-question",
-  captionTest: false,
-  reelCaptionTest: false,
   breaking: { allowance: 4, reelAllowance: 2, slot: 1 },
   // Own stories, not Greenfield's; reels at midday IST only (11:00-16:00) — its
   // reels got 72-179 plays at 12-15h IST against 1-48 early morning and evening.
@@ -192,8 +181,6 @@ export const CRICKETLIVE_PAGE: FacebookDestination = {
   // the weakest of them out of its reels. Supply swings with the news: 112 cricket stories
   // scored 30+ on 3 Oct, 3 on 5 Oct (a quiet day) — so 25, not 30, to keep a few a day.
   reels: { dailyCap: 10, perRunCap: 1, minTrending: 25, activeHours: { timeZone: "Asia/Kolkata", start: 11, end: 16 }, instagram: true },
-  // First day of posting (4 Oct IST): 30 posts and 30 reels, still one of each per run.
-  boost: { until: new Date("2026-10-04T18:30:00Z"), dailyCap: 30, reels: { dailyCap: 30, perRunCap: 1 } },
   instagramId: "17841422405517404", // @sportswirecricketlive
   instagramHandle: "sportswirecricketlive",
 };
@@ -293,13 +280,6 @@ export const SPANISH_PAGE: FacebookDestination = {
 };
 
 export const TOPIC_DESTINATIONS: FacebookDestination[] = [INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, FOOTBALL_PAGE, US_SPORTS_PAGE, FIGHT_PAGE, ...(spanishPageEnabled() ? [SPANISH_PAGE] : [])];
-
-// The destination with its boost limits applied while the boost is active
-// (otherwise unchanged).
-export function effectiveDestination(d: FacebookDestination, now: Date): FacebookDestination {
-  if (!d.boost || now >= d.boost.until) return d;
-  return { ...d, dailyCap: d.boost.dailyCap, reels: d.boost.reels ?? d.reels };
-}
 
 // The hour (fractional) in a time zone, e.g. 13.5 for 1:30 PM.
 function localHour(now: Date, timeZone: string): number {
