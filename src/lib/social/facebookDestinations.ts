@@ -151,7 +151,7 @@ export const INDIA_CRICKET_PAGE: FacebookDestination = {
   label: "India cricket Page",
   pageId: "359420874511841",
   tokenEnv: "FACEBOOK_PAGE_2_ACCESS_TOKEN",
-  dailyCap: 30,
+  dailyCap: 50,
   perRunCap: 3,
   captionTest: true,
   reelCaptionTest: true,
@@ -170,8 +170,8 @@ export const CRICKETLIVE_PAGE: FacebookDestination = {
   label: "Sportswirecricketlive Page",
   pageId: "1389324964254541",
   tokenEnv: "FACEBOOK_PAGE_ACCESS_TOKEN",
-  dailyCap: 10,
-  perRunCap: 1,
+  dailyCap: 25,
+  perRunCap: 2,
   style: "photo-question",
   breaking: { allowance: 4, reelAllowance: 2, slot: 1 },
   // Own stories, not Greenfield's; reels at midday IST only (11:00-16:00) — its
@@ -205,7 +205,7 @@ export const FOOTBALL_PAGE: FacebookDestination = {
   instagramHandle: "sportswirefootballlive",
   // Reels (2026-10-08): 8 a day on Facebook and Instagram, strongest stories only.
   reels: { dailyCap: 8, perRunCap: 1, minTrending: 30, instagram: true },
-  dailyCap: 20,
+  dailyCap: 25,
   perRunCap: 2,
   // UK/Europe evening is the peak; still awake for the Americas' afternoon.
   activeHours: { timeZone: "Europe/London", start: 7, end: 23 },
@@ -223,8 +223,8 @@ export const US_SPORTS_PAGE: FacebookDestination = {
   instagramId: "17841424699143294", // @sportswireuslive
   instagramHandle: "sportswireuslive",
   reels: { dailyCap: 10, perRunCap: 1, minTrending: 30, instagram: true },
-  dailyCap: 24,
-  perRunCap: 2,
+  dailyCap: 100,
+  perRunCap: 3,
   activeHours: { timeZone: "America/New_York", start: 8, end: 24 },
   sport: "american-football",
   categories: ["american-football", "college-football", "basketball", "wnba", "baseball", "hockey"],
@@ -238,7 +238,7 @@ export const FIGHT_PAGE: FacebookDestination = {
   // No Instagram linked to this Page yet (checked 2026-10-08): reels on Facebook only.
   reels: { dailyCap: 4, perRunCap: 1, minTrending: 20 },
   // Fewer stories exist (about 30 MMA + boxing a day), so a smaller cap.
-  dailyCap: 8,
+  dailyCap: 14,
   perRunCap: 1,
   activeHours: { timeZone: "America/New_York", start: 10, end: 24 },
   sport: "mma",
@@ -264,7 +264,7 @@ export const SPANISH_PAGE: FacebookDestination = {
   label: "Spanish Page",
   pageId: process.env.FACEBOOK_PAGE_ES_ID || SPANISH_PAGE_ID,
   tokenEnv: process.env.FACEBOOK_PAGE_ES_ACCESS_TOKEN ? "FACEBOOK_PAGE_ES_ACCESS_TOKEN" : "FACEBOOK_PAGE_ACCESS_TOKEN",
-  dailyCap: 24,
+  dailyCap: 30,
   perRunCap: 2,
   activeHours: { timeZone: "America/Mexico_City", start: 8, end: 23 },
   sport: "football",

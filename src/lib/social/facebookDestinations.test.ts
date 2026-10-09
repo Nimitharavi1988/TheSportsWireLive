@@ -29,25 +29,26 @@ describe("isCricketOrAsianGames", () => {
   });
 });
 
-describe("destinationRunCap (India cricket Page: 30/day over 7:00-23:00 IST)", () => {
+describe("destinationRunCap (30/day over 7:00-23:00 IST — a fixed fixture, independent of the live limits)", () => {
+  const PAGE = { dailyCap: 30, perRunCap: 3, activeHours: INDIA_CRICKET_PAGE.activeHours };
   // 13:30 UTC = 19:00 IST: 12 of 16 active hours gone -> ~12 expected.
   const evening = new Date("2026-09-26T13:30:00Z");
 
   it("spreads the day's posts over the active hours", () => {
-    expect(destinationRunCap(INDIA_CRICKET_PAGE, 5, evening)).toBe(3);
-    expect(destinationRunCap(INDIA_CRICKET_PAGE, 28, evening)).toBe(2);
-    expect(destinationRunCap(INDIA_CRICKET_PAGE, 30, evening)).toBe(0);
+    expect(destinationRunCap(PAGE, 5, evening)).toBe(3);
+    expect(destinationRunCap(PAGE, 28, evening)).toBe(2);
+    expect(destinationRunCap(PAGE, 30, evening)).toBe(0);
   });
 
   it("posts nothing at night or once the day's limit is reached", () => {
-    expect(destinationRunCap(INDIA_CRICKET_PAGE, 0, new Date("2026-09-26T20:00:00Z"))).toBe(0); // 01:30 IST
-    expect(destinationRunCap(INDIA_CRICKET_PAGE, 30, new Date("2026-09-26T17:00:00Z"))).toBe(0);
+    expect(destinationRunCap(PAGE, 0, new Date("2026-09-26T20:00:00Z"))).toBe(0); // 01:30 IST
+    expect(destinationRunCap(PAGE, 30, new Date("2026-09-26T17:00:00Z"))).toBe(0);
   });
 
   it("keeps overnight low intensity: one post in the first run of every second hour", () => {
-    expect(destinationRunCap(INDIA_CRICKET_PAGE, 0, new Date("2026-09-26T20:30:00Z"))).toBe(1); // 02:00 IST
-    expect(destinationRunCap(INDIA_CRICKET_PAGE, 0, new Date("2026-09-26T21:30:00Z"))).toBe(0); // 03:00 IST
-    expect(destinationRunCap(INDIA_CRICKET_PAGE, 30, new Date("2026-09-26T20:30:00Z"))).toBe(0);
+    expect(destinationRunCap(PAGE, 0, new Date("2026-09-26T20:30:00Z"))).toBe(1); // 02:00 IST
+    expect(destinationRunCap(PAGE, 0, new Date("2026-09-26T21:30:00Z"))).toBe(0); // 03:00 IST
+    expect(destinationRunCap(PAGE, 30, new Date("2026-09-26T20:30:00Z"))).toBe(0);
   });
 
   it("can be daytime-only (reels): nothing overnight, spread over the day", () => {
@@ -100,11 +101,11 @@ describe("Sportswirecricketlive test Page", () => {
   });
 
   it("posts far less, as photo + question, and leaves the India cricket Page unchanged", () => {
-    expect(CRICKETLIVE_PAGE.dailyCap).toBe(10);
-    expect(CRICKETLIVE_PAGE.perRunCap).toBe(1);
+    expect(CRICKETLIVE_PAGE.dailyCap).toBe(25);
+    expect(CRICKETLIVE_PAGE.perRunCap).toBe(2);
     expect(CRICKETLIVE_PAGE.reels?.dailyCap).toBe(10);
     expect(CRICKETLIVE_PAGE.style).toBe("photo-question");
-    expect(INDIA_CRICKET_PAGE.dailyCap).toBe(30);
+    expect(INDIA_CRICKET_PAGE.dailyCap).toBe(50);
     expect(INDIA_CRICKET_PAGE.style).toBeUndefined();
   });
 });
@@ -219,7 +220,21 @@ describe("breaking news lanes", () => {
   });
 
   it("leaves the normal limits as they were", () => {
-    expect(INDIA_CRICKET_PAGE.dailyCap).toBe(30);
+    expect(INDIA_CRICKET_PAGE.dailyCap).toBe(50);
     expect(INDIA_CRICKET_PAGE.reels?.dailyCap).toBe(24);
+  });
+});
+
+describe("link-post limits (set against how many stories each sport produces a day)", () => {
+  it("each Page's daily limit and per-run limit", () => {
+    const limits = Object.fromEntries(TOPIC_DESTINATIONS.concat(spanishPageEnabled() ? [] : [SPANISH_PAGE]).map((d) => [d.key, [d.dailyCap, d.perRunCap]]));
+    expect(limits).toMatchObject({
+      "india-cricket": [50, 3],
+      cricketlive: [25, 2],
+      football: [25, 2],
+      "us-sports": [100, 3],
+      fight: [14, 1],
+      es: [30, 2],
+    });
   });
 });
