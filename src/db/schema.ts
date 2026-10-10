@@ -17,7 +17,7 @@ export const articleStatusEnum = pgEnum("ArticleStatus", [
 // table/enum rather than a bespoke Article column so idempotency (has this
 // article already been pushed) and the daily cap both use the exact same
 // query shape already established here for Facebook/Instagram.
-export const socialPlatformEnum = pgEnum("SocialPlatform", ["facebook", "x", "instagram", "push"]);
+export const socialPlatformEnum = pgEnum("SocialPlatform", ["facebook", "x", "instagram", "push", "youtube"]);
 export const socialPostStatusEnum = pgEnum("SocialPostStatus", ["queued", "posted", "failed"]);
 export const reactionTypeEnum = pgEnum("ReactionType", ["hype", "panic", "neutral"]);
 

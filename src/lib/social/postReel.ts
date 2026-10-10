@@ -15,6 +15,7 @@ import { resolvePageAccessToken, translationFor } from "./facebook";
 import { LOCALES } from "@/lib/i18n/locales";
 import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepertoire";
 import { reelTagsFor } from "./reelTags";
+import { youtubeConfigured, uploadShort, shortsTitle, shortsDescription } from "./youtube";
 
 // Posts a story as a Reel to Instagram and the main Facebook Page. Runs in
 // the post-reel GitHub Actions job only (renderReel needs plain Node).
@@ -81,7 +82,7 @@ async function commentOnReel(objectId: string, message: string, accessToken: str
   }
 }
 
-async function recordAttempt(article: ArticleWithVertical, platform: "instagram" | "facebook", run: () => Promise<string>, destination = DESTINATION): Promise<boolean> {
+async function recordAttempt(article: ArticleWithVertical, platform: "instagram" | "facebook" | "youtube", run: () => Promise<string>, destination = DESTINATION): Promise<boolean> {
   const [row] = await db.insert(socialPostTable)
     .values({ id: createId(), articleId: article.id, platform, destination, status: "queued" })
     .returning();
@@ -223,6 +224,19 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
   }, topicPage ? `${topicPage.key}-reel` : DESTINATION);
 }
 
+// Main channel only (English): the same MP4 as a YouTube Short. Off unless
+// YOUTUBE_SHORTS_ENABLED=1 (youtube.ts); recorded as platform "youtube", destination "reel".
+async function postReelToYouTube(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null, articleUrl: string): Promise<boolean> {
+  const hashtags = selectFacebookHashtags(article.title, article.category);
+  const title = shortsTitle(article.title);
+  const description = shortsDescription(captions?.facebook ?? article.title, articleUrl, hashtags);
+  const tags = hashtags.map((h) => h.replace(/^#/, ""));
+  return recordAttempt(article, "youtube", async () => {
+    console.log("[youtube short] Uploading video...");
+    return uploadShort(mp4, title, description, tags);
+  });
+}
+
 // Renders one reel for a story and posts it to whichever of Instagram /
 // Facebook are requested and don't already have a reel of this story.
 // `music` is a style name, or undefined for the story's own pick;
@@ -230,9 +244,9 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
 // brand green / Poppins.
 export async function postReel(
   articleId: string,
-  opts: { instagram: boolean; facebook: boolean; topicPage?: FacebookDestination; music?: ReelMusicStyle; theme?: ReelTheme; font?: ReelFont }
-): Promise<{ instagramPosted: boolean; facebookPosted: boolean }> {
-  const none = { instagramPosted: false, facebookPosted: false };
+  opts: { instagram: boolean; facebook: boolean; youtube?: boolean; topicPage?: FacebookDestination; music?: ReelMusicStyle; theme?: ReelTheme; font?: ReelFont }
+): Promise<{ instagramPosted: boolean; facebookPosted: boolean; youtubePosted: boolean }> {
+  const none = { instagramPosted: false, facebookPosted: false, youtubePosted: false };
   const [row] = await db.select({ article: articleTable, vertical: verticalTable })
     .from(articleTable)
     .innerJoin(verticalTable, eq(articleTable.verticalId, verticalTable.id))
@@ -267,7 +281,10 @@ export async function postReel(
       needFacebook: opts.facebook && !existing.some((p) => p.platform === "facebook" && p.destination === ownKey),
     }
     : reelNeeds(existing, { instagram: opts.instagram, facebook: opts.facebook, topicKey: opts.topicPage?.key });
-  if (!needInstagram && !needFacebook) {
+  // YouTube: the main (English) channel only, once per story.
+  const needYouTube = Boolean(opts.youtube) && !opts.topicPage && !locale && youtubeConfigured()
+    && !existing.some((p) => p.platform === "youtube" && p.destination === DESTINATION);
+  if (!needInstagram && !needFacebook && !needYouTube) {
     console.log(`[reel] skipped ${articleId}: already has a reel on the requested platform(s)`);
     return none;
   }
@@ -298,5 +315,6 @@ export async function postReel(
   const articleUrl = socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "facebook", reelVariant, opts.topicPage?.key);
   const instagramPosted = needInstagram ? await postReelToInstagram(article, mp4, captions, opts.topicPage) : false;
   const facebookPosted = needFacebook ? await postReelToFacebook(article, mp4, captions, articleUrl, opts.topicPage) : false;
-  return { instagramPosted, facebookPosted };
+  const youtubePosted = needYouTube ? await postReelToYouTube(article, mp4, captions, articleUrl) : false;
+  return { instagramPosted, facebookPosted, youtubePosted };
 }

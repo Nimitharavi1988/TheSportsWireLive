@@ -95,7 +95,7 @@ export interface QueueArticle {
   // has to admit them or every query pulling raw socialPosts rows fails to
   // typecheck.
   // destination "reel" rows are Reels (ReelButton); the other buttons skip them.
-  socialPosts: { platform: "facebook" | "x" | "instagram" | "push"; destination: string; status: "queued" | "posted" | "failed"; errorMessage: string | null; externalPostId: string | null }[];
+  socialPosts: { platform: "facebook" | "x" | "instagram" | "push" | "youtube"; destination: string; status: "queued" | "posted" | "failed"; errorMessage: string | null; externalPostId: string | null }[];
 }
 
 const SOCIAL_LABEL: Record<"facebook" | "instagram", string> = { facebook: "Facebook", instagram: "Instagram" };

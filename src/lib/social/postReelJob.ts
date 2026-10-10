@@ -32,12 +32,13 @@ async function main() {
   const topicPage = topicKey ? TOPIC_DESTINATIONS.find((d) => d.key === topicKey) : undefined;
   if (topicKey && !topicPage) throw new Error(`Unknown TOPIC_PAGE "${topicKey}"`);
 
-  const { instagramPosted, facebookPosted } = await postReel(articleId, topicPage
+  const { instagramPosted, facebookPosted, youtubePosted } = await postReel(articleId, topicPage
     ? { instagram: false, facebook: true, topicPage, music, theme, font }
-    : { instagram: true, facebook: true, music, theme, font });
+    : { instagram: true, facebook: true, youtube: true, music, theme, font });
   console.log(`Instagram: ${instagramPosted ? "posted" : "not posted"}. Facebook: ${facebookPosted ? "posted" : "not posted"}.`);
   // Fail the run when nothing went out, so it shows red in Actions.
-  if (!instagramPosted && !facebookPosted) process.exit(1);
+  if (youtubePosted) console.log("YouTube: posted.");
+  if (!instagramPosted && !facebookPosted && !youtubePosted) process.exit(1);
 }
 
 main()

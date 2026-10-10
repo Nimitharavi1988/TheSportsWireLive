@@ -632,7 +632,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     try {
       let posted = false;
       try {
-        const reel = await timed("postReel (render+Gemini+API)", () => postReel(article.id, { instagram: true, facebook: facebookReelsRemaining > 0 }));
+        const reel = await timed("postReel (render+Gemini+API)", () => postReel(article.id, { instagram: true, facebook: facebookReelsRemaining > 0, youtube: true }));
         posted = reel.instagramPosted;
         if (reel.facebookPosted) facebookReelsRemaining--;
       } catch (reelErr) {
