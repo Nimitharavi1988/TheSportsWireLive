@@ -5,6 +5,8 @@
 // Note: until the Google project passes YouTube's API audit, uploads made
 // through the API are locked to private.
 
+// The free API quota is 10,000 units a day and an upload costs ~1,600.
+export const MAX_SHORTS_PER_DAY = 6;
 const TITLE_MAX = 100;
 const SHORTS_TAG = " #Shorts";
 
