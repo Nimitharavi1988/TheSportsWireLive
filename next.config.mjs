@@ -46,6 +46,19 @@ const nextConfig = {
     deviceSizes: [640, 828, 1080, 1920],
     imageSizes: [32, 48, 64, 96, 128, 256, 384],
   },
+  // Moving the pages into the (en) route group (2026-10) changed their generated Open Graph
+  // image address from /x/<slug>/opengraph-image to /x/<slug>/opengraph-image-<suffix>, where
+  // the suffix is Next's hash of the route ("/(en)/club/[slug]" -> 1pdc02, from
+  // djb2Hash(parent path).toString(36).slice(0, 6)). Google had indexed the old address and now
+  // gets a 404, so the old ones are redirected to the new. The suffix depends only on the
+  // route's path, so it does not change between builds.
+  async redirects() {
+    return [
+      { source: "/club/:slug/opengraph-image", destination: "/club/:slug/opengraph-image-1pdc02", permanent: true },
+      { source: "/player/:slug/opengraph-image", destination: "/player/:slug/opengraph-image-4b061i", permanent: true },
+      { source: "/article/:slug/opengraph-image", destination: "/article/:slug/opengraph-image-m91vm5", permanent: true },
+    ];
+  },
 };
 
 initOpenNextCloudflareForDev();
