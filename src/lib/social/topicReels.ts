@@ -93,7 +93,7 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
       // Stories about a match starting soon or just played come first (social/matchDay.ts).
       const rankScore = (a: { title: string; trendingScore: number | null }) => ((a.trendingScore ?? 0) + dramaBoost(a.title)) * matchDayMultiplier(a.title, matchDayFixtures, now);
       const ranked = [...pool].sort((a, b) => rankScore(b) - rankScore(a));
-      for (const a of prioritise(ranked, now)) {
+      for (const a of prioritise(ranked, now, d.focus)) {
         const normalDone = normalPosted >= runCap;
         const breakingDone = breakingRoom <= 0 || breakingPosted >= 1;
         if ((normalDone && breakingDone) || attempts >= MAX_ATTEMPTS || checked >= MAX_PHOTO_CHECKS) break;

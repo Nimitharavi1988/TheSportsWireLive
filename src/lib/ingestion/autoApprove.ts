@@ -401,8 +401,9 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   function socialSelectionScore(a: SocialCandidate): number {
     // Newer stories first (social/freshness.ts): the stored score has no time
     // component, so without this a 20-hour-old story kept beating this hour's.
-    // A story about a match starting soon or just played ranks higher (social/matchDay.ts).
-    const fresh = freshnessMultiplier(a.publishedAt, now) * matchDayMultiplier(a.title, matchDayFixtures, now);
+    // A story about a match starting soon or just played ranks higher (social/matchDay.ts); a Messi or
+    // Ronaldo story keeps its freshness (social/freshness.ts).
+    const fresh = freshnessMultiplier(a.publishedAt, now, a.title) * matchDayMultiplier(a.title, matchDayFixtures, now);
     if (a.category === "american-football" && isInternationalAudienceWindow(now)) {
       return a.trendingScore * AMERICAN_FOOTBALL_INTERNATIONAL_WINDOW_MULTIPLIER * fresh;
     }

@@ -11,6 +11,7 @@
  */
 import { selectIndiaCricketHashtags, selectSpanishHashtags } from "./hashtagRepertoire";
 import { LOCALES } from "../i18n/locales";
+import { STAR_TERMS } from "./freshness";
 
 export interface FacebookDestination {
   key: string;
@@ -193,8 +194,6 @@ export const CRICKETLIVE_PAGE: FacebookDestination = {
 // Plain link posts, no reels yet. Ids checked live against the token.
 const SPORT_PAGE_DEFAULTS = { tokenEnv: "FACEBOOK_PAGE_ACCESS_TOKEN", maxAgeHours: 24, matches: () => true } as const;
 
-// "Messi" as a whole word (not "Messina").
-const MESSI = /(^|[^a-z])messi([^a-z]|$)/i;
 
 export const FOOTBALL_PAGE: FacebookDestination = {
   ...SPORT_PAGE_DEFAULTS,
@@ -210,9 +209,9 @@ export const FOOTBALL_PAGE: FacebookDestination = {
   // UK/Europe evening is the peak; still awake for the Americas' afternoon.
   activeHours: { timeZone: "Europe/London", start: 7, end: 23 },
   sport: "football",
-  // Messi's farewell (Argentina, 6-7 Oct 2026): his stories lead the queue for the
-  // rest of 7 Oct, UK time (the Page's day ends 23:00 London = 22:00 UTC).
-  focus: { terms: MESSI, until: new Date("2026-10-07T22:00:00Z") },
+  // Messi and Ronaldo stories lead the queue (Messi's farewell, 6-7 Oct 2026, was the first such push;
+  // from 11 Oct both players, with no end date) for the Page's posts and its reels.
+  focus: { terms: STAR_TERMS, until: new Date("2030-01-01T00:00:00Z") },
 };
 
 export const US_SPORTS_PAGE: FacebookDestination = {

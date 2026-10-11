@@ -1,7 +1,7 @@
 import { categoryEmoji } from "@/lib/categoryDisplay";
 import { socialArticleUrl } from "./trackedLink";
 import { captionVariantFor } from "./captionVariant";
-import { reelIsFresh, reelMaxAgeHours } from "./freshness";
+import { reelIsFresh, reelMaxAgeHours, isStarStory } from "./freshness";
 import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
 import { and, count, eq, gte, inArray, max, ne } from "drizzle-orm";
@@ -270,7 +270,8 @@ export async function postReel(
   }
   // Fresh news only (freshness.ts): no reel of an old story, whoever asks for it.
   const maxAge = reelMaxAgeHours(process.env, opts.topicPage?.key);
-  if (!reelIsFresh(article.publishedAt, article.createdAt, new Date(), maxAge)) {
+  // Messi and Ronaldo stories are exempt: they stay worth a reel as they age (freshness.ts).
+  if (!isStarStory(article.title) && !reelIsFresh(article.publishedAt, article.createdAt, new Date(), maxAge)) {
     console.log(`[reel] skipped ${articleId}: published more than ${maxAge} hours ago (set REEL_MAX_AGE_HOURS to change)`);
     return none;
   }

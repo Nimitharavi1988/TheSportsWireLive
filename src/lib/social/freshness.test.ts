@@ -50,3 +50,29 @@ describe("per-Page reel age limits", () => {
     expect(reelMaxAgeHours({ REEL_MAX_AGE_HOURS: "3" }, "football")).toBe(3); // the variable wins everywhere
   });
 });
+
+describe("star stories keep their freshness", () => {
+  it("a Messi or Ronaldo story is ranked as at most an hour old", () => {
+    expect(freshnessMultiplier(hoursAgo(20), now, "Messi scores again")).toBeCloseTo(freshnessMultiplier(hoursAgo(1), now), 5);
+    expect(freshnessMultiplier(hoursAgo(20), now, "Cristiano Ronaldo signs")).toBeGreaterThan(0.85);
+  });
+  it("other stories, and Messina or Ronaldinho, decay as usual", () => {
+    expect(freshnessMultiplier(hoursAgo(20), now, "Messina sign a striker")).toBeLessThan(0.15);
+    expect(freshnessMultiplier(hoursAgo(20), now, "Ronaldinho tribute")).toBeLessThan(0.15);
+    expect(freshnessMultiplier(hoursAgo(20), now)).toBeLessThan(0.15);
+  });
+  it("a brand-new story is unaffected", () => {
+    expect(freshnessMultiplier(now, now, "Messi scores again")).toBe(1);
+  });
+});
+
+describe("star stories and the reel age limit", () => {
+  it("isStarStory matches Messi, Ronaldo and Cristiano as whole words only", async () => {
+    const { isStarStory } = await import("./freshness");
+    expect(isStarStory("Messi scores again")).toBe(true);
+    expect(isStarStory("Cristiano Ronaldo hits 950 goals")).toBe(true);
+    expect(isStarStory("Messina sign a striker")).toBe(false);
+    expect(isStarStory("Ronaldinho tribute match")).toBe(false);
+    expect(isStarStory(null)).toBe(false);
+  });
+});
