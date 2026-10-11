@@ -22,3 +22,19 @@ describe("freshnessMultiplier", () => {
     expect(freshnessMultiplier(new Date("nope"), now)).toBe(1);
   });
 });
+
+describe("reelIsFresh", () => {
+  const now = new Date("2026-10-11T12:00:00Z");
+  const hoursAgo = (h: number) => new Date(now.getTime() - h * 3_600_000);
+  it("allows a story from the last day and refuses an older one", async () => {
+    const { reelIsFresh, reelMaxAgeHours } = await import("./freshness");
+    expect(reelIsFresh(hoursAgo(1), null, now, 24)).toBe(true);
+    expect(reelIsFresh(hoursAgo(23), null, now, 24)).toBe(true);
+    expect(reelIsFresh(hoursAgo(30), null, now, 24)).toBe(false);
+    expect(reelIsFresh(null, hoursAgo(120), now, 24)).toBe(false); // falls back to created
+    expect(reelIsFresh(hoursAgo(500), null, now, 0)).toBe(true); // 0 = rule off
+    expect(reelMaxAgeHours({})).toBe(24);
+    expect(reelMaxAgeHours({ REEL_MAX_AGE_HOURS: "6" })).toBe(6);
+    expect(reelMaxAgeHours({ REEL_MAX_AGE_HOURS: "x" })).toBe(24);
+  });
+});

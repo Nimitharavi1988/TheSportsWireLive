@@ -1,6 +1,7 @@
 import { categoryEmoji } from "@/lib/categoryDisplay";
 import { socialArticleUrl } from "./trackedLink";
 import { captionVariantFor } from "./captionVariant";
+import { reelIsFresh, reelMaxAgeHours } from "./freshness";
 import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
 import { and, count, eq, gte, inArray, max, ne } from "drizzle-orm";
@@ -265,6 +266,11 @@ export async function postReel(
   const article: ArticleWithVertical = { ...row.article, vertical: row.vertical };
   if (!article.heroImageUrl || !article.body) {
     console.log(`[reel] skipped ${articleId}: no photo or no body`);
+    return none;
+  }
+  // Fresh news only (freshness.ts): no reel of an old story, whoever asks for it.
+  if (!reelIsFresh(article.publishedAt, article.createdAt, new Date())) {
+    console.log(`[reel] skipped ${articleId}: published more than ${reelMaxAgeHours()} hours ago (set REEL_MAX_AGE_HOURS to change)`);
     return none;
   }
 
