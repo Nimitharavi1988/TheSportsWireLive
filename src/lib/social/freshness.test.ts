@@ -38,3 +38,15 @@ describe("reelIsFresh", () => {
     expect(reelMaxAgeHours({ REEL_MAX_AGE_HOURS: "x" })).toBe(6);
   });
 });
+
+describe("per-Page reel age limits", () => {
+  it("gives Football, Spanish and Fight 12 hours and everything else 6", async () => {
+    const { reelMaxAgeHours } = await import("./freshness");
+    expect(reelMaxAgeHours({}, "football")).toBe(12);
+    expect(reelMaxAgeHours({}, "es")).toBe(12);
+    expect(reelMaxAgeHours({}, "fight")).toBe(12);
+    expect(reelMaxAgeHours({}, "india-cricket")).toBe(6);
+    expect(reelMaxAgeHours({})).toBe(6);
+    expect(reelMaxAgeHours({ REEL_MAX_AGE_HOURS: "3" }, "football")).toBe(3); // the variable wins everywhere
+  });
+});

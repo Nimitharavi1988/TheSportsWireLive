@@ -269,8 +269,9 @@ export async function postReel(
     return none;
   }
   // Fresh news only (freshness.ts): no reel of an old story, whoever asks for it.
-  if (!reelIsFresh(article.publishedAt, article.createdAt, new Date())) {
-    console.log(`[reel] skipped ${articleId}: published more than ${reelMaxAgeHours()} hours ago (set REEL_MAX_AGE_HOURS to change)`);
+  const maxAge = reelMaxAgeHours(process.env, opts.topicPage?.key);
+  if (!reelIsFresh(article.publishedAt, article.createdAt, new Date(), maxAge)) {
+    console.log(`[reel] skipped ${articleId}: published more than ${maxAge} hours ago (set REEL_MAX_AGE_HOURS to change)`);
     return none;
   }
 

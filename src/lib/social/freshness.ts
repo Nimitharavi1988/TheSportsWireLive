@@ -24,11 +24,17 @@ export function freshnessMultiplier(publishedAt: Date | null | undefined, now: D
 // rule off. The age is from when the story was published (created, if it has no publish time).
 export const REEL_MAX_AGE_HOURS = 6;
 
-export function reelMaxAgeHours(env: Record<string, string | undefined> = process.env): number {
+// Pages whose supply of fresh stories is thin (about half of the football reels were 6 to 12 hours old
+// when posted) get a longer window, so they keep posting without falling back to day-old news.
+export const REEL_MAX_AGE_HOURS_BY_PAGE: Record<string, number> = { football: 12, es: 12, fight: 12 };
+
+// REEL_MAX_AGE_HOURS, when set, applies to every Page; otherwise the Page's own limit, else the default.
+export function reelMaxAgeHours(env: Record<string, string | undefined> = process.env, pageKey?: string): number {
+  const fallback = (pageKey && REEL_MAX_AGE_HOURS_BY_PAGE[pageKey]) || REEL_MAX_AGE_HOURS;
   const raw = env.REEL_MAX_AGE_HOURS?.trim();
-  if (raw === undefined || raw === "") return REEL_MAX_AGE_HOURS;
+  if (raw === undefined || raw === "") return fallback;
   const n = Number(raw);
-  return Number.isFinite(n) && n >= 0 ? n : REEL_MAX_AGE_HOURS;
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
 // Whether a story is fresh enough for a reel (pure, unit-tested).
