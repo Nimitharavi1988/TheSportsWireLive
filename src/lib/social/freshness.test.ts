@@ -33,8 +33,8 @@ describe("reelIsFresh", () => {
     expect(reelIsFresh(hoursAgo(30), null, now, 24)).toBe(false);
     expect(reelIsFresh(null, hoursAgo(120), now, 24)).toBe(false); // falls back to created
     expect(reelIsFresh(hoursAgo(500), null, now, 0)).toBe(true); // 0 = rule off
-    expect(reelMaxAgeHours({})).toBe(24);
+    expect(reelMaxAgeHours({})).toBe(6);
     expect(reelMaxAgeHours({ REEL_MAX_AGE_HOURS: "6" })).toBe(6);
-    expect(reelMaxAgeHours({ REEL_MAX_AGE_HOURS: "x" })).toBe(24);
+    expect(reelMaxAgeHours({ REEL_MAX_AGE_HOURS: "x" })).toBe(6);
   });
 });

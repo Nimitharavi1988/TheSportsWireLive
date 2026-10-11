@@ -22,7 +22,7 @@ export function freshnessMultiplier(publishedAt: Date | null | undefined, now: D
 // Reels are for fresh news only (2026-10-11): a story published more than this many hours ago is
 // not posted as a reel, by the automation or by hand. REEL_MAX_AGE_HOURS overrides it; 0 turns the
 // rule off. The age is from when the story was published (created, if it has no publish time).
-export const REEL_MAX_AGE_HOURS = 24;
+export const REEL_MAX_AGE_HOURS = 6;
 
 export function reelMaxAgeHours(env: Record<string, string | undefined> = process.env): number {
   const raw = env.REEL_MAX_AGE_HOURS?.trim();
