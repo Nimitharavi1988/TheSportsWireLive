@@ -231,17 +231,19 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
   }, topicPage ? `${topicPage.key}-reel` : DESTINATION);
 }
 
-// Main channel only (English): the same MP4 as a YouTube Short. Off unless
-// YOUTUBE_SHORTS_ENABLED=1 (youtube.ts); recorded as platform "youtube", destination "reel".
-async function postReelToYouTube(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null, articleUrl: string, hook: string): Promise<boolean> {
-  const hashtags = selectFacebookHashtags(article.title, article.category);
-  const title = shortsTitleFor(hook, article.title);
-  const description = shortsDescription(captions?.facebook ?? article.title, articleUrl, hashtags);
+// The same MP4 as a YouTube Short, on the English channel (main) or the Spanish one (the Spanish Page's
+// reels, in Spanish). Off unless YOUTUBE_SHORTS_ENABLED=1 (youtube.ts); recorded as platform "youtube",
+// destination "reel" (English) or "es-reel".
+async function postReelToYouTube(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null, articleUrl: string, hook: string, title0: string, topicPage?: FacebookDestination): Promise<boolean> {
+  const spanish = topicPage?.locale === "es";
+  const hashtags = topicPage?.hashtags ? topicPage.hashtags(title0, article.category) : selectFacebookHashtags(title0, article.category);
+  const title = shortsTitleFor(hook, title0);
+  const description = shortsDescription(captions?.facebook ?? title0, articleUrl, hashtags, spanish ? "es" : "en");
   const tags = hashtags.map((h) => h.replace(/^#/, ""));
   return recordAttempt(article, "youtube", async () => {
     console.log("[youtube short] Uploading video...");
-    return uploadShort(mp4, title, description, tags);
-  });
+    return uploadShort(mp4, title, description, tags, "public", spanish ? "es" : "en", spanish ? "es" : "en");
+  }, topicPage ? `${topicPage.key}-reel` : DESTINATION);
 }
 
 // Renders one reel for a story and posts it to whichever of Instagram /
@@ -290,13 +292,16 @@ export async function postReel(
     : reelNeeds(existing, { instagram: opts.instagram, facebook: opts.facebook, topicKey: opts.topicPage?.key });
   // Skip Instagram up front while Meta's app limit is cooling down, so no reel is rendered just for it (metaCooldown.ts).
   const needInstagram = wantInstagram && !(await instagramCoolingDown());
-  // YouTube: the main (English) channel only, once per story.
-  // Paced (youtube.ts): a daily cap and a minimum gap since the last Short.
-  let needYouTube = Boolean(opts.youtube) && !opts.topicPage && !locale && youtubeConfigured()
-    && !existing.some((p) => p.platform === "youtube" && p.destination === DESTINATION);
+  // YouTube: the English channel for the main reels, the Spanish channel for the Spanish Page's reels
+  // (other topic Pages: none), once per story per channel.
+  const ytChannel = !opts.topicPage && !locale ? "en" : locale === "es" ? "es" : null;
+  const ytKey = ytChannel === "es" ? ownKey : DESTINATION;
+  // Paced (youtube.ts): a daily cap and a minimum gap since the last Short, per channel.
+  let needYouTube = Boolean(opts.youtube) && ytChannel !== null && youtubeConfigured(ytChannel)
+    && !existing.some((p) => p.platform === "youtube" && p.destination === ytKey);
   if (needYouTube) {
     const [{ value: lastDay, last }] = await db.select({ value: count(), last: max(socialPostTable.postedAt) }).from(socialPostTable)
-      .where(and(eq(socialPostTable.platform, "youtube"), eq(socialPostTable.status, "posted"), gte(socialPostTable.postedAt, new Date(Date.now() - 24 * 3600 * 1000))));
+      .where(and(eq(socialPostTable.platform, "youtube"), eq(socialPostTable.destination, ytKey!), eq(socialPostTable.status, "posted"), gte(socialPostTable.postedAt, new Date(Date.now() - 24 * 3600 * 1000))));
     if (!youtubeSlotOpen(lastDay, last, new Date(), maxShortsPerDay(), minGapMinutes())) needYouTube = false;
   }
   if (!needInstagram && !needFacebook && !needYouTube) {
@@ -335,6 +340,6 @@ export async function postReel(
   const instagramPosted = needInstagram && mp4 ? await postReelToInstagram(article, mp4, captions, opts.topicPage) : false;
   const facebookPosted = needFacebook && mp4 ? await postReelToFacebook(article, mp4, captions, articleUrl, opts.topicPage) : false;
   // Never lets a YouTube problem (e.g. the row insert) undo the Instagram/Facebook posts above.
-  const youtubePosted = needYouTube ? await render(true).then((yt) => postReelToYouTube(article, yt, captions, articleUrl, content.hook)).catch((err) => { console.error("[youtube short] failed:", err); return false; }) : false;
+  const youtubePosted = needYouTube ? await render(true).then((yt) => postReelToYouTube(article, yt, captions, articleUrl, content.hook, textTitle, opts.topicPage)).catch((err) => { console.error("[youtube short] failed:", err); return false; }) : false;
   return { instagramPosted, facebookPosted, youtubePosted };
 }

@@ -21,9 +21,14 @@ export function youtubeSlotOpen(postedLast24h: number, lastPostedAt: Date | null
 const TITLE_MAX = 100;
 const SHORTS_TAG = " #Shorts";
 
-export function youtubeConfigured(): boolean {
+// Two channels share one Google Cloud project (and client ID/secret); each has its own refresh token,
+// because the token decides which channel a video goes to.
+export type YoutubeChannel = "en" | "es";
+const refreshTokenFor = (channel: YoutubeChannel) => (channel === "es" ? process.env.YOUTUBE_REFRESH_TOKEN_ES : process.env.YOUTUBE_REFRESH_TOKEN);
+
+export function youtubeConfigured(channel: YoutubeChannel = "en"): boolean {
   return process.env.YOUTUBE_SHORTS_ENABLED === "1"
-    && Boolean(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET && process.env.YOUTUBE_REFRESH_TOKEN);
+    && Boolean(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET && refreshTokenFor(channel));
 }
 
 // Title <= 100 chars including "#Shorts"; trimmed on a word boundary with an ellipsis.
@@ -43,19 +48,21 @@ export function shortsTitleFor(hook: string | null | undefined, headline: string
   return shortsTitle(h.length >= 12 ? h : headline);
 }
 
-export function shortsDescription(summary: string, articleUrl: string, hashtags: string[]): string {
+export function shortsDescription(summary: string, articleUrl: string, hashtags: string[], language: "en" | "es" = "en"): string {
   const tags = Array.from(new Set(["#Shorts", ...hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`))])).slice(0, 8);
-  return `${summary.trim()}\n\nRead the full story: ${articleUrl}\n\nFollow The Sports Live Wire for daily sports news.\n\n${tags.join(" ")}`;
+  const read = language === "es" ? "Nota completa" : "Read the full story";
+  const follow = language === "es" ? "Suscríbete a Sports Wire Live en Español para noticias deportivas diarias." : "Follow The Sports Live Wire for daily sports news.";
+  return `${summary.trim()}\n\n${read}: ${articleUrl}\n\n${follow}\n\n${tags.join(" ")}`;
 }
 
-async function accessToken(): Promise<string> {
+async function accessToken(refreshToken: string): Promise<string> {
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       client_id: process.env.YOUTUBE_CLIENT_ID!,
       client_secret: process.env.YOUTUBE_CLIENT_SECRET!,
-      refresh_token: process.env.YOUTUBE_REFRESH_TOKEN!,
+      refresh_token: refreshToken,
       grant_type: "refresh_token",
     }),
   });
@@ -65,8 +72,10 @@ async function accessToken(): Promise<string> {
 }
 
 // Uploads the MP4 as a public Short. Returns the YouTube video id.
-export async function uploadShort(mp4: Buffer, title: string, description: string, tags: string[], privacy: "public" | "unlisted" | "private" = "public", language = "en"): Promise<string> {
-  const token = await accessToken();
+export async function uploadShort(mp4: Buffer, title: string, description: string, tags: string[], privacy: "public" | "unlisted" | "private" = "public", language = "en", channel: YoutubeChannel = "en"): Promise<string> {
+  const refresh = refreshTokenFor(channel);
+  if (!refresh) throw new Error(`No YouTube refresh token for the ${channel} channel`);
+  const token = await accessToken(refresh);
   const init = await fetch("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status", {
     method: "POST",
     headers: {

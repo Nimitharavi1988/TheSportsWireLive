@@ -32,6 +32,12 @@ describe("shortsTitleFor", () => {
 });
 
 describe("shortsDescription", () => {
+  it("writes the Spanish channel description in Spanish", () => {
+    const d = shortsDescription("Resumen.", "https://es.x.com/a", ["Messi"], "es");
+    expect(d).toContain("Nota completa: https://es.x.com/a");
+    expect(d).toContain("Suscríbete");
+    expect(d).not.toContain("Read the full story");
+  });
   it("includes the link and dedupes #Shorts", () => {
     const d = shortsDescription("Summary.", "https://x.com/a", ["#Shorts", "Messi"]);
     expect(d).toContain("https://x.com/a");

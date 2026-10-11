@@ -110,7 +110,7 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
         attempts++;
         try {
           // Instagram too only where the Page opts in (reels.instagram) and has an account.
-          const r = await postReel(a.id, { instagram: Boolean(d.reels.instagram && d.instagramId), facebook: true, topicPage: d });
+          const r = await postReel(a.id, { instagram: Boolean(d.reels.instagram && d.instagramId), facebook: true, youtube: Boolean(d.reels.youtube), topicPage: d });
           console.log(`[reel:${d.key}] ${r.facebookPosted ? "posted" : "not posted"} ${a.id} ("${a.title.slice(0, 60)}")`);
           if (r.facebookPosted) {
             postedNow++;

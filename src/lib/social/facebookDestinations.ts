@@ -67,7 +67,7 @@ export interface FacebookDestination {
   // the queue made weak reels (Greenfield's average score was 38 vs 55 on the main Page).
   // activeHours: reels only go out in these local hours (default: the Page's own).
   // instagram: also post each reel to the Page's own Instagram (instagramId).
-  reels?: { dailyCap: number; perRunCap: number; minTrending?: number; activeHours?: { timeZone: string; start: number; end: number }; instagram?: boolean };
+  reels?: { dailyCap: number; perRunCap: number; minTrending?: number; activeHours?: { timeZone: string; start: number; end: number }; instagram?: boolean; youtube?: boolean };
   // The Instagram account linked to this Page: each story posted to the Page
   // also goes there as a photo post (topicPosting.ts). Unset = Facebook only.
   instagramId?: string;
@@ -276,7 +276,7 @@ export const SPANISH_PAGE: FacebookDestination = {
   instagramHandle: "sportswireliveinspanish",
   // Its own Spanish reels (Spanish text, caption and link) on Facebook and Instagram
   // (postReel.ts): 6 a day to start, during its posting hours.
-  reels: { dailyCap: 6, perRunCap: 1, instagram: true },
+  reels: { dailyCap: 6, perRunCap: 1, instagram: true, youtube: true },
 };
 
 export const TOPIC_DESTINATIONS: FacebookDestination[] = [INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, FOOTBALL_PAGE, US_SPORTS_PAGE, FIGHT_PAGE, ...(spanishPageEnabled() ? [SPANISH_PAGE] : [])];
