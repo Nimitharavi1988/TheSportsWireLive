@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shortsTitle, shortsTitleFor, shortsDescription } from "./youtube";
+import { shortsTitle, shortsTitleFor, shortsDescription, youtubeSlotOpen } from "./youtube";
 
 describe("shortsTitle", () => {
   it("appends #Shorts to a short headline", () => {
@@ -10,6 +10,15 @@ describe("shortsTitle", () => {
     expect(t.length).toBeLessThanOrEqual(100);
     expect(t.endsWith("… #Shorts")).toBe(true);
   });
+});
+
+describe("youtubeSlotOpen", () => {
+  const now = new Date("2026-10-11T12:00:00Z");
+  const ago = (min: number) => new Date(now.getTime() - min * 60_000);
+  it("opens when nothing was posted", () => expect(youtubeSlotOpen(0, null, now, 8, 120)).toBe(true));
+  it("stays closed inside the minimum gap", () => expect(youtubeSlotOpen(2, ago(90), now, 8, 120)).toBe(false));
+  it("opens once the gap has passed", () => expect(youtubeSlotOpen(2, ago(121), now, 8, 120)).toBe(true));
+  it("stays closed at the daily cap", () => expect(youtubeSlotOpen(8, ago(600), now, 8, 120)).toBe(false));
 });
 
 describe("shortsTitleFor", () => {

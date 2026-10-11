@@ -3,7 +3,7 @@ import { socialArticleUrl } from "./trackedLink";
 import { captionVariantFor } from "./captionVariant";
 import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
-import { and, count, eq, gte, inArray } from "drizzle-orm";
+import { and, count, eq, gte, inArray, max } from "drizzle-orm";
 import { TOPIC_DESTINATIONS, type FacebookDestination } from "./facebookDestinations";
 import { MAIN_REEL_DESTINATION, reelNeeds } from "./reelDuplicates";
 import { createId } from "@paralleldrive/cuid2";
@@ -15,7 +15,7 @@ import { resolvePageAccessToken, translationFor } from "./facebook";
 import { LOCALES } from "@/lib/i18n/locales";
 import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepertoire";
 import { reelTagsFor } from "./reelTags";
-import { youtubeConfigured, uploadShort, shortsTitleFor, shortsDescription, MAX_SHORTS_PER_DAY } from "./youtube";
+import { youtubeConfigured, uploadShort, shortsTitleFor, shortsDescription, youtubeSlotOpen, maxShortsPerDay, minGapMinutes } from "./youtube";
 
 // Posts a story as a Reel to Instagram and the main Facebook Page. Runs in
 // the post-reel GitHub Actions job only (renderReel needs plain Node).
@@ -282,13 +282,13 @@ export async function postReel(
     }
     : reelNeeds(existing, { instagram: opts.instagram, facebook: opts.facebook, topicKey: opts.topicPage?.key });
   // YouTube: the main (English) channel only, once per story.
-  // Capped per rolling 24h: the free API quota (10,000 units, ~1,600 per upload) allows about 6 a day.
+  // Paced (youtube.ts): a daily cap and a minimum gap since the last Short.
   let needYouTube = Boolean(opts.youtube) && !opts.topicPage && !locale && youtubeConfigured()
     && !existing.some((p) => p.platform === "youtube" && p.destination === DESTINATION);
   if (needYouTube) {
-    const [{ value: lastDay }] = await db.select({ value: count() }).from(socialPostTable)
+    const [{ value: lastDay, last }] = await db.select({ value: count(), last: max(socialPostTable.postedAt) }).from(socialPostTable)
       .where(and(eq(socialPostTable.platform, "youtube"), eq(socialPostTable.status, "posted"), gte(socialPostTable.postedAt, new Date(Date.now() - 24 * 3600 * 1000))));
-    if (lastDay >= MAX_SHORTS_PER_DAY) needYouTube = false;
+    if (!youtubeSlotOpen(lastDay, last, new Date(), maxShortsPerDay(), minGapMinutes())) needYouTube = false;
   }
   if (!needInstagram && !needFacebook && !needYouTube) {
     console.log(`[reel] skipped ${articleId}: already has a reel on the requested platform(s)`);

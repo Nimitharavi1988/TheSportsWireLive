@@ -5,8 +5,19 @@
 // Note: until the Google project passes YouTube's API audit, uploads made
 // through the API are locked to private.
 
-// The free API quota is 10,000 units a day and an upload costs ~1,600.
-export const MAX_SHORTS_PER_DAY = 6;
+// Pacing, not a YouTube limit (uploads cost ~100 units and have their own quota bucket since 2026-06):
+// spread the day's Shorts out so each gets its own test audience instead of five landing in one hour.
+// Tunable with YOUTUBE_MAX_PER_DAY / YOUTUBE_MIN_GAP_MINUTES (GitHub repository variables).
+const envNum = (name: string, fallback: number) => { const n = Number(process.env[name]); return Number.isFinite(n) && n > 0 ? n : fallback; };
+export const maxShortsPerDay = () => envNum("YOUTUBE_MAX_PER_DAY", 8);
+export const minGapMinutes = () => envNum("YOUTUBE_MIN_GAP_MINUTES", 120);
+
+// Whether another Short may go out: under the rolling-24h cap and past the minimum gap since the last one.
+export function youtubeSlotOpen(postedLast24h: number, lastPostedAt: Date | null, now: Date, maxPerDay: number, minGapMin: number): boolean {
+  if (postedLast24h >= maxPerDay) return false;
+  if (lastPostedAt && now.getTime() - lastPostedAt.getTime() < minGapMin * 60_000) return false;
+  return true;
+}
 const TITLE_MAX = 100;
 const SHORTS_TAG = " #Shorts";
 
