@@ -10,7 +10,7 @@ import { isHighlightWorthy } from "../highlightWorthy";
 import { isPushWorthy } from "../pushWorthy";
 import { postToTopicPages } from "../social/topicPosting";
 import { freshnessMultiplier } from "../social/freshness";
-import { matchDayMultiplier, type Fixture } from "../social/matchDay";
+import { MATCH_DAY_FRESHNESS_FLOOR, matchDayMultiplier, BOTH_SIDES_MULTIPLIER, type Fixture } from "../social/matchDay";
 import { loadMatchDayFixtures } from "../social/matchDayFixtures";
 import { postSpanishShorts } from "../social/spanishShorts";
 import { postTopicReels } from "../social/topicReels";
@@ -403,9 +403,11 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   function socialSelectionScore(a: SocialCandidate): number {
     // Newer stories first (social/freshness.ts): the stored score has no time
     // component, so without this a 20-hour-old story kept beating this hour's.
-    // A story about a match starting soon or just played ranks higher (social/matchDay.ts); a Messi or
-    // Ronaldo story keeps its freshness (social/freshness.ts).
-    const fresh = freshnessMultiplier(a.publishedAt, now, a.title) * matchDayMultiplier(a.title, matchDayFixtures, now);
+    // A story about a match starting soon or just played ranks higher (social/matchDay.ts) and does not
+    // lose its place to age; a Messi or Ronaldo story keeps its freshness (social/freshness.ts).
+    const matchDay = matchDayMultiplier(a.title, matchDayFixtures, now);
+    const baseFresh = freshnessMultiplier(a.publishedAt, now, a.title);
+    const fresh = (matchDay >= BOTH_SIDES_MULTIPLIER ? Math.max(baseFresh, MATCH_DAY_FRESHNESS_FLOOR) : baseFresh) * matchDay;
     if (a.category === "american-football" && isInternationalAudienceWindow(now)) {
       return a.trendingScore * AMERICAN_FOOTBALL_INTERNATIONAL_WINDOW_MULTIPLIER * fresh;
     }
