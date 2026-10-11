@@ -112,6 +112,11 @@ export const ES: Dict = {
     panic: "Alarma",
     neutral: "Indiferente",
     votes: (n) => `${n} voto${n === 1 ? "" : "s"}`,
+    closed: "Las predicciones cerraron al inicio del partido",
+    correct: "¡Acertaste!",
+    wrong: "Esta vez no",
+    noWinner: "Sin ganador, esta predicción no cuenta",
+    result: "Resultado",
   },
   section: { moreIn: "Más noticias de", empty: "No hay noticias en español para este deporte por ahora." },
   scores: {

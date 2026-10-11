@@ -15,7 +15,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
         component="div"
         sx={{
           color: "text.secondary",
-          "& p": { mb: 1.5 }
+          "& p": { mb: 1.5 },
+          "& ul": { pl: 3, mb: 1.5 },
+          "& li": { mb: 1 }
         }}>
         {children}
       </Typography>
@@ -35,7 +37,7 @@ export default function PrivacyPolicyPage() {
           color: "text.secondary",
           mb: 4
         }}>
-        Last updated: September 19, 2026
+        Last updated: October 11, 2026
       </Typography>
 
       <Section title="Who we are">
@@ -56,17 +58,64 @@ export default function PrivacyPolicyPage() {
           is not used to build a profile of you.
         </p>
         <p>
-          <strong>Cookies.</strong> The Site uses a single functional cookie for our own staff to
-          sign in to the article-review dashboard — this one is not set for ordinary visitors and
-          is not used for tracking or advertising. Ordinary visitors instead get Google Analytics'
-          own cookies (see "Advertising and analytics" below), used only for aggregate traffic
-          measurement, not advertising.
+          <strong>Cookies and similar storage.</strong> The Site sets a few small cookies and
+          browser-storage entries so features work without an account. None of them is used for
+          advertising:
+        </p>
+        <ul>
+          <li>
+            <strong>swl_voter_id</strong> (cookie, 1 year): a random ID that lets us count one
+            vote per poll or match prediction and one reaction per article per browser. It is
+            not linked to your name, email, or any account. We also store the IP address that
+            sent a vote or reaction, to limit abuse.
+          </li>
+          <li>
+            <strong>swl_follows</strong> and <strong>swl_fav_sports</strong> (cookies, 1 year):
+            the teams, players, countries, and sports you choose to follow, used to build your
+            For You page. They are kept in your browser and read by the Site to choose which
+            stories to show.
+          </li>
+          <li>
+            <strong>Browser storage</strong> (localStorage and sessionStorage): remembers things
+            like recent searches, a dismissed banner, or your language choice, and notes that a
+            visit has already been counted once in a session.
+          </li>
+          <li>
+            <strong>Staff sign-in cookie:</strong> a single functional cookie used only by our
+            own staff in the article-review dashboard. It is not set for ordinary visitors.
+          </li>
+          <li>
+            <strong>Google Analytics cookies</strong> (see "Advertising and analytics" below),
+            used for aggregate traffic measurement.
+          </li>
+        </ul>
+        <p>
+          You can delete these cookies and stored entries at any time in your browser settings.
+          Doing so resets your followed teams, and you could vote again on a poll you already
+          answered.
+        </p>
+        <p>
+          <strong>Anonymous usage counters.</strong> We count, per day, how many sessions began
+          and how often the install-app prompts were shown or used. These counters hold no
+          identifier and cannot be traced to a person.
+        </p>
+        <p>
+          <strong>Push notifications (optional).</strong> If you choose to allow notifications,
+          your browser gives us a subscription address and encryption keys so we can send you
+          alerts. They are not linked to your name or email, and you can turn notifications off
+          in your browser at any time.
+        </p>
+        <p>
+          <strong>Polls and predictions.</strong> When you vote in a poll or pick a winner for a
+          match, we store your choice together with your anonymous <em>swl_voter_id</em> and the
+          time. Totals are shown publicly in aggregate; individual choices are not.
         </p>
         <p>
           <strong>No account required.</strong> You do not need to create an account or provide
-          any personal information to read the Site. We do not currently offer newsletter
-          sign-ups, comments, or any other feature that would ask you for personal information —
-          if that changes, this policy will be updated first.
+          any personal information to read the Site or to use polls, reactions, predictions, or
+          follows. We do not currently offer newsletter sign-ups, comments, or any other feature
+          that would ask you for personal information. If that changes, this policy will be
+          updated first.
         </p>
       </Section>
 

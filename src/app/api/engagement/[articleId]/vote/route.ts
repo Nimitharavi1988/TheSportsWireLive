@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getEngagementState, recordVote } from "@/lib/engagement";
 import { getOrCreateVoterId } from "@/lib/voterCookie";
 import { db } from "@/db";
-import { pollOption, poll } from "@/db/schema";
+import { pollOption, poll, article } from "@/db/schema";
+import { isPredictionClosed } from "@/lib/predictions";
 import { eq } from "drizzle-orm";
 
 function clientIp(req: NextRequest): string | null {
@@ -16,14 +17,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ art
   const optionId = typeof body?.optionId === "string" ? body.optionId : null;
   if (!optionId) return NextResponse.json({ error: "optionId is required" }, { status: 400 });
 
-  const optionRows = await db.select({ pollId: pollOption.pollId, articleId: poll.articleId })
+  const optionRows = await db.select({
+      pollId: pollOption.pollId, articleId: poll.articleId, kind: poll.kind, resolvedAt: poll.resolvedAt, kickoffAt: article.kickoffAt,
+    })
     .from(pollOption)
     .innerJoin(poll, eq(poll.id, pollOption.pollId))
+    .innerJoin(article, eq(article.id, poll.articleId))
     .where(eq(pollOption.id, optionId))
     .limit(1);
   const option = optionRows[0] ?? null;
   if (!option || option.articleId !== articleId) {
     return NextResponse.json({ error: "Unknown poll option" }, { status: 404 });
+  }
+  // A match prediction takes picks only until kickoff.
+  if (isPredictionClosed(option, option.kickoffAt)) {
+    return NextResponse.json({ error: "Predictions are closed" }, { status: 403 });
   }
 
   try {

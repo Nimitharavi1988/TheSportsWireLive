@@ -48,3 +48,10 @@ jobs:
         if: ${{ !cancelled() }}
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Match predictions: opens "Who will win?" for upcoming big matches and
+      # resolves the ones that have finished (src/lib/predictionsRun.ts). Runs
+      # even if the steps above failed; one DB read when there is nothing to do.
+      - run: npx tsx src/lib/predictionsRun.ts
+        if: ${{ !cancelled() }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
