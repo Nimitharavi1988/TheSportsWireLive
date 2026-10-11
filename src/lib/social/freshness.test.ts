@@ -22,3 +22,18 @@ describe("freshnessMultiplier", () => {
     expect(freshnessMultiplier(new Date("nope"), now)).toBe(1);
   });
 });
+
+describe("star stories keep their freshness", () => {
+  it("a Messi or Ronaldo story is ranked as at most an hour old", () => {
+    expect(freshnessMultiplier(hoursAgo(20), now, "Messi scores again")).toBeCloseTo(freshnessMultiplier(hoursAgo(1), now), 5);
+    expect(freshnessMultiplier(hoursAgo(20), now, "Cristiano Ronaldo signs")).toBeGreaterThan(0.85);
+  });
+  it("other stories, and Messina or Ronaldinho, decay as usual", () => {
+    expect(freshnessMultiplier(hoursAgo(20), now, "Messina sign a striker")).toBeLessThan(0.15);
+    expect(freshnessMultiplier(hoursAgo(20), now, "Ronaldinho tribute")).toBeLessThan(0.15);
+    expect(freshnessMultiplier(hoursAgo(20), now)).toBeLessThan(0.15);
+  });
+  it("a brand-new story is unaffected", () => {
+    expect(freshnessMultiplier(now, now, "Messi scores again")).toBe(1);
+  });
+});

@@ -399,7 +399,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   function socialSelectionScore(a: SocialCandidate): number {
     // Newer stories first (social/freshness.ts): the stored score has no time
     // component, so without this a 20-hour-old story kept beating this hour's.
-    const fresh = freshnessMultiplier(a.publishedAt, now);
+    const fresh = freshnessMultiplier(a.publishedAt, now, a.title);
     if (a.category === "american-football" && isInternationalAudienceWindow(now)) {
       return a.trendingScore * AMERICAN_FOOTBALL_INTERNATIONAL_WINDOW_MULTIPLIER * fresh;
     }

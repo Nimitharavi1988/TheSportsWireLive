@@ -88,7 +88,7 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
       const breakingIds = d.breaking ? findBreaking(pool, now, d.breaking.minOutlets) : new Set<string>();
       // Drama first within each freshness tier (prioritise keeps the incoming order): social/drama.ts.
       const ranked = [...pool].sort((a, b) => (b.trendingScore ?? 0) + dramaBoost(b.title) - ((a.trendingScore ?? 0) + dramaBoost(a.title)));
-      for (const a of prioritise(ranked, now)) {
+      for (const a of prioritise(ranked, now, d.focus)) {
         const normalDone = normalPosted >= runCap;
         const breakingDone = breakingRoom <= 0 || breakingPosted >= 1;
         if ((normalDone && breakingDone) || attempts >= MAX_ATTEMPTS || checked >= MAX_PHOTO_CHECKS) break;

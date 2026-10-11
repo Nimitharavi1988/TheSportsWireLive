@@ -179,15 +179,15 @@ describe("Sport Pages", () => {
   });
 });
 
-describe("Football Page focus (Messi, 7 Oct)", () => {
+describe("Football Page focus (Messi and Ronaldo)", () => {
   const story = (title: string) => ({ category: "football", title, homeTeam: null, awayTeam: null, seriesLabel: null, leagueLabel: null, venue: null, publishedAt: new Date("2026-10-07T00:00:00Z") });
-  const pool = [story("Tuchel on the Nations League"), story("Gracias, Leo: the night the Monumental said goodbye to Messi"), story("Messina sign a striker")];
-  it("puts Messi stories first until the focus ends", () => {
-    const during = prioritise(pool, new Date("2026-10-07T12:00:00Z"), FOOTBALL_PAGE.focus);
-    expect(during[0].title).toContain("Messi");
-    expect(during[1].title).toContain("Tuchel"); // "Messina" is not Messi
-    const after = prioritise(pool, new Date("2026-10-07T22:30:00Z"), FOOTBALL_PAGE.focus);
-    expect(after[0].title).toContain("Tuchel");
+  const pool = [story("Tuchel on the Nations League"), story("Messina sign a striker"), story("Ronaldinho tribute match"), story("Cristiano Ronaldo hits 950 goals"), story("Gracias, Leo: the night the Monumental said goodbye to Messi")];
+  it("puts Messi and Ronaldo stories first, whenever the Page runs", () => {
+    for (const day of ["2026-10-07T12:00:00Z", "2026-10-11T12:00:00Z", "2027-03-01T12:00:00Z"]) {
+      const order = prioritise(pool, new Date(day), FOOTBALL_PAGE.focus).map((a) => a.title);
+      expect(order.slice(0, 2).sort()).toEqual(["Cristiano Ronaldo hits 950 goals", "Gracias, Leo: the night the Monumental said goodbye to Messi"]);
+      expect(order.slice(2)).toEqual(["Tuchel on the Nations League", "Messina sign a striker", "Ronaldinho tribute match"]); // not Messi, not Ronaldo
+    }
   });
 });
 
