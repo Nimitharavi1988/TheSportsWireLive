@@ -275,8 +275,8 @@ export const SPANISH_PAGE: FacebookDestination = {
   instagramId: "17841471180978125", // @sportswireliveinspanish
   instagramHandle: "sportswireliveinspanish",
   // Its own Spanish reels (Spanish text, caption and link) on Facebook and Instagram
-  // (postReel.ts): 12 a day (raised from 6 on 2026-10-11 to feed the Spanish YouTube channel), one per run, during its posting hours.
-  reels: { dailyCap: 12, perRunCap: 1, instagram: true, youtube: true },
+  // (postReel.ts): 12 a day (raised from 6 on 2026-10-11 to feed the Spanish YouTube channel), one per run, all day (0-24 on the Mexico City clock: Spanish speakers span Spain in the early morning to the US west coast late at night).
+  reels: { dailyCap: 12, perRunCap: 1, instagram: true, youtube: true, activeHours: { timeZone: "America/Mexico_City", start: 0, end: 24 } },
 };
 
 export const TOPIC_DESTINATIONS: FacebookDestination[] = [INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, FOOTBALL_PAGE, US_SPORTS_PAGE, FIGHT_PAGE, ...(spanishPageEnabled() ? [SPANISH_PAGE] : [])];
