@@ -2,6 +2,8 @@ import { categoryEmoji } from "@/lib/categoryDisplay";
 import { socialArticleUrl } from "./trackedLink";
 import { captionVariantFor } from "./captionVariant";
 import { reelIsFresh, reelMaxAgeHours } from "./freshness";
+import { MATCH_DAY_REEL_MAX_AGE_HOURS, isMatchDayStory } from "./matchDay";
+import { loadMatchDayFixtures } from "./matchDayFixtures";
 import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
 import { and, count, eq, gte, inArray, max, ne } from "drizzle-orm";
@@ -270,7 +272,14 @@ export async function postReel(
   }
   // Fresh news only (freshness.ts): no reel of an old story, whoever asks for it.
   const maxAge = reelMaxAgeHours(process.env, opts.topicPage?.key);
-  if (!reelIsFresh(article.publishedAt, article.createdAt, new Date(), maxAge)) {
+  // ...except a story about a match starting soon or just played, which may be up to a day old.
+  const reelNow = new Date();
+  let freshEnough = reelIsFresh(article.publishedAt, article.createdAt, reelNow, maxAge);
+  if (!freshEnough && reelIsFresh(article.publishedAt, article.createdAt, reelNow, MATCH_DAY_REEL_MAX_AGE_HOURS)) {
+    freshEnough = isMatchDayStory(article.title, await loadMatchDayFixtures(reelNow), reelNow);
+    if (freshEnough) console.log(`[reel] ${articleId}: older than ${maxAge}h but about a match today, allowed`);
+  }
+  if (!freshEnough) {
     console.log(`[reel] skipped ${articleId}: published more than ${maxAge} hours ago (set REEL_MAX_AGE_HOURS to change)`);
     return none;
   }

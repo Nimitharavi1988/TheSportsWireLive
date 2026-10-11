@@ -20,6 +20,11 @@ export const ONE_SIDE_BEFORE_MS = 4 * 3_600_000;
 export const ONE_SIDE_AFTER_MS = 3 * 3_600_000;
 
 export const BOTH_SIDES_MULTIPLIER = 1.8;
+// A story about a match in the window keeps its place even when it is older than the usual limits
+// (a preview from yesterday for tonight's match is still the story): it is exempt from the reel age
+// rule up to this age, and its freshness weight never falls below the floor.
+export const MATCH_DAY_REEL_MAX_AGE_HOURS = 24;
+export const MATCH_DAY_FRESHNESS_FLOOR = 0.8;
 export const ONE_SIDE_MULTIPLIER = 1.25;
 
 // One side alone only counts for a title that reads like match coverage (a dry run on real stories
@@ -39,6 +44,11 @@ export function expandAbbreviations(title: string): string {
 function mentions(titleWords: Set<string>, team: string): boolean {
   const words = significantWords(team);
   return words.size > 0 && sharesWords(words, titleWords, 0.6, 1);
+}
+
+// A story that names both sides of a fixture in the window (pure, unit-tested).
+export function isMatchDayStory(title: string, fixtures: Fixture[], now: Date): boolean {
+  return matchDayMultiplier(title, fixtures, now) >= BOTH_SIDES_MULTIPLIER;
 }
 
 // The multiplier for a story title at `now` given the fixtures (pure, unit-tested).

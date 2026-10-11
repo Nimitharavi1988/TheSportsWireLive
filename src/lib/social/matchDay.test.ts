@@ -32,3 +32,11 @@ describe("abbreviated cricket headlines", () => {
     expect(matchDayMultiplier("Varun Aaron on bowling ahead of IND vs WI 2026 3rd T20I", [fx("India", "West Indies", 3)], now)).toBe(BOTH_SIDES_MULTIPLIER);
   });
 });
+
+describe("isMatchDayStory", () => {
+  it("is true only when both sides of a fixture in the window are named", async () => {
+    const { isMatchDayStory } = await import("./matchDay");
+    expect(isMatchDayStory("India and West Indies Level at 1-1 Ahead of Third T20I", [fx("India", "West Indies", 3)], now)).toBe(true);
+    expect(isMatchDayStory("Arsenal injury latest", [fx("Arsenal FC", "Leeds United FC", 2)], now)).toBe(false);
+  });
+});
