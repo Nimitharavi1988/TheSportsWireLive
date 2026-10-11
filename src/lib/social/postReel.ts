@@ -3,8 +3,8 @@ import { socialArticleUrl } from "./trackedLink";
 import { captionVariantFor } from "./captionVariant";
 import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
-import { and, count, eq, gte, inArray, max } from "drizzle-orm";
-import { TOPIC_DESTINATIONS, type FacebookDestination } from "./facebookDestinations";
+import { and, count, eq, gte, inArray, max, ne } from "drizzle-orm";
+import { TOPIC_DESTINATIONS, SPANISH_PAGE, type FacebookDestination } from "./facebookDestinations";
 import { MAIN_REEL_DESTINATION, reelNeeds } from "./reelDuplicates";
 import { createId } from "@paralleldrive/cuid2";
 import { generatePosterContent, generateSocialCaptions, type SocialCaptions } from "@/lib/ingestion/commentary";
@@ -294,14 +294,17 @@ export async function postReel(
   const needInstagram = wantInstagram && !(await instagramCoolingDown());
   // YouTube: the English channel for the main reels, the Spanish channel for the Spanish Page's reels
   // (other topic Pages: none), once per story per channel.
-  const ytChannel = !opts.topicPage && !locale ? "en" : locale === "es" ? "es" : null;
-  const ytKey = ytChannel === "es" ? ownKey : DESTINATION;
+  // The cricket Pages' reels (reels.youtube) go to the English channel too, with the main reels: one Short
+  // per story across all the English destinations, and one pacing budget for the channel.
+  const ytChannel = locale === "es" ? "es" : !opts.topicPage || opts.topicPage.reels?.youtube ? "en" : null;
+  const ytKey = ytChannel === "es" ? ownKey : opts.topicPage ? ownKey : DESTINATION;
+  const spanishYtKey = `${SPANISH_PAGE.key}-reel`;
   // Paced (youtube.ts): a daily cap and a minimum gap since the last Short, per channel.
   let needYouTube = Boolean(opts.youtube) && ytChannel !== null && youtubeConfigured(ytChannel)
-    && !existing.some((p) => p.platform === "youtube" && p.destination === ytKey);
+    && !existing.some((p) => p.platform === "youtube" && (ytChannel === "es" ? p.destination === ytKey : p.destination !== spanishYtKey));
   if (needYouTube) {
     const [{ value: lastDay, last }] = await db.select({ value: count(), last: max(socialPostTable.postedAt) }).from(socialPostTable)
-      .where(and(eq(socialPostTable.platform, "youtube"), eq(socialPostTable.destination, ytKey!), eq(socialPostTable.status, "posted"), gte(socialPostTable.postedAt, new Date(Date.now() - 24 * 3600 * 1000))));
+      .where(and(eq(socialPostTable.platform, "youtube"), ytChannel === "es" ? eq(socialPostTable.destination, spanishYtKey) : ne(socialPostTable.destination, spanishYtKey), eq(socialPostTable.status, "posted"), gte(socialPostTable.postedAt, new Date(Date.now() - 24 * 3600 * 1000))));
     if (!youtubeSlotOpen(lastDay, last, new Date(), maxShortsPerDay(), minGapMinutes())) needYouTube = false;
   }
   if (!needInstagram && !needFacebook && !needYouTube) {

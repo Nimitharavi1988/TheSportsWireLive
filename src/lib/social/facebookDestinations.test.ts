@@ -238,3 +238,10 @@ describe("link-post limits (set against how many stories each sport produces a d
     });
   });
 });
+
+describe("Reels that also go to YouTube", () => {
+  it("covers the Spanish Page and the two cricket Pages, and no other topic Page", () => {
+    const withYoutube = TOPIC_DESTINATIONS.filter((d) => d.reels?.youtube).map((d) => d.key).sort();
+    expect(withYoutube).toEqual(["cricketlive", "es", "india-cricket"].filter((k) => TOPIC_DESTINATIONS.some((d) => d.key === k)).sort());
+  });
+});
