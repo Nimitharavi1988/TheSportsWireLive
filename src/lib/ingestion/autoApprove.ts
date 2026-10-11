@@ -10,6 +10,8 @@ import { isHighlightWorthy } from "../highlightWorthy";
 import { isPushWorthy } from "../pushWorthy";
 import { postToTopicPages } from "../social/topicPosting";
 import { freshnessMultiplier } from "../social/freshness";
+import { matchDayMultiplier, type Fixture } from "../social/matchDay";
+import { loadMatchDayFixtures } from "../social/matchDayFixtures";
 import { postTopicReels } from "../social/topicReels";
 import { postArticleToFacebook } from "../social/facebook";
 import { timed, logTimingSummary } from "./timing";
@@ -399,7 +401,8 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   function socialSelectionScore(a: SocialCandidate): number {
     // Newer stories first (social/freshness.ts): the stored score has no time
     // component, so without this a 20-hour-old story kept beating this hour's.
-    const fresh = freshnessMultiplier(a.publishedAt, now);
+    // A story about a match starting soon or just played ranks higher (social/matchDay.ts).
+    const fresh = freshnessMultiplier(a.publishedAt, now) * matchDayMultiplier(a.title, matchDayFixtures, now);
     if (a.category === "american-football" && isInternationalAudienceWindow(now)) {
       return a.trendingScore * AMERICAN_FOOTBALL_INTERNATIONAL_WINDOW_MULTIPLIER * fresh;
     }
@@ -506,6 +509,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   // at 1 so a run always attempts at least one post even when already on
   // or ahead of pace, matching the earlier "never go fully silent" fix.
   const now = new Date();
+  const matchDayFixtures: Fixture[] = await loadMatchDayFixtures(now);
   const minutesSinceMidnight = (now.getTime() - todayStart.getTime()) / 60000;
   const currentRunIndex = Math.min(RUNS_PER_DAY, Math.floor(minutesSinceMidnight / 15) + 1);
   const currentHourWeight = HOURLY_ENGAGEMENT_WEIGHT[now.getUTCHours()];

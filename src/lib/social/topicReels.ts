@@ -15,6 +15,8 @@ import { TOPIC_DESTINATIONS, destinationRunCap, localDayStart, prioritise } from
 import { postReel } from "./postReel";
 import { breakingSlotFor, findBreaking } from "./breakingNews";
 import { dramaBoost } from "./drama";
+import { matchDayMultiplier } from "./matchDay";
+import { loadMatchDayFixtures } from "./matchDayFixtures";
 import { editionConditions } from "../i18n/overlay";
 
 const POOL_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
@@ -28,6 +30,7 @@ const MAX_PHOTO_CHECKS = 15;
 const MAX_ATTEMPTS = 2;
 
 export async function postTopicReels(now: Date = new Date()): Promise<void> {
+  const matchDayFixtures = await loadMatchDayFixtures(now);
   for (const d of TOPIC_DESTINATIONS) {
     if (!d.reels || !process.env[d.tokenEnv]) continue;
     try {
@@ -87,7 +90,9 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
       let breakingPosted = 0;
       const breakingIds = d.breaking ? findBreaking(pool, now, d.breaking.minOutlets) : new Set<string>();
       // Drama first within each freshness tier (prioritise keeps the incoming order): social/drama.ts.
-      const ranked = [...pool].sort((a, b) => (b.trendingScore ?? 0) + dramaBoost(b.title) - ((a.trendingScore ?? 0) + dramaBoost(a.title)));
+      // Stories about a match starting soon or just played come first (social/matchDay.ts).
+      const rankScore = (a: { title: string; trendingScore: number | null }) => ((a.trendingScore ?? 0) + dramaBoost(a.title)) * matchDayMultiplier(a.title, matchDayFixtures, now);
+      const ranked = [...pool].sort((a, b) => rankScore(b) - rankScore(a));
       for (const a of prioritise(ranked, now)) {
         const normalDone = normalPosted >= runCap;
         const breakingDone = breakingRoom <= 0 || breakingPosted >= 1;
