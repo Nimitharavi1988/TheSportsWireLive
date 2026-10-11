@@ -12,6 +12,7 @@ import { postToTopicPages } from "../social/topicPosting";
 import { freshnessMultiplier } from "../social/freshness";
 import { matchDayMultiplier, type Fixture } from "../social/matchDay";
 import { loadMatchDayFixtures } from "../social/matchDayFixtures";
+import { postSpanishShorts } from "../social/spanishShorts";
 import { postTopicReels } from "../social/topicReels";
 import { postArticleToFacebook } from "../social/facebook";
 import { timed, logTimingSummary } from "./timing";
@@ -664,6 +665,7 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   // Topic Pages (e.g. India cricket) — own topics, limits and history.
   await postToTopicPages(now);
   await postTopicReels(now);
+  await postSpanishShorts(now);
 
   await sendAutomatedPushNotifications(toApprove);
 
