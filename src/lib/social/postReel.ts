@@ -161,8 +161,9 @@ async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, ca
       );
       if (status.status_code === "FINISHED") break;
       if (status.status_code === "ERROR" || status.status_code === "EXPIRED") throw new Error(`Instagram processing ${status.status_code}: ${status.status ?? ""}`);
-      if (i >= 40) throw new Error("Instagram reel still processing after 10 minutes");
-      await new Promise((r) => setTimeout(r, 15000));
+      // Every status check counts against Meta's app-wide call limit, so check every 30s (still 10 minutes in all).
+      if (i >= 20) throw new Error("Instagram reel still processing after 10 minutes");
+      await new Promise((r) => setTimeout(r, 30000));
     }
 
     console.log("[instagram reel] Publishing...");
