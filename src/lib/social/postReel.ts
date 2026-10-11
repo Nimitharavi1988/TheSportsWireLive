@@ -338,8 +338,8 @@ export async function postReel(
 
   // Topic Pages pick music by the story's mood and sport; the main Page and Instagram keep the original rotation.
   const music = opts.music ?? musicStyleFor(article.id, opts.topicPage ? { title: article.title, category: article.category } : undefined);
-  // An explicit colour wins; topic Pages keep their own look; everything else rotates by sport (reelThemes.ts).
-  const theme = opts.theme ?? (opts.topicPage ? undefined : reelThemeFor(article.id, article.category));
+  // An explicit colour wins; otherwise every reel (main Page, topic Pages, Instagram, YouTube) rotates by sport (reelThemes.ts).
+  const theme = opts.theme ?? reelThemeFor(article.id, article.category);
   console.log(`Rendering reel (music: ${music}, theme: ${theme ?? "default"}, font: ${opts.font ?? "default"})...`);
   const render = (youtube: boolean) => renderReel({ content, heroImageUrl: article.heroImageUrl!, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme, font: opts.font, language: locale, followHandle: opts.topicPage ? opts.topicPage.instagramHandle ?? null : undefined, youtube });
   // Instagram/Facebook share one render; the YouTube Short gets its own end card (Subscribe, link in the description).

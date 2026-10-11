@@ -20,7 +20,7 @@ export const DEFAULT_REEL_THEME: ReelTheme = "green";
 // Colour per story, chosen like the music is: stable for a story (so Instagram, Facebook and
 // YouTube show the same colour and a rerun keeps it), rotating across the feed. Each sport has a
 // small pool of colours that suit it; about 1 story in 4 stays brand green so the feed still reads
-// as Sports Wire Live. Topic Pages keep their own look (postReel.ts passes no auto colour there).
+// as Sports Wire Live. Every Page uses this (the topic Pages used to stay green; changed 2026-10-12).
 const THEME_POOLS: [string, ReelTheme[]][] = [
   ["american-football", ["blue", "red", "gold"]],
   ["college-football", ["gold", "red", "blue"]],
