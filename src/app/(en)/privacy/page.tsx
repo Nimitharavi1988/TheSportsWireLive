@@ -65,9 +65,10 @@ export default function PrivacyPolicyPage() {
         <ul>
           <li>
             <strong>swl_voter_id</strong> (cookie, 1 year): a random ID that lets us count one
-            vote per poll or match prediction and one reaction per article per browser. It is
-            not linked to your name, email, or any account. We also store the IP address that
-            sent a vote or reaction, to limit abuse.
+            vote per poll or match prediction and one reaction per article per browser, and to
+            remember which days you visited so we can show your visit streak and badges on your
+            Fan Card. It is not linked to your name, email, or any account. We also store the IP
+            address that sent a vote or reaction, to limit abuse.
           </li>
           <li>
             <strong>swl_follows</strong> and <strong>swl_fav_sports</strong> (cookies, 1 year):
@@ -95,9 +96,17 @@ export default function PrivacyPolicyPage() {
           answered.
         </p>
         <p>
-          <strong>Anonymous usage counters.</strong> We count, per day, how many sessions began
-          and how often the install-app prompts were shown or used. These counters hold no
-          identifier and cannot be traced to a person.
+          <strong>Fan Card.</strong> After you interact with a page (for example by scrolling or
+          tapping), we record, for your anonymous <em>swl_voter_id</em>, that you were active on
+          that day. We use it to show your streak, level, badges, and match prediction record on
+          your Fan Card page, which only your browser can open. It holds no name or email, and
+          clearing your cookies starts it over.
+        </p>
+        <p>
+          <strong>Anonymous usage counters.</strong> We count, per day, how many sessions began,
+          how often the install-app prompts were shown or used, how many new and returning
+          visitors there were, how many predictions were made, and how many Fan Card badges were
+          earned. These counters hold no identifier and cannot be traced to a person.
         </p>
         <p>
           <strong>Push notifications (optional).</strong> If you choose to allow notifications,

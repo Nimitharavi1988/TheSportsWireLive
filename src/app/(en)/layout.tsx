@@ -7,6 +7,7 @@ import MatchTicker from "@/components/MatchTicker";
 import SiteFooter from "@/components/SiteFooter";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { FanBeacon } from "@/components/FanBeacon";
 import { LanguageSuggestion } from "@/components/LanguageSuggestion";
 import { editionLinks } from "@/lib/i18n/liveLocales";
 import "../globals.css";
@@ -100,6 +101,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <GoogleAnalytics />
         <ServiceWorkerRegister />
+        <FanBeacon />
         <ThemeRegistry>
           <NavigationProgress />
           <SiteHeader editions={editions} />

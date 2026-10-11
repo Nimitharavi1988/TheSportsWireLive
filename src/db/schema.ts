@@ -406,3 +406,15 @@ export const appEvent = pgTable("AppEvent", {
   kind: text("kind").notNull(),
   count: integer("count").notNull().default(0),
 }, (t) => [primaryKey({ columns: [t.day, t.kind] })]);
+
+// One row per anonymous visitor (swl_voter_id cookie) per day they were active
+// (see lib/fan.ts, lib/fanStore.ts). `day` is the visitor's local date as
+// YYYY-MM-DD. No name, email or account: just the opaque cookie id.
+export const fanVisit = pgTable("FanVisit", {
+  voterId: text("voterId").notNull(),
+  day: text("day").notNull(),
+  createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+}, (t) => [
+  primaryKey({ columns: [t.voterId, t.day] }),
+  index("FanVisit_day_idx").on(t.day),
+]);

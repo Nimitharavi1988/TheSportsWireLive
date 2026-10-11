@@ -53,7 +53,12 @@ The page now lists the real cookies (`swl_voter_id`, `swl_follows`, `swl_fav_spo
 - Keep the 3-a-day ceiling.
 - Handoff finding: pushes currently fail with "VAPID keys not configured" about 16 times a day. Fix that first (add the keys or skip quietly), or A3 builds on a broken sender. **[USER]** supplies or confirms the VAPID keys.
 
-**A4. Visit streaks and fan badges (no login).**
+**A4. Visit streaks and fan badges (no login). BUILT on branch `feature/fan-card` (not merged), English edition only.**
+- Done: `FanVisit` table (one row per anonymous visitor per day, applied to the live DB, rollback in `scripts/sql/2026-10-11-fan-visit.sql`); `FanBeacon` counts a day after a real interaction, once per local day; `/fan-card` page (level, streak, best streak, days, prediction record, badges earned and still to earn); a header streak chip (shown from 2 days) and a footer link; privacy text updated.
+- Badges: Rookie 1 day, Regular 7, Season Ticket 30, Hall of Famer 100; 3, 7 and 30 day streaks; First Prediction; Sharp Eye (5 correct).
+- Measurement: anonymous daily counters `fan_new_visitor`, `fan_return_visit`, `prediction_vote`, `poll_vote`, `fan_chip_clicked`, `fan_card_opened`, `badge_<id>`; run `npx tsx --env-file=.env scripts/fanReport.ts [days]` for counters, D1/D7 return rates, days-active spread, prediction participation, repeat players and hit rate.
+- Not done: Spanish edition (needs dictionary strings), the shareable card image (A5).
+- Original design notes:
 - Table `FanStats` keyed on the voter id: last visit day, distinct days, current streak, longest streak, top sport.
 - One write per visitor per day, sent from the client after first real interaction (this also screens out most bots). No write per page view.
 - Use `ON CONFLICT` upserts and `db.batch`, because the Neon HTTP driver has no transactions.
