@@ -16,7 +16,7 @@ import { LOCALES } from "@/lib/i18n/locales";
 import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepertoire";
 import { reelTagsFor } from "./reelTags";
 import { instagramCoolingDown } from "./metaCooldown";
-import { youtubeConfigured, uploadShort, shortsTitleFor, shortsDescription, youtubeSlotOpen, maxShortsPerDay, minGapMinutes } from "./youtube";
+import { youtubeConfigured, uploadShort, shortsTitleFor, shortsDescription, shortsTags, youtubeSlotOpen, maxShortsPerDay, minGapMinutes } from "./youtube";
 
 // Posts a story as a Reel to Instagram and the main Facebook Page. Runs in
 // the post-reel GitHub Actions job only (renderReel needs plain Node).
@@ -239,7 +239,7 @@ async function postReelToYouTube(article: ArticleWithVertical, mp4: Buffer, capt
   const hashtags = topicPage?.hashtags ? topicPage.hashtags(title0, article.category) : selectFacebookHashtags(title0, article.category);
   const title = shortsTitleFor(hook, title0);
   const description = shortsDescription(captions?.facebook ?? title0, articleUrl, hashtags, spanish ? "es" : "en");
-  const tags = hashtags.map((h) => h.replace(/^#/, ""));
+  const tags = shortsTags({ category: article.category, names: [article.homeTeam, article.awayTeam, article.seriesLabel], hashtags, language: spanish ? "es" : "en" });
   return recordAttempt(article, "youtube", async () => {
     console.log("[youtube short] Uploading video...");
     return uploadShort(mp4, title, description, tags, "public", spanish ? "es" : "en", spanish ? "es" : "en");

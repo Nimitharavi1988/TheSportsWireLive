@@ -19,7 +19,6 @@ export function youtubeSlotOpen(postedLast24h: number, lastPostedAt: Date | null
   return true;
 }
 const TITLE_MAX = 100;
-const SHORTS_TAG = " #Shorts";
 
 // Two channels share one Google Cloud project (and client ID/secret); each has its own refresh token,
 // because the token decides which channel a video goes to.
@@ -31,28 +30,121 @@ export function youtubeConfigured(channel: YoutubeChannel = "en"): boolean {
     && Boolean(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET && refreshTokenFor(channel));
 }
 
-// Title <= 100 chars including "#Shorts"; trimmed on a word boundary with an ellipsis.
+// Title <= 100 chars, trimmed on a word boundary with an ellipsis. No "#Shorts" in it: a hashtag in the
+// title replaces the description's hashtags above the video, and #Shorts goes in the description.
 export function shortsTitle(headline: string): string {
   const clean = headline.replace(/\s+/g, " ").trim();
-  const room = TITLE_MAX - SHORTS_TAG.length;
-  if (clean.length <= room) return clean + SHORTS_TAG;
-  const cut = clean.slice(0, room - 1);
-  const atWord = cut.slice(0, cut.lastIndexOf(" ") > room / 2 ? cut.lastIndexOf(" ") : cut.length);
-  return atWord.replace(/[\s,.:;–—-]+$/, "") + "…" + SHORTS_TAG;
+  if (clean.length <= TITLE_MAX) return clean;
+  const cut = clean.slice(0, TITLE_MAX - 1);
+  const atWord = cut.slice(0, cut.lastIndexOf(" ") > TITLE_MAX / 2 ? cut.lastIndexOf(" ") : cut.length);
+  return atWord.replace(/[\s,.:;–—-]+$/, "") + "…";
 }
+
+// A hook the model wrote in capitals ("ARMY QB RALLIES 38-RUSHES, 223 YARDS...") reads as shouting in a
+// title. Put it in sentence case, keeping names and abbreviations: a word keeps the capitals it has in
+// the article's headline, a known abbreviation stays upper-case, anything else goes lower-case.
+const ACRONYMS = new Set(["NFL", "NBA", "WNBA", "MLB", "NHL", "UFC", "MMA", "QB", "WR", "RB", "TE", "IPL", "ODI", "T20", "T20I", "USA", "US", "UK", "UEFA", "FIFA", "AFC", "NFC", "ESPN", "NCAA", "CFB", "PSG", "FC", "LA", "NY", "DC", "AI", "F1", "MVP", "GOAT", "TV", "UAE", "RCB", "CSK", "MI", "KKR", "BCCI", "ICC", "VAR", "PGA", "LIV", "ACC", "SEC"]);
+
+function isShouting(s: string): boolean {
+  const letters = s.replace(/[^A-Za-z]/g, "");
+  if (letters.length < 8) return false;
+  return letters.replace(/[^A-Z]/g, "").length / letters.length > 0.6;
+}
+
+const WORD = /[A-Za-z0-9][A-Za-z0-9\u2019']*/g;
+
+export function fixShoutedTitle(hook: string, headline: string): string {
+  if (!isShouting(hook)) return hook;
+  const known = new Map<string, string>();
+  if (!isShouting(headline)) {
+    for (const w of headline.match(WORD) ?? []) if (/[A-Z]/.test(w)) known.set(w.toLowerCase(), w);
+  }
+  const fixed = hook.replace(WORD, (w) => known.get(w.toLowerCase()) ?? (ACRONYMS.has(w.toUpperCase()) ? w.toUpperCase() : w.toLowerCase()));
+  return fixed.replace(/^([^A-Za-z]*)([a-z])/, (_m, pre: string, c: string) => pre + c.toUpperCase());
+}
+
+// Sport phrases people search for, by category (the first part of the article's category).
+const SPORT_TAGS: Record<"en" | "es", [string, string[]][]> = {
+  en: [
+    ["american-football", ["NFL", "NFL news", "NFL highlights", "American football"]],
+    ["college-football", ["college football", "college football news", "college football highlights", "CFB", "NCAA football"]],
+    ["cricket", ["cricket", "cricket news", "cricket highlights", "T20 cricket"]],
+    ["football", ["soccer", "football news", "football highlights", "soccer news"]],
+    ["wnba", ["WNBA", "WNBA news", "women's basketball"]],
+    ["basketball", ["basketball", "NBA", "NBA news", "basketball highlights"]],
+    ["baseball", ["MLB", "baseball", "MLB news", "baseball highlights"]],
+    ["hockey", ["NHL", "hockey", "hockey highlights"]],
+    ["mma", ["UFC", "MMA", "UFC news", "MMA highlights"]],
+    ["boxing", ["boxing", "boxing news", "boxing highlights"]],
+    ["formula-1", ["Formula 1", "F1", "F1 news"]],
+    ["tennis", ["tennis", "tennis news", "tennis highlights"]],
+    ["golf", ["golf", "golf news", "PGA Tour"]],
+    ["volleyball", ["volleyball", "volleyball highlights"]],
+    ["rugby", ["rugby", "rugby news", "rugby highlights"]],
+  ],
+  es: [
+    ["american-football", ["NFL", "fútbol americano", "resumen NFL"]],
+    ["college-football", ["fútbol americano universitario", "NCAA", "college football"]],
+    ["cricket", ["críquet", "cricket"]],
+    ["football", ["fútbol", "noticias de fútbol", "resumen de fútbol"]],
+    ["wnba", ["WNBA", "baloncesto femenino"]],
+    ["basketball", ["baloncesto", "NBA", "resumen NBA"]],
+    ["baseball", ["béisbol", "MLB", "resumen MLB"]],
+    ["hockey", ["NHL", "hockey"]],
+    ["mma", ["UFC", "MMA", "resumen UFC"]],
+    ["boxing", ["boxeo", "noticias de boxeo"]],
+    ["formula-1", ["Fórmula 1", "F1"]],
+  ],
+};
+
+const BRAND_TAGS = new Set(["sportswirelive", "sportsnews", "noticiasdeportivas", "shorts"]);
+
+// Tags for a Short: the story's own names first (people and teams from the hashtags, the teams and series
+// the article carries), then the sport phrases people search, then general ones. At most 15 and about
+// 400 characters (YouTube's limit is 500 in all), no duplicates.
+export function shortsTags(input: { category?: string | null; names?: (string | null | undefined)[]; hashtags?: string[]; language?: "en" | "es" }): string[] {
+  const lang = input.language ?? "en";
+  const out: string[] = [];
+  const add = (t: string | null | undefined) => {
+    const v = (t ?? "").replace(/\s+/g, " ").trim();
+    if (v.length >= 2 && v.length <= 40 && !out.some((o) => o.toLowerCase() === v.toLowerCase())) out.push(v);
+  };
+  for (const h of input.hashtags ?? []) {
+    const bare = h.replace(/^#/, "");
+    if (BRAND_TAGS.has(bare.toLowerCase())) continue;
+    add(bare.replace(/([a-z\u00e0-\u00ff])([A-Z])/g, "$1 $2"));
+  }
+  for (const n of input.names ?? []) add(n);
+  const cat = input.category ?? "";
+  for (const t of SPORT_TAGS[lang].find(([c]) => cat === c || cat.startsWith(c + "/"))?.[1] ?? []) add(t);
+  if (lang === "es") { add("noticias deportivas"); add("deportes"); add("Shorts"); }
+  else { add("sports news"); add("sports shorts"); add("Shorts"); }
+  const kept: string[] = [];
+  let chars = 0;
+  for (const t of out) {
+    if (kept.length >= 15 || chars + t.length + 2 > 400) break;
+    kept.push(t);
+    chars += t.length + 2;
+  }
+  return kept;
+}
+
 
 // The reel's hook (written from the article under strict no-invented-facts rules) makes a better
 // Shorts title than the news headline; the headline is the fallback.
 export function shortsTitleFor(hook: string | null | undefined, headline: string): string {
-  const h = (hook ?? "").replace(/\s+/g, " ").trim();
+  const h = fixShoutedTitle((hook ?? "").replace(/\s+/g, " ").trim(), headline);
   return shortsTitle(h.length >= 12 ? h : headline);
 }
 
 export function shortsDescription(summary: string, articleUrl: string, hashtags: string[], language: "en" | "es" = "en"): string {
-  const tags = Array.from(new Set(["#Shorts", ...hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`))])).slice(0, 8);
+  // The first three hashtags show above the video, so the story's own come first and #Shorts goes last.
+  const own = Array.from(new Set(hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).filter((h) => h.toLowerCase() !== "#shorts"))).slice(0, 7);
+  const tags = [...own, "#Shorts"];
+  const ask = language === "es" ? "¿Qué opinas? Cuéntanos en los comentarios." : "What's your take? Tell us in the comments.";
   const read = language === "es" ? "Nota completa" : "Read the full story";
   const follow = language === "es" ? "Suscríbete a Sports Wire Live en Español para noticias deportivas diarias." : "Follow The Sports Live Wire for daily sports news.";
-  return `${summary.trim()}\n\n${read}: ${articleUrl}\n\n${follow}\n\n${tags.join(" ")}`;
+  return `${summary.trim()}\n\n${ask}\n\n${read}: ${articleUrl}\n\n${follow}\n\n${tags.join(" ")}`;
 }
 
 async function accessToken(refreshToken: string): Promise<string> {
