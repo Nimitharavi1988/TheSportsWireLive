@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shortsTitle, shortsTitleFor, shortsDescription, youtubeSlotOpen, fixShoutedTitle, shortsTags } from "./youtube";
+import { shortsTitle, shortsTitleFor, shortsDescription, youtubeSlotOpen, fixShoutedTitle, shortsTags, uploadLimitPauseActive } from "./youtube";
 
 describe("shortsTitle", () => {
   it("leaves a short headline alone (no #Shorts in the title)", () => {
@@ -25,6 +25,22 @@ describe("fixShoutedTitle", () => {
   it("ignores very short text, converts the rest", () => {
     expect(fixShoutedTitle("NFL DEAL", "x")).toBe("NFL DEAL");
     expect(fixShoutedTitle("NFL TRADE", "x")).toBe("NFL trade");
+  });
+});
+
+describe("fixShoutedTitle with Spanish letters", () => {
+  it("keeps accented words whole and lower-cases them", () => {
+    expect(fixShoutedTitle("FORREST 70: 12 AÑOS DE ESPERA, 1 PUTT EN EL 18", "Forrest")).toBe("Forrest 70: 12 años de espera, 1 putt en el 18");
+    expect(fixShoutedTitle("SIRIANNI ADMITE: NO FUE LA DECISIÓN CORRECTA", "Sirianni admite")).toBe("Sirianni admite: no fue la decisión correcta");
+  });
+});
+
+describe("uploadLimitPauseActive", () => {
+  const now = new Date("2026-10-11T12:00:00Z");
+  it("pauses for a few hours after YouTube's upload limit error, then lets one attempt probe", () => {
+    expect(uploadLimitPauseActive(null, now)).toBe(false);
+    expect(uploadLimitPauseActive(new Date(now.getTime() - 60 * 60_000), now)).toBe(true);
+    expect(uploadLimitPauseActive(new Date(now.getTime() - 181 * 60_000), now)).toBe(false);
   });
 });
 

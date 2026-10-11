@@ -4,7 +4,7 @@ import { captionVariantFor } from "./captionVariant";
 import { reelIsFresh, reelMaxAgeHours, isStarStory } from "./freshness";
 import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
-import { and, count, eq, gte, inArray, max, ne } from "drizzle-orm";
+import { and, count, eq, gte, inArray, like, max, ne } from "drizzle-orm";
 import { TOPIC_DESTINATIONS, SPANISH_PAGE, type FacebookDestination } from "./facebookDestinations";
 import { MAIN_REEL_DESTINATION, reelNeeds } from "./reelDuplicates";
 import { createId } from "@paralleldrive/cuid2";
@@ -17,7 +17,7 @@ import { LOCALES } from "@/lib/i18n/locales";
 import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepertoire";
 import { reelTagsFor } from "./reelTags";
 import { instagramCoolingDown } from "./metaCooldown";
-import { youtubeConfigured, uploadShort, shortsTitleFor, shortsDescription, shortsTags, youtubeSlotOpen, maxShortsPerDay, minGapMinutes } from "./youtube";
+import { youtubeConfigured, uploadShort, shortsTitleFor, shortsDescription, shortsTags, youtubeSlotOpen, uploadLimitPauseActive, UPLOAD_LIMIT_MESSAGE, UPLOAD_LIMIT_PAUSE_HOURS, maxShortsPerDay, minGapMinutes } from "./youtube";
 
 // Posts a story as a Reel to Instagram and the main Facebook Page. Runs in
 // the post-reel GitHub Actions job only (renderReel needs plain Node).
@@ -314,6 +314,15 @@ export async function postReel(
     const [{ value: lastDay, last }] = await db.select({ value: count(), last: max(socialPostTable.postedAt) }).from(socialPostTable)
       .where(and(eq(socialPostTable.platform, "youtube"), ytChannel === "es" ? eq(socialPostTable.destination, spanishYtKey) : ne(socialPostTable.destination, spanishYtKey), eq(socialPostTable.status, "posted"), gte(socialPostTable.postedAt, new Date(Date.now() - 24 * 3600 * 1000))));
     if (!youtubeSlotOpen(lastDay, last, new Date(), maxShortsPerDay(), minGapMinutes())) needYouTube = false;
+  }
+  if (needYouTube) {
+    // YouTube's own daily upload limit was hit recently on this channel: pause, don't render and fail again (youtube.ts).
+    const [limitRow] = await db.select({ at: max(socialPostTable.createdAt) }).from(socialPostTable)
+      .where(and(eq(socialPostTable.platform, "youtube"), ytChannel === "es" ? eq(socialPostTable.destination, spanishYtKey) : ne(socialPostTable.destination, spanishYtKey), eq(socialPostTable.status, "failed"), like(socialPostTable.errorMessage, `%${UPLOAD_LIMIT_MESSAGE}%`), gte(socialPostTable.createdAt, new Date(Date.now() - UPLOAD_LIMIT_PAUSE_HOURS * 3_600_000))));
+    if (uploadLimitPauseActive(limitRow?.at ?? null, new Date())) {
+      console.log(`[youtube short] paused: the ${ytChannel} channel hit YouTube's daily upload limit in the last ${UPLOAD_LIMIT_PAUSE_HOURS}h`);
+      needYouTube = false;
+    }
   }
   if (!needInstagram && !needFacebook && !needYouTube) {
     console.log(`[reel] skipped ${articleId}: already has a reel on the requested platform(s)`);

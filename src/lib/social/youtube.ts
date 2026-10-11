@@ -12,6 +12,16 @@ const envNum = (name: string, fallback: number) => { const n = Number(process.en
 export const maxShortsPerDay = () => envNum("YOUTUBE_MAX_PER_DAY", 8);
 export const minGapMinutes = () => envNum("YOUTUBE_MIN_GAP_MINUTES", 120);
 
+// YouTube caps how many videos a channel may upload per day (a new channel's cap is low and not published:
+// the English channel hit it after about 20 uploads in 24 hours, the Spanish one after about 10). Past it every
+// upload fails with this message, so after one such failure that channel pauses YouTube attempts for a few hours
+// (rather than rendering and failing every run), then one attempt probes.
+export const UPLOAD_LIMIT_MESSAGE = "exceeded the number of videos they may upload";
+export const UPLOAD_LIMIT_PAUSE_HOURS = 3;
+export function uploadLimitPauseActive(lastLimitFailure: Date | null, now: Date, hours = UPLOAD_LIMIT_PAUSE_HOURS): boolean {
+  return lastLimitFailure !== null && now.getTime() - lastLimitFailure.getTime() < hours * 3_600_000;
+}
+
 // Whether another Short may go out: under the rolling-24h cap and past the minimum gap since the last one.
 export function youtubeSlotOpen(postedLast24h: number, lastPostedAt: Date | null, now: Date, maxPerDay: number, minGapMin: number): boolean {
   if (postedLast24h >= maxPerDay) return false;
@@ -45,22 +55,23 @@ export function shortsTitle(headline: string): string {
 // the article's headline, a known abbreviation stays upper-case, anything else goes lower-case.
 const ACRONYMS = new Set(["NFL", "NBA", "WNBA", "MLB", "NHL", "UFC", "MMA", "QB", "WR", "RB", "TE", "IPL", "ODI", "T20", "T20I", "USA", "US", "UK", "UEFA", "FIFA", "AFC", "NFC", "ESPN", "NCAA", "CFB", "PSG", "FC", "LA", "NY", "DC", "AI", "F1", "MVP", "GOAT", "TV", "UAE", "RCB", "CSK", "MI", "KKR", "BCCI", "ICC", "VAR", "PGA", "LIV", "ACC", "SEC"]);
 
+// Unicode-aware: Spanish letters (Ñ, Ó, É...) count as letters and keep their words whole.
 function isShouting(s: string): boolean {
-  const letters = s.replace(/[^A-Za-z]/g, "");
+  const letters = s.replace(/[^\p{L}]/gu, "");
   if (letters.length < 8) return false;
-  return letters.replace(/[^A-Z]/g, "").length / letters.length > 0.6;
+  return letters.replace(/[^\p{Lu}]/gu, "").length / letters.length > 0.6;
 }
 
-const WORD = /[A-Za-z0-9][A-Za-z0-9\u2019']*/g;
+const WORD = /[\p{L}\p{N}][\p{L}\p{N}\u2019']*/gu;
 
 export function fixShoutedTitle(hook: string, headline: string): string {
   if (!isShouting(hook)) return hook;
   const known = new Map<string, string>();
   if (!isShouting(headline)) {
-    for (const w of headline.match(WORD) ?? []) if (/[A-Z]/.test(w)) known.set(w.toLowerCase(), w);
+    for (const w of headline.match(WORD) ?? []) if (/\p{Lu}/u.test(w)) known.set(w.toLowerCase(), w);
   }
   const fixed = hook.replace(WORD, (w) => known.get(w.toLowerCase()) ?? (ACRONYMS.has(w.toUpperCase()) ? w.toUpperCase() : w.toLowerCase()));
-  return fixed.replace(/^([^A-Za-z]*)([a-z])/, (_m, pre: string, c: string) => pre + c.toUpperCase());
+  return fixed.replace(/^([^\p{L}]*)(\p{Ll})/u, (_m, pre: string, c: string) => pre + c.toUpperCase());
 }
 
 // Sport phrases people search for, by category (the first part of the article's category).
