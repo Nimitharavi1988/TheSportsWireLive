@@ -6,6 +6,7 @@ import { createId } from "@paralleldrive/cuid2";
 import { generateSocialCaptions } from "@/lib/ingestion/commentary";
 import { selectInstagramHashtags } from "./hashtagRepertoire";
 import { resolvePageAccessToken, translationFor } from "./facebook";
+import { instagramCoolingDown } from "./metaCooldown";
 import { TOPIC_INSTAGRAM_KEYS, type FacebookDestination } from "./facebookDestinations";
 
 
@@ -32,6 +33,11 @@ export async function postArticleToInstagram(articleId: string, topicPage?: Face
     .where(and(eq(socialPostTable.articleId, articleId), eq(socialPostTable.platform, "instagram"), topicPage ? eq(socialPostTable.destination, destination) : notInArray(socialPostTable.destination, TOPIC_INSTAGRAM_KEYS), eq(socialPostTable.status, "posted")))
     .limit(1);
   if (alreadyPosted) return false;
+  // Meta's app-wide call limit was just hit: pause rather than fail again (metaCooldown.ts).
+  if (await instagramCoolingDown()) {
+    console.log("[instagram] skipped: Meta app request limit cooldown");
+    return false;
+  }
 
   const [row] = await db.select({ article: articleTable, vertical: verticalTable })
     .from(articleTable)

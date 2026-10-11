@@ -15,6 +15,7 @@ import { resolvePageAccessToken, translationFor } from "./facebook";
 import { LOCALES } from "@/lib/i18n/locales";
 import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepertoire";
 import { reelTagsFor } from "./reelTags";
+import { instagramCoolingDown } from "./metaCooldown";
 import { youtubeConfigured, uploadShort, shortsTitleFor, shortsDescription, youtubeSlotOpen, maxShortsPerDay, minGapMinutes } from "./youtube";
 
 // Posts a story as a Reel to Instagram and the main Facebook Page. Runs in
@@ -109,6 +110,11 @@ async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, ca
   const pageId = topicPage ? topicPage.pageId : article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
   const rawToken = topicPage ? process.env[topicPage.tokenEnv] : article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
   if (!igUserId || !pageId || !rawToken) return false;
+  // Meta's app-wide call limit was just hit: pause rather than fail again (metaCooldown.ts).
+  if (await instagramCoolingDown()) {
+    console.log("[instagram reel] skipped: Meta app request limit cooldown");
+    return false;
+  }
   const accessToken = await resolvePageAccessToken(pageId, rawToken);
 
   // Same caption shape as the Instagram poster (socialPoster.ts), plus a
@@ -276,12 +282,14 @@ export async function postReel(
     return none;
   }
   const ownKey = opts.topicPage ? `${opts.topicPage.key}-reel` : null;
-  const { needInstagram, needFacebook } = locale
+  const { needInstagram: wantInstagram, needFacebook } = locale
     ? {
       needInstagram: opts.instagram && !existing.some((p) => p.platform === "instagram" && p.destination === ownKey),
       needFacebook: opts.facebook && !existing.some((p) => p.platform === "facebook" && p.destination === ownKey),
     }
     : reelNeeds(existing, { instagram: opts.instagram, facebook: opts.facebook, topicKey: opts.topicPage?.key });
+  // Skip Instagram up front while Meta's app limit is cooling down, so no reel is rendered just for it (metaCooldown.ts).
+  const needInstagram = wantInstagram && !(await instagramCoolingDown());
   // YouTube: the main (English) channel only, once per story.
   // Paced (youtube.ts): a daily cap and a minimum gap since the last Short.
   let needYouTube = Boolean(opts.youtube) && !opts.topicPage && !locale && youtubeConfigured()
