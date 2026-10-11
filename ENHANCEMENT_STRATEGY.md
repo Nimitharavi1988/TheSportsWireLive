@@ -68,6 +68,14 @@ The page now lists the real cookies (`swl_voter_id`, `swl_follows`, `swl_fav_spo
 - Limits: a cleared cookie resets it. Badges give recognition only and never lock content.
 - Spanish strings go through the dictionary.
 
+**A4b. Fan feedback. BUILT on branch `feature/fan-card` (not merged), English edition only.**
+- **Match rating:** 1 to 5 stars on a match page once it is final; shows average and count; a fan can change their rating. Table `MatchRating`.
+- **Private site feedback:** `/feedback` page (footer link): thumbs up or down plus an optional note up to 300 characters, read in admin at `/admin/feedback` (mark handled). Never shown publicly. Table `SiteFeedback`.
+- **Fan Voices:** "Fans say" on matches that have a prediction poll: first name, optional country, 8 to 150 words. Every take waits in `/admin/fan-voices` for Approve or Reject; only approved takes show. One take per fan per match. Table `FanVoice`.
+- **Safeguards:** links, email addresses, phone numbers and the shared profanity list are rejected (`src/lib/profanity.ts`, extracted from the ingestion check); 3 notes and 3 takes per visitor per day; hidden honeypot field; crawlers ignored.
+- **Measurement:** counters `match_rating`, `feedback_up`, `feedback_down`, `fan_voice_submitted`, `fan_voice_approved`; `scripts/fanReport.ts` now also prints ratings, feedback and Fan Voices sections.
+- **Known limits:** the profanity list misses plurals ("bastards"), so the human review is the real gate. Fan Voices load in the browser, so Google does not index them yet; render them on the server later if they should count as page content for AdSense.
+
 **A5. Shareable fan card.** An image of the card for Facebook and WhatsApp. This is a growth loop for the Facebook audience. Build after A4.
 
 **A6. Logins and comments (later, after A1-A4 show engagement).**

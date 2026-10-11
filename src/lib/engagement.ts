@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { poll, pollOption, pollVote, articleReaction, article } from "@/db/schema";
 import { isPredictionClosed } from "@/lib/predictions";
+import { getRatingState, type RatingState } from "@/lib/fanFeedbackStore";
 import { and, eq, count } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import type { ReactionType } from "@/db/schema";
@@ -32,6 +33,8 @@ export interface ReactionState {
 export interface EngagementState {
   poll: PollState | null;
   reactions: ReactionState;
+  // Match rating (opens at full time).
+  rating: RatingState;
 }
 
 export async function getEngagementState(articleId: string, voterId: string): Promise<EngagementState> {
@@ -41,7 +44,7 @@ export async function getEngagementState(articleId: string, voterId: string): Pr
       .where(eq(articleReaction.articleId, articleId)).groupBy(articleReaction.type),
     db.select({ type: articleReaction.type }).from(articleReaction)
       .where(and(eq(articleReaction.articleId, articleId), eq(articleReaction.cookieId, voterId))).limit(1),
-    db.select({ kickoffAt: article.kickoffAt }).from(article).where(eq(article.id, articleId)).limit(1),
+    db.select({ kickoffAt: article.kickoffAt, matchStatus: article.matchStatus }).from(article).where(eq(article.id, articleId)).limit(1),
   ]);
   const pollRow = pollRows[0] ?? null;
   const myReaction = myReactionRows[0] ?? null;
@@ -83,7 +86,8 @@ export async function getEngagementState(articleId: string, voterId: string): Pr
     };
   }
 
-  return { poll: pollState, reactions: { total, counts, myReaction: myReaction?.type ?? null } };
+  const rating = await getRatingState(articleId, voterId, kickoffRows[0]?.matchStatus === "finished");
+  return { poll: pollState, reactions: { total, counts, myReaction: myReaction?.type ?? null }, rating };
 }
 
 // Throws (unique-constraint violation) if this voter already voted on this

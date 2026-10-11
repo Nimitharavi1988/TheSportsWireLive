@@ -79,6 +79,8 @@ export interface Dict {
     question: string; hype: string; panic: string; neutral: string; votes: (n: number) => string;
     // Match predictions ("Who will win?"), closed at kickoff, resolved at full time.
     closed: string; correct: string; wrong: string; noWinner: string; result: string;
+    // Match rating after full time.
+    rateQuestion: string; ratingSummary: (average: string, n: number) => string;
   };
   section: { moreIn: string; empty: string };
   scores: {

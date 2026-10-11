@@ -120,6 +120,26 @@ export default function PrivacyPolicyPage() {
           time. Totals are shown publicly in aggregate; individual choices are not.
         </p>
         <p>
+          <strong>Match ratings.</strong> When you rate a finished match from 1 to 5, we store
+          your rating with your anonymous <em>swl_voter_id</em>. Only the average and the number
+          of ratings are shown.
+        </p>
+        <p>
+          <strong>Feedback.</strong> If you send feedback from the Feedback page, we store your
+          thumbs up or down, your optional note (up to 300 characters), the page you came from,
+          and your anonymous <em>swl_voter_id</em>. Notes are read by our team only and are not
+          published. Please do not include personal details. We reject notes that contain links,
+          email addresses, or phone numbers.
+        </p>
+        <p>
+          <strong>Fan Voices.</strong> If you share a take on a match, we store the first name,
+          optional country, and text you enter, with your anonymous <em>swl_voter_id</em>. A
+          person reads every take before it is published. If we publish it, your first name,
+          country and text appear under "Fans say" on that match page. If you want a take
+          removed, contact us using the details on our Contact page and tell us which match it
+          was on.
+        </p>
+        <p>
           <strong>No account required.</strong> You do not need to create an account or provide
           any personal information to read the Site or to use polls, reactions, predictions, or
           follows. We do not currently offer newsletter sign-ups, comments, or any other feature

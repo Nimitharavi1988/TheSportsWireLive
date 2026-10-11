@@ -17,7 +17,7 @@ async function main() {
   console.log(`\n=== Fan report, last ${DAYS} days (since ${since}) ===\n`);
 
   // 1. Anonymous counters, one column per day.
-  const kinds = ["fan_new_visitor", "fan_return_visit", "prediction_vote", "poll_vote", "fan_chip_clicked", "fan_card_opened"];
+  const kinds = ["fan_new_visitor", "fan_return_visit", "prediction_vote", "poll_vote", "fan_chip_clicked", "fan_card_opened", "match_rating", "feedback_up", "feedback_down", "fan_voice_submitted", "fan_voice_approved"];
   const counters = await q<{ day: string; kind: string; count: number }>(
     `select day, kind, count from "AppEvent" where day >= $1 and (kind = any($2) or kind like 'badge\\_%') order by day`,
     [since, kinds],
@@ -84,6 +84,32 @@ async function main() {
     [since],
   );
   console.log(`  average picks per predicted match: ${poll?.avg ?? "0"}\n`);
+
+  // 4. Feedback: match ratings, private notes, Fan Voices queue.
+  const [rate] = await q<{ n: string; raters: string; avg: string | null }>(
+    `select count(*) n, count(distinct "voterId") raters, round(avg(rating)::numeric, 2) avg from "MatchRating" where "createdAt" >= $1`,
+    [since],
+  );
+  const [rated] = await q<{ matches: string }>(`select count(distinct "articleId") matches from "MatchRating" where "createdAt" >= $1`, [since]);
+  console.log("Ratings");
+  console.log(`  ratings: ${rate.n} from ${rate.raters} fans on ${rated.matches} matches, average ${rate.avg ?? "n/a"}\n`);
+
+  const [fb] = await q<{ up: string; down: string; notes: string; unread: string }>(
+    `select count(*) filter (where sentiment = 'up') up, count(*) filter (where sentiment = 'down') down,
+            count(*) filter (where note is not null) notes, count(*) filter (where not handled) unread
+     from "SiteFeedback" where "createdAt" >= $1`,
+    [since],
+  );
+  console.log("Site feedback");
+  console.log(`  thumbs up: ${fb.up}  thumbs down: ${fb.down}  with a note: ${fb.notes}  unread: ${fb.unread}\n`);
+
+  const [fv] = await q<{ pending: string; approved: string; rejected: string }>(
+    `select count(*) filter (where status = 'pending') pending, count(*) filter (where status = 'approved') approved,
+            count(*) filter (where status = 'rejected') rejected from "FanVoice" where "createdAt" >= $1`,
+    [since],
+  );
+  console.log("Fan Voices");
+  console.log(`  pending review: ${fv.pending}  approved: ${fv.approved}  rejected: ${fv.rejected}\n`);
 }
 
 main().catch((err) => {
