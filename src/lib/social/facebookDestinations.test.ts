@@ -238,3 +238,13 @@ describe("link-post limits (set against how many stories each sport produces a d
     });
   });
 });
+
+describe("Spanish reels run all day", () => {
+  it("posts at any hour of the Mexico City day, paced to the daily cap", () => {
+    const reels = { ...SPANISH_PAGE.reels!, activeHours: SPANISH_PAGE.reels!.activeHours!, overnight: false };
+    expect(reels.activeHours).toEqual({ timeZone: "America/Mexico_City", start: 0, end: 24 });
+    expect(destinationRunCap(reels, 0, new Date("2026-10-11T10:00:00Z"))).toBe(1); // 04:00 Mexico City, early morning in Spain
+    expect(destinationRunCap(reels, 0, new Date("2026-10-11T07:30:00Z"))).toBe(1); // 01:30 Mexico City, late night on the US west coast
+    expect(destinationRunCap(reels, 12, new Date("2026-10-11T20:00:00Z"))).toBe(0); // daily cap reached
+  });
+});
