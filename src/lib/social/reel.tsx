@@ -175,10 +175,11 @@ const END_CARD = {
   es: { ask: "¿Qué opinas?", comments: "Cuéntanos en los comentarios", story: "Nota completa: enlace en la bio", follow: "Síguenos para más deportes" },
 };
 
-function EndCard({ th, language, followHandle }: { th: Theme; language?: string; followHandle?: string | null }) {
+function EndCard({ th, language, followHandle, youtube }: { th: Theme; language?: string; followHandle?: string | null; youtube?: boolean }) {
   const base = language === "es" ? END_CARD.es : END_CARD.en;
   // A topic Page's reel follows its own account, not the main one's.
-  const t = followHandle === undefined ? base : { ...base, follow: followHandle ? `${language === "es" ? "Síguenos" : "Follow"} @${followHandle}` : language === "es" ? "Síguenos para más deportes" : "Follow us for more sports news" };
+  // YouTube: no bio link and no Instagram handle there; the link is in the description and the follow action is Subscribe.
+  const t = youtube ? { ...base, story: language === "es" ? "Nota completa: enlace en la descripción" : "Full story: link in the description", follow: language === "es" ? "Suscríbete para más deportes" : "Subscribe for daily sports news" } : followHandle === undefined ? base : { ...base, follow: followHandle ? `${language === "es" ? "Síguenos" : "Follow"} @${followHandle}` : language === "es" ? "Síguenos para más deportes" : "Follow us for more sports news" };
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "Poppins", background: `radial-gradient(circle at 50% 40%, ${th.shade(0.78)} 0%, ${th.shade(0.92)} 70%)` }}>
       <Wordmark th={th} size={60} />
@@ -265,6 +266,8 @@ export async function renderReel(params: {
   language?: string;
   // undefined: the main account's end card; a topic Page passes its @name (null: none).
   followHandle?: string | null;
+  // The YouTube Short's end card: Subscribe, and the link is in the description.
+  youtube?: boolean;
 }): Promise<Buffer> {
   const ffmpegPath = (await import("ffmpeg-static")).default as unknown as string | null;
   if (!ffmpegPath) throw new Error("ffmpeg-static has no binary for this platform");
@@ -320,7 +323,7 @@ export async function renderReel(params: {
     const endPath = join(workDir, "layer-end.png");
     const [chromePng, endPng, ...textPngs] = await Promise.all([
       renderLayer(<ChromeLayer th={th} credit={params.language === "es" ? params.credit?.replace(/^Photo via /i, "Foto vía ").replace(/^Photo: /i, "Foto: ") : params.credit} darkFrom={darkFrom} darkTo={darkTo} darkEnd={darkEnd} portrait={Boolean(cropped)} />, fonts),
-      renderLayer(<EndCard th={th} language={params.language} followHandle={params.followHandle} />, fonts),
+      renderLayer(<EndCard th={th} language={params.language} followHandle={params.followHandle} youtube={params.youtube} />, fonts),
       ...texts.map((s) => renderLayer(s.node, fonts)),
     ]);
     await Promise.all([

@@ -25,6 +25,13 @@ export function shortsTitle(headline: string): string {
   return atWord.replace(/[\s,.:;–—-]+$/, "") + "…" + SHORTS_TAG;
 }
 
+// The reel's hook (written from the article under strict no-invented-facts rules) makes a better
+// Shorts title than the news headline; the headline is the fallback.
+export function shortsTitleFor(hook: string | null | undefined, headline: string): string {
+  const h = (hook ?? "").replace(/\s+/g, " ").trim();
+  return shortsTitle(h.length >= 12 ? h : headline);
+}
+
 export function shortsDescription(summary: string, articleUrl: string, hashtags: string[]): string {
   const tags = Array.from(new Set(["#Shorts", ...hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`))])).slice(0, 8);
   return `${summary.trim()}\n\nRead the full story: ${articleUrl}\n\nFollow The Sports Live Wire for daily sports news.\n\n${tags.join(" ")}`;

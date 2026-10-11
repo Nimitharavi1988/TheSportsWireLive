@@ -48,6 +48,7 @@ async function main() {
     font: process.env.FONT as ReelFont | undefined,
     keepScenesDir: outDir,
     language: locale,
+    youtube: process.env.YOUTUBE === "1",
   });
   await writeFile(join(outDir, "reel.mp4"), mp4);
   console.log(`Wrote ${join(outDir, "reel.mp4")} (${(mp4.length / 1024 / 1024).toFixed(1)} MB)`);

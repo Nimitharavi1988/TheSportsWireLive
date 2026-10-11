@@ -15,7 +15,7 @@ import { resolvePageAccessToken, translationFor } from "./facebook";
 import { LOCALES } from "@/lib/i18n/locales";
 import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepertoire";
 import { reelTagsFor } from "./reelTags";
-import { youtubeConfigured, uploadShort, shortsTitle, shortsDescription, MAX_SHORTS_PER_DAY } from "./youtube";
+import { youtubeConfigured, uploadShort, shortsTitleFor, shortsDescription, MAX_SHORTS_PER_DAY } from "./youtube";
 
 // Posts a story as a Reel to Instagram and the main Facebook Page. Runs in
 // the post-reel GitHub Actions job only (renderReel needs plain Node).
@@ -226,9 +226,9 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
 
 // Main channel only (English): the same MP4 as a YouTube Short. Off unless
 // YOUTUBE_SHORTS_ENABLED=1 (youtube.ts); recorded as platform "youtube", destination "reel".
-async function postReelToYouTube(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null, articleUrl: string): Promise<boolean> {
+async function postReelToYouTube(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null, articleUrl: string, hook: string): Promise<boolean> {
   const hashtags = selectFacebookHashtags(article.title, article.category);
-  const title = shortsTitle(article.title);
+  const title = shortsTitleFor(hook, article.title);
   const description = shortsDescription(captions?.facebook ?? article.title, articleUrl, hashtags);
   const tags = hashtags.map((h) => h.replace(/^#/, ""));
   return recordAttempt(article, "youtube", async () => {
@@ -314,14 +314,16 @@ export async function postReel(
   // Topic Pages pick music by the story's mood and sport; the main Page and Instagram keep the original rotation.
   const music = opts.music ?? musicStyleFor(article.id, opts.topicPage ? { title: article.title, category: article.category } : undefined);
   console.log(`Rendering reel (music: ${music}, theme: ${opts.theme ?? "default"}, font: ${opts.font ?? "default"})...`);
-  const mp4 = await renderReel({ content, heroImageUrl: article.heroImageUrl, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme: opts.theme, font: opts.font, language: locale, followHandle: opts.topicPage ? opts.topicPage.instagramHandle ?? null : undefined });
-  console.log(`Rendered ${(mp4.length / 1024 / 1024).toFixed(1)} MB`);
+  const render = (youtube: boolean) => renderReel({ content, heroImageUrl: article.heroImageUrl!, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme: opts.theme, font: opts.font, language: locale, followHandle: opts.topicPage ? opts.topicPage.instagramHandle ?? null : undefined, youtube });
+  // Instagram/Facebook share one render; the YouTube Short gets its own end card (Subscribe, link in the description).
+  const mp4 = needInstagram || needFacebook ? await render(false) : null;
+  if (mp4) console.log(`Rendered ${(mp4.length / 1024 / 1024).toFixed(1)} MB`);
 
   const siteUrl = locale ? `https://${LOCALES[locale].host}` : process.env.SITE_URL ?? "https://sportswirelive.com";
   const articleUrl = socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "facebook", reelVariant, opts.topicPage?.key);
-  const instagramPosted = needInstagram ? await postReelToInstagram(article, mp4, captions, opts.topicPage) : false;
-  const facebookPosted = needFacebook ? await postReelToFacebook(article, mp4, captions, articleUrl, opts.topicPage) : false;
+  const instagramPosted = needInstagram && mp4 ? await postReelToInstagram(article, mp4, captions, opts.topicPage) : false;
+  const facebookPosted = needFacebook && mp4 ? await postReelToFacebook(article, mp4, captions, articleUrl, opts.topicPage) : false;
   // Never lets a YouTube problem (e.g. the row insert) undo the Instagram/Facebook posts above.
-  const youtubePosted = needYouTube ? await postReelToYouTube(article, mp4, captions, articleUrl).catch((err) => { console.error("[youtube short] failed:", err); return false; }) : false;
+  const youtubePosted = needYouTube ? await render(true).then((yt) => postReelToYouTube(article, yt, captions, articleUrl, content.hook)).catch((err) => { console.error("[youtube short] failed:", err); return false; }) : false;
   return { instagramPosted, facebookPosted, youtubePosted };
 }
