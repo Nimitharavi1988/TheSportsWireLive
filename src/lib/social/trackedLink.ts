@@ -9,6 +9,6 @@
 // `content`: an optional tag (utm_content) to tell two versions of a post apart in Analytics.
 // `campaign`: an optional tag (utm_campaign) naming the Page that posted the link, so Analytics can
 // split Facebook visitors by Page. The main Page passes neither: its links keep the two standard tags.
-export function socialArticleUrl(siteUrl: string, slug: string, source: "facebook" | "instagram", content?: string, campaign?: string): string {
+export function socialArticleUrl(siteUrl: string, slug: string, source: "facebook" | "instagram" | "youtube", content?: string, campaign?: string): string {
   return `${siteUrl}/article/${slug}?utm_source=${source}&utm_medium=social${content ? `&utm_content=${content}` : ""}${campaign ? `&utm_campaign=${campaign}` : ""}`;
 }

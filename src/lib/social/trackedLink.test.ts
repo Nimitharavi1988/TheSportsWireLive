@@ -27,3 +27,9 @@ describe("socialArticleUrl campaign tag", () => {
     expect(tagged.searchParams.get("utm_source")).toBe("facebook");
   });
 });
+
+describe("socialArticleUrl youtube", () => {
+  it("tags YouTube visitors as youtube, not facebook", () => {
+    expect(socialArticleUrl("https://sportswirelive.com", "story-1", "youtube")).toBe("https://sportswirelive.com/article/story-1?utm_source=youtube&utm_medium=social");
+  });
+});

@@ -340,6 +340,6 @@ export async function postReel(
   const instagramPosted = needInstagram && mp4 ? await postReelToInstagram(article, mp4, captions, opts.topicPage) : false;
   const facebookPosted = needFacebook && mp4 ? await postReelToFacebook(article, mp4, captions, articleUrl, opts.topicPage) : false;
   // Never lets a YouTube problem (e.g. the row insert) undo the Instagram/Facebook posts above.
-  const youtubePosted = needYouTube ? await render(true).then((yt) => postReelToYouTube(article, yt, captions, articleUrl, content.hook, textTitle, opts.topicPage)).catch((err) => { console.error("[youtube short] failed:", err); return false; }) : false;
+  const youtubePosted = needYouTube ? await render(true).then((yt) => postReelToYouTube(article, yt, captions, socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "youtube"), content.hook, textTitle, opts.topicPage)).catch((err) => { console.error("[youtube short] failed:", err); return false; }) : false;
   return { instagramPosted, facebookPosted, youtubePosted };
 }
