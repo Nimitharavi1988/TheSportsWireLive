@@ -156,7 +156,7 @@ export const INDIA_CRICKET_PAGE: FacebookDestination = {
   captionTest: true,
   reelCaptionTest: true,
   breaking: { allowance: 4, reelAllowance: 2, slot: 0 },
-  reels: { dailyCap: 12, perRunCap: 1, minTrending: 35, youtube: true },
+  reels: { dailyCap: 24, perRunCap: 1, minTrending: 35, youtube: true },
 };
 
 // Sportswirecricketlive: the test Page for the new approach (2026-10). It posts with the main
@@ -180,7 +180,7 @@ export const CRICKETLIVE_PAGE: FacebookDestination = {
   // minTrending 25 (Greenfield: 35): it gets the stories Greenfield left, so a floor keeps
   // the weakest of them out of its reels. Supply swings with the news: 112 cricket stories
   // scored 30+ on 3 Oct, 3 on 5 Oct (a quiet day) — so 25, not 30, to keep a few a day.
-  reels: { dailyCap: 10, perRunCap: 1, minTrending: 25, activeHours: { timeZone: "Asia/Kolkata", start: 11, end: 16 }, instagram: true, youtube: true },
+  reels: { dailyCap: 20, perRunCap: 1, minTrending: 25, activeHours: { timeZone: "Asia/Kolkata", start: 11, end: 24 }, instagram: true, youtube: true },
   instagramId: "17841422405517404", // @sportswirecricketlive
   instagramHandle: "sportswirecricketlive",
 };

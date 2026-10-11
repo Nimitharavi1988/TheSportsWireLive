@@ -103,7 +103,7 @@ describe("Sportswirecricketlive test Page", () => {
   it("posts far less, as photo + question, and leaves the India cricket Page unchanged", () => {
     expect(CRICKETLIVE_PAGE.dailyCap).toBe(25);
     expect(CRICKETLIVE_PAGE.perRunCap).toBe(2);
-    expect(CRICKETLIVE_PAGE.reels?.dailyCap).toBe(10);
+    expect(CRICKETLIVE_PAGE.reels?.dailyCap).toBe(20); // widened for the India–West Indies series (was 10)
     expect(CRICKETLIVE_PAGE.style).toBe("photo-question");
     expect(INDIA_CRICKET_PAGE.dailyCap).toBe(50);
     expect(INDIA_CRICKET_PAGE.style).toBeUndefined();
@@ -119,17 +119,17 @@ describe("story age limit", () => {
 });
 
 describe("Sportswirecricketlive own content and reel hours", () => {
-  it("skips stories Greenfield took, and posts reels only at midday IST", () => {
+  it("skips stories Greenfield took, and posts reels from 11:00 IST to midnight (widened for the India–West Indies series)", () => {
     expect(CRICKETLIVE_PAGE.notAlsoOn).toBe(INDIA_CRICKET_PAGE.key);
     expect(INDIA_CRICKET_PAGE.notAlsoOn).toBeUndefined();
-    expect(CRICKETLIVE_PAGE.reels?.activeHours).toEqual({ timeZone: "Asia/Kolkata", start: 11, end: 16 });
+    expect(CRICKETLIVE_PAGE.reels?.activeHours).toEqual({ timeZone: "Asia/Kolkata", start: 11, end: 24 });
   });
 
-  it("paces its reels inside those hours and posts none outside them", () => {
+  it("paces its reels inside those hours and posts none before they open", () => {
     const reels = { ...CRICKETLIVE_PAGE.reels!, activeHours: CRICKETLIVE_PAGE.reels!.activeHours!, overnight: false };
     expect(destinationRunCap(reels, 0, new Date("2026-10-06T07:30:00Z"))).toBe(1); // 13:00 IST
-    expect(destinationRunCap(reels, 0, new Date("2026-10-06T03:00:00Z"))).toBe(0); // 08:30 IST
-    expect(destinationRunCap(reels, 0, new Date("2026-10-06T13:00:00Z"))).toBe(0); // 18:30 IST
+    expect(destinationRunCap(reels, 0, new Date("2026-10-06T13:00:00Z"))).toBe(1); // 18:30 IST, evening of a match
+    expect(destinationRunCap(reels, 0, new Date("2026-10-06T03:00:00Z"))).toBe(0); // 08:30 IST, before the window
   });
 
   it("is listed after Greenfield, so Greenfield picks first", () => {
@@ -207,7 +207,7 @@ describe("reel caption test", () => {
   });
 
   it("holds Greenfield's reels to 12 a day, 1 per run (its median was 3 plays at 24)", () => {
-    expect(INDIA_CRICKET_PAGE.reels?.dailyCap).toBe(12);
+    expect(INDIA_CRICKET_PAGE.reels?.dailyCap).toBe(24); // widened for the India–West Indies series (was 12)
     expect(INDIA_CRICKET_PAGE.reels?.perRunCap).toBe(1);
   });
 });
@@ -221,7 +221,7 @@ describe("breaking news lanes", () => {
 
   it("leaves the normal limits as they were", () => {
     expect(INDIA_CRICKET_PAGE.dailyCap).toBe(50);
-    expect(INDIA_CRICKET_PAGE.reels?.dailyCap).toBe(12);
+    expect(INDIA_CRICKET_PAGE.reels?.dailyCap).toBe(24); // widened for the India–West Indies series (was 12)
   });
 });
 
