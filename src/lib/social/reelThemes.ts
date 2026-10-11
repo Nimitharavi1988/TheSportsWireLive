@@ -17,6 +17,35 @@ export type ReelTheme = keyof typeof REEL_THEMES;
 export const REEL_THEME_NAMES = Object.keys(REEL_THEMES) as ReelTheme[];
 export const DEFAULT_REEL_THEME: ReelTheme = "green";
 
+// Colour per story, chosen like the music is: stable for a story (so Instagram, Facebook and
+// YouTube show the same colour and a rerun keeps it), rotating across the feed. Each sport has a
+// small pool of colours that suit it; about 1 story in 4 stays brand green so the feed still reads
+// as Sports Wire Live. Topic Pages keep their own look (postReel.ts passes no auto colour there).
+const THEME_POOLS: [string, ReelTheme[]][] = [
+  ["american-football", ["blue", "red", "gold"]],
+  ["college-football", ["gold", "red", "blue"]],
+  ["cricket", ["blue", "orange", "purple"]],
+  ["football", ["orange", "purple", "red"]],
+  ["baseball", ["red", "blue", "gold"]],
+  ["basketball", ["orange", "purple", "gold"]],
+  ["wnba", ["orange", "purple", "gold"]],
+  ["volleyball", ["orange", "purple", "blue"]],
+  ["hockey", ["blue", "purple", "red"]],
+  ["mma", ["red", "gold", "purple"]],
+  ["boxing", ["red", "gold", "purple"]],
+  ["formula-1", ["red", "gold", "blue"]],
+];
+const OTHER_THEMES: ReelTheme[] = ["blue", "orange", "red", "purple", "gold"];
+
+export function reelThemeFor(id: string, category?: string | null): ReelTheme {
+  let h = 0;
+  for (const c of id + "|theme") h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  if (h % 4 === 0) return "green";
+  const cat = category ?? "";
+  const pool = THEME_POOLS.find(([c]) => cat === c || cat.startsWith(c + "/"))?.[1] ?? OTHER_THEMES;
+  return pool[Math.floor(h / 4) % pool.length];
+}
+
 // Headline fonts for reels: the hook, the fact values and the end card's
 // question. Labels and small text stay Poppins. `file` is in
 // src/assets/fonts (null = Poppins Bold, already loaded); `scale` evens out

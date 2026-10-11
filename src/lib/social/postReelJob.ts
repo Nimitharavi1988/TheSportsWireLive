@@ -14,8 +14,8 @@ async function main() {
     throw new Error(`Unknown MUSIC "${musicInput}" (expected auto or ${REEL_MUSIC_STYLE_NAMES.join(", ")})`);
   }
   const music = musicInput === "auto" ? undefined : (musicInput as ReelMusicStyle);
-  // THEME: a colour theme from reelThemes.ts; empty for brand green.
-  const themeInput = process.env.THEME || undefined;
+  // THEME: a colour theme from reelThemes.ts, or "auto"/empty to rotate by sport (reelThemeFor).
+  const themeInput = process.env.THEME && process.env.THEME !== "auto" ? process.env.THEME : undefined;
   if (themeInput && !REEL_THEME_NAMES.includes(themeInput as ReelTheme)) {
     throw new Error(`Unknown THEME "${themeInput}" (expected ${REEL_THEME_NAMES.join(", ")})`);
   }

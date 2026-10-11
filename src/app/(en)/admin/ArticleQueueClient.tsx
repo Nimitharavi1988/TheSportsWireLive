@@ -27,7 +27,7 @@ import Alert from "@mui/material/Alert";
 import CloseIcon from "@mui/icons-material/Close";
 import { displaySummary } from "@/lib/articleSummary";
 import { REEL_MUSIC_STYLE_NAMES } from "@/lib/social/reelMusic";
-import { REEL_THEMES, REEL_THEME_NAMES, DEFAULT_REEL_THEME, REEL_FONTS, REEL_FONT_NAMES, DEFAULT_REEL_FONT } from "@/lib/social/reelThemes";
+import { REEL_THEMES, REEL_THEME_NAMES, REEL_FONTS, REEL_FONT_NAMES, DEFAULT_REEL_FONT } from "@/lib/social/reelThemes";
 
 // Admin-triggered only, no persisted "already sent" state (unlike
 // SocialPostButton) — a push notification isn't tracked per-article the
@@ -233,7 +233,7 @@ function ReelButton({
 }) {
   const [isPending, startTransition] = useTransition();
   const [music, setMusic] = useState("auto");
-  const [theme, setTheme] = useState<string>(DEFAULT_REEL_THEME);
+  const [theme, setTheme] = useState<string>("auto");
   const [font, setFont] = useState<string>(DEFAULT_REEL_FONT);
   const [message, setMessage] = useState<{ text: string; severity: "success" | "error" } | null>(null);
   const reelOn = (platform: string) => socialPosts.some((p) => p.platform === platform && p.destination === "reel" && p.status === "posted");
@@ -262,6 +262,7 @@ function ReelButton({
         ))}
       </TextField>
       <TextField select size="small" label="Colour" value={theme} onChange={(e) => setTheme(e.target.value)} sx={{ minWidth: 110 }}>
+        <MenuItem value="auto">Auto (by sport)</MenuItem>
         {REEL_THEME_NAMES.map((name) => (
           <MenuItem key={name} value={name} sx={{ textTransform: "capitalize" }}>
             <Box component="span" sx={{ display: "inline-block", width: 12, height: 12, borderRadius: "50%", bgcolor: REEL_THEMES[name].accent, mr: 1 }} />

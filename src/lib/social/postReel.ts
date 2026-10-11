@@ -10,7 +10,7 @@ import { createId } from "@paralleldrive/cuid2";
 import { generatePosterContent, generateSocialCaptions, type SocialCaptions } from "@/lib/ingestion/commentary";
 import { renderReel } from "./reel";
 import { musicStyleFor, type ReelMusicStyle } from "./reelMusic";
-import type { ReelTheme, ReelFont } from "./reelThemes";
+import { reelThemeFor, type ReelTheme, type ReelFont } from "./reelThemes";
 import { resolvePageAccessToken, translationFor } from "./facebook";
 import { LOCALES } from "@/lib/i18n/locales";
 import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepertoire";
@@ -313,8 +313,10 @@ export async function postReel(
 
   // Topic Pages pick music by the story's mood and sport; the main Page and Instagram keep the original rotation.
   const music = opts.music ?? musicStyleFor(article.id, opts.topicPage ? { title: article.title, category: article.category } : undefined);
-  console.log(`Rendering reel (music: ${music}, theme: ${opts.theme ?? "default"}, font: ${opts.font ?? "default"})...`);
-  const render = (youtube: boolean) => renderReel({ content, heroImageUrl: article.heroImageUrl!, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme: opts.theme, font: opts.font, language: locale, followHandle: opts.topicPage ? opts.topicPage.instagramHandle ?? null : undefined, youtube });
+  // An explicit colour wins; topic Pages keep their own look; everything else rotates by sport (reelThemes.ts).
+  const theme = opts.theme ?? (opts.topicPage ? undefined : reelThemeFor(article.id, article.category));
+  console.log(`Rendering reel (music: ${music}, theme: ${theme ?? "default"}, font: ${opts.font ?? "default"})...`);
+  const render = (youtube: boolean) => renderReel({ content, heroImageUrl: article.heroImageUrl!, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme, font: opts.font, language: locale, followHandle: opts.topicPage ? opts.topicPage.instagramHandle ?? null : undefined, youtube });
   // Instagram/Facebook share one render; the YouTube Short gets its own end card (Subscribe, link in the description).
   const mp4 = needInstagram || needFacebook ? await render(false) : null;
   if (mp4) console.log(`Rendered ${(mp4.length / 1024 / 1024).toFixed(1)} MB`);

@@ -135,7 +135,7 @@ export async function postReelManually(articleId: string, music: string, theme: 
   if (music !== "auto" && !REEL_MUSIC_STYLE_NAMES.includes(music as ReelMusicStyle)) {
     return { success: false, error: `Unknown music style: ${music}` };
   }
-  if (!REEL_THEME_NAMES.includes(theme as ReelTheme)) {
+  if (theme !== "auto" && !REEL_THEME_NAMES.includes(theme as ReelTheme)) {
     return { success: false, error: `Unknown colour theme: ${theme}` };
   }
   if (!REEL_FONT_NAMES.includes(font as ReelFont)) {

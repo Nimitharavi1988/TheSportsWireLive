@@ -18,9 +18,9 @@ on:
       theme:
         description: "Colour theme"
         required: false
-        default: green
+        default: auto
         type: choice
-        options: [green, blue, orange, red, purple, gold]
+        options: [auto, green, blue, orange, red, purple, gold]
       topic_page:
         description: "Post to a topic Facebook Page only (no Instagram / main Page)"
         required: false
