@@ -75,7 +75,11 @@ export interface Dict {
     trending: string;
     watch: string;
   };
-  engagement: { question: string; hype: string; panic: string; neutral: string; votes: (n: number) => string };
+  engagement: {
+    question: string; hype: string; panic: string; neutral: string; votes: (n: number) => string;
+    // Match predictions ("Who will win?"), closed at kickoff, resolved at full time.
+    closed: string; correct: string; wrong: string; noWinner: string; result: string;
+  };
   section: { moreIn: string; empty: string };
   scores: {
     title: string;

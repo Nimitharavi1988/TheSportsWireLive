@@ -81,7 +81,7 @@ const FOOTBALL_MAJOR = [
 // match would make "New England Revolution" an England game.
 const FOOTBALL_NATIONS = new Set(["england", "france", "germany", "spain", "italy", "portugal", "netherlands", "belgium", "croatia", "brazil", "argentina", "united states", "mexico"]);
 
-function isMajorTeam(sport: string, name: string): boolean {
+export function isMajorTeam(sport: string, name: string): boolean {
   const n = name.trim().toLowerCase();
   if (sport === "cricket") return CRICKET_MAJOR.has(n);
   if (sport === "football") return FOOTBALL_NATIONS.has(n) || FOOTBALL_MAJOR.some((t) => n.includes(t));

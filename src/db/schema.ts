@@ -311,13 +311,24 @@ export const poll = pgTable("Poll", {
   id: text("id").primaryKey(),
   articleId: text("articleId").notNull().unique(),
   question: text("question").notNull(),
+  // "editorial" = made by hand in admin; "prediction" = auto-created "Who will
+  // win?" for a match (lib/predictions.ts). A prediction closes at kickoff and
+  // is resolved after full time: resolvedAt set, with resolvedOptionId = the
+  // winning option, or null when the match had no winner (void).
+  kind: text("kind").notNull().default("editorial"),
+  resolvedOptionId: text("resolvedOptionId"),
+  resolvedAt: timestamp("resolvedAt", { precision: 3 }),
   createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
-});
+}, (t) => [
+  index("Poll_kind_resolvedAt_idx").on(t.kind, t.resolvedAt),
+]);
 
 export const pollOption = pgTable("PollOption", {
   id: text("id").primaryKey(),
   pollId: text("pollId").notNull(),
   text: text("text").notNull(),
+  // Prediction polls only: "home" | "away" | "draw".
+  outcome: text("outcome"),
 }, (t) => [
   index("PollOption_pollId_idx").on(t.pollId),
 ]);

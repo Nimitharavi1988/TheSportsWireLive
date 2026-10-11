@@ -16,6 +16,11 @@ interface EngagementState {
   poll: {
     id: string;
     question: string;
+    kind: string;
+    closed: boolean;
+    resolved: boolean;
+    resolvedOptionId: string | null;
+    correct: boolean | null;
     totalVotes: number;
     votedOptionId: string | null;
     options: { id: string; text: string; votes: number; percentage: number }[];
@@ -102,13 +107,15 @@ export function FanEngagementHub({ articleId, locale }: { articleId: string; loc
           </Typography>
           <Stack spacing={1}>
             {state.poll.options.map((option) => {
-              const showResults = state.poll!.votedOptionId !== null;
+              // A closed prediction shows its results even to visitors who didn't pick.
+              const showResults = state.poll!.votedOptionId !== null || state.poll!.closed;
               const isMine = state.poll!.votedOptionId === option.id;
+              const isWinner = state.poll!.resolvedOptionId === option.id;
               return showResults ? (
                 <Box key={option.id}>
                   <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.5 }}>
                     <Typography variant="body2" sx={{ fontWeight: isMine ? 600 : 400 }}>
-                      {option.text} {isMine && "✓"}
+                      {option.text} {isMine && "✓"}{isWinner && " 🏆"}
                     </Typography>
                     <Typography variant="body2" sx={{ color: "text.secondary" }}>
                       {option.percentage}%
@@ -134,9 +141,14 @@ export function FanEngagementHub({ articleId, locale }: { articleId: string; loc
               );
             })}
           </Stack>
-          {state.poll.votedOptionId !== null && (
+          {(state.poll.votedOptionId !== null || state.poll.closed) && (
             <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mt: 1 }}>
               {t.votes(state.poll.totalVotes)}
+              {state.poll.kind === "prediction" && state.poll.resolved && state.poll.correct !== null && (
+                <> · <strong>{state.poll.correct ? t.correct : t.wrong}</strong></>
+              )}
+              {state.poll.kind === "prediction" && state.poll.resolved && state.poll.resolvedOptionId === null && ` · ${t.noWinner}`}
+              {state.poll.kind === "prediction" && state.poll.closed && !state.poll.resolved && ` · ${t.closed}`}
             </Typography>
           )}
         </Box>

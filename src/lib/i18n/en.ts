@@ -72,6 +72,11 @@ export const EN: Dict = {
     panic: "Panic",
     neutral: "Neutral",
     votes: (n) => `${n} vote${n === 1 ? "" : "s"}`,
+    closed: "Predictions closed at kickoff",
+    correct: "You called it!",
+    wrong: "Not this time",
+    noWinner: "No winner, so this prediction doesn't count",
+    result: "Result",
   },
   section: { moreIn: "More in", empty: "No stories for this sport yet." },
   scores: {
