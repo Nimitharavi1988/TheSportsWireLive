@@ -238,7 +238,7 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
 async function postReelToYouTube(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null, articleUrl: string, hook: string, title0: string, topicPage?: FacebookDestination): Promise<boolean> {
   const spanish = topicPage?.locale === "es";
   const hashtags = topicPage?.hashtags ? topicPage.hashtags(title0, article.category) : selectFacebookHashtags(title0, article.category);
-  const title = shortsTitleFor(hook, title0);
+  const title = shortsTitleFor(hook, title0, spanish ? "es" : "en");
   const description = shortsDescription(captions?.facebook ?? title0, articleUrl, hashtags, spanish ? "es" : "en");
   const tags = shortsTags({ category: article.category, names: [article.homeTeam, article.awayTeam, article.seriesLabel], hashtags, language: spanish ? "es" : "en" });
   return recordAttempt(article, "youtube", async () => {

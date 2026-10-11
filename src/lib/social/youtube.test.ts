@@ -31,7 +31,7 @@ describe("fixShoutedTitle", () => {
 describe("fixShoutedTitle with Spanish letters", () => {
   it("keeps accented words whole and lower-cases them", () => {
     expect(fixShoutedTitle("FORREST 70: 12 AÑOS DE ESPERA, 1 PUTT EN EL 18", "Forrest")).toBe("Forrest 70: 12 años de espera, 1 putt en el 18");
-    expect(fixShoutedTitle("SIRIANNI ADMITE: NO FUE LA DECISIÓN CORRECTA", "Sirianni admite")).toBe("Sirianni admite: no fue la decisión correcta");
+    expect(fixShoutedTitle("SIRIANNI ADMITE: NO FUE LA DECISIÓN CORRECTA", "Sirianni admite", "es")).toBe("Sirianni admite: no fue la decisión correcta");
   });
 });
 

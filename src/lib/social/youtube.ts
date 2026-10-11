@@ -64,13 +64,16 @@ function isShouting(s: string): boolean {
 
 const WORD = /[\p{L}\p{N}][\p{L}\p{N}\u2019']*/gu;
 
-export function fixShoutedTitle(hook: string, headline: string): string {
+// In Spanish these abbreviations are ordinary words (la, mi, te), so they are not kept upper-case there.
+const SPANISH_WORDS = new Set(["LA", "MI", "TE"]);
+
+export function fixShoutedTitle(hook: string, headline: string, language: "en" | "es" = "en"): string {
   if (!isShouting(hook)) return hook;
   const known = new Map<string, string>();
   if (!isShouting(headline)) {
     for (const w of headline.match(WORD) ?? []) if (/\p{Lu}/u.test(w)) known.set(w.toLowerCase(), w);
   }
-  const fixed = hook.replace(WORD, (w) => known.get(w.toLowerCase()) ?? (ACRONYMS.has(w.toUpperCase()) ? w.toUpperCase() : w.toLowerCase()));
+  const fixed = hook.replace(WORD, (w) => known.get(w.toLowerCase()) ?? (ACRONYMS.has(w.toUpperCase()) && !(language === "es" && SPANISH_WORDS.has(w.toUpperCase())) ? w.toUpperCase() : w.toLowerCase()));
   return fixed.replace(/^([^\p{L}]*)(\p{Ll})/u, (_m, pre: string, c: string) => pre + c.toUpperCase());
 }
 
@@ -143,8 +146,8 @@ export function shortsTags(input: { category?: string | null; names?: (string | 
 
 // The reel's hook (written from the article under strict no-invented-facts rules) makes a better
 // Shorts title than the news headline; the headline is the fallback.
-export function shortsTitleFor(hook: string | null | undefined, headline: string): string {
-  const h = fixShoutedTitle((hook ?? "").replace(/\s+/g, " ").trim(), headline);
+export function shortsTitleFor(hook: string | null | undefined, headline: string, language: "en" | "es" = "en"): string {
+  const h = fixShoutedTitle((hook ?? "").replace(/\s+/g, " ").trim(), headline, language);
   return shortsTitle(h.length >= 12 ? h : headline);
 }
 
