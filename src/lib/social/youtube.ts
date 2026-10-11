@@ -65,7 +65,7 @@ async function accessToken(): Promise<string> {
 }
 
 // Uploads the MP4 as a public Short. Returns the YouTube video id.
-export async function uploadShort(mp4: Buffer, title: string, description: string, tags: string[], privacy: "public" | "unlisted" | "private" = "public"): Promise<string> {
+export async function uploadShort(mp4: Buffer, title: string, description: string, tags: string[], privacy: "public" | "unlisted" | "private" = "public", language = "en"): Promise<string> {
   const token = await accessToken();
   const init = await fetch("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status", {
     method: "POST",
@@ -76,7 +76,7 @@ export async function uploadShort(mp4: Buffer, title: string, description: strin
       "X-Upload-Content-Length": String(mp4.length),
     },
     body: JSON.stringify({
-      snippet: { title, description, tags: tags.slice(0, 15), categoryId: "17" }, // 17 = Sports
+      snippet: { title, description, tags: tags.slice(0, 15), categoryId: "17", defaultLanguage: language }, // 17 = Sports
       status: { privacyStatus: privacy, selfDeclaredMadeForKids: false, embeddable: true },
     }),
   });
