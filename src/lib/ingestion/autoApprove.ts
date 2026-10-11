@@ -19,6 +19,7 @@ import { timed, logTimingSummary } from "./timing";
 import { postInstagramPoster } from "../social/postInstagramPoster";
 import { postReel } from "../social/postReel";
 import { sendPushToAllSubscribers } from "../push";
+import { pushIsConfigured } from "../pushConfig";
 import { isSimilarToAny } from "../titleSimilarity";
 import { orderForVariety } from "../social/reelVariety";
 import { MIN_BODY_LENGTH, MIN_MATCH_DATA_BODY_LENGTH, hasRealImage, isAutoApprovable, isHockeyNewsSyndicated } from "../contentQuality";
@@ -686,6 +687,12 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
 async function sendAutomatedPushNotifications(toApprove: { id: string; slug: string; title: string }[]): Promise<void> {
   const pushWorthyArticles = toApprove.filter((a) => isPushWorthy(a.title));
   if (pushWorthyArticles.length === 0) return;
+  // Without the VAPID keys every send throws; skip before queueing so no
+  // "failed" push row is written per story (was about 16 a day).
+  if (!pushIsConfigured()) {
+    console.log("[push] skipped: VAPID keys not configured for this run");
+    return;
+  }
 
   const todayStart = new Date();
   todayStart.setUTCHours(0, 0, 0, 0);

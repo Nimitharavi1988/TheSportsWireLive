@@ -125,6 +125,9 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SITE_URL: ${{ vars.SITE_URL }}
           INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+          # Automated breaking-news push (sendAutomatedPushNotifications).
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           # AI router (src/lib/llm): free providers in order; all optional, off unless LLM_ROUTER=1.
           LLM_ROUTER: ${{ vars.LLM_ROUTER }}
