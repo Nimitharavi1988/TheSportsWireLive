@@ -1,24 +1,15 @@
 import { NextResponse } from "next/server";
-import { sql } from "drizzle-orm";
-import { db } from "@/db";
-import { appEvent } from "@/db/schema";
+import { bumpAppEvent, CLIENT_APP_EVENT_KINDS } from "@/lib/appEvents";
 
-// Counts install-funnel events (see trackAppEvent in components/appPrompts.ts).
+// Counts install-funnel and fan-card events (see trackAppEvent in components/appPrompts.ts).
 // Anonymous: only a whitelisted kind is stored, incremented per UTC day.
 export const dynamic = "force-dynamic";
-
-const KINDS = new Set([
-  "session", "standalone_launch", "install_banner_shown", "ios_banner_shown",
-  "inapp_browser_tip_shown", "inapp_browser_tip_clicked", "install_clicked", "install_accepted", "install_declined", "app_installed",
-]);
 
 export async function POST(request: Request) {
   try {
     const { kind } = (await request.json()) as { kind?: unknown };
-    if (typeof kind !== "string" || !KINDS.has(kind)) return new NextResponse(null, { status: 400 });
-    const day = new Date().toISOString().slice(0, 10);
-    await db.insert(appEvent).values({ day, kind, count: 1 })
-      .onConflictDoUpdate({ target: [appEvent.day, appEvent.kind], set: { count: sql`${appEvent.count} + 1` } });
+    if (typeof kind !== "string" || !CLIENT_APP_EVENT_KINDS.has(kind)) return new NextResponse(null, { status: 400 });
+    await bumpAppEvent(kind);
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     console.error("app-event endpoint failed:", err);

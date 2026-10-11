@@ -135,6 +135,12 @@ export default async function AdminQueuePage(
           <Link href="/admin/stories/ideas" style={{ color: "inherit" }}>
             <Button variant="outlined" size="small">Story ideas</Button>
           </Link>
+          <Link href="/admin/fan-voices" style={{ color: "inherit" }}>
+            <Button variant="outlined" size="small">Fan Voices</Button>
+          </Link>
+          <Link href="/admin/feedback" style={{ color: "inherit" }}>
+            <Button variant="outlined" size="small">Site feedback</Button>
+          </Link>
           <Link href="/admin/homepage" style={{ color: "inherit" }}>
             <Button variant="outlined" size="small">Manage hero &amp; highlights</Button>
           </Link>

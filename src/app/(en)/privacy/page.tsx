@@ -65,9 +65,10 @@ export default function PrivacyPolicyPage() {
         <ul>
           <li>
             <strong>swl_voter_id</strong> (cookie, 1 year): a random ID that lets us count one
-            vote per poll or match prediction and one reaction per article per browser. It is
-            not linked to your name, email, or any account. We also store the IP address that
-            sent a vote or reaction, to limit abuse.
+            vote per poll or match prediction and one reaction per article per browser, and to
+            remember which days you visited so we can show your visit streak and badges on your
+            Fan Card. It is not linked to your name, email, or any account. We also store the IP
+            address that sent a vote or reaction, to limit abuse.
           </li>
           <li>
             <strong>swl_follows</strong> and <strong>swl_fav_sports</strong> (cookies, 1 year):
@@ -95,9 +96,17 @@ export default function PrivacyPolicyPage() {
           answered.
         </p>
         <p>
-          <strong>Anonymous usage counters.</strong> We count, per day, how many sessions began
-          and how often the install-app prompts were shown or used. These counters hold no
-          identifier and cannot be traced to a person.
+          <strong>Fan Card.</strong> After you interact with a page (for example by scrolling or
+          tapping), we record, for your anonymous <em>swl_voter_id</em>, that you were active on
+          that day. We use it to show your streak, level, badges, and match prediction record on
+          your Fan Card page, which only your browser can open. It holds no name or email, and
+          clearing your cookies starts it over.
+        </p>
+        <p>
+          <strong>Anonymous usage counters.</strong> We count, per day, how many sessions began,
+          how often the install-app prompts were shown or used, how many new and returning
+          visitors there were, how many predictions were made, and how many Fan Card badges were
+          earned. These counters hold no identifier and cannot be traced to a person.
         </p>
         <p>
           <strong>Push notifications (optional).</strong> If you choose to allow notifications,
@@ -109,6 +118,26 @@ export default function PrivacyPolicyPage() {
           <strong>Polls and predictions.</strong> When you vote in a poll or pick a winner for a
           match, we store your choice together with your anonymous <em>swl_voter_id</em> and the
           time. Totals are shown publicly in aggregate; individual choices are not.
+        </p>
+        <p>
+          <strong>Match ratings.</strong> When you rate a finished match from 1 to 5, we store
+          your rating with your anonymous <em>swl_voter_id</em>. Only the average and the number
+          of ratings are shown.
+        </p>
+        <p>
+          <strong>Feedback.</strong> If you send feedback from the Feedback page, we store your
+          thumbs up or down, your optional note (up to 300 characters), the page you came from,
+          and your anonymous <em>swl_voter_id</em>. Notes are read by our team only and are not
+          published. Please do not include personal details. We reject notes that contain links,
+          email addresses, or phone numbers.
+        </p>
+        <p>
+          <strong>Fan Voices.</strong> If you share a take on a match, we store the first name,
+          optional country, and text you enter, with your anonymous <em>swl_voter_id</em>. A
+          person reads every take before it is published. If we publish it, your first name,
+          country and text appear under "Fans say" on that match page. If you want a take
+          removed, contact us using the details on our Contact page and tell us which match it
+          was on.
         </p>
         <p>
           <strong>No account required.</strong> You do not need to create an account or provide

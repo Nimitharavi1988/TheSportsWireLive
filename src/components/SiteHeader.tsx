@@ -21,6 +21,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import { ScrollRow } from "./ScrollRow";
 import { HeaderSearch } from "./HeaderSearch";
+import { FanChip } from "./FanChip";
 import MenuIcon from "@mui/icons-material/Menu";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
@@ -640,6 +641,7 @@ export default function SiteHeader({
           </Suspense>
           {/* Search icon: popover on desktop, full-screen on phones — see
               HeaderSearch.tsx. */}
+          {!locale && <FanChip />}
           {editions && editions.length > 0 && <LanguageSwitch editions={editions} />}
           {otherSite && <OtherSiteLink href={otherSite.href} label={otherSite.label} />}
           {locale ? (

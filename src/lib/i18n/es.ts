@@ -117,6 +117,8 @@ export const ES: Dict = {
     wrong: "Esta vez no",
     noWinner: "Sin ganador, esta predicción no cuenta",
     result: "Resultado",
+    rateQuestion: "¿Qué tal estuvo el partido?",
+    ratingSummary: (average, n) => `${average} de 5 según ${n} aficionado${n === 1 ? "" : "s"}`,
   },
   section: { moreIn: "Más noticias de", empty: "No hay noticias en español para este deporte por ahora." },
   scores: {

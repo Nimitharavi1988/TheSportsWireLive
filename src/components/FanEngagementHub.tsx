@@ -30,6 +30,7 @@ interface EngagementState {
     counts: Record<ReactionType, number>;
     myReaction: ReactionType | null;
   };
+  rating?: { open: boolean; average: number | null; count: number; mine: number | null };
 }
 
 const REACTIONS: { type: ReactionType; emoji: string }[] = [
@@ -71,6 +72,21 @@ export function FanEngagementHub({ articleId, locale }: { articleId: string; loc
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ optionId }),
+      });
+      if (res.ok) setState(await res.json());
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function rate(rating: number) {
+    if (pending) return;
+    setPending(true);
+    try {
+      const res = await fetch(`/api/engagement/${articleId}/rate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating }),
       });
       if (res.ok) setState(await res.json());
     } finally {
@@ -149,6 +165,35 @@ export function FanEngagementHub({ articleId, locale }: { articleId: string; loc
               )}
               {state.poll.kind === "prediction" && state.poll.resolved && state.poll.resolvedOptionId === null && ` · ${t.noWinner}`}
               {state.poll.kind === "prediction" && state.poll.closed && !state.poll.resolved && ` · ${t.closed}`}
+            </Typography>
+          )}
+        </Box>
+      )}
+
+      {state.rating?.open && (
+        <Box sx={{ mb: 2.5 }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center", justifyContent: "space-between" }}>
+            <Typography variant="subtitle2" sx={{ color: "text.secondary" }}>{t.rateQuestion}</Typography>
+            <Stack direction="row" spacing={0.25} role="radiogroup" aria-label={t.rateQuestion}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <Button
+                  key={n}
+                  size="small"
+                  disabled={pending}
+                  role="radio"
+                  aria-checked={state.rating!.mine === n}
+                  aria-label={`${n} / 5`}
+                  onClick={() => rate(n)}
+                  sx={{ minWidth: 0, px: 0.75, fontSize: 22, lineHeight: 1, color: (state.rating!.mine ?? 0) >= n ? "warning.main" : "action.disabled" }}
+                >
+                  ★
+                </Button>
+              ))}
+            </Stack>
+          </Stack>
+          {state.rating.average !== null && (
+            <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mt: 0.5 }}>
+              {t.ratingSummary(state.rating.average.toFixed(1), state.rating.count)}
             </Typography>
           )}
         </Box>

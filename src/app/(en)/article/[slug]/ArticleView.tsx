@@ -39,6 +39,7 @@ import { Suspense } from "react";
 import { UpNext } from "@/components/UpNext";
 import { pickOnward, RELATED_COUNT, trendingSince } from "@/lib/articleOnward";
 import { FanEngagementHub } from "@/components/FanEngagementHub";
+import { FanVoices } from "@/components/FanVoices";
 import { FollowUs } from "@/components/FollowUs";
 import { InAppBrowserTip } from "@/components/InAppBrowserTip";
 import { ShareButtons } from "@/components/ShareButtons";
@@ -726,6 +727,7 @@ export async function ArticleView({ slug, locale }: { slug: string; locale?: str
           reader who clicks through to the source immediately after reading
           would otherwise never see it. */}
       <FanEngagementHub articleId={article.id} locale={locale} />
+      {!loc && <FanVoices articleId={article.id} />}
 
       {!loc && <FollowUs />}
       {!loc && <InAppBrowserTip />}

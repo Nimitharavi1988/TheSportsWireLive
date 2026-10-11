@@ -4,6 +4,7 @@ import { getOrCreateVoterId } from "@/lib/voterCookie";
 import { db } from "@/db";
 import { pollOption, poll, article } from "@/db/schema";
 import { isPredictionClosed } from "@/lib/predictions";
+import { bumpAppEventQuietly } from "@/lib/appEvents";
 import { eq } from "drizzle-orm";
 
 function clientIp(req: NextRequest): string | null {
@@ -36,6 +37,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ art
 
   try {
     await recordVote(option.pollId, optionId, voterId, clientIp(req));
+    // Anonymous daily counter: only first-time picks reach here (a repeat vote
+    // throws the unique-constraint error handled below).
+    await bumpAppEventQuietly(option.kind === "prediction" ? "prediction_vote" : "poll_vote");
   } catch (err) {
     // Unique constraint on (pollId, cookieId) — this voter already voted on
     // this poll. Not an error worth logging, just return current state.

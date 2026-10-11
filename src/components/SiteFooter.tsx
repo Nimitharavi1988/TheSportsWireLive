@@ -11,6 +11,8 @@ const FOOTER_LINKS = [
   { href: "/club", label: "Clubs" },
   { href: "/series", label: "Series" },
   { href: "/standings", label: "Standings" },
+  { href: "/fan-card", label: "My Fan Card" },
+  { href: "/feedback", label: "Feedback" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
   { href: "/privacy", label: "Privacy Policy" },

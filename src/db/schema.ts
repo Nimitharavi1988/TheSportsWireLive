@@ -406,3 +406,57 @@ export const appEvent = pgTable("AppEvent", {
   kind: text("kind").notNull(),
   count: integer("count").notNull().default(0),
 }, (t) => [primaryKey({ columns: [t.day, t.kind] })]);
+
+// 1-5 rating of a finished match, one per visitor per match (changeable).
+export const matchRating = pgTable("MatchRating", {
+  id: text("id").primaryKey(),
+  articleId: text("articleId").notNull(),
+  voterId: text("voterId").notNull(),
+  rating: integer("rating").notNull(),
+  createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("MatchRating_articleId_voterId_key").on(t.articleId, t.voterId),
+]);
+
+// Private "how are we doing" notes from the /feedback page. Read in admin only,
+// never shown to other visitors.
+export const siteFeedback = pgTable("SiteFeedback", {
+  id: text("id").primaryKey(),
+  voterId: text("voterId").notNull(),
+  sentiment: text("sentiment").notNull(), // "up" | "down"
+  note: text("note"),
+  page: text("page"),
+  handled: boolean("handled").notNull().default(false),
+  createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+}, (t) => [
+  index("SiteFeedback_createdAt_idx").on(t.createdAt),
+]);
+
+// A fan's short take on a match. Shown publicly only once approved in admin.
+export const fanVoice = pgTable("FanVoice", {
+  id: text("id").primaryKey(),
+  articleId: text("articleId").notNull(),
+  voterId: text("voterId").notNull(),
+  name: text("name").notNull(),
+  country: text("country"),
+  body: text("body").notNull(),
+  status: text("status").notNull().default("pending"), // pending | approved | rejected
+  createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  reviewedAt: timestamp("reviewedAt", { precision: 3 }),
+}, (t) => [
+  uniqueIndex("FanVoice_articleId_voterId_key").on(t.articleId, t.voterId),
+  index("FanVoice_status_createdAt_idx").on(t.status, t.createdAt),
+  index("FanVoice_articleId_status_idx").on(t.articleId, t.status),
+]);
+
+// One row per anonymous visitor (swl_voter_id cookie) per day they were active
+// (see lib/fan.ts, lib/fanStore.ts). `day` is the visitor's local date as
+// YYYY-MM-DD. No name, email or account: just the opaque cookie id.
+export const fanVisit = pgTable("FanVisit", {
+  voterId: text("voterId").notNull(),
+  day: text("day").notNull(),
+  createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+}, (t) => [
+  primaryKey({ columns: [t.voterId, t.day] }),
+  index("FanVisit_day_idx").on(t.day),
+]);
