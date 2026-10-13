@@ -34,7 +34,7 @@ export async function postArticleToInstagram(articleId: string, topicPage?: Face
     .limit(1);
   if (alreadyPosted) return false;
   // Meta's app-wide call limit was just hit: pause rather than fail again (metaCooldown.ts).
-  if (await instagramCoolingDown()) {
+  if (await instagramCoolingDown(destination)) {
     console.log("[instagram] skipped: Meta app request limit cooldown");
     return false;
   }

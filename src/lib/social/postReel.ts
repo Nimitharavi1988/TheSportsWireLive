@@ -114,7 +114,7 @@ async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, ca
   const rawToken = topicPage ? process.env[topicPage.tokenEnv] : article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
   if (!igUserId || !pageId || !rawToken) return false;
   // Meta's app-wide call limit was just hit: pause rather than fail again (metaCooldown.ts).
-  if (await instagramCoolingDown()) {
+  if (await instagramCoolingDown(topicPage ? `${topicPage.key}-reel` : DESTINATION)) {
     console.log("[instagram reel] skipped: Meta app request limit cooldown");
     return false;
   }
@@ -313,7 +313,7 @@ export async function postReel(
     }
     : reelNeeds(existing, { instagram: opts.instagram, facebook: opts.facebook, topicKey: opts.topicPage?.key });
   // Skip Instagram up front while Meta's app limit is cooling down, so no reel is rendered just for it (metaCooldown.ts).
-  const needInstagram = wantInstagram && !(await instagramCoolingDown());
+  const needInstagram = wantInstagram && !(await instagramCoolingDown(opts.topicPage ? `${opts.topicPage.key}-reel` : DESTINATION));
   // YouTube: the English channel for the main reels, the Spanish channel for the Spanish Page's reels
   // (other topic Pages: none), once per story per channel.
   // The cricket Pages' reels (reels.youtube) go to the English channel too, with the main reels: one Short
