@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import Box from "@mui/material/Box";
 import { trackAppEvent } from "./appPrompts";
 import { FAN_STORAGE_KEY, FAN_UPDATED_EVENT } from "./FanBeacon";
@@ -29,10 +29,10 @@ function getSnapshot(): string | null {
   }
 }
 
-// Header chip that shows a visitor's streak once they have one (2+ days in a
-// row) and links to their fan card. Reads the summary FanBeacon last stored,
-// so it appears from the next page after a visit is counted. Renders nothing
-// on the server and for visitors without a streak.
+// Header chip linking to the visitor's fan card. Everyone sees it (it used to appear only after a
+// 2-day streak, so the 1,600 new visitors a day never saw a way in: 1 opened the card on 12 Oct
+// 2026): "Fan card" until they have a streak, then their streak. Reads the summary FanBeacon last
+// stored. Rendered on the server too, so the header does not shift when it appears.
 export function FanChip() {
   const raw = useSyncExternalStore(subscribe, getSnapshot, () => null);
   const data = useMemo<FanChipData | null>(() => {
@@ -44,13 +44,15 @@ export function FanChip() {
     }
   }, [raw]);
 
-  if (!data || !(data.streak >= 2)) return null;
+  const streak = data && data.streak >= 2 ? data.streak : 0;
+  // Counted once per session, so the click rate (fan_chip_clicked / fan_chip_shown) can be read.
+  useEffect(() => { trackAppEvent("fan_chip_shown"); }, []);
   return (
     <Box
       component={Link}
       href="/fan-card"
       onClick={() => trackAppEvent("fan_chip_clicked")}
-      aria-label={`${data.streak}-day streak. Open your fan card`}
+      aria-label={streak ? `${streak}-day streak. Open your fan card` : "Open your fan card"}
       sx={{
         display: "inline-flex",
         alignItems: "center",
@@ -68,7 +70,8 @@ export function FanChip() {
         "&:hover": { bgcolor: "action.hover" },
       }}
     >
-      <span aria-hidden>🔥</span> {data.streak}
+      <span aria-hidden>{streak ? "🔥" : "🏅"}</span>
+      {streak ? streak : <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Fan card</Box>}
     </Box>
   );
 }
