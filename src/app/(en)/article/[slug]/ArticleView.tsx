@@ -17,7 +17,7 @@ import Divider from "@mui/material/Divider";
 import Alert from "@mui/material/Alert";
 import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
 import { ForYouStrip } from "@/components/ForYouStrip";
-import { FacebookActions } from "@/components/FacebookActions";
+import { FacebookActions, ArticleActionsRow } from "@/components/FacebookActions";
 import { buildBreadcrumbJsonLd } from "@/lib/breadcrumbs";
 import { crestAltText } from "@/lib/teamNames";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
@@ -491,8 +491,10 @@ export async function ArticleView({ slug, locale }: { slug: string; locale?: str
 
       <SiteBreadcrumbs steps={breadcrumbSteps} current={article.title} />
       {/* The home page invitation to follow teams, here too: most visitors arrive on a story from Facebook. */}
-      <ForYouStrip />
-      <FacebookActions url={`${siteUrl}/article/${article.slug}`} locale={locale} />
+      <ArticleActionsRow>
+        <ForYouStrip compact />
+        <FacebookActions url={`${siteUrl}/article/${article.slug}`} locale={locale} />
+      </ArticleActionsRow>
 
       {scoreMatch ? (
         <>

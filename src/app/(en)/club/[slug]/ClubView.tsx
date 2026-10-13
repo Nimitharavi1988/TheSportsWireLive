@@ -116,7 +116,7 @@ export async function ClubView({ slug, locale }: { slug: string; locale?: string
       >
         <Box sx={{ minWidth: 0 }}>
           <SiteBreadcrumbs steps={breadcrumbSteps} current={club.name} />
-          <ForYouStrip />
+          <Box sx={{ mb: 1.5 }}><ForYouStrip compact /></Box>
           <Stack direction="row" spacing={3} sx={{ alignItems: "center", mb: 4 }}>
             {crestUrl ? (
               <Box component={Image} src={crestUrl} alt={t.entity.crestAlt(club.name)} width={96} height={96} sx={{ objectFit: "contain", flexShrink: 0 }} />

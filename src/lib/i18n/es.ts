@@ -236,6 +236,7 @@ export const ES: Dict = {
     stripAfter: " solo con sus noticias.",
     getStarted: "Empezar",
     dismiss: "Cerrar",
+    compact: "Seguir equipos",
   },
   entity: {
     players: "Jugadores",

@@ -180,6 +180,7 @@ export interface Dict {
     stripBefore: string;
     stripBold: string;
     stripAfter: string;
+    compact: string;
     getStarted: string;
     dismiss: string;
   };

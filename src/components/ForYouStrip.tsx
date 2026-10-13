@@ -45,13 +45,29 @@ const HIDE_BEFORE_PAINT = `try{if(localStorage.getItem(${JSON.stringify(DISMISSE
 // showed a preview of it here; removed as a duplicate of the nav page).
 // Rendered on the server (most visitors see it), hidden before paint for
 // the rest (HIDE_BEFORE_PAINT), then removed once the browser check runs.
-export function ForYouStrip() {
+// compact: just the small pill (no sentence, no box), for pages where the full strip would push the
+// content down (article, player and club pages). Same hiding rules.
+export function ForYouStrip({ compact = false }: { compact?: boolean } = {}) {
   const t = useDict().forYou;
   const { follows, ready } = useFollows();
   const storedDismissed = useSyncExternalStore(subscribeStorage, readDismissed, () => false);
   const [dismissedNow, setDismissedNow] = useState(false);
 
   if ((ready && follows.length > 0) || storedDismissed || dismissedNow) return null;
+
+  if (compact) {
+    return (
+      <>
+        <script dangerouslySetInnerHTML={{ __html: HIDE_BEFORE_PAINT }} />
+        <Button
+          component={Link} href="/for-you" size="small" variant="outlined" color="primary" startIcon={<StarBorderIcon sx={{ fontSize: 18 }} />}
+          sx={{ "html[data-foryou='hide'] &": { display: "none" }, borderRadius: 5, textTransform: "none", fontWeight: 600, fontSize: 13, py: 0.25, px: 1.5, whiteSpace: "nowrap" }}
+        >
+          {t.compact}
+        </Button>
+      </>
+    );
+  }
 
   return (
     <>

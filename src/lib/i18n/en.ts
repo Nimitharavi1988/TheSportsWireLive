@@ -180,6 +180,7 @@ export const EN: Dict = {
     stripAfter: " feed of just their news.",
     getStarted: "Get started",
     dismiss: "Dismiss",
+    compact: "Follow teams",
   },
   entity: {
     players: "Players",

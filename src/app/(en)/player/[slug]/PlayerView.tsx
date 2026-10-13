@@ -122,7 +122,7 @@ export async function PlayerView({ slug, locale }: { slug: string; locale?: stri
       >
         <Box sx={{ minWidth: 0 }}>
           <SiteBreadcrumbs steps={breadcrumbSteps} current={player.name} />
-          <ForYouStrip />
+          <Box sx={{ mb: 1.5 }}><ForYouStrip compact /></Box>
           <Stack direction="row" spacing={3} sx={{ alignItems: "center", mb: 4 }}>
             {photo ? (
               <Box
