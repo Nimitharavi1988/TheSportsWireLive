@@ -323,6 +323,21 @@ const FEEDS: RssFeed[] = [
   // (ESPN Arkansas) 1 of 10. The Razorbacks' own feed had none in its 10 latest items, so it is left out.
   { url: "https://www.arkansasonline.com/rss/headlines/sports/", category: "volleyball", sourceName: "Arkansas Democrat-Gazette", include: /volleyball/i },
   { url: "https://hitthatline.com/feed/", category: "volleyball", sourceName: "Hit That Line", include: /volleyball/i },
+  // College volleyball, league-wide (2026-10-13): the conferences' own volleyball feeds, checked live that day
+  // (10 items each, the newest from that morning: weekly awards, match previews and recaps, tournament news).
+  // The SEC has no public feed; its teams are covered through the team and Arkansas feeds above. Big 12's
+  // feed mixes every sport, so only volleyball headlines are taken.
+  { url: "https://bigten.org/rss.aspx?path=wvball", category: "volleyball", sourceName: "Big Ten Conference" },
+  { url: "https://theacc.com/rss.aspx?path=wvball", category: "volleyball", sourceName: "ACC" },
+  { url: "https://bigeast.com/rss.aspx?path=wvball", category: "volleyball", sourceName: "BIG EAST" },
+  { url: "https://theamerican.org/rss.aspx?path=wvball", category: "volleyball", sourceName: "American Athletic Conference" },
+  { url: "https://themw.com/rss.aspx?path=wvball", category: "volleyball", sourceName: "Mountain West" },
+  { url: "https://sunbeltsports.org/rss.aspx?path=wvball", category: "volleyball", sourceName: "Sun Belt Conference" },
+  { url: "https://wccsports.com/rss.aspx?path=wvball", category: "volleyball", sourceName: "West Coast Conference" },
+  { url: "https://bigwest.org/rss.aspx?path=wvball", category: "volleyball", sourceName: "Big West" },
+  { url: "https://asunsports.org/rss.aspx?path=wvball", category: "volleyball", sourceName: "ASUN Conference" },
+  { url: "https://ivyleague.com/rss.aspx?path=wvball", category: "volleyball", sourceName: "Ivy League" },
+  { url: "https://big12sports.com/rss.aspx", category: "volleyball", sourceName: "Big 12 Conference", include: /volleyball/i },
   // College football and WNBA news (added 2026-09-26 with the sections
   // themselves) — same Yahoo feed shape as NFL/MLB/NBA/NHL above. Checked
   // live: 50 items in the last 24h each; sampled pages readable 3/3, with a
