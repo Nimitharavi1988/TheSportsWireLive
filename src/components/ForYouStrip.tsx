@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { trackAppEvent } from "./appPrompts";
 import Link from "next/link";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
@@ -51,7 +52,13 @@ export function ForYouStrip() {
   const storedDismissed = useSyncExternalStore(subscribeStorage, readDismissed, () => false);
   const [dismissedNow, setDismissedNow] = useState(false);
 
-  if ((ready && follows.length > 0) || storedDismissed || dismissedNow) return null;
+  const hidden = (ready && follows.length > 0) || storedDismissed || dismissedNow;
+  // Once per session, only when the invitation is really on screen.
+  useEffect(() => {
+    if (ready && !hidden) trackAppEvent("for_you_strip_shown");
+  }, [ready, hidden]);
+
+  if (hidden) return null;
 
   return (
     <>
@@ -74,7 +81,7 @@ export function ForYouStrip() {
       <Typography sx={{ flex: 1, fontSize: 14 }}>
         {t.stripBefore}<b>{t.stripBold}</b>{t.stripAfter}
       </Typography>
-      <Button component={Link} href="/for-you" size="small" variant="outlined" sx={{ borderRadius: 5, textTransform: "none", fontWeight: 600, flexShrink: 0 }}>
+      <Button component={Link} href="/for-you" onClick={() => trackAppEvent("for_you_strip_clicked")} size="small" variant="outlined" sx={{ borderRadius: 5, textTransform: "none", fontWeight: 600, flexShrink: 0 }}>
         {t.getStarted}
       </Button>
       <IconButton

@@ -495,6 +495,9 @@ export async function ArticleView({ slug, locale }: { slug: string; locale?: str
       {scoreMatch ? (
         <>
           <MatchHeader match={scoreMatch} />
+          {/* Prediction (before kickoff) and rating (after full time) right under the score: readers
+              from Facebook rarely scroll to the bottom, where this used to sit. Reactions stay below. */}
+          <FanEngagementHub articleId={article.id} locale={locale} placement="top" />
           {article.category.startsWith("cricket") && (
             <Suspense fallback={null}>
               <ScorecardJump articleId={article.id} inPlay={scoreMatch.state === "live" || scoreMatch.state === "paused"} />
@@ -729,7 +732,7 @@ export async function ArticleView({ slug, locale }: { slug: string; locale?: str
       {/* Engagement sits before the outbound source link, not after — a
           reader who clicks through to the source immediately after reading
           would otherwise never see it. */}
-      <FanEngagementHub articleId={article.id} locale={locale} />
+      <FanEngagementHub articleId={article.id} locale={locale} placement={scoreMatch ? "bottom" : "all"} />
       {!loc && <FanVoices articleId={article.id} />}
 
       {!loc && <FollowUs />}

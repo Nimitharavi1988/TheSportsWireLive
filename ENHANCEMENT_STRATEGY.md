@@ -76,6 +76,13 @@ The page now lists the real cookies (`swl_voter_id`, `swl_follows`, `swl_fav_spo
 - **Measurement:** counters `match_rating`, `feedback_up`, `feedback_down`, `fan_voice_submitted`, `fan_voice_approved`; `scripts/fanReport.ts` now also prints ratings, feedback and Fan Voices sections.
 - **Known limits:** the profanity list misses plurals ("bastards"), so the human review is the real gate. Fan Voices load in the browser, so Google does not index them yet; render them on the server later if they should count as page content for AdSense.
 
+**A4c. Usage check and fixes (2026-10-13). BUILT on branch `feature/favourites-and-top-predictions` (not merged).**
+- Finding: almost no interaction (1 prediction pick across 88 polls, 26 reactions lifetime, 0 ratings or feedback) and about 0.1% next-day return among counted fans. Favourites (follows, For You) had no measurement at all because they live only in a cookie.
+- Favourites counters: `follow_added` (+ by kind), `follow_removed`, `follows_active` (sessions with at least one favourite), `for_you_strip_shown`, `for_you_strip_clicked`, `for_you_page_opened`.
+- Card counters: `prediction_shown`, `rating_shown`, so pick and rating rates can be read against cards shown. `fanReport.ts` prints a Rates section.
+- Prediction (before kickoff) and rating (after full time) now sit directly under the match header on match pages, instead of below the article and video strip. Reactions stay at the bottom.
+- To read after about 3 days of data: pick rate (picks / cards shown), share of sessions with a favourite, strip click rate. Also compare Google Analytics "returning users" with the cookie-based return rate to see whether the visitor cookie survives in the Facebook in-app browser.
+
 **A5. Shareable fan card.** An image of the card for Facebook and WhatsApp. This is a growth loop for the Facebook audience. Build after A4.
 
 **A6. Logins and comments (later, after A1-A4 show engagement).**

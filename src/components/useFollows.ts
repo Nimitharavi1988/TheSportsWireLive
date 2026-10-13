@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { trackAppEvent } from "./appPrompts";
 import {
   FOLLOWS_CHANGED_EVENT,
   followKey,
@@ -43,10 +44,18 @@ export function useFollows() {
   const toggle = useCallback((ref: FollowRef) => {
     const current = readBrowserFollows();
     const key = followKey(ref);
-    const next = current.some((f) => followKey(f) === key)
+    const wasFollowing = current.some((f) => followKey(f) === key);
+    const next = wasFollowing
       ? current.filter((f) => followKey(f) !== key)
       : [...current, ref].slice(-MAX_FOLLOWS);
     writeBrowserFollows(next);
+    // Anonymous daily counters (no identifier): how often favourites are added or removed, and of what kind.
+    if (wasFollowing) {
+      trackAppEvent("follow_removed", false);
+    } else {
+      trackAppEvent("follow_added", false);
+      trackAppEvent(`follow_added_${ref.kind}`, false);
+    }
   }, []);
 
   return { follows, ready: raw !== null, isFollowing, toggle };
