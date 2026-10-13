@@ -1,6 +1,6 @@
 import { categoryEmoji } from "@/lib/categoryDisplay";
 import { socialArticleUrl } from "./trackedLink";
-import { captionVariantFor } from "./captionVariant";
+import { captionVariantFor, shortReelCaption } from "./captionVariant";
 import { reelIsFresh, reelMaxAgeHours, isStarStory } from "./freshness";
 import { MATCH_DAY_REEL_MAX_AGE_HOURS, isMatchDayStory } from "./matchDay";
 import { loadMatchDayFixtures } from "./matchDayFixtures";
@@ -192,7 +192,7 @@ async function postReelToInstagram(article: ArticleWithVertical, mp4: Buffer, ca
 // topicPage: post to a topic Page (facebookDestinations.ts) instead of the
 // main Page — its own token and posting history, and a caption that points
 // viewers at the Page (Follow) as well as the article.
-async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null, articleUrl: string, topicPage?: FacebookDestination): Promise<boolean> {
+async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null, articleUrl: string, topicPage?: FacebookDestination, shortCaption = false): Promise<boolean> {
   const pageId = topicPage ? topicPage.pageId : article.vertical.facebookPageId ?? process.env.FACEBOOK_PAGE_ID;
   const rawToken = topicPage ? process.env[topicPage.tokenEnv] : article.vertical.facebookPageAccessToken ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
   if (!pageId || !rawToken) return false;
@@ -202,7 +202,11 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
   const creditLine = article.heroImageCredit ? `\n\n📷 ${article.heroImageCredit}` : "";
   const hashtags = (topicPage?.hashtags ? topicPage.hashtags(article.title, article.category) : selectFacebookHashtags(article.title, article.category)).join(" ");
   const spanish = topicPage?.locale === "es";
-  const description = `${emoji} ${captions?.facebook ?? article.title}\n\n${spanish ? "Toda la información" : "Full breakdown"}: ${articleUrl}${creditLine}\n\n${hashtags}`;
+  // The main Page's caption test (captionVariant.ts): half the stories get just the opening sentence and no
+  // link (the photo credit and hashtags stay); the other half keep the usual caption.
+  const description = shortCaption
+    ? `${emoji} ${shortReelCaption(captions?.facebook ?? article.title)}${creditLine}\n\n${hashtags}`
+    : `${emoji} ${captions?.facebook ?? article.title}\n\n${spanish ? "Toda la información" : "Full breakdown"}: ${articleUrl}${creditLine}\n\n${hashtags}`;
 
   return recordAttempt(article, "facebook", async () => {
     console.log("[facebook reel] Starting upload...");
@@ -367,7 +371,7 @@ export async function postReel(
   const siteUrl = locale ? `https://${LOCALES[locale].host}` : process.env.SITE_URL ?? "https://sportswirelive.com";
   const articleUrl = socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "facebook", reelVariant, opts.topicPage?.key);
   const instagramPosted = needInstagram && mp4 ? await postReelToInstagram(article, mp4, captions, opts.topicPage) : false;
-  const facebookPosted = needFacebook && mp4 ? await postReelToFacebook(article, mp4, captions, articleUrl, opts.topicPage) : false;
+  const facebookPosted = needFacebook && mp4 ? await postReelToFacebook(article, mp4, captions, articleUrl, opts.topicPage, !opts.topicPage && !locale && captionVariantFor(articleId) === "hook") : false;
   // Never lets a YouTube problem (e.g. the row insert) undo the Instagram/Facebook posts above.
   const youtubePosted = needYouTube ? await render(true).then((yt) => postReelToYouTube(article, yt, captions, socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "youtube"), content.hook, textTitle, opts.topicPage)).catch((err) => { console.error("[youtube short] failed:", err); return false; }) : false;
   return { instagramPosted, facebookPosted, youtubePosted };
