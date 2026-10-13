@@ -25,6 +25,7 @@ import { ArticleThumb } from "@/components/ArticleThumb";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
 import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
+import { ForYouStrip } from "@/components/ForYouStrip";
 import { FollowButton } from "@/components/FollowButton";
 import { getDict } from "@/lib/i18n/dictionary";
 import { categoryLabel } from "@/lib/i18n/helpers";
@@ -115,6 +116,7 @@ export async function ClubView({ slug, locale }: { slug: string; locale?: string
       >
         <Box sx={{ minWidth: 0 }}>
           <SiteBreadcrumbs steps={breadcrumbSteps} current={club.name} />
+          <ForYouStrip />
           <Stack direction="row" spacing={3} sx={{ alignItems: "center", mb: 4 }}>
             {crestUrl ? (
               <Box component={Image} src={crestUrl} alt={t.entity.crestAlt(club.name)} width={96} height={96} sx={{ objectFit: "contain", flexShrink: 0 }} />

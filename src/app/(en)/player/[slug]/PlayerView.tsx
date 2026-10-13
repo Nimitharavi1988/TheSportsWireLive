@@ -17,6 +17,7 @@ import { categoryChipStyle } from "@/lib/categoryDisplay";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import { displaySummary } from "@/lib/articleSummary";
 import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
+import { ForYouStrip } from "@/components/ForYouStrip";
 import { getDict } from "@/lib/i18n/dictionary";
 import { categoryLabel } from "@/lib/i18n/helpers";
 import { LOCALES } from "@/lib/i18n/locales";
@@ -121,6 +122,7 @@ export async function PlayerView({ slug, locale }: { slug: string; locale?: stri
       >
         <Box sx={{ minWidth: 0 }}>
           <SiteBreadcrumbs steps={breadcrumbSteps} current={player.name} />
+          <ForYouStrip />
           <Stack direction="row" spacing={3} sx={{ alignItems: "center", mb: 4 }}>
             {photo ? (
               <Box
