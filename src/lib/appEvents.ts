@@ -12,6 +12,13 @@ export const CLIENT_APP_EVENT_KINDS = new Set([
   "inapp_browser_tip_shown", "inapp_browser_tip_clicked", "install_clicked", "install_accepted", "install_declined", "app_installed",
   // Fan card: opened the page, tapped the header streak chip.
   "fan_card_opened", "fan_chip_clicked", "fan_chip_shown",
+  // Favourites (follows) and For You: adds/removes by kind, sessions that have any follow,
+  // the invitation strip shown / clicked, the For You page opened.
+  "follow_added", "follow_removed",
+  "follow_added_club", "follow_added_player", "follow_added_country", "follow_added_sport", "follow_added_series",
+  "follows_active", "for_you_strip_shown", "for_you_strip_clicked", "for_you_page_opened",
+  // Cards on a match page: prediction / rating card on screen.
+  "prediction_shown", "rating_shown",
 ]);
 
 export async function bumpAppEvent(kind: string, now: Date = new Date()): Promise<void> {

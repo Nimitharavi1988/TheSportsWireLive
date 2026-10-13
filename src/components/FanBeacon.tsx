@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { readBrowserFollows } from "@/lib/follows";
+import { trackAppEvent } from "./appPrompts";
 
 export const FAN_STORAGE_KEY = "swl-fan";
 export const FAN_UPDATED_EVENT = "swl:fan-updated";
@@ -17,6 +19,14 @@ function localDay(): string {
 // counted, and asks at most once per local day (remembered in localStorage).
 // Renders nothing.
 export function FanBeacon() {
+  // Anonymous counter, once per session: this visit has at least one favourite
+  // (follow). Together with `session` it gives the share of visits from fans who use favourites.
+  useEffect(() => {
+    try {
+      if (readBrowserFollows().length > 0) trackAppEvent("follows_active");
+    } catch {}
+  }, []);
+
   useEffect(() => {
     let done = false;
     const day = localDay();

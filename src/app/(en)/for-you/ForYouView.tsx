@@ -9,6 +9,7 @@ import { fetchFollowingArticles } from "@/lib/myFeed";
 import { FollowManager } from "@/components/FollowManager";
 import { StoryGrid } from "@/components/StoryGrid";
 import { getDict } from "@/lib/i18n/dictionary";
+import { AppEventOnMount } from "@/components/AppEventOnMount";
 
 // Unlike the homepage (ISR-cached, so it must never read a per-visitor
 // cookie — see preferences.ts), this page exists only to be personal, so
@@ -33,6 +34,7 @@ export async function ForYouView({ only, locale }: { only?: string; locale?: str
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <AppEventOnMount kind="for_you_page_opened" />
       <Box sx={{ maxWidth: 760 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           {t.title}

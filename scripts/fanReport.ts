@@ -17,7 +17,7 @@ async function main() {
   console.log(`\n=== Fan report, last ${DAYS} days (since ${since}) ===\n`);
 
   // 1. Anonymous counters, one column per day.
-  const kinds = ["fan_new_visitor", "fan_return_visit", "prediction_vote", "poll_vote", "fan_chip_clicked", "fan_card_opened", "match_rating", "feedback_up", "feedback_down", "fan_voice_submitted", "fan_voice_approved"];
+  const kinds = ["session", "follow_added", "follow_removed", "follows_active", "for_you_strip_shown", "for_you_strip_clicked", "for_you_page_opened", "prediction_shown", "prediction_vote", "rating_shown", "fan_new_visitor", "fan_return_visit", "poll_vote", "fan_chip_clicked", "fan_card_opened", "match_rating", "rating_shown", "feedback_up", "feedback_down", "fan_voice_submitted", "fan_voice_approved"];
   const counters = await q<{ day: string; kind: string; count: number }>(
     `select day, kind, count from "AppEvent" where day >= $1 and (kind = any($2) or kind like 'badge\\_%') order by day`,
     [since, kinds],
@@ -30,6 +30,14 @@ async function main() {
     console.log(`  ${kind.padEnd(22)} ${row.join(" ")}   total ${row.reduce((a, b) => a + Number(b), 0)}`);
   }
   console.log(`  days:                  ${days.map((d) => d.slice(5)).join(" ")}\n`);
+
+  // Derived rates over the same window (anonymous counters, so these are rates of sessions and cards, not of people).
+  const total = (kind: string) => counters.filter((c) => c.kind === kind).reduce((a, c) => a + Number(c.count), 0);
+  console.log("Rates");
+  console.log(`  sessions with a favourite: ${total("follows_active")} of ${total("session")} (${pct(total("follows_active"), total("session"))})`);
+  console.log(`  For You strip click rate:  ${total("for_you_strip_clicked")} of ${total("for_you_strip_shown")} (${pct(total("for_you_strip_clicked"), total("for_you_strip_shown"))})`);
+  console.log(`  prediction pick rate:      ${total("prediction_vote")} picks of ${total("prediction_shown")} cards shown (${pct(total("prediction_vote"), total("prediction_shown"))})`);
+  console.log(`  rating rate:               ${total("match_rating")} ratings of ${total("rating_shown")} cards shown (${pct(total("match_rating"), total("rating_shown"))})\n`);
 
   // 2. Return rates from FanVisit: of visitors first seen on day X, how many came back.
   const [{ visitors }] = await q<{ visitors: string }>(`select count(distinct "voterId") visitors from "FanVisit" where day >= $1`, [since]);
