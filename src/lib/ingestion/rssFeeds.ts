@@ -317,6 +317,12 @@ const FEEDS: RssFeed[] = [
   { url: "https://volleyballmag.com/feed/", category: "volleyball", sourceName: "Volleyball Magazine" },
   { url: "https://www.fivb.com/feed/", category: "volleyball", sourceName: "FIVB" },
   { url: "https://www.ncaa.com/news/volleyball-women/d1/rss.xml", category: "volleyball", sourceName: "NCAA.com" },
+  // Arkansas volleyball match coverage (2026-10-13, after the Razorbacks beat Texas A&M and the site had
+  // almost no college volleyball news): two Arkansas outlets whose feeds mix every sport, so only the
+  // volleyball headlines are taken. Checked live: Arkansas Democrat-Gazette 4 of 150 items, Hit That Line
+  // (ESPN Arkansas) 1 of 10. The Razorbacks' own feed had none in its 10 latest items, so it is left out.
+  { url: "https://www.arkansasonline.com/rss/headlines/sports/", category: "volleyball", sourceName: "Arkansas Democrat-Gazette", include: /volleyball/i },
+  { url: "https://hitthatline.com/feed/", category: "volleyball", sourceName: "Hit That Line", include: /volleyball/i },
   // College football and WNBA news (added 2026-09-26 with the sections
   // themselves) — same Yahoo feed shape as NFL/MLB/NBA/NHL above. Checked
   // live: 50 items in the last 24h each; sampled pages readable 3/3, with a
