@@ -11,7 +11,7 @@ export const CLIENT_APP_EVENT_KINDS = new Set([
   "session", "standalone_launch", "install_banner_shown", "ios_banner_shown",
   "inapp_browser_tip_shown", "inapp_browser_tip_clicked", "install_clicked", "install_accepted", "install_declined", "app_installed",
   // Fan card: opened the page, tapped the header streak chip.
-  "fan_card_opened", "fan_chip_clicked", "fan_chip_shown", "fb_follow_clicked", "fb_share_clicked",
+  "fan_card_opened", "fan_chip_clicked", "fan_chip_shown",
 ]);
 
 export async function bumpAppEvent(kind: string, now: Date = new Date()): Promise<void> {
