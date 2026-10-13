@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shortsTitle, shortsTitleFor, shortsDescription, youtubeSlotOpen, fixShoutedTitle, shortsTags, uploadLimitPauseActive } from "./youtube";
+import { shortsTitle, shortsTitleFor, shortsDescription, youtubeSlotOpen, fixShoutedTitle, shortsTags, uploadLimitPauseActive, hookNamesSomeone } from "./youtube";
 
 describe("shortsTitle", () => {
   it("leaves a short headline alone (no #Shorts in the title)", () => {
@@ -44,6 +44,15 @@ describe("uploadLimitPauseActive", () => {
   });
 });
 
+describe("hookNamesSomeone", () => {
+  it("accepts hooks with a person, team, place or abbreviation", () => {
+    for (const h of ["Bills edge Rams 37-34 in overtime thriller", "Caitlin Clark's 1s hit the NBA floor", "Georgia takes number one after Texas upset", "Julian Reese averaged 11.8 PPG in his NBA debut", "Jaguars ganan 19-17 ante los Eagles en Londres"]) expect(hookNamesSomeone(h)).toBe(true);
+  });
+  it("rejects hooks that name nobody", () => {
+    for (const h of ["18-Year-old signed through 2030", "Why is this happening now?", "150% ticket price surge sells out in 60 seconds".replace("150%", "150%")]) expect(hookNamesSomeone(h)).toBe(false);
+  });
+});
+
 describe("shortsTitleFor", () => {
   it("uses the reel hook when there is one", () => {
     expect(shortsTitleFor("Salah scores 3 in 20 minutes", "Liverpool beat Spurs")).toBe("Salah scores 3 in 20 minutes");
@@ -51,6 +60,9 @@ describe("shortsTitleFor", () => {
   it("falls back to the headline for a missing or tiny hook", () => {
     expect(shortsTitleFor(null, "Liverpool beat Spurs")).toBe("Liverpool beat Spurs");
     expect(shortsTitleFor("Wow", "Liverpool beat Spurs")).toBe("Liverpool beat Spurs");
+  });
+  it("falls back to the headline when the hook names nobody", () => {
+    expect(shortsTitleFor("18-Year-old signed through 2030", "Modern Adventure signs 18-year-old Leo Hayter through 2030")).toBe("Modern Adventure signs 18-year-old Leo Hayter through 2030");
   });
   it("no longer shouts", () => {
     expect(shortsTitleFor("SALAH SCORES 3 IN 20 MINUTES", "Mohamed Salah scores 3 for Liverpool")).toBe("Salah scores 3 in 20 minutes");

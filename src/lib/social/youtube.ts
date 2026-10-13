@@ -146,9 +146,26 @@ export function shortsTags(input: { category?: string | null; names?: (string | 
 
 // The reel's hook (written from the article under strict no-invented-facts rules) makes a better
 // Shorts title than the news headline; the headline is the fallback.
+// A hook is only a good title when it says who or what: "18-Year-old signed through 2030" says neither.
+// It needs at least one capitalised word that is not an ordinary sentence starter (a person, team, place or
+// abbreviation: "Bills edge Rams", "Caitlin Clark's 1s hit the NBA floor", "Georgia takes number one").
+const STARTERS = new Set([
+  "the", "a", "an", "in", "on", "at", "after", "before", "why", "how", "what", "when", "where", "who", "can", "will", "is", "are", "did", "do", "does",
+  "this", "that", "these", "those", "it", "he", "she", "they", "we", "you", "our", "his", "her", "their", "all", "one", "two", "three", "first", "new", "no", "not",
+  "el", "la", "los", "las", "un", "una", "por", "para", "en", "con", "sin", "qué", "cómo", "cuándo", "quién", "es", "son", "este", "esta", "ya", "su", "sus", "al", "del", "de", "y", "se",
+]);
+export function hookNamesSomeone(hook: string): boolean {
+  // Whole space-separated words, so "18-Year-old" (a number first) is not mistaken for a name.
+  return hook.split(/\s+/).some((token) => {
+    const first = token.match(/^[^\p{L}\p{N}]*([\p{L}\p{N}][\p{L}\p{N}’']*)/u)?.[1];
+    return Boolean(first) && /^\p{Lu}/u.test(first!) && !STARTERS.has(first!.toLowerCase());
+  });
+}
+
 export function shortsTitleFor(hook: string | null | undefined, headline: string, language: "en" | "es" = "en"): string {
   const h = fixShoutedTitle((hook ?? "").replace(/\s+/g, " ").trim(), headline, language);
-  return shortsTitle(h.length >= 12 ? h : headline);
+  // A hook that names nobody (or is tiny) is replaced by the headline, which always does.
+  return shortsTitle(h.length >= 12 && hookNamesSomeone(h) ? h : headline);
 }
 
 export function shortsDescription(summary: string, articleUrl: string, hashtags: string[], language: "en" | "es" = "en"): string {
