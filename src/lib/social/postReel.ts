@@ -202,8 +202,9 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
   const creditLine = article.heroImageCredit ? `\n\n📷 ${article.heroImageCredit}` : "";
   const hashtags = (topicPage?.hashtags ? topicPage.hashtags(article.title, article.category) : selectFacebookHashtags(article.title, article.category)).join(" ");
   const spanish = topicPage?.locale === "es";
-  // The main Page's caption test (captionVariant.ts): half the stories get just the opening sentence and no
-  // link (the photo credit and hashtags stay); the other half keep the usual caption.
+  // The caption test (captionVariant.ts), on the main Page and every topic Page except Greenfield (which has its
+  // own question-ending test): half the stories get just the opening sentence and no link (the photo credit and
+  // hashtags stay); the other half keep the usual caption.
   const description = shortCaption
     ? `${emoji} ${shortReelCaption(captions?.facebook ?? article.title)}${creditLine}\n\n${hashtags}`
     : `${emoji} ${captions?.facebook ?? article.title}\n\n${spanish ? "Toda la información" : "Full breakdown"}: ${articleUrl}${creditLine}\n\n${hashtags}`;
@@ -371,7 +372,7 @@ export async function postReel(
   const siteUrl = locale ? `https://${LOCALES[locale].host}` : process.env.SITE_URL ?? "https://sportswirelive.com";
   const articleUrl = socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "facebook", reelVariant, opts.topicPage?.key);
   const instagramPosted = needInstagram && mp4 ? await postReelToInstagram(article, mp4, captions, opts.topicPage) : false;
-  const facebookPosted = needFacebook && mp4 ? await postReelToFacebook(article, mp4, captions, articleUrl, opts.topicPage, !opts.topicPage && !locale && captionVariantFor(articleId) === "hook") : false;
+  const facebookPosted = needFacebook && mp4 ? await postReelToFacebook(article, mp4, captions, articleUrl, opts.topicPage, captionVariantFor(articleId) === "hook" && !opts.topicPage?.reelCaptionTest) : false;
   // Never lets a YouTube problem (e.g. the row insert) undo the Instagram/Facebook posts above.
   const youtubePosted = needYouTube ? await render(true).then((yt) => postReelToYouTube(article, yt, captions, socialArticleUrl(siteUrl, tr?.slug ?? article.slug, "youtube"), content.hook, textTitle, opts.topicPage)).catch((err) => { console.error("[youtube short] failed:", err); return false; }) : false;
   return { instagramPosted, facebookPosted, youtubePosted };
