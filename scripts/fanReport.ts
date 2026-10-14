@@ -17,7 +17,7 @@ async function main() {
   console.log(`\n=== Fan report, last ${DAYS} days (since ${since}) ===\n`);
 
   // 1. Anonymous counters, one column per day.
-  const kinds = ["session", "follow_added", "follow_removed", "follows_active", "for_you_strip_shown", "for_you_strip_clicked", "for_you_page_opened", "prediction_shown", "prediction_vote", "rating_shown", "fan_new_visitor", "fan_return_visit", "poll_vote", "fan_chip_clicked", "fan_card_opened", "match_rating", "rating_shown", "feedback_up", "feedback_down", "fan_voice_submitted", "fan_voice_approved"];
+  const kinds = ["session", "quick_picks_shown", "quick_pick_followed", "follow_added", "follow_removed", "follows_active", "for_you_strip_shown", "for_you_strip_clicked", "for_you_page_opened", "prediction_shown", "prediction_vote", "rating_shown", "fan_new_visitor", "fan_return_visit", "poll_vote", "fan_chip_clicked", "fan_card_opened", "match_rating", "rating_shown", "feedback_up", "feedback_down", "fan_voice_submitted", "fan_voice_approved"];
   const counters = await q<{ day: string; kind: string; count: number }>(
     `select day, kind, count from "AppEvent" where day >= $1 and (kind = any($2) or kind like 'badge\\_%') order by day`,
     [since, kinds],
@@ -36,7 +36,8 @@ async function main() {
   console.log("Rates");
   console.log(`  sessions with a favourite: ${total("follows_active")} of ${total("session")} (${pct(total("follows_active"), total("session"))})`);
   console.log(`  For You strip click rate:  ${total("for_you_strip_clicked")} of ${total("for_you_strip_shown")} (${pct(total("for_you_strip_clicked"), total("for_you_strip_shown"))})`);
-  console.log(`  prediction pick rate:      ${total("prediction_vote")} picks of ${total("prediction_shown")} cards shown (${pct(total("prediction_vote"), total("prediction_shown"))})`);
+  console.log(`  one-tap follow rate:       ${total("quick_pick_followed")} follows from ${total("quick_picks_shown")} chip views (${pct(total("quick_pick_followed"), total("quick_picks_shown"))})`);
+  console.log(`  prediction pick rate:     ${total("prediction_vote")} picks of ${total("prediction_shown")} cards shown (${pct(total("prediction_vote"), total("prediction_shown"))})`);
   console.log(`  rating rate:               ${total("match_rating")} ratings of ${total("rating_shown")} cards shown (${pct(total("match_rating"), total("rating_shown"))})\n`);
 
   // 2. Return rates from FanVisit: of visitors first seen on day X, how many came back.

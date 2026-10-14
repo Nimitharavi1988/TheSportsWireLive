@@ -10,9 +10,13 @@ import Button from "@mui/material/Button";
 import CloseIcon from "@mui/icons-material/Close";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import { useFollows } from "./useFollows";
+import { QuickPicks } from "./QuickPicks";
 import { useDict } from "@/lib/i18n/LocaleContext";
 import { FOLLOWS_COOKIE } from "@/lib/follows";
 import { FAVORITE_SPORTS_COOKIE } from "@/lib/preferences";
+
+// The strip shows only the four biggest sports so it stays one short row on a phone; the full list is on the For You page.
+const STRIP_SLUGS = new Set(["american-football", "basketball", "football", "cricket"]);
 
 const DISMISSED_KEY = "swl_foryou_prompt_dismissed";
 // The old My Feed prompt's dismissal — honored so anyone who already
@@ -51,14 +55,27 @@ export function ForYouStrip() {
   const { follows, ready } = useFollows();
   const storedDismissed = useSyncExternalStore(subscribeStorage, readDismissed, () => false);
   const [dismissedNow, setDismissedNow] = useState(false);
+  // Set by a one-tap pick below: the strip stays, as a confirmation, instead of vanishing the moment they follow.
+  const [justFollowed, setJustFollowed] = useState<string | null>(null);
 
-  const hidden = (ready && follows.length > 0) || storedDismissed || dismissedNow;
+  const hidden = (ready && follows.length > 0 && !justFollowed) || storedDismissed || dismissedNow;
   // Once per session, only when the invitation is really on screen.
   useEffect(() => {
     if (ready && !hidden) trackAppEvent("for_you_strip_shown");
   }, [ready, hidden]);
 
   if (hidden) return null;
+
+  if (justFollowed) {
+    return (
+      <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5, px: 2, py: 1.25, mb: 3, borderRadius: 2, border: "1px solid", borderColor: "primary.main" }}>
+        <Typography sx={{ flex: 1, fontSize: 14, minWidth: 180 }}>{t.quickDone(justFollowed)}</Typography>
+        <Button component={Link} href="/for-you" size="small" variant="contained" disableElevation sx={{ borderRadius: 5, textTransform: "none", fontWeight: 600 }}>
+          {t.seeFeed}
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <>
@@ -67,6 +84,7 @@ export function ForYouStrip() {
       sx={{
         "html[data-foryou='hide'] &": { display: "none" },
         display: "flex",
+        flexWrap: "wrap",
         alignItems: "center",
         gap: 1.5,
         px: 2,
@@ -96,6 +114,9 @@ export function ForYouStrip() {
       >
         <CloseIcon fontSize="small" />
       </IconButton>
+      <Box sx={{ flexBasis: "100%" }}>
+        <QuickPicks picks={t.quickSports.filter((p) => STRIP_SLUGS.has(p.slug))} onFollow={setJustFollowed} compact />
+      </Box>
     </Box>
     </>
   );
