@@ -24,6 +24,14 @@ import { TOPIC_INSTAGRAM_KEYS, type FacebookDestination } from "./facebookDestin
 // mistaking a skip for a completed post.
 // topicPage: post to that Page's own Instagram account (facebookDestinations.ts,
 // instagramId) with its own post history, instead of the main account.
+// Instagram's error with what is needed to diagnose it later: the step, the error code and subcode, the trace
+// id, and for the create step the image address. The original message stays first (metaCooldown.ts matches on it).
+function igErrorText(data: any, fallback: string, step: string, imageUrl?: string): string {
+  const e = data?.error;
+  const detail = [`step=${step}`, e?.code !== undefined ? `code=${e.code}` : "", e?.error_subcode !== undefined ? `subcode=${e.error_subcode}` : "", e?.fbtrace_id ? `trace=${e.fbtrace_id}` : "", imageUrl ? `image=${imageUrl}` : ""].filter(Boolean).join(" ");
+  return `${e?.message ?? fallback} [${detail}]`;
+}
+
 export async function postArticleToInstagram(articleId: string, topicPage?: FacebookDestination): Promise<boolean> {
   const destination = topicPage?.key ?? "main";
   // Idempotency guard — same reasoning as postArticleToFacebook's (see
@@ -95,7 +103,7 @@ export async function postArticleToInstagram(articleId: string, topicPage?: Face
     });
     const createData = await createRes.json();
     if (!createRes.ok || !createData.id) {
-      throw new Error(createData?.error?.message ?? `Instagram media creation failed (${createRes.status})`);
+      throw new Error(igErrorText(createData, `Instagram media creation failed (${createRes.status})`, "create", imageUrl));
     }
 
     // Instagram processes the container asynchronously (fetching/validating
@@ -120,7 +128,7 @@ export async function postArticleToInstagram(articleId: string, topicPage?: Face
     });
     const publishData = await publishRes.json();
     if (!publishRes.ok || !publishData.id) {
-      throw new Error(publishData?.error?.message ?? `Instagram publish failed (${publishRes.status})`);
+      throw new Error(igErrorText(publishData, `Instagram publish failed (${publishRes.status})`, "publish"));
     }
 
     await db.update(socialPostTable)
