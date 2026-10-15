@@ -225,7 +225,8 @@ export const US_SPORTS_PAGE: FacebookDestination = {
   pageId: "1456000910921996",
   instagramId: "17841424699143294", // @sportswireuslive
   instagramHandle: "sportswireuslive",
-  reels: { dailyCap: 10, perRunCap: 1, minTrending: 30, instagram: true },
+  // Reel cap raised 10 -> 14 on 2026-10-15: the Page was at its cap every day and its Instagram account had 4 of 100 daily posts used.
+  reels: { dailyCap: 14, perRunCap: 1, minTrending: 30, instagram: true },
   dailyCap: 100,
   perRunCap: 3,
   activeHours: { timeZone: "America/New_York", start: 8, end: 24 },
