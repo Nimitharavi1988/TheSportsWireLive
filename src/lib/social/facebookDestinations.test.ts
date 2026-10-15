@@ -103,7 +103,7 @@ describe("Sportswirecricketlive test Page", () => {
   it("posts far less, as photo + question, and leaves the India cricket Page unchanged", () => {
     expect(CRICKETLIVE_PAGE.dailyCap).toBe(25);
     expect(CRICKETLIVE_PAGE.perRunCap).toBe(2);
-    expect(CRICKETLIVE_PAGE.reels?.dailyCap).toBe(20); // widened for the India–West Indies series (was 10)
+    expect(CRICKETLIVE_PAGE.reels?.dailyCap).toBe(10); // volume test 2026-10-15: halved from 20; Greenfield stays the comparison
     expect(CRICKETLIVE_PAGE.style).toBe("photo-question");
     expect(INDIA_CRICKET_PAGE.dailyCap).toBe(50);
     expect(INDIA_CRICKET_PAGE.style).toBeUndefined();

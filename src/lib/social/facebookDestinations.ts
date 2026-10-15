@@ -181,7 +181,10 @@ export const CRICKETLIVE_PAGE: FacebookDestination = {
   // minTrending 25 (Greenfield: 35): it gets the stories Greenfield left, so a floor keeps
   // the weakest of them out of its reels. Supply swings with the news: 112 cricket stories
   // scored 30+ on 3 Oct, 3 on 5 Oct (a quiet day) — so 25, not 30, to keep a few a day.
-  reels: { dailyCap: 20, perRunCap: 1, minTrending: 25, activeHours: { timeZone: "Asia/Kolkata", start: 11, end: 24 }, instagram: true, youtube: true },
+  // Reel volume test from 2026-10-15: 10 a day (was 20), best-ranked stories first (topicReels.ts ranks by trending, drama
+  // and match day). Median plays per reel had fallen from 40 at 10 a day to 2 at 20 a day with total plays flat. Greenfield
+  // stays at 24 a day as the comparison; compare median and total plays per Page after about a week, then decide.
+  reels: { dailyCap: 10, perRunCap: 1, minTrending: 25, activeHours: { timeZone: "Asia/Kolkata", start: 11, end: 24 }, instagram: true, youtube: true },
   instagramId: "17841422405517404", // @sportswirecricketlive
   instagramHandle: "sportswirecricketlive",
 };
