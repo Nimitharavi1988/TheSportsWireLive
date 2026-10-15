@@ -7,9 +7,14 @@ import { and, desc, eq, gte } from "drizzle-orm";
 // the number viewers see), then views per channel and per sport. A sport's median is only worth reading
 // with at least 5 Shorts that are 6+ hours old (marked with *); with fewer it is noise.
 //   npx tsx --env-file=.env scripts/youtubeReport.ts          (HOURS=96 for a longer window)
+// The title as uploaded to YouTube (the report otherwise shows our article headline, which hides the emoji and
+// hashtags of the title test, youtube.ts titleVariantFor).
+const uploadedTitles = new Map<string, string>();
 async function viewsOf(id: string): Promise<number | null> {
   try {
     const html = await (await fetch(`https://www.youtube.com/watch?v=${id}`, { headers: { "User-Agent": "Mozilla/5.0" } })).text();
+    const t = html.match(/<meta name="title" content="([^"]*)"/)?.[1];
+    if (t) uploadedTitles.set(id, t.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
     const v = html.match(/"viewCount":"(\d+)"/)?.[1];
     return v === undefined ? null : Number(v);
   } catch {
@@ -37,7 +42,7 @@ async function main() {
   for (const r of rows) {
     const v = r.id ? views.get(r.id) ?? null : null;
     const age = r.postedAt ? `${Math.round((Date.now() - r.postedAt.getTime()) / 60000)}m ago` : "";
-    console.log(`${r.status.padEnd(7)} ${channelOf(r.destination)} ${String(v ?? "").padStart(5)} views ${age.padStart(9)}  ${r.id ? `https://youtube.com/shorts/${r.id}` : ""} ${r.title.slice(0, 50)}${r.err ? ` — ${r.err.replace(/\s+/g, " ").slice(0, 100)}` : ""}`);
+    console.log(`${r.status.padEnd(7)} ${channelOf(r.destination)} ${String(v ?? "").padStart(5)} views ${age.padStart(9)}  ${r.id ? `https://youtube.com/shorts/${r.id}` : ""} ${((r.id ? uploadedTitles.get(r.id) : undefined) ?? r.title).slice(0, 90)}${r.err ? ` — ${r.err.replace(/\s+/g, " ").slice(0, 100)}` : ""}`);
   }
 
   const old = posted.filter((r) => r.id && r.postedAt && Date.now() - r.postedAt.getTime() > 6 * 3600 * 1000 && views.get(r.id) != null);

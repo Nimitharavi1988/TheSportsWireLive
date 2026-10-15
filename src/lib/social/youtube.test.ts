@@ -143,21 +143,23 @@ describe("decorateShortsTitle", () => {
   it("puts the sport emoji first and up to two hashtags after the title", () => {
     expect(decorateShortsTitle("Sanju Samson hits 82 against West Indies", "🏏", ["#cricket", "IndVsWI", "#extra"])).toBe("🏏 Sanju Samson hits 82 against West Indies #cricket #IndVsWI");
   });
-  it("never exceeds 100 characters, cutting the title before the extras", () => {
-    const long = "A very long headline about the night the whole stadium stood and sang for the greatest player of his generation, again";
-    const t = decorateShortsTitle(long, "⚽", ["#football", "#premierleague"]);
-    expect(t.length).toBeLessThanOrEqual(100);
-    expect(t.startsWith("⚽ ")).toBe(true);
-    expect(t.endsWith("#football #premierleague")).toBe(true);
-    expect(t).toContain("…");
+  it("never exceeds 100 characters: fewer hashtags first, then no emoji, then a plain title", () => {
+    const t90 = "x".repeat(87);
+    expect(decorateShortsTitle(t90, "⚽", ["#football", "#premierleague"], 100)).toBe("⚽ " + t90 + " #football");
+    const t96 = "x".repeat(96);
+    expect(decorateShortsTitle(t96, "⚽", ["#a1", "#b2"], 100)).toBe(t96);
+    const long = "A very long headline about the night the whole stadium stood and sang for the greatest player of his generation";
+    expect(decorateShortsTitle(long, "⚽", ["#football", "#premierleague"]).length).toBeLessThanOrEqual(100);
+    expect(decorateShortsTitle(long, "⚽", ["#football"])).not.toContain("…");
+  });
+  it("puts the story's own hashtags before the generic ones", () => {
+    expect(decorateShortsTitle("Alcaraz eliminado en Shanghái", "🎾", ["#Deportes", "#SportsWireLive", "#Alcaraz", "#ATP"])).toBe("🎾 Alcaraz eliminado en Shanghái #Alcaraz #ATP");
+    expect(decorateShortsTitle("Brewers vencen a Dodgers", "⚾", ["#Beisbol", "#Deportes", "#SportsWireLive"])).toBe("⚾ Brewers vencen a Dodgers #Beisbol #Deportes");
   });
   it("leaves a title that already has an emoji or a hashtag without a second one, and ignores #Shorts", () => {
     expect(decorateShortsTitle("Messi says goodbye 😢", "⚽", ["#messi"])).toBe("Messi says goodbye 😢 #messi");
     expect(decorateShortsTitle("Messi says goodbye #messi", "⚽", ["#football"])).toBe("⚽ Messi says goodbye #messi");
     expect(decorateShortsTitle("Messi says goodbye", null, ["#Shorts"])).toBe("Messi says goodbye");
-  });
-  it("is a no-op when there is no room", () => {
-    expect(decorateShortsTitle("x".repeat(30), "🏏", ["#a1", "#b2"], 35)).toBe("x".repeat(30));
   });
 });
 

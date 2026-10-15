@@ -189,16 +189,22 @@ export function titleVariantFor(articleId: string): TitleVariant {
   for (const c of articleId) h = (h * 33 + c.charCodeAt(0)) >>> 0;
   return h % 2 === 0 ? "decorated" : "plain";
 }
-// Sport emoji first, then the title, then up to two hashtags, all within the 100-character limit (the title is cut
-// with an ellipsis before the extras are). A title that already has an emoji, or a #tag, is left as it is.
+// Sport emoji first, then the title, then up to two hashtags, all within the 100-character limit. The story's own
+// hashtags come before the generic ones (#Deportes, #SportsWireLive...). If the whole title does not fit with the extras
+// it takes fewer hashtags, then no emoji, and a title that still does not fit stays plain: an ellipsis in the middle of a
+// word before the hashtags looked worse than no extras. A title that already has an emoji, or a #tag, gets no second one.
+const GENERIC_TAG = /^#(sportswirelive|deportes|deporte|sports|sportsnews|noticias|news|viral|trending)$/i;
 export function decorateShortsTitle(title: string, emoji: string | null | undefined, hashtags: string[], max = TITLE_MAX): string {
-  const tags = Array.from(new Set(hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).filter((h) => h.length > 2 && h.toLowerCase() !== "#shorts"))).slice(0, 2);
+  const all = Array.from(new Set(hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).filter((h) => h.length > 2 && h.toLowerCase() !== "#shorts")));
+  const tags = [...all.filter((h) => !GENERIC_TAG.test(h)), ...all.filter((h) => GENERIC_TAG.test(h))].slice(0, 2);
   const lead = emoji && !/\p{Extended_Pictographic}/u.test(title) ? `${emoji} ` : "";
-  const tail = tags.length && !title.includes("#") ? " " + tags.join(" ") : "";
-  const room = max - lead.length - tail.length;
-  if (room < 30) return title;
-  const body = title.length <= room ? title : title.slice(0, room - 1).replace(/[s,;:—-]+$/, "") + "…";
-  return lead + body + tail;
+  const canTag = !title.includes("#");
+  for (let n = canTag ? tags.length : 0; n >= 0; n--) {
+    const tail = n ? " " + tags.slice(0, n).join(" ") : "";
+    const out = lead + title + tail;
+    if (out.length <= max) return out;
+  }
+  return title;
 }
 
 export function shortsTitleFor(hook: string | null | undefined, headline: string, language: "en" | "es" = "en"): string {
