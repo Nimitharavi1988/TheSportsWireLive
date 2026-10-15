@@ -251,6 +251,7 @@ export const ES: Dict = {
     ],
     quickDone: (label) => `Sigues a ${label}. Tu feed Para ti está listo.`,
     seeFeed: "Ver mi feed",
+    followLabel: "Seguir",
   },
   entity: {
     players: "Jugadores",

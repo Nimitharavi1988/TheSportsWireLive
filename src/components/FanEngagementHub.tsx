@@ -45,9 +45,12 @@ const REACTIONS: { type: ReactionType; emoji: string }[] = [
 // Deliberately does NOT touch any ad unit or trigger any ad-related
 // behavior on vote/react (only a local state update, same as any other
 // interactive element) — kept strictly separate from AdSense concerns.
-// placement: on a match page the prediction and rating sit near the top ("top") and the
+// placement: "all" is one card with everything. On a match page the prediction and rating sit near the top ("top")
 // reactions stay at the bottom ("bottom"); everywhere else one card has all three ("all").
-export function FanEngagementHub({ articleId, locale, placement = "all" }: { articleId: string; locale?: string; placement?: "all" | "top" | "bottom" }) {
+// "reactions" is just the 🔥🚨🥶 row, placed under the headline on every article; "poll" is the poll and rating
+// card lower down (the "top" content, with normal spacing); "bottom" (reactions only) is no longer used on pages.
+export type HubPlacement = "all" | "top" | "bottom" | "reactions" | "poll";
+export function FanEngagementHub({ articleId, locale, placement = "all" }: { articleId: string; locale?: string; placement?: HubPlacement }) {
   const t = getDict(locale).engagement;
   const [state, setState] = useState<EngagementState | null>(null);
   const [pending, setPending] = useState(false);
@@ -116,8 +119,8 @@ export function FanEngagementHub({ articleId, locale, placement = "all" }: { art
   // anyone having used them yet — hiding at zero would mean nobody could
   // ever be the first to react). Only loading state hides the whole widget.
   // Anonymous impression counters: an open prediction card / rating card was on the page.
-  const showsPrediction = placement !== "bottom" && state?.poll?.kind === "prediction" && !state.poll.closed;
-  const showsRating = placement !== "bottom" && Boolean(state?.rating?.open);
+  const showsPrediction = (placement === "all" || placement === "top" || placement === "poll") && state?.poll?.kind === "prediction" && !state.poll.closed;
+  const showsRating = (placement === "all" || placement === "top" || placement === "poll") && Boolean(state?.rating?.open);
   useEffect(() => {
     if (showsPrediction) trackAppEvent("prediction_shown");
   }, [showsPrediction]);
@@ -126,15 +129,15 @@ export function FanEngagementHub({ articleId, locale, placement = "all" }: { art
   }, [showsRating]);
 
   if (!state) return null;
-  const showTop = placement !== "bottom";
-  const showBottom = placement !== "top";
+  const showTop = placement === "all" || placement === "top" || placement === "poll";
+  const showBottom = placement === "all" || placement === "bottom" || placement === "reactions";
   const pollVisible = showTop && state.poll !== null;
   const ratingVisible = showTop && Boolean(state.rating?.open);
   // Nothing to show up top (not a predicted match, not final): no empty card.
-  if (placement === "top" && !pollVisible && !ratingVisible) return null;
+  if ((placement === "top" || placement === "poll") && !pollVisible && !ratingVisible) return null;
 
   return (
-    <Paper variant="outlined" sx={{ p: 2.5, mt: placement === "top" ? 0 : 3, mb: 2 }}>
+    <Paper variant="outlined" sx={{ p: placement === "reactions" ? 1.5 : 2.5, mt: placement === "top" || placement === "reactions" ? 0 : 3, mb: 2 }}>
       {pollVisible && state.poll && (
         <Box sx={{ mb: 2.5 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>
