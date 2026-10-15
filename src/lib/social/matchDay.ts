@@ -41,7 +41,7 @@ export function expandAbbreviations(title: string): string {
   return ABBREVIATIONS.reduce((t, [re, full]) => t.replace(re, full), title);
 }
 
-function mentions(titleWords: Set<string>, team: string): boolean {
+export function mentions(titleWords: Set<string>, team: string): boolean {
   const words = significantWords(team);
   return words.size > 0 && sharesWords(words, titleWords, 0.6, 1);
 }

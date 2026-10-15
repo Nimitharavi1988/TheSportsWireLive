@@ -14,6 +14,7 @@ import { categoryLabelEs } from "../i18n/es";
 
 const execFileAsync = promisify(execFile);
 
+import type { ReelScore } from "./reelScore";
 const W = 1080;
 const H = 1920;
 const FPS = 30;
@@ -111,6 +112,30 @@ function Layer({ children }: { children?: React.ReactNode }) {
   return <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: "relative", fontFamily: "Poppins" }}>{children}</div>;
 }
 
+// The score of the match the story is about (reelScore.ts): two team rows and the status, in a dark panel under the
+// wordmark. Long cricket scores ("287/6 (48.2 ov)") shrink the type instead of wrapping.
+function ScoreStrip({ th, score }: { th: Theme; score: ReelScore }) {
+  const long = Math.max(score.homeScore.length, score.awayScore.length) > 8;
+  const nameSize = long ? 30 : 36;
+  const scoreSize = long ? 36 : 52;
+  const row = (name: string, value: string) => (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ display: "flex", color: "white", fontSize: nameSize, fontWeight: 600, maxWidth: 600 }}>{name.length > 22 ? name.slice(0, 21) + "…" : name}</div>
+      <div style={{ display: "flex", color: "white", fontSize: scoreSize, fontWeight: 700 }}>{value}</div>
+    </div>
+  );
+  return (
+    <div style={{ position: "absolute", top: 360, left: 60, width: W - 120, display: "flex", flexDirection: "column", padding: "18px 30px 20px 30px", borderRadius: 20, background: th.shade(0.82), borderLeft: `10px solid ${th.accent}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+        <div style={{ display: "flex", color: th.accent, fontSize: 24, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase" }}>{score.label}</div>
+        <div style={{ display: "flex", color: "rgba(255,255,255,0.65)", fontSize: 22, fontWeight: 600, textTransform: "uppercase" }}>{score.league.length > 28 ? score.league.slice(0, 27) + "…" : score.league}</div>
+      </div>
+      {row(score.home, score.homeScore)}
+      {row(score.away, score.awayScore)}
+    </div>
+  );
+}
+
 // Always on top of the photo: shading for legibility, the wordmark and the
 // photo credit. The top ~220px stays clear of Instagram's reel header and
 // the bottom ~380px of its caption and buttons, so text sits between.
@@ -118,7 +143,7 @@ function Layer({ children }: { children?: React.ReactNode }) {
 // credit goes under the wordmark on the left (the top right often carries the
 // publisher's own logo) and the darkening reaches full strength by darkEnd,
 // hiding the photo's bottom edge.
-function ChromeLayer({ th, credit, darkFrom, darkTo, darkEnd, portrait }: { th: Theme; credit?: string | null; darkFrom: number; darkTo: number; darkEnd: number; portrait: boolean }) {
+function ChromeLayer({ th, credit, darkFrom, darkTo, darkEnd, portrait, score }: { th: Theme; credit?: string | null; darkFrom: number; darkTo: number; darkEnd: number; portrait: boolean; score?: ReelScore | null }) {
   return (
     <Layer>
       <div style={{ position: "absolute", top: 0, left: 0, width: W, height: H, display: "flex", background: `linear-gradient(180deg, ${th.shade(0.55)} 0%, ${th.shade(0)} 14%, ${th.shade(0)} ${darkFrom}%, ${th.shade(0.8)} ${darkTo}%, ${th.shade(0.93)} ${darkEnd}%, ${th.shade(0.93)} 100%)` }} />
@@ -126,6 +151,7 @@ function ChromeLayer({ th, credit, darkFrom, darkTo, darkEnd, portrait }: { th: 
         <Wordmark th={th} />
         {credit && <div style={{ display: "flex", fontSize: 20, fontWeight: 600, color: "rgba(255,255,255,0.85)", maxWidth: 420, textAlign: portrait ? "left" : "right", marginTop: portrait ? 14 : 0, textShadow: "0 1px 6px rgba(0,0,0,0.85)" }}>{credit}</div>}
       </div>
+      {score && <ScoreStrip th={th} score={score} />}
     </Layer>
   );
 }
@@ -268,6 +294,8 @@ export async function renderReel(params: {
   followHandle?: string | null;
   // The YouTube Short's end card: Subscribe, and the link is in the description.
   youtube?: boolean;
+  // The score of the match the story is about, shown as a strip above the photo (reelScore.ts).
+  score?: ReelScore | null;
 }): Promise<Buffer> {
   const ffmpegPath = (await import("ffmpeg-static")).default as unknown as string | null;
   if (!ffmpegPath) throw new Error("ffmpeg-static has no binary for this platform");
@@ -322,7 +350,7 @@ export async function renderReel(params: {
     const textPaths = texts.map((_, i) => join(workDir, `layer-text-${i + 1}.png`));
     const endPath = join(workDir, "layer-end.png");
     const [chromePng, endPng, ...textPngs] = await Promise.all([
-      renderLayer(<ChromeLayer th={th} credit={params.language === "es" ? params.credit?.replace(/^Photo via /i, "Foto vía ").replace(/^Photo: /i, "Foto: ") : params.credit} darkFrom={darkFrom} darkTo={darkTo} darkEnd={darkEnd} portrait={Boolean(cropped)} />, fonts),
+      renderLayer(<ChromeLayer th={th} credit={params.language === "es" ? params.credit?.replace(/^Photo via /i, "Foto vía ").replace(/^Photo: /i, "Foto: ") : params.credit} darkFrom={darkFrom} darkTo={darkTo} darkEnd={darkEnd} portrait={Boolean(cropped)} score={params.score} />, fonts),
       renderLayer(<EndCard th={th} language={params.language} followHandle={params.followHandle} youtube={params.youtube} />, fonts),
       ...texts.map((s) => renderLayer(s.node, fonts)),
     ]);

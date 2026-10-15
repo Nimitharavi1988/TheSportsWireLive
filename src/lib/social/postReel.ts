@@ -4,6 +4,7 @@ import { captionVariantFor, shortReelCaption } from "./captionVariant";
 import { reelIsFresh, reelMaxAgeHours, isStarStory } from "./freshness";
 import { MATCH_DAY_REEL_MAX_AGE_HOURS, isMatchDayStory } from "./matchDay";
 import { loadMatchDayFixtures } from "./matchDayFixtures";
+import { loadScoreStrip } from "./reelScore";
 import { db } from "@/db";
 import { article as articleTable, vertical as verticalTable, socialPost as socialPostTable } from "@/db/schema";
 import { and, count, eq, gte, inArray, like, max, ne } from "drizzle-orm";
@@ -367,7 +368,10 @@ export async function postReel(
   // An explicit colour wins; otherwise every reel (main Page, topic Pages, Instagram, YouTube) rotates by sport (reelThemes.ts).
   const theme = opts.theme ?? reelThemeFor(article.id, article.category);
   console.log(`Rendering reel (music: ${music}, theme: ${theme ?? "default"}, font: ${opts.font ?? "default"})...`);
-  const render = (youtube: boolean) => renderReel({ content, heroImageUrl: article.heroImageUrl!, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme, font: opts.font, language: locale, followHandle: opts.topicPage ? opts.topicPage.instagramHandle ?? null : undefined, youtube });
+  // The score of the match the story is about, when it is clearly one live or just finished (reelScore.ts); the original English headline names the teams.
+  const score = await loadScoreStrip(article.title, locale === "es" ? "es" : "en");
+  if (score) console.log(`[reel] score strip: ${score.home} ${score.homeScore} - ${score.awayScore} ${score.away} (${score.label})`);
+  const render = (youtube: boolean) => renderReel({ content, heroImageUrl: article.heroImageUrl!, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme, font: opts.font, language: locale, score, followHandle: opts.topicPage ? opts.topicPage.instagramHandle ?? null : undefined, youtube });
   // Instagram/Facebook share one render; the YouTube Short gets its own end card (Subscribe, link in the description).
   const mp4 = needInstagram || needFacebook ? await render(false) : null;
   if (mp4) console.log(`Rendered ${(mp4.length / 1024 / 1024).toFixed(1)} MB`);
