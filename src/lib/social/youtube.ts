@@ -191,7 +191,7 @@ export function titleVariantFor(articleId: string): TitleVariant {
 }
 // Sport emoji first, then the title, then up to two hashtags, all within the 100-character limit. The story's own
 // hashtags come before the generic ones (#Deportes, #SportsWireLive...). If the whole title does not fit with the extras
-// it takes fewer hashtags, then no emoji, and a title that still does not fit stays plain: an ellipsis in the middle of a
+// it takes fewer hashtags, then none (emoji only), and a title too long even for the emoji stays plain: an ellipsis in the middle of a
 // word before the hashtags looked worse than no extras. A title that already has an emoji, or a #tag, gets no second one.
 const GENERIC_TAG = /^#(sportswirelive|deportes|deporte|sports|sportsnews|noticias|news|viral|trending)$/i;
 export function decorateShortsTitle(title: string, emoji: string | null | undefined, hashtags: string[], max = TITLE_MAX): string {

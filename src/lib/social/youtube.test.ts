@@ -143,11 +143,13 @@ describe("decorateShortsTitle", () => {
   it("puts the sport emoji first and up to two hashtags after the title", () => {
     expect(decorateShortsTitle("Sanju Samson hits 82 against West Indies", "🏏", ["#cricket", "IndVsWI", "#extra"])).toBe("🏏 Sanju Samson hits 82 against West Indies #cricket #IndVsWI");
   });
-  it("never exceeds 100 characters: fewer hashtags first, then no emoji, then a plain title", () => {
+  it("never exceeds 100 characters: fewer hashtags first, then none, then a plain title", () => {
     const t90 = "x".repeat(87);
     expect(decorateShortsTitle(t90, "⚽", ["#football", "#premierleague"], 100)).toBe("⚽ " + t90 + " #football");
     const t96 = "x".repeat(96);
-    expect(decorateShortsTitle(t96, "⚽", ["#a1", "#b2"], 100)).toBe(t96);
+    expect(decorateShortsTitle(t96, "⚽", ["#a1", "#b2"], 100)).toBe("⚽ " + t96);
+    const t99 = "x".repeat(99);
+    expect(decorateShortsTitle(t99, "⚽", ["#a1", "#b2"], 100)).toBe(t99);
     const long = "A very long headline about the night the whole stadium stood and sang for the greatest player of his generation";
     expect(decorateShortsTitle(long, "⚽", ["#football", "#premierleague"]).length).toBeLessThanOrEqual(100);
     expect(decorateShortsTitle(long, "⚽", ["#football"])).not.toContain("…");
