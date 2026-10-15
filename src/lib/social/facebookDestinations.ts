@@ -206,7 +206,8 @@ export const FOOTBALL_PAGE: FacebookDestination = {
   instagramId: "17841462310314966", // @sportswirefootballlive
   instagramHandle: "sportswirefootballlive",
   // Reels (2026-10-08): 8 a day on Facebook and Instagram, strongest stories only.
-  reels: { dailyCap: 8, perRunCap: 1, minTrending: 30, instagram: true },
+  // Reel cap raised 8 -> 12 on 2026-10-15 (facebook reels median 18-152 here against 2 on the big Pages; the topic Instagram photo posts were cut to free the Meta request budget).
+  reels: { dailyCap: 12, perRunCap: 1, minTrending: 30, instagram: true },
   dailyCap: 25,
   perRunCap: 2,
   // UK/Europe evening is the peak; still awake for the Americas' afternoon.
@@ -238,7 +239,8 @@ export const FIGHT_PAGE: FacebookDestination = {
   label: "SportsWire Fight Live Page",
   pageId: "1423517120834814",
   // No Instagram linked to this Page yet (checked 2026-10-08): reels on Facebook only.
-  reels: { dailyCap: 4, perRunCap: 1, minTrending: 20 },
+  // Reel cap raised 4 -> 8 on 2026-10-15 (see the Football Page).
+  reels: { dailyCap: 8, perRunCap: 1, minTrending: 20 },
   // Fewer stories exist (about 30 MMA + boxing a day), so a smaller cap.
   dailyCap: 14,
   perRunCap: 1,
@@ -278,7 +280,8 @@ export const SPANISH_PAGE: FacebookDestination = {
   instagramHandle: "sportswireliveinspanish",
   // Its own Spanish reels (Spanish text, caption and link) on Facebook and Instagram
   // (postReel.ts): 12 a day (raised from 6 on 2026-10-11 to feed the Spanish YouTube channel), one per run, all day (0-24 on the Mexico City clock: Spanish speakers span Spain in the early morning to the US west coast late at night).
-  reels: { dailyCap: 12, perRunCap: 1, instagram: true, youtube: true, activeHours: { timeZone: "America/Mexico_City", start: 0, end: 24 } },
+  // Reel cap raised 12 -> 16 on 2026-10-15 (see the Football Page).
+  reels: { dailyCap: 16, perRunCap: 1, instagram: true, youtube: true, activeHours: { timeZone: "America/Mexico_City", start: 0, end: 24 } },
 };
 
 export const TOPIC_DESTINATIONS: FacebookDestination[] = [INDIA_CRICKET_PAGE, CRICKETLIVE_PAGE, FOOTBALL_PAGE, US_SPORTS_PAGE, FIGHT_PAGE, ...(spanishPageEnabled() ? [SPANISH_PAGE] : [])];
