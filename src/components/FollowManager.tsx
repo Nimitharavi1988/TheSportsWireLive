@@ -15,6 +15,7 @@ import type { EntityResult } from "@/lib/entitySearch";
 import { followKey, serializeFollows } from "@/lib/follows";
 import { EntityAvatar } from "./EntityAvatar";
 import { FollowButton } from "./FollowButton";
+import { QuickPicks } from "./QuickPicks";
 import { useDict } from "@/lib/i18n/LocaleContext";
 import { useFollows } from "./useFollows";
 import { entitiesSeenInSuggestions, useSuggest } from "./useSuggest";
@@ -125,6 +126,13 @@ export function FollowManager({ initialEntities, activeKey }: { initialEntities:
 
       {pickerOpen && (
         <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, p: 2 }}>
+          {/* One-tap sports and teams first (until five are followed), so nobody has to search or scroll a list to start. */}
+          {followed.length < 5 && query.trim().length < 2 && (
+            <Box sx={{ mb: 2.5 }}>
+              <Typography sx={{ fontSize: 12, fontWeight: 600, color: "text.secondary", mb: 1 }}>{t.quickTitle}</Typography>
+              <QuickPicks picks={[...t.quickSports, ...t.quickTeams]} />
+            </Box>
+          )}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1.5, height: 44, borderRadius: 5, bgcolor: "action.hover", mb: 1.5 }}>
             <SearchIcon sx={{ fontSize: 20, color: "text.secondary" }} />
             <InputBase
@@ -138,7 +146,7 @@ export function FollowManager({ initialEntities, activeKey }: { initialEntities:
           <Typography sx={{ fontSize: 12, fontWeight: 600, color: "text.secondary", mb: 0.5 }}>
             {query.trim().length >= 2 ? t.results : t.popular}
           </Typography>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, columnGap: 2 }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))" }, columnGap: 2 }}>
             {suggestions.map((e) => (
               <Box key={followKey(e)} sx={{ display: "flex", alignItems: "center", gap: 1.25, py: 0.75 }}>
                 <EntityAvatar initials={e.initials} color={e.color} size={32} />

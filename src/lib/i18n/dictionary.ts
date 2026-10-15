@@ -182,6 +182,12 @@ export interface Dict {
     stripAfter: string;
     getStarted: string;
     dismiss: string;
+    // One-tap favourites on the strip and at the top of For You (kind is a FollowKind).
+    quickTitle: string;
+    quickSports: { kind: string; slug: string; label: string }[];
+    quickTeams: { kind: string; slug: string; label: string }[];
+    quickDone: (label: string) => string;
+    seeFeed: string;
   };
   entity: {
     players: string;

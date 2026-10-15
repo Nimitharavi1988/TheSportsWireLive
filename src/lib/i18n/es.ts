@@ -236,6 +236,21 @@ export const ES: Dict = {
     stripAfter: " solo con sus noticias.",
     getStarted: "Empezar",
     dismiss: "Cerrar",
+    quickTitle: "Toca para seguir",
+    quickSports: [
+      { kind: "sport", slug: "football", label: "Fútbol" },
+      { kind: "sport", slug: "basketball", label: "Baloncesto" },
+      { kind: "sport", slug: "baseball", label: "Béisbol" },
+      { kind: "sport", slug: "american-football", label: "Fútbol americano" },
+    ],
+    quickTeams: [
+      { kind: "club", slug: "real-madrid", label: "Real Madrid" },
+      { kind: "club", slug: "barcelona", label: "Barcelona" },
+      { kind: "player", slug: "messi", label: "Messi" },
+      { kind: "player", slug: "ronaldo", label: "Cristiano Ronaldo" },
+    ],
+    quickDone: (label) => `Sigues a ${label}. Tu feed Para ti está listo.`,
+    seeFeed: "Ver mi feed",
   },
   entity: {
     players: "Jugadores",

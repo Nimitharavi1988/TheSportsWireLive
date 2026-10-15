@@ -83,6 +83,11 @@ The page now lists the real cookies (`swl_voter_id`, `swl_follows`, `swl_fav_spo
 - Prediction (before kickoff) and rating (after full time) now sit directly under the match header on match pages, instead of below the article and video strip. Reactions stay at the bottom.
 - To read after about 3 days of data: pick rate (picks / cards shown), share of sessions with a favourite, strip click rate. Also compare Google Analytics "returning users" with the cookie-based return rate to see whether the visitor cookie survives in the Facebook in-app browser.
 
+**A4d. One-tap favourites (2026-10-14). BUILT on branch `feature/for-you-one-tap-follow` (not merged).**
+- Finding from the first day of favourites data: 1,643 strip views, 19 clicks, 26 For You opens, 0 follows. On a phone the For You page showed cricket series first and the Follow buttons ran off the card edge.
+- Fix: one-tap chips (NFL, NBA, MLB, NHL, College football, Football, Cricket, plus teams and players) at the top of For You until five things are followed; four compact chips (NFL, NBA, Football, Cricket) on the invitation strip, which turns into "Following NFL. Your For You feed is ready." with a See my feed button; Follow buttons now fit inside the card on phones. Spanish edition has its own sports and teams.
+- Counters: `quick_picks_shown`, `quick_pick_followed`; `fanReport.ts` Rates has a one-tap follow rate. Read after about 3 days: follows added, sessions with a favourite, and then whether followed fans come back more (compare fan return rate with and without a favourite).
+
 **A5. Shareable fan card.** An image of the card for Facebook and WhatsApp. This is a growth loop for the Facebook audience. Build after A4.
 
 **A6. Logins and comments (later, after A1-A4 show engagement).**
