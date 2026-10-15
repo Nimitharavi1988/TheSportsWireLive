@@ -46,6 +46,10 @@ function dateRange() {
 
 export interface RawMatchItem {
   title: string;
+  // The feed's own headline when `title` was translated to English (foreignHeadlines.ts). The source text is
+  // in the feed's language, so "is this text about the headline" (groundingRules.ts) must compare against
+  // this one: an English headline shares only names with Spanish text and failed the check (2026-10-15).
+  originalTitle?: string;
   summary: string;
   body?: string;
   sourceSnippet?: string;

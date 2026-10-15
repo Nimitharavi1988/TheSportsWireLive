@@ -245,7 +245,8 @@ async function resolveGrounding(item: RawMatchItem): Promise<Grounding | null> {
       pageProblem = `source page unreadable (${extracted.failure})`;
     }
   }
-  const best = bestSource(item.title, candidates, min);
+  // A translated headline (Spanish padel feeds) is checked in its original language: the source text is Spanish.
+  const best = bestSource(item.originalTitle ?? item.title, candidates, min);
   if ("text" in best) return { text: best.text, imageUrl };
   thinSourceSkips++;
   groundingFailures.set(item, pageProblem ? `${pageProblem}; ${best.problem}` : best.problem);

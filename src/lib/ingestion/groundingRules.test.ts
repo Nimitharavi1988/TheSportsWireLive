@@ -42,3 +42,24 @@ describe("bestSource", () => {
     expect(bestSource(title, [], 500)).toEqual({ problem: "no source text" });
   });
 });
+
+// Spanish padel feeds (2026-10-15): the headline is translated to English for the site, but the source
+// text stays Spanish, so the headline check must use the feed's original headline (RawMatchItem.originalTitle).
+describe("a translated headline against source text in the feed's language", () => {
+  const spanishTitle = "Sorpresa en el Milano P1: una cabeza de serie cae en la primera ronda";
+  const englishTitle = "Milano P1 Surprise: Top Seed Exits in First Round";
+  const spanishText =
+    "Aunque los principales favoritos impusieron su ley en su debut en el Milano P1, el desenlace de los dieciseisavos de final dejó alguna sorpresa. " +
+    "Una de las cabezas de serie cayó en la primera ronda ante una pareja que firmó un partido muy completo, con una gran defensa y un ataque sin errores. " +
+    "El resto de favoritos avanzó sin problemas a los octavos de final, donde se encontrarán con rivales de mayor entidad. ".repeat(2);
+
+  it("passes with the original headline and failed with the English one", () => {
+    expect(groundingProblem(spanishTitle, spanishText, 500)).toBeNull();
+    expect(groundingProblem(englishTitle, spanishText, 500)).toMatch(/isn't about the headline/);
+  });
+
+  it("still rejects a navigation page under the original headline", () => {
+    const nav = "Inicio Fútbol Baloncesto Pádel Tenis Motor Ciclismo Golf Más deportes Suscríbete Iniciar sesión Política de cookies Aviso legal Contacto ".repeat(8);
+    expect(groundingProblem(spanishTitle, nav, 500)).toMatch(/isn't about the headline/);
+  });
+});

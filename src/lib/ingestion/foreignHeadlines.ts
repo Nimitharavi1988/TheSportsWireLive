@@ -55,7 +55,7 @@ export async function englishifyForeignItems(items: RawMatchItem[]): Promise<Raw
   const fresh: RawMatchItem[] = [];
   for (const item of items) {
     const stored = existing.get(hash(item));
-    if (stored) out.push({ ...item, title: stored });
+    if (stored) out.push({ ...item, title: stored, originalTitle: item.title });
     else fresh.push(item);
   }
 
@@ -66,6 +66,6 @@ export async function englishifyForeignItems(items: RawMatchItem[]): Promise<Raw
     console.error(`[foreignHeadlines] headline translation failed for ${batch.length} items; skipping them this run`);
     return out;
   }
-  batch.forEach((item, i) => out.push({ ...item, title: english[i], sourceSnippet: item.sourceSnippet ? FOREIGN_SOURCE_NOTE + item.sourceSnippet : undefined }));
+  batch.forEach((item, i) => out.push({ ...item, title: english[i], originalTitle: item.title, sourceSnippet: item.sourceSnippet ? FOREIGN_SOURCE_NOTE + item.sourceSnippet : undefined }));
   return out;
 }
