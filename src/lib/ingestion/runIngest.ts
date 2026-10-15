@@ -147,7 +147,11 @@ const CRICKET_COMMENTARY_RESERVED = 35;
 // is used first by these sports; once it is spent they still compete for the shared
 // budget like everyone else, and what they do not need spills over.
 const MINOR_SPORT_COMMENTARY_RESERVED = 25;
-const MINOR_SPORT_CATEGORIES = new Set(["tennis", "boxing", "mma", "motogp", "cycling", "golf", "padel"]);
+// 2026-10-15: Formula 1, rugby and athletics join the list. They were not in it and competed for the shared
+// budget against football, NFL and cricket, so in 10 days 28 F1 stories, 20 rugby and 7 athletics stories
+// were rejected with "no write-up after 12h" (waiting for a write-up that never came). The floor only
+// reserves a share of the existing budget; it adds no write-ups beyond it.
+const MINOR_SPORT_CATEGORIES = new Set(["tennis", "boxing", "mma", "motogp", "cycling", "golf", "padel", "formula-1", "rugby", "athletics"]);
 
 // RSS items older than this are skipped outright rather than ingested —
 // see the skip site below for why. 24 hours, matching the site's display
