@@ -19,7 +19,7 @@ import { LOCALES } from "@/lib/i18n/locales";
 import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepertoire";
 import { reelTagsFor } from "./reelTags";
 import { instagramCoolingDown } from "./metaCooldown";
-import { youtubeConfigured, uploadShort, shortsTitleFor, shortsDescription, shortsTags, youtubeSlotOpen, uploadLimitPauseActive, UPLOAD_LIMIT_MESSAGE, UPLOAD_LIMIT_PAUSE_HOURS, maxShortsPerDay, minGapMinutes, youtubeSportAllowed, priorityReserve } from "./youtube";
+import { youtubeConfigured, uploadShort, shortsTitleFor, shortsDescription, shortsTags, youtubeSlotOpen, uploadLimitPauseActive, UPLOAD_LIMIT_MESSAGE, UPLOAD_LIMIT_PAUSE_HOURS, maxShortsPerDay, minGapMinutes, youtubeSportAllowed, priorityReserve, titleVariantFor, decorateShortsTitle } from "./youtube";
 
 // Posts a story as a Reel to Instagram and the main Facebook Page. Runs in
 // the post-reel GitHub Actions job only (renderReel needs plain Node).
@@ -245,7 +245,9 @@ async function postReelToFacebook(article: ArticleWithVertical, mp4: Buffer, cap
 async function postReelToYouTube(article: ArticleWithVertical, mp4: Buffer, captions: SocialCaptions | null, articleUrl: string, hook: string, title0: string, topicPage?: FacebookDestination): Promise<boolean> {
   const spanish = topicPage?.locale === "es";
   const hashtags = topicPage?.hashtags ? topicPage.hashtags(title0, article.category) : selectFacebookHashtags(title0, article.category);
-  const title = shortsTitleFor(hook, title0, spanish ? "es" : "en");
+  const plainTitle = shortsTitleFor(hook, title0, spanish ? "es" : "en");
+  // Title test (youtube.ts titleVariantFor): half the Shorts get the sport emoji and two of the story's hashtags.
+  const title = titleVariantFor(article.id) === "decorated" ? decorateShortsTitle(plainTitle, categoryEmoji(article.category), hashtags) : plainTitle;
   const description = shortsDescription(captions?.facebook ?? title0, articleUrl, hashtags, spanish ? "es" : "en");
   const tags = shortsTags({ category: article.category, names: [article.homeTeam, article.awayTeam, article.seriesLabel], hashtags, language: spanish ? "es" : "en" });
   return recordAttempt(article, "youtube", async () => {

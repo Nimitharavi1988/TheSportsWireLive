@@ -179,6 +179,28 @@ export function hookNamesSomeone(hook: string): boolean {
   });
 }
 
+
+// Title test (2026-10-15): of the 50 most-viewed sports Shorts of the week, 54% carried hashtags in the title and 36%
+// an emoji. Half of our Shorts (by story id, so it can be recomputed later and is independent of the caption test)
+// get the sport emoji and up to two of the story's own hashtags after the title; the rest keep the plain title.
+export type TitleVariant = "decorated" | "plain";
+export function titleVariantFor(articleId: string): TitleVariant {
+  let h = 7;
+  for (const c of articleId) h = (h * 33 + c.charCodeAt(0)) >>> 0;
+  return h % 2 === 0 ? "decorated" : "plain";
+}
+// Sport emoji first, then the title, then up to two hashtags, all within the 100-character limit (the title is cut
+// with an ellipsis before the extras are). A title that already has an emoji, or a #tag, is left as it is.
+export function decorateShortsTitle(title: string, emoji: string | null | undefined, hashtags: string[], max = TITLE_MAX): string {
+  const tags = Array.from(new Set(hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).filter((h) => h.length > 2 && h.toLowerCase() !== "#shorts"))).slice(0, 2);
+  const lead = emoji && !/\p{Extended_Pictographic}/u.test(title) ? `${emoji} ` : "";
+  const tail = tags.length && !title.includes("#") ? " " + tags.join(" ") : "";
+  const room = max - lead.length - tail.length;
+  if (room < 30) return title;
+  const body = title.length <= room ? title : title.slice(0, room - 1).replace(/[s,;:—-]+$/, "") + "…";
+  return lead + body + tail;
+}
+
 export function shortsTitleFor(hook: string | null | undefined, headline: string, language: "en" | "es" = "en"): string {
   const h = fixShoutedTitle((hook ?? "").replace(/\s+/g, " ").trim(), headline, language);
   // A hook that names nobody (or is tiny) is replaced by the headline, which always does.

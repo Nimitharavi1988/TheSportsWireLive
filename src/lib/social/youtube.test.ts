@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shortsTitle, shortsTitleFor, shortsDescription, youtubeSlotOpen, youtubeSportAllowed, fixShoutedTitle, shortsTags, uploadLimitPauseActive, hookNamesSomeone } from "./youtube";
+import { shortsTitle, shortsTitleFor, shortsDescription, youtubeSlotOpen, youtubeSportAllowed, decorateShortsTitle, titleVariantFor, fixShoutedTitle, shortsTags, uploadLimitPauseActive, hookNamesSomeone } from "./youtube";
 
 describe("shortsTitle", () => {
   it("leaves a short headline alone (no #Shorts in the title)", () => {
@@ -136,5 +136,37 @@ describe("youtubeSportAllowed", () => {
   });
   it("a reserve of 0 turns the gate off", () => {
     expect(youtubeSportAllowed("en", "mma", 7, 8, 0)).toBe(true);
+  });
+});
+
+describe("decorateShortsTitle", () => {
+  it("puts the sport emoji first and up to two hashtags after the title", () => {
+    expect(decorateShortsTitle("Sanju Samson hits 82 against West Indies", "🏏", ["#cricket", "IndVsWI", "#extra"])).toBe("🏏 Sanju Samson hits 82 against West Indies #cricket #IndVsWI");
+  });
+  it("never exceeds 100 characters, cutting the title before the extras", () => {
+    const long = "A very long headline about the night the whole stadium stood and sang for the greatest player of his generation, again";
+    const t = decorateShortsTitle(long, "⚽", ["#football", "#premierleague"]);
+    expect(t.length).toBeLessThanOrEqual(100);
+    expect(t.startsWith("⚽ ")).toBe(true);
+    expect(t.endsWith("#football #premierleague")).toBe(true);
+    expect(t).toContain("…");
+  });
+  it("leaves a title that already has an emoji or a hashtag without a second one, and ignores #Shorts", () => {
+    expect(decorateShortsTitle("Messi says goodbye 😢", "⚽", ["#messi"])).toBe("Messi says goodbye 😢 #messi");
+    expect(decorateShortsTitle("Messi says goodbye #messi", "⚽", ["#football"])).toBe("⚽ Messi says goodbye #messi");
+    expect(decorateShortsTitle("Messi says goodbye", null, ["#Shorts"])).toBe("Messi says goodbye");
+  });
+  it("is a no-op when there is no room", () => {
+    expect(decorateShortsTitle("x".repeat(30), "🏏", ["#a1", "#b2"], 35)).toBe("x".repeat(30));
+  });
+});
+
+describe("titleVariantFor", () => {
+  it("is stable per story and splits roughly in half", () => {
+    expect(titleVariantFor("abc")).toBe(titleVariantFor("abc"));
+    const ids = Array.from({ length: 400 }, (_, i) => `cm${i}story${i * 7}`);
+    const dec = ids.filter((i) => titleVariantFor(i) === "decorated").length;
+    expect(dec).toBeGreaterThan(150);
+    expect(dec).toBeLessThan(250);
   });
 });
