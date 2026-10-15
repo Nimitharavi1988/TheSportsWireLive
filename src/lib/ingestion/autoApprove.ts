@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { article, socialPost } from "@/db/schema";
 import { eq, and, inArray, notInArray, gte, lt, count, desc } from "drizzle-orm";
 import { TOPIC_INSTAGRAM_KEYS } from "../social/facebookDestinations";
+import { instagramPhotoRoom, mainInstagramPhotoCap } from "../social/topicInstagramCap";
 import { createId } from "@paralleldrive/cuid2";
 import { submitToIndexNow, articleUrl } from "../indexNow";
 import { isMatchDataSource } from "../matchDataSources";
@@ -635,6 +636,10 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
   // (+1 so the day can start), instead of all going out in the first hours.
   const facebookReelsPaceTarget = Math.round((MAX_FACEBOOK_REELS_PER_DAY * weightedRunsElapsed(currentRunIndex)) / TOTAL_HOURLY_WEIGHT) + 1;
   let facebookReelsRemaining = Math.max(0, Math.min(MAX_FACEBOOK_REELS_PER_DAY, facebookReelsPaceTarget) - facebookReelsToday);
+  // The photo (poster) fallback has its own small daily limit (topicInstagramCap.ts): reels are what reach people.
+  const [{ value: instagramPhotosToday }] = await db.select({ value: count() }).from(socialPost)
+    .where(and(eq(socialPost.platform, "instagram"), eq(socialPost.destination, "main"), eq(socialPost.status, "posted"), gte(socialPost.postedAt, todayStart)));
+  let instagramPhotoRemaining = instagramPhotoRoom(instagramPhotosToday, mainInstagramPhotoCap());
   let instagramAttempts = 0;
   let instagramDone = false;
   for (const article of instagramCandidates) {
@@ -649,9 +654,12 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
       } catch (reelErr) {
         console.error("Instagram reel failed for article", article.id, reelErr);
       }
-      if (!posted) {
+      if (!posted && instagramPhotoRemaining <= 0) {
+        console.log(`[instagram] reel not posted for ${article.id}; no photo fallback (daily photo limit used)`);
+      } else if (!posted) {
         console.log(`[instagram] reel not posted for ${article.id}, trying the poster`);
         posted = await timed("postInstagramPoster", () => postInstagramPoster(article.id));
+        if (posted) instagramPhotoRemaining--;
       }
       if (posted) instagramDone = true;
     } catch (err) {

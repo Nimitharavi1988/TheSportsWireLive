@@ -18,3 +18,14 @@ describe("topic Instagram photo cap", () => {
     expect(instagramPhotoRoom(0, 0)).toBe(0);
   });
 });
+
+import { mainInstagramPhotoCap, MAIN_IG_PHOTO_PER_DAY } from "./topicInstagramCap";
+describe("main Instagram photo cap", () => {
+  it("defaults to 8 and reads the override, 0 included", () => {
+    expect(MAIN_IG_PHOTO_PER_DAY).toBe(8);
+    expect(mainInstagramPhotoCap(undefined)).toBe(8);
+    expect(mainInstagramPhotoCap("abc")).toBe(8);
+    expect(mainInstagramPhotoCap("0")).toBe(0);
+    expect(mainInstagramPhotoCap("12")).toBe(12);
+  });
+});
