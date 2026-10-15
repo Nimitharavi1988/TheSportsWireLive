@@ -175,7 +175,7 @@ const CFB_HEADLINE =
 // Sportsbook promos, odds and picks (Fox Sports runs several a day) — not news.
 const BETTING_PROMO = /\b(promo codes?|bonus(es)?|odds|parlays?|best bets?|betting|sportsbook|kalshi|polymarket|prediction markets?|picks?)\b/i;
 
-const FEEDS: RssFeed[] = [
+export const FEEDS: RssFeed[] = [
   // No structured race-data source exists on any free tier (confirmed live:
   // api-sports.io's Formula-1 API free plan rejects the current season
   // entirely — "try from 2022 to 2024"), so F1 is RSS-only editorial
@@ -433,6 +433,15 @@ const FEEDS: RssFeed[] = [
   { url: "https://www.espn.com/espn/rss/mma/news", category: "mma", sourceName: "ESPN" },
   { url: "https://sports.yahoo.com/mma/rss/", category: "mma", sourceName: "Yahoo Sports" },
   { url: "https://www.cbssports.com/rss/headlines/mma/", category: "mma", sourceName: "CBS Sports" },
+  // 2026-10-15: direct feeds for publishers whose stories arrived only as Google News links. Those links cannot be
+  // read (a 74-character headline is all we get), so 92-99% of the "source text too thin" rejections in football
+  // (1,104 of 1,203 in 7 days), basketball, NFL and cricket were Google News links. These four read fine from
+  // their own feeds (checked with the site's own reader). Not added: Heavy.com (clickbait/reaction tone, like the
+  // excluded Sports Illustrated); Cricbuzz, NDTV Sports, News18 and Basketball Network refuse our fetch (403).
+  { url: "https://www.cbssports.com/rss/headlines/soccer/", category: "football", sourceName: "CBS Sports", exclude: BETTING_PROMO },
+  { url: "https://www.cbssports.com/rss/headlines/nba/", category: "basketball", sourceName: "CBS Sports", exclude: BETTING_PROMO },
+  { url: "https://www.cbssports.com/rss/headlines/mlb/", category: "baseball", sourceName: "CBS Sports", exclude: BETTING_PROMO },
+  { url: "https://www.rediff.com/rss/cricketrss.xml", category: "cricket", sourceName: "Rediff", exclude: FANTASY_OR_BETTING },
   { url: "https://www.motorsport.com/rss/motogp/news/", category: "motogp", sourceName: "Motorsport.com" },
   { url: "https://www.autosport.com/rss/motogp/news/", category: "motogp", sourceName: "Autosport" },
   // Motorsport.com and Autosport refuse our page fetch (http 403), so every story from them is rejected
