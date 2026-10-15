@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { SeeAllLink } from "@/components/SeeAllLink";
 import { notFound } from "next/navigation";
 import { and, desc, eq, ilike } from "drizzle-orm";
 import Container from "@mui/material/Container";
@@ -126,9 +126,7 @@ export default async function AthletePage(props: { params: Promise<{ slug: strin
       )}
 
       {hub && (
-        <Link href={`/series/${athlete.eventKey}`} style={{ fontSize: 14, fontWeight: 600 }}>
-          All {athlete.country} medallists at the {games} ›
-        </Link>
+        <SeeAllLink href={`/series/${athlete.eventKey}`}>All {athlete.country} medallists at the {games}</SeeAllLink>
       )}
     </Container>
   );

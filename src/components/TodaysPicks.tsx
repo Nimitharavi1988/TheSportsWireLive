@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
 import { startsInLabel } from "@/lib/picksRow";
+import { SeeAllLink } from "./SeeAllLink";
 import { TeamCrest } from "./TeamCrest";
 import { trackAppEvent } from "./appPrompts";
 
@@ -111,16 +113,14 @@ export function TodaysPicks() {
         </Box>
         <Typography variant="h6" component="h2" sx={{ fontWeight: 700, lineHeight: 1.2 }}>Today&apos;s picks</Typography>
       </Box>
-      <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5, mb: 1.75 }}>
-        {allVoted ? (
-          <>
-            Nice picks! Come back after the games to see how you did.{" "}
-            <Link href="/fan-card" style={{ color: "inherit", fontWeight: 600 }}>See my fan card &rarr;</Link>
-          </>
-        ) : (
-          "Who wins? Tap a team. Picks close at kickoff."
-        )}
+      <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5, mb: allVoted ? 1 : 1.75 }}>
+        {allVoted ? "Nice picks! Come back after the games to see how you did." : "Who wins? Tap a team. Picks close at kickoff."}
       </Typography>
+      {allVoted && (
+        <Button component={Link} href="/fan-card" size="small" variant="outlined" sx={{ borderRadius: 5, textTransform: "none", fontWeight: 600, mb: 1.75 }}>
+          See my fan card
+        </Button>
+      )}
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
         {open.map((m) => {
@@ -199,14 +199,7 @@ export function TodaysPicks() {
                 <Typography variant="caption" sx={{ color: "text.secondary" }}>
                   {total >= 3 ? `${total} fans picked` : voted ? "You're one of the first to pick" : "Be among the first to pick"}
                 </Typography>
-                <Typography
-                  component={Link}
-                  href={`/article/${m.slug}`}
-                  variant="caption"
-                  sx={{ color: "text.secondary", textDecoration: "none", flexShrink: 0, "&:hover": { textDecoration: "underline" } }}
-                >
-                  Preview &rarr;
-                </Typography>
+                <SeeAllLink href={`/article/${m.slug}`} size="sm" padded>Preview</SeeAllLink>
               </Box>
             </Box>
           );
