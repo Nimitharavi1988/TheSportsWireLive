@@ -47,7 +47,6 @@ import SportsVolleyballIcon from "@mui/icons-material/SportsVolleyball";
 import SportsMotorsportsIcon from "@mui/icons-material/SportsMotorsports";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
-import EventIcon from "@mui/icons-material/Event";
 import type { SvgIconComponent } from "@mui/icons-material";
 
 // World Cup is deliberately not a permanent nav item — it only runs every
@@ -106,9 +105,6 @@ const MORE_SPORTS_LINKS: { href: string; label: string; category: string | null;
   { href: "/sport/wnba", label: "WNBA", category: "wnba", icon: SportsBasketballOutlinedIcon },
   { href: "/sport/baseball", label: "MLB", category: "baseball", icon: SportsBaseballIcon },
   { href: "/standings", label: "Standings", category: null, icon: EmojiEventsIcon },
-  // All series and events (Asian Games, bilateral cricket series, IPL) —
-  // was footer-only; the homepage "Happening now" row covers active ones.
-  { href: "/series", label: "Series & Events", category: null, icon: EventIcon },
   { href: "/sport/rugby", label: "Rugby", category: "rugby", icon: SportsRugbyIcon },
   { href: "/sport/athletics", label: "Athletics", category: "athletics", icon: DirectionsRunIcon },
   { href: "/sport/hockey", label: "NHL", category: "hockey", icon: SportsHockeyIcon },
