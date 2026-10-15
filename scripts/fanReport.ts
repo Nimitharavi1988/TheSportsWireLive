@@ -17,7 +17,7 @@ async function main() {
   console.log(`\n=== Fan report, last ${DAYS} days (since ${since}) ===\n`);
 
   // 1. Anonymous counters, one column per day.
-  const kinds = ["session", "article_follow_shown", "article_follow_added", "quick_picks_shown", "quick_pick_followed", "follow_added", "follow_removed", "follows_active", "for_you_strip_shown", "for_you_strip_clicked", "for_you_page_opened", "prediction_shown", "prediction_vote", "rating_shown", "fan_new_visitor", "fan_return_visit", "poll_vote", "fan_chip_clicked", "fan_card_opened", "match_rating", "rating_shown", "feedback_up", "feedback_down", "fan_voice_submitted", "fan_voice_approved"];
+  const kinds = ["session", "picks_row_shown", "picks_row_voted", "article_follow_shown", "article_follow_added", "quick_picks_shown", "quick_pick_followed", "follow_added", "follow_removed", "follows_active", "for_you_strip_shown", "for_you_strip_clicked", "for_you_page_opened", "prediction_shown", "prediction_vote", "rating_shown", "fan_new_visitor", "fan_return_visit", "poll_vote", "fan_chip_clicked", "fan_card_opened", "match_rating", "rating_shown", "feedback_up", "feedback_down", "fan_voice_submitted", "fan_voice_approved"];
   const counters = await q<{ day: string; kind: string; count: number }>(
     `select day, kind, count from "AppEvent" where day >= $1 and (kind = any($2) or kind like 'badge\\_%') order by day`,
     [since, kinds],
@@ -38,6 +38,7 @@ async function main() {
   console.log(`  For You strip click rate:  ${total("for_you_strip_clicked")} of ${total("for_you_strip_shown")} (${pct(total("for_you_strip_clicked"), total("for_you_strip_shown"))})`);
   console.log(`  one-tap follow rate:       ${total("quick_pick_followed")} follows from ${total("quick_picks_shown")} chip views (${pct(total("quick_pick_followed"), total("quick_picks_shown"))})`);
   console.log(`  article follow rate:       ${total("article_follow_added")} follows from ${total("article_follow_shown")} article sessions (${pct(total("article_follow_added"), total("article_follow_shown"))})`);
+  console.log(`  Today's picks row:        ${total("picks_row_voted")} picks from ${total("picks_row_shown")} row sessions (${pct(total("picks_row_voted"), total("picks_row_shown"))})`);
   console.log(`  prediction pick rate:    ${total("prediction_vote")} picks of ${total("prediction_shown")} cards shown (${pct(total("prediction_vote"), total("prediction_shown"))})`);
   console.log(`  rating rate:               ${total("match_rating")} ratings of ${total("rating_shown")} cards shown (${pct(total("match_rating"), total("rating_shown"))})\n`);
 
