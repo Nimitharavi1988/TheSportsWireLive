@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shortsTitle, shortsTitleFor, shortsDescription, youtubeSlotOpen, fixShoutedTitle, shortsTags, uploadLimitPauseActive, hookNamesSomeone } from "./youtube";
+import { shortsTitle, shortsTitleFor, shortsDescription, youtubeSlotOpen, youtubeSportAllowed, fixShoutedTitle, shortsTags, uploadLimitPauseActive, hookNamesSomeone } from "./youtube";
 
 describe("shortsTitle", () => {
   it("leaves a short headline alone (no #Shorts in the title)", () => {
@@ -114,4 +114,27 @@ describe("youtubeSlotOpen", () => {
   it("stays closed inside the minimum gap", () => expect(youtubeSlotOpen(2, ago(90), now, 8, 120)).toBe(false));
   it("opens once the gap has passed", () => expect(youtubeSlotOpen(2, ago(121), now, 8, 120)).toBe(true));
   it("stays closed at the daily cap", () => expect(youtubeSlotOpen(8, ago(600), now, 8, 120)).toBe(false));
+});
+
+describe("youtubeSportAllowed", () => {
+  it("lets a priority sport use any open slot, including the reserved ones", () => {
+    expect(youtubeSportAllowed("en", "cricket", 7, 8, 3)).toBe(true);
+    expect(youtubeSportAllowed("en", "wnba", 7, 8, 3)).toBe(true);
+    expect(youtubeSportAllowed("es", "tennis", 7, 8, 3)).toBe(true);
+  });
+  it("keeps the last slots for priority sports only", () => {
+    expect(youtubeSportAllowed("en", "american-football/nfl", 5, 8, 3)).toBe(false);
+    expect(youtubeSportAllowed("en", "mma", 7, 8, 3)).toBe(false);
+  });
+  it("lets other sports use the earlier slots of the day", () => {
+    expect(youtubeSportAllowed("en", "american-football/nfl", 4, 8, 3)).toBe(true);
+    expect(youtubeSportAllowed("es", "golf", 0, 8, 3)).toBe(true);
+  });
+  it("is per channel (NFL is a Spanish priority, not an English one)", () => {
+    expect(youtubeSportAllowed("es", "american-football", 7, 8, 3)).toBe(true);
+    expect(youtubeSportAllowed("en", "american-football", 7, 8, 3)).toBe(false);
+  });
+  it("a reserve of 0 turns the gate off", () => {
+    expect(youtubeSportAllowed("en", "mma", 7, 8, 0)).toBe(true);
+  });
 });

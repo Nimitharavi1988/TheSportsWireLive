@@ -33,6 +33,23 @@ const TITLE_MAX = 100;
 // Two channels share one Google Cloud project (and client ID/secret); each has its own refresh token,
 // because the token decides which channel a video goes to.
 export type YoutubeChannel = "en" | "es";
+
+// Which sports get a Short once the day is nearly full (measured 2026-10-15 over a week of Shorts, median views
+// per Short: English WNBA ~1000, college football ~470, baseball ~460, cricket ~310, NFL ~95; Spanish WNBA ~780,
+// baseball ~430, tennis ~350, soccer ~320, NFL ~250). The channel's daily slots are limited (YouTube's own cap,
+// about 10 a day), so the last YOUTUBE_PRIORITY_RESERVE slots of a rolling 24h go only to these sports and the
+// rest wait for a free earlier slot. Samples are small (5-15 Shorts a sport): revisit with scripts/youtubeReport.ts.
+const PRIORITY_SPORTS: Record<YoutubeChannel, string[]> = {
+  en: ["wnba", "college-football", "baseball", "cricket"],
+  es: ["wnba", "baseball", "tennis", "football", "american-football"],
+};
+export const priorityReserve = () => envNum("YOUTUBE_PRIORITY_RESERVE", 3);
+// category is the article's category ("cricket", "american-football/nfl"...). Pure, unit-tested.
+export function youtubeSportAllowed(channel: YoutubeChannel, category: string, postedLast24h: number, maxPerDay: number, reserve: number): boolean {
+  if (PRIORITY_SPORTS[channel].includes(category.split("/")[0].toLowerCase())) return true;
+  return postedLast24h < maxPerDay - reserve;
+}
+
 const refreshTokenFor = (channel: YoutubeChannel) => (channel === "es" ? process.env.YOUTUBE_REFRESH_TOKEN_ES : process.env.YOUTUBE_REFRESH_TOKEN);
 
 export function youtubeConfigured(channel: YoutubeChannel = "en"): boolean {

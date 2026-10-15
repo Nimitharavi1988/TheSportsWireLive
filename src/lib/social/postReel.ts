@@ -19,7 +19,7 @@ import { LOCALES } from "@/lib/i18n/locales";
 import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepertoire";
 import { reelTagsFor } from "./reelTags";
 import { instagramCoolingDown } from "./metaCooldown";
-import { youtubeConfigured, uploadShort, shortsTitleFor, shortsDescription, shortsTags, youtubeSlotOpen, uploadLimitPauseActive, UPLOAD_LIMIT_MESSAGE, UPLOAD_LIMIT_PAUSE_HOURS, maxShortsPerDay, minGapMinutes } from "./youtube";
+import { youtubeConfigured, uploadShort, shortsTitleFor, shortsDescription, shortsTags, youtubeSlotOpen, uploadLimitPauseActive, UPLOAD_LIMIT_MESSAGE, UPLOAD_LIMIT_PAUSE_HOURS, maxShortsPerDay, minGapMinutes, youtubeSportAllowed, priorityReserve } from "./youtube";
 
 // Posts a story as a Reel to Instagram and the main Facebook Page. Runs in
 // the post-reel GitHub Actions job only (renderReel needs plain Node).
@@ -328,6 +328,7 @@ export async function postReel(
     const [{ value: lastDay, last }] = await db.select({ value: count(), last: max(socialPostTable.postedAt) }).from(socialPostTable)
       .where(and(eq(socialPostTable.platform, "youtube"), ytChannel === "es" ? eq(socialPostTable.destination, spanishYtKey) : ne(socialPostTable.destination, spanishYtKey), eq(socialPostTable.status, "posted"), gte(socialPostTable.postedAt, new Date(Date.now() - 24 * 3600 * 1000))));
     if (!youtubeSlotOpen(lastDay, last, new Date(), maxShortsPerDay(), minGapMinutes())) needYouTube = false;
+    else if (!youtubeSportAllowed(ytChannel ?? "en", article.category, lastDay, maxShortsPerDay(), priorityReserve())) { console.log(`[youtube short] skipped: ${article.category} waits for a free slot (the last ${priorityReserve()} of ${maxShortsPerDay()} a day go to the best-performing sports)`); needYouTube = false; }
   }
   if (needYouTube) {
     // YouTube's own daily upload limit was hit recently on this channel: pause, don't render and fail again (youtube.ts).
