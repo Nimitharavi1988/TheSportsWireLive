@@ -42,6 +42,7 @@ import { pickOnward, RELATED_COUNT, trendingSince } from "@/lib/articleOnward";
 import { FanEngagementHub } from "@/components/FanEngagementHub";
 import { FanVoices } from "@/components/FanVoices";
 import { QuickPicks } from "@/components/QuickPicks";
+import { TodaysPicks } from "@/components/TodaysPicks";
 import { FollowUs } from "@/components/FollowUs";
 import { InAppBrowserTip } from "@/components/InAppBrowserTip";
 import { ShareButtons } from "@/components/ShareButtons";
@@ -751,6 +752,8 @@ export async function ArticleView({ slug, locale }: { slug: string; locale?: str
           would otherwise never see it. */}
       {/* Match pages have the prediction/rating card under the score; other stories keep a poll here. */}
       {!scoreMatch && <FanEngagementHub articleId={article.id} locale={locale} placement="poll" />}
+      {/* Other open matches to pick, after the reader has finished the story (the page's own match is left out). */}
+      {!loc && <Box sx={{ mt: 3 }}><TodaysPicks placement="article" excludeArticleId={article.id} /></Box>}
       {!loc && <FanVoices articleId={article.id} />}
 
       {!loc && <FollowUs />}

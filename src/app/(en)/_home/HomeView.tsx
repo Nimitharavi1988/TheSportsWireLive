@@ -1097,7 +1097,8 @@ export async function HomeView({ category, locale }: { category?: string; locale
         )}
 
         {/* One-tap match picks right under the hero, on the main home page only (the prediction card on a match page was barely seen). */}
-        {!category && !loc && <TodaysPicks />}
+        {/* Sport pages show only that sport's matches (a swipeable strip); nothing renders when none is open. */}
+        {!loc && (category ? <TodaysPicks placement="sport" sport={category.split("/")[0]} /> : <TodaysPicks />)}
 
         {/* Below lg the sections are reordered with flex `order` (lg and up
             keep the DOM order: series, Player News, Videos, Transfers...).
