@@ -28,3 +28,24 @@ describe("dramaBoost false positives", () => {
     expect(dramaBoost("Giants complete a comeback win over the Eagles")).toBe(20);
   });
 });
+
+import { storyPickBoost } from "./drama";
+describe("storyPickBoost", () => {
+  it("adds a nudge for a record, a reaction or an open question", () => {
+    expect(storyPickBoost("Steve Smith breaks Joe Root's world record")).toBe(10);
+    expect(storyPickBoost("Who opens in Hyderabad? India's predicted XIs split")).toBe(10);
+    expect(storyPickBoost("Tilak Varma opens up on his bizarre run out")).toBe(10);
+  });
+  it("adds to drama rather than replacing it", () => {
+    expect(storyPickBoost("Coach slams referees after the loss")).toBe(40);
+    expect(storyPickBoost("Coach slams referees, reveals what he said")).toBe(50);
+  });
+  it("marks down formats with no story in them", () => {
+    expect(storyPickBoost("South Africa vs Australia 1st Test Live Score: day one")).toBe(-15);
+    expect(storyPickBoost("Future Broncos: 3 Prospects to Watch in Week 6")).toBe(-15);
+    expect(storyPickBoost("Week 4 NFL player props and betting lines")).toBe(-15);
+  });
+  it("leaves an ordinary story at zero", () => {
+    expect(storyPickBoost("Eagles beat the Giants 24-17")).toBe(0);
+  });
+});

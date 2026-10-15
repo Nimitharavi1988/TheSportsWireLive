@@ -14,7 +14,7 @@ import { isSimilarToAny } from "../titleSimilarity";
 import { TOPIC_DESTINATIONS, destinationRunCap, localDayStart, prioritise } from "./facebookDestinations";
 import { postReel } from "./postReel";
 import { breakingSlotFor, findBreaking } from "./breakingNews";
-import { dramaBoost } from "./drama";
+import { storyPickBoost } from "./drama";
 import { isMatchDayStory, matchDayMultiplier } from "./matchDay";
 import { loadMatchDayFixtures } from "./matchDayFixtures";
 import { editionConditions } from "../i18n/overlay";
@@ -91,7 +91,7 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
       const breakingIds = d.breaking ? findBreaking(pool, now, d.breaking.minOutlets) : new Set<string>();
       // Drama first within each freshness tier (prioritise keeps the incoming order): social/drama.ts.
       // Stories about a match starting soon or just played come first (social/matchDay.ts).
-      const rankScore = (a: { title: string; trendingScore: number | null }) => ((a.trendingScore ?? 0) + dramaBoost(a.title)) * matchDayMultiplier(a.title, matchDayFixtures, now);
+      const rankScore = (a: { title: string; trendingScore: number | null }) => ((a.trendingScore ?? 0) + storyPickBoost(a.title)) * matchDayMultiplier(a.title, matchDayFixtures, now);
       const ranked = [...pool].sort((a, b) => rankScore(b) - rankScore(a));
       // Match-day stories go first whatever their age (the age rule makes an exception for them).
       const byAge = prioritise(ranked, now, d.focus);

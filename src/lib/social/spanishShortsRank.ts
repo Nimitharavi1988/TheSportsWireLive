@@ -1,5 +1,5 @@
 // How a Spanish Short candidate is ranked (pure, unit-tested; kept apart from the database code).
-import { dramaBoost } from "./drama";
+import { storyPickBoost } from "./drama";
 import { matchDayMultiplier, type Fixture } from "./matchDay";
 import { freshnessMultiplier, isStarStory } from "./freshness";
 
@@ -18,7 +18,7 @@ export function spanishShortScore(
   fixtures: Fixture[],
   now: Date
 ): number {
-  const base = ((a.trendingScore ?? 0) + dramaBoost(a.title)) * freshnessMultiplier(a.publishedAt, now, a.title) * matchDayMultiplier(a.title, fixtures, now);
+  const base = ((a.trendingScore ?? 0) + storyPickBoost(a.title)) * freshnessMultiplier(a.publishedAt, now, a.title) * matchDayMultiplier(a.title, fixtures, now);
   const us = isUsWakingHours(now) && US_SPORTS.some((c) => a.category === c || a.category.startsWith(c + "/")) ? US_SPORTS_BOOST : 1;
   // Messi and Ronaldo first, whatever the score.
   return base * us + (isStarStory(a.title) ? 1000 : 0);
