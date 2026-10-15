@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { acceptsItem, extractRssImage, feedContentImage, feedFullText } from "./rssFeeds";
+import { acceptsItem, extractRssImage, feedContentImage, feedFullText, FEEDS } from "./rssFeeds";
 
 describe("extractRssImage", () => {
   it("extracts a BBC-style media:thumbnail (single object, attribute-only)", () => {
@@ -87,5 +87,28 @@ describe("feed full text and inline photo (WordPress-style feeds)", () => {
     // FIVB (2026-09-27): "&" arrives encoded, and an empty href sits next to src.
     const fivb = '<figure><img decoding="async" src="https://www.fivb.org/Vis2009/Images/GetImage.asmx?No=202308402&#038;maxSize=1400" href="" srcset="x 300w"></figure>';
     expect(feedContentImage({ "content:encoded": fivb })?.url).toBe("https://www.fivb.org/Vis2009/Images/GetImage.asmx?No=202308402&maxSize=1400");
+  });
+});
+
+describe("feed list", () => {
+  it("has no feed twice for the same section (a repeat would ingest every story twice)", () => {
+    const seen = new Set<string>();
+    for (const f of FEEDS) {
+      const key = `${f.category}|${f.url}|${f.include?.source ?? ""}`;
+      expect(seen.has(key), key).toBe(false);
+      seen.add(key);
+    }
+  });
+
+  it("direct publisher feeds added 2026-10-15 are present and keep sportsbook promotion out", () => {
+    const cbsMlb = FEEDS.find((f) => f.url.endsWith("/headlines/mlb/"));
+    const cbsNba = FEEDS.find((f) => f.url.endsWith("/headlines/nba/"));
+    const cbsSoccer = FEEDS.find((f) => f.url.endsWith("/headlines/soccer/"));
+    const rediff = FEEDS.find((f) => f.sourceName === "Rediff");
+    expect([cbsMlb?.category, cbsNba?.category, cbsSoccer?.category, rediff?.category]).toEqual(["baseball", "basketball", "football", "cricket"]);
+    expect(acceptsItem(cbsMlb!, "Use FanDuel promo code to get $350 bonus bets targeting Dodgers vs. Brewers")).toBe(false);
+    expect(acceptsItem(cbsMlb!, "Dodgers manager Dave Roberts explains leaving Blake Snell in before the sixth")).toBe(true);
+    expect(acceptsItem(rediff!, "Dream11 prediction: today's match team, captain and vice-captain")).toBe(false);
+    expect(acceptsItem(rediff!, "India level the series with a clinical bowling performance in Hyderabad")).toBe(true);
   });
 });
