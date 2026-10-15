@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, asc, count, eq, gt, inArray, isNull, lt } from "drizzle-orm";
+import { and, asc, count, eq, gt, inArray, isNull, like, lt, ne, or } from "drizzle-orm";
 import { db } from "@/db";
 import { article, poll, pollOption, pollVote } from "@/db/schema";
 import { getOrCreateVoterId } from "@/lib/voterCookie";
@@ -12,7 +12,13 @@ export const dynamic = "force-dynamic";
 
 const OUTCOME_ORDER: Record<string, number> = { home: 0, draw: 1, away: 2 };
 
-export async function GET() {
+// Optional ?sport=football (that sport only, sub-categories included) and ?exclude=<articleId> (the match the
+// reader is already looking at). A sport slug is lowercase letters and dashes; anything else is ignored.
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const sportParam = searchParams.get("sport");
+  const sport = sportParam && /^[a-z-]{1,40}$/.test(sportParam) ? sportParam : null;
+  const exclude = searchParams.get("exclude");
   const voterId = await getOrCreateVoterId();
   const now = new Date();
   const rows = await db
@@ -36,6 +42,8 @@ export async function GET() {
       eq(article.status, "published"),
       gt(article.kickoffAt, now),
       lt(article.kickoffAt, new Date(now.getTime() + PICKS_WINDOW_MS)),
+      sport ? or(eq(article.category, sport), like(article.category, `${sport}/%`)) : undefined,
+      exclude ? ne(article.id, exclude) : undefined,
     ))
     .orderBy(asc(article.kickoffAt))
     .limit(40);

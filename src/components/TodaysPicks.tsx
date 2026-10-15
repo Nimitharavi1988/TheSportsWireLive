@@ -38,14 +38,25 @@ interface PickMatch {
 // pick, how the crowd split. Picks go through the normal vote route and close
 // at kickoff. Loaded after the page (the home page is cached, the picks are per
 // visitor), so it renders nothing until it has matches to show.
-export function TodaysPicks() {
+//
+// Also used on sport pages (that sport only) and under articles (other matches), as a swipeable strip on phones
+// and a plain grid on wider screens. `placement` names the anonymous counters so each spot can be compared.
+export type PicksPlacement = "home" | "sport" | "article";
+const COUNTER_NAME: Record<PicksPlacement, string> = { home: "row", sport: "sport", article: "article" };
+
+export function TodaysPicks({ placement = "home", sport, excludeArticleId }: { placement?: PicksPlacement; sport?: string; excludeArticleId?: string } = {}) {
+  const strip = placement !== "home";
+  const counter = COUNTER_NAME[placement];
   const [matches, setMatches] = useState<PickMatch[] | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/picks")
+    const params = new URLSearchParams();
+    if (sport) params.set("sport", sport);
+    if (excludeArticleId) params.set("exclude", excludeArticleId);
+    fetch(`/api/picks${params.size ? `?${params}` : ""}`)
       .then((res) => res.json())
       .then((data) => {
         if (!cancelled) setMatches(Array.isArray(data.matches) ? data.matches : []);
@@ -56,7 +67,7 @@ export function TodaysPicks() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [sport, excludeArticleId]);
 
   // Keeps the countdowns honest while the page stays open.
   useEffect(() => {
@@ -66,8 +77,8 @@ export function TodaysPicks() {
 
   const shown = Boolean(matches && matches.length > 0);
   useEffect(() => {
-    if (shown) trackAppEvent("picks_row_shown");
-  }, [shown]);
+    if (shown) trackAppEvent(`picks_${counter}_shown`);
+  }, [shown, counter]);
 
   async function pick(match: PickMatch, optionId: string) {
     if (pending || match.votedOptionId) return;
@@ -82,7 +93,8 @@ export function TodaysPicks() {
         const state = await res.json();
         const poll = state?.poll;
         if (poll?.options) {
-          trackAppEvent("picks_row_voted", false);
+          trackAppEvent(`picks_${counter}_voted`, false);
+          trackAppEvent(`picks_${counter}_voters`); // once per session: visitors who picked at all
           setMatches((current) =>
             (current ?? []).map((m) =>
               m.articleId === match.articleId
@@ -106,12 +118,12 @@ export function TodaysPicks() {
   const allVoted = open.every((m) => m.votedOptionId);
 
   return (
-    <Paper variant="outlined" sx={{ p: 2, borderTop: "3px solid", borderTopColor: "primary.main" }}>
+    <Paper variant="outlined" sx={{ p: strip ? 1.5 : 2, borderTop: "3px solid", borderTopColor: "primary.main" }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: "50%", bgcolor: "rgba(29, 107, 63, 0.1)", color: "primary.main", flexShrink: 0 }}>
           <EmojiEventsOutlinedIcon sx={{ fontSize: 20 }} />
         </Box>
-        <Typography variant="h6" component="h2" sx={{ fontWeight: 700, lineHeight: 1.2 }}>Today&apos;s picks</Typography>
+        <Typography variant={strip ? "subtitle1" : "h6"} component="h2" sx={{ fontWeight: 700, lineHeight: 1.2 }}>{placement === "article" ? "More picks today" : "Today’s picks"}</Typography>
       </Box>
       <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5, mb: allVoted ? 1 : 1.75 }}>
         {allVoted ? "Nice picks! Come back after the games to see how you did." : "Who wins? Tap a team. Picks close at kickoff."}
@@ -122,7 +134,16 @@ export function TodaysPicks() {
         </Button>
       )}
 
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+      <Box
+        sx={strip
+          ? {
+              display: "flex", gap: 1.5, overflowX: "auto", scrollSnapType: "x mandatory", pb: 0.5, mx: -0.5, px: 0.5,
+              // The next card peeks in so it is clear the row swipes; on wide screens it is a plain grid.
+              "& > *": { flex: "0 0 min(82%, 300px)", scrollSnapAlign: "start" },
+              "@media (min-width: 900px)": { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", overflowX: "visible", "& > *": { flex: "none" } },
+            }
+          : { display: "flex", flexDirection: "column", gap: 1.5 }}
+      >
         {open.map((m) => {
           const total = m.options.reduce((sum, o) => sum + o.votes, 0);
           const voted = Boolean(m.votedOptionId);
