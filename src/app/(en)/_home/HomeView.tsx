@@ -14,6 +14,7 @@ import { LOCALES } from "@/lib/i18n/locales";
 import { editionConditions } from "@/lib/i18n/overlay";
 import { and, eq, inArray, like, isNotNull, isNull, lte, ne, notInArray, or, desc, gte, sql, type SQL } from "drizzle-orm";
 import { ForYouStrip } from "@/components/ForYouStrip";
+import { TodaysPicks } from "@/components/TodaysPicks";
 import { HappeningNow } from "@/components/HappeningNow";
 import { LatestVideos, VideoStripSkeleton } from "@/components/videos/VideoStrip";
 import { happeningNowEntities } from "@/lib/competitions";
@@ -1105,6 +1106,9 @@ export async function HomeView({ category, locale }: { category?: string; locale
             />
           </Box>
         )}
+
+        {/* One-tap match picks right under the hero, on the main home page only (the prediction card on a match page was barely seen). */}
+        {!category && !loc && <TodaysPicks />}
 
         {/* Below lg the sections are reordered with flex `order` (lg and up
             keep the DOM order: series, Player News, Videos, Transfers...).

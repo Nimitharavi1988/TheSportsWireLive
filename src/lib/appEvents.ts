@@ -21,6 +21,8 @@ export const CLIENT_APP_EVENT_KINDS = new Set([
   "quick_picks_shown", "quick_pick_followed",
   // Follow chips under an article's team and player tags: on screen, and a first-time follow from them.
   "article_follow_shown", "article_follow_added",
+  // Home page "Today's picks" row: shown, and a first-time pick made from it.
+  "picks_row_shown", "picks_row_voted",
   // Cards on a match page: prediction / rating card on screen.
   "prediction_shown", "rating_shown",
 ]);

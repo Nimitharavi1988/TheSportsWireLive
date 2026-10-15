@@ -93,6 +93,11 @@ The page now lists the real cookies (`swl_voter_id`, `swl_follows`, `swl_fav_spo
 - The 🔥🚨🥶 reactions row moved from the bottom of the article to just under the tags (it had 26 reactions ever). The poll stays lower down; match pages keep the prediction and rating card under the score.
 - Counters: `article_follow_shown`, `article_follow_added`. After about 3 days compare article_follow_added with the For You chips (quick_pick_followed) and the reaction count per day with before (about 1 a day).
 
+**A4f. Today's picks on the home page (2026-10-15). BUILT on branch `feature/todays-picks` (not merged).**
+- A row under the hero on the main home page (English, no category): the 3 biggest open match predictions starting in the next 30 hours, with one-tap team buttons (a draw button for football). Picks use the normal vote route and close at kickoff; after a pick the buttons show the split (for example "✓ LA Clippers 100%") and the caption becomes "Come back after the games to see how you did." Endpoint `/api/picks` (per visitor, never cached); order is competition tier first, then soonest kickoff, one entry per matchup. Reason: the prediction card on match pages was shown 7 times in a day and a half.
+- Counters: `picks_row_shown`, `picks_row_voted` (plus the existing `prediction_vote`); `fanReport.ts` prints a "Today's picks row" rate. After about 3 days compare with the match-page card (`prediction_shown` / picks), and check whether people who pick come back (fan card days) more than those who don't.
+- Next idea: a "your last picks" line on the row for returning visitors ("You called 2 of 3") once picks resolve, and a link to the fan card.
+
 **A5. Shareable fan card.** An image of the card for Facebook and WhatsApp. This is a growth loop for the Facebook audience. Build after A4.
 
 **A6. Logins and comments (later, after A1-A4 show engagement).**
