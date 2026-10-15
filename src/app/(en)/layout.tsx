@@ -81,7 +81,12 @@ export const metadata = {
 // `metadata`) since Next.js 14 — this is what tints the browser chrome/
 // status bar to match the brand when the site is installed as a PWA.
 export const viewport = {
-  themeColor: "#1d6b3f",
+  // Brand green in light mode, the dark page colour in dark mode (so the status bar doesn't clash).
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#1d6b3f" },
+    { media: "(prefers-color-scheme: dark)", color: "#121513" },
+  ],
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

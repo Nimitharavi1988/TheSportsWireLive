@@ -19,11 +19,13 @@ import { getDict } from "@/lib/i18n/dictionary";
 // components.
 
 export const LIVE_RED = "#d32f2f";
+// LIVE text on a dark card: #d32f2f is only 3.3:1 there; this is 6:1.
+export const LIVE_RED_DARK = "#ff6b6b";
 
 export function LiveBadge({ label, locale }: { label: string | null; locale?: string }) {
   const live = getDict(locale).scores.live;
   return (
-    <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, color: LIVE_RED, fontWeight: 700 }}>
+    <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, color: LIVE_RED, "@media (prefers-color-scheme: dark)": { color: LIVE_RED_DARK }, fontWeight: 700 }}>
       <Box
         component="span"
         aria-hidden
@@ -80,7 +82,7 @@ function StatusColumn({ match, locale }: { match: ScoreMatch; locale?: string })
   const t = getDict(locale).scores;
   if (match.state === "live") {
     return (
-      <Box sx={{ color: LIVE_RED, fontWeight: 700 }}>
+      <Box sx={{ color: LIVE_RED, "@media (prefers-color-scheme: dark)": { color: LIVE_RED_DARK }, fontWeight: 700 }}>
         <div>{t.live}</div>
         {match.clock && <Box sx={{ fontWeight: 500 }}>{match.clock}</Box>}
       </Box>
@@ -113,6 +115,7 @@ export function EventChip({ event }: { event: MatchEvent }) {
         fontSize: 12,
         fontWeight: 700,
         color: "#b71c1c",
+        "@media (prefers-color-scheme: dark)": { color: "#ff8a80" },
         bgcolor: "rgba(211,47,47,0.08)",
         animation: "swlEventFlash 2.4s ease-out 1",
         "@keyframes swlEventFlash": { from: { bgcolor: "rgba(211,47,47,0.35)" }, to: { bgcolor: "rgba(211,47,47,0.08)" } },

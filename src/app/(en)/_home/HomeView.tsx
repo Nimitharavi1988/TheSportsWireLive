@@ -36,7 +36,7 @@ import { crestAltText, competitionFromSummary } from "@/lib/teamNames";
 import { displaySummary } from "@/lib/articleSummary";
 import { relativeTime } from "@/lib/relativeTime";
 import { isHighlightWorthy } from "@/lib/highlightWorthy";
-import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { categoryChipStyle, chipTextSx } from "@/lib/categoryDisplay";
 import { TRACKED_PLAYERS, type TrackedPlayer } from "@/lib/players";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
@@ -627,7 +627,7 @@ export async function HomeView({ category, locale }: { category?: string; locale
                   <Box sx={{ minWidth: 0 }}>
                     <Typography
                       variant="caption"
-                      sx={{ color: categoryChipStyle(cat).color, fontWeight: 700, display: "block" }}
+                      sx={{ ...chipTextSx(categoryChipStyle(cat)), fontWeight: 700, display: "block" }}
                     >
                       {loc ? categoryLabel(cat, t) : categoryChipStyle(cat).label}
                     </Typography>
@@ -1161,7 +1161,7 @@ export async function HomeView({ category, locale }: { category?: string; locale
           {nflArticles.length > 0 && (
             <Box component="section" sx={{ order: { xs: 9, lg: 0 }, mt: matchArticles.length > 0 ? 4 : 0, ...BELOW_FOLD_SX }}>
               <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mb: 2 }}>
-                <SportsFootballIcon sx={{ color: categoryChipStyle("american-football").color }} />
+                <SportsFootballIcon sx={{ ...chipTextSx(categoryChipStyle("american-football")) }} />
                 <Typography variant="h5" component="h2" sx={SECTION_HEADING_SX}>{t.home.nflScores}</Typography>
               </Stack>
               <Stack spacing={2}>

@@ -22,7 +22,7 @@ import { NhlStandingsCarousel } from "@/components/NhlStandingsCarousel";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { ArticleThumb } from "@/components/ArticleThumb";
-import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { categoryChipStyle, chipOutlineSx } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
 import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
 import { ForYouStrip } from "@/components/ForYouStrip";
@@ -173,8 +173,7 @@ export async function ClubView({ slug, locale }: { slug: string; locale?: string
                             variant="outlined"
                             sx={{
                               mb: 1,
-                              color: categoryChipStyle(article.category).color,
-                              borderColor: categoryChipStyle(article.category).color,
+                              ...chipOutlineSx(categoryChipStyle(article.category)),
                               fontWeight: 600,
                             }}
                           />

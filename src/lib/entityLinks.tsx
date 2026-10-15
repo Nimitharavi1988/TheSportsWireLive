@@ -123,7 +123,7 @@ export function createEntityLinker(sport?: string) {
       } else {
         linked.add(href);
         nodes.push(
-          <Link key={`entity-link-${key++}`} href={href} style={LINK_STYLE}>
+          <Link key={`entity-link-${key++}`} href={href} style={LINK_STYLE} className="swl-entity-link">
             {matchedTerm}
           </Link>
         );

@@ -5,7 +5,7 @@ import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { ArticleThumb } from "@/components/ArticleThumb";
-import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { categoryChipStyle, chipOutlineSx } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
 import { getDict } from "@/lib/i18n/dictionary";
 import { categoryLabel, formatShortDate } from "@/lib/i18n/helpers";
@@ -45,7 +45,7 @@ export function StoryCard({ article, accent, showSummary = false, locale = "en" 
   const chip = locale ? { ...base, label: categoryLabel(article.category, t) } : base;
   const meta = (
     <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 0.5 }}>
-      <Chip label={chip.label} size="small" variant="outlined" sx={{ color: chip.color, borderColor: chip.color, fontWeight: 600 }} />
+      <Chip label={chip.label} size="small" variant="outlined" sx={{ ...chipOutlineSx(chip), fontWeight: 600 }} />
       {article.highlighted && <Chip label={t.home.editorsPick} size="small" sx={{ color: "warning.contrastText", bgcolor: "warning.main" }} />}
       {article.publishedAt && (
         <Typography variant="caption" sx={{ color: "text.secondary" }}>

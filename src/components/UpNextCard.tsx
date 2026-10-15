@@ -8,7 +8,7 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { getDict } from "@/lib/i18n/dictionary";
 import { categoryLabel } from "@/lib/i18n/helpers";
 import { ArticleThumb } from "@/components/ArticleThumb";
-import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { categoryChipStyle, chipTextSx } from "@/lib/categoryDisplay";
 import { isHeroQualityImage } from "@/lib/imageQuality";
 import { relativeTime } from "@/lib/relativeTime";
 
@@ -61,7 +61,7 @@ export function UpNextCard({ article, locale }: { article: UpNextArticle; locale
                 <Typography variant="overline" sx={{ color: "primary.main", fontWeight: 700, lineHeight: 1.2 }}>
                   {t.article.upNext}
                 </Typography>
-                <Typography variant="caption" sx={{ color: chip.color, fontWeight: 700 }}>
+                <Typography variant="caption" sx={{ ...chipTextSx(chip), fontWeight: 700 }}>
                   {chip.label}
                 </Typography>
                 {article.publishedAt && (

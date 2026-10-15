@@ -15,7 +15,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import HistoryIcon from "@mui/icons-material/History";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import type { EntityResult } from "@/lib/entitySearch";
-import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { categoryChipStyle, chipTextSx } from "@/lib/categoryDisplay";
 import { relativeTime } from "@/lib/relativeTime";
 import { EntityAvatar } from "./EntityAvatar";
 import { FollowButton } from "./FollowButton";
@@ -229,7 +229,7 @@ function SearchPanel({
                 {it.story.title}
               </Typography>
               <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
-                <Box component="span" sx={{ color: categoryChipStyle(it.story.category).color, fontWeight: 600 }}>
+                <Box component="span" sx={{ ...chipTextSx(categoryChipStyle(it.story.category)), fontWeight: 600 }}>
                   {categoryChipStyle(it.story.category).label}
                 </Box>
                 {it.story.publishedAt && ` · ${relativeTime(new Date(it.story.publishedAt))}`}

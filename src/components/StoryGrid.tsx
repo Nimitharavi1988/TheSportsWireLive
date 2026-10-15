@@ -5,7 +5,7 @@ import Typography from "@mui/material/Typography";
 import { getDict } from "@/lib/i18n/dictionary";
 import { categoryLabel } from "@/lib/i18n/helpers";
 import { TeamCrest } from "./TeamCrest";
-import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { categoryChipStyle, chipTextSx } from "@/lib/categoryDisplay";
 
 export interface StoryGridItem {
   slug: string;
@@ -32,7 +32,7 @@ const clamp = (lines: number) => ({ display: "-webkit-box", WebkitLineClamp: lin
 function GridPhoto({ item }: { item: StoryGridItem }) {
   const chip = categoryChipStyle(item.category);
   return (
-    <Box sx={{ position: "relative", aspectRatio: "16 / 9", borderRadius: 1.5, overflow: "hidden", bgcolor: "grey.100" }}>
+    <Box sx={{ position: "relative", aspectRatio: "16 / 9", borderRadius: 1.5, overflow: "hidden", bgcolor: "grey.100", "@media (prefers-color-scheme: dark)": { bgcolor: "rgba(255, 255, 255, 0.06)" } }}>
       {item.heroImageUrl ? (
         <Box
           component={Image}
@@ -79,7 +79,7 @@ export function StoryGrid({ items, locale }: { items: StoryGridItem[]; locale?: 
               <GridPhoto item={item} />
               <Typography variant="caption" component="p" sx={{ fontWeight: 700, mt: 1.25, mb: 0.25 }}>
                 {item.kicker && <Box component="span" sx={{ color: "primary.main", mr: 1 }}>{item.kicker}</Box>}
-                <Box component="span" sx={{ color: chip.color }}>{chip.label}</Box>
+                <Box component="span" sx={{ ...chipTextSx(chip) }}>{chip.label}</Box>
               </Typography>
               <Typography
                 className="story-grid-title"

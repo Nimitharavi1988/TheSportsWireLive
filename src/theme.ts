@@ -3,6 +3,22 @@ import { createTheme } from "@mui/material/styles";
 // Carries the site's existing brand (green accent, Poppins/Inter) into
 // Material Design components, rather than using MUI's default blue theme.
 const theme = createTheme({
+  // Dark mode (2026-10-15): follows the visitor's browser/device setting through
+  // a CSS media query only (no JavaScript, no flash, works with the cached pages).
+  // Light is exactly the palette below as it always was; there is no toggle.
+  cssVariables: { colorSchemeSelector: "media" },
+  colorSchemes: {
+    dark: {
+      palette: {
+        // Brand green, lightened: #0c7d45 is only 3.2:1 on a dark card (4.5 needed for text);
+        // #3ecf8e is 8.3:1. Buttons with this background take dark text (9.4:1).
+        primary: { main: "#3ecf8e", contrastText: "#07140d" },
+        background: { default: "#121513", paper: "#1c201d" },
+        text: { primary: "#ececec", secondary: "#a3a8a4", disabled: "#7d827e" },
+        divider: "rgba(255, 255, 255, 0.12)",
+      },
+    },
+    light: {
   palette: {
     // Was #1d6b3f -- real, verified against the site's own screenshots as
     // reading muted/corporate rather than vivid, a genuine contributor to
@@ -22,6 +38,8 @@ const theme = createTheme({
     primary: { main: "#0c7d45" },
     background: { default: "#f7f7f5", paper: "#ffffff" },
     text: { primary: "#1a1a1a", secondary: "#6b6b6b", disabled: "#6e6e6e" },
+  },
+    },
   },
   typography: {
     fontFamily: "var(--font-body)",

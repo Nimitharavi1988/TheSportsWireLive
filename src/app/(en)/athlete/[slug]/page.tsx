@@ -71,7 +71,7 @@ export default async function AthletePage(props: { params: Promise<{ slug: strin
         {profile?.thumbnail && (
           // A plain <img>: a small Wikimedia thumbnail, credited below.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={profile.thumbnail} alt={name} width={120} height={120} style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 12, flexShrink: 0, background: "#eee" }} />
+          <img src={profile.thumbnail} alt={name} width={120} height={120} style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 12, flexShrink: 0, background: "rgba(127,127,127,0.2)" }} />
         )}
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="h4" component="h1">{name}</Typography>

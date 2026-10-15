@@ -3,7 +3,7 @@ import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { ArticleThumb } from "@/components/ArticleThumb";
-import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { categoryChipStyle, chipTextSx } from "@/lib/categoryDisplay";
 import { storyKindLabel } from "@/lib/stories";
 import type { AnalysisItem } from "@/lib/analysis";
 
@@ -21,7 +21,7 @@ export function AnalysisList({ items, thumbSize = 88, showSummary = false }: { i
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="caption" sx={{ fontWeight: 700, color: "primary.main" }}>
                   {storyKindLabel(s.storyKind) ?? "Analysis"}
-                  <Box component="span" sx={{ color: chip.color, ml: 1 }}>{chip.label}</Box>
+                  <Box component="span" sx={{ ...chipTextSx(chip), ml: 1 }}>{chip.label}</Box>
                 </Typography>
                 <Typography className="analysis-title" sx={{ fontFamily: "var(--font-body)", fontWeight: 600, lineHeight: 1.35 }}>{s.title}</Typography>
                 {showSummary && (

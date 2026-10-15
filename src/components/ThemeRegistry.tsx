@@ -12,7 +12,8 @@ export default function ThemeRegistry({ children }: { children: React.ReactNode 
   return (
     <AppRouterCacheProvider>
       <ThemeProvider theme={theme}>
-        <CssBaseline />
+        {/* enableColorScheme: browser-drawn parts (scrollbars, form fields) follow light/dark too. */}
+        <CssBaseline enableColorScheme />
         {children}
       </ThemeProvider>
     </AppRouterCacheProvider>

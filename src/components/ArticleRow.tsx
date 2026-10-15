@@ -2,7 +2,7 @@ import Link from "next/link";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { ArticleThumb } from "./ArticleThumb";
-import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { categoryChipStyle, chipTextSx } from "@/lib/categoryDisplay";
 import { relativeTime } from "@/lib/relativeTime";
 
 // Compact list row (thumbnail, headline, one meta line) for dense result
@@ -75,7 +75,7 @@ export function ArticleRow({
             </Typography>
           )}
           <Typography sx={{ fontSize: 12, color: "text.secondary", mt: 0.5 }}>
-            <Box component="span" sx={{ color: chip.color, fontWeight: 600 }}>{chip.label}</Box>
+            <Box component="span" sx={{ ...chipTextSx(chip), fontWeight: 600 }}>{chip.label}</Box>
             {context && ` · ${context}`}
             {published && ` · ${relativeTime(published)}`}
           </Typography>

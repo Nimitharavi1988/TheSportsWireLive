@@ -150,7 +150,7 @@ export function PhotoFinder({ open, initialQuery, onClose, onPick }: {
           {selected && (
             <Box sx={{ width: { xs: "100%", md: 340 }, flexShrink: 0, border: "1px solid", borderColor: "divider", borderRadius: 2, p: 2, display: "flex", flexDirection: "column", gap: 1.5, alignSelf: "flex-start" }}>
               {/* eslint-disable-next-line @next/next/no-img-element -- remote preview */}
-              <img src={selected.thumbUrl} alt={selected.title} style={{ width: "100%", borderRadius: 8, aspectRatio: "16 / 9", objectFit: "cover", background: "#eee" }} />
+              <img src={selected.thumbUrl} alt={selected.title} style={{ width: "100%", borderRadius: 8, aspectRatio: "16 / 9", objectFit: "cover", background: "rgba(127,127,127,0.2)" }} />
               <Typography sx={{ fontWeight: 700, lineHeight: 1.3 }}>{selected.title}</Typography>
               <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 0.75 }}>
                 <Chip size="small" label={selected.license} color="success" variant="outlined" />

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { TRACKED_PLAYERS } from "@/lib/players";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
-import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { categoryChipStyle, chipTextSx } from "@/lib/categoryDisplay";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
@@ -47,7 +47,7 @@ export function PlayerIndexView({ locale }: { locale?: string }) {
 
       {[...bySport.entries()].map(([sport, players]) => (
         <Box component="section" key={sport} sx={{ mb: 4 }}>
-          <Typography variant="h6" sx={{ mb: 1.5, color: categoryChipStyle(sport).color }}>
+          <Typography variant="h6" sx={{ mb: 1.5, ...chipTextSx(categoryChipStyle(sport)) }}>
             {locale ? categoryLabel(sport, t) : (SPORT_LABELS[sport] ?? sport)}
           </Typography>
           <Box
