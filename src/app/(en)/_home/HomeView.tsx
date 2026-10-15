@@ -62,6 +62,7 @@ import { fetchLiveNow } from "@/lib/scores/scoreboard";
 import { pickHomeMatches } from "@/lib/homeMatches";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import StarIcon from "@mui/icons-material/Star";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import ScoreboardIcon from "@mui/icons-material/Scoreboard";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
@@ -1218,9 +1219,12 @@ export async function HomeView({ category, locale }: { category?: string; locale
             {/* The ground guides (lib/venues.ts) are all cricket, so they live here, not in the main menu. */}
             {category === "cricket" && !loc && (
               <Link href="/venue" style={{ textDecoration: "none", color: "inherit" }}>
-                <Paper variant="outlined" sx={{ p: 2, "&:hover": { borderColor: "primary.main" } }}>
-                  <Typography sx={{ fontWeight: 600 }}>Cricket grounds</Typography>
-                  <Typography variant="body2" sx={{ color: "text.secondary" }}>Fixtures, results and stories from each stadium &rarr;</Typography>
+                <Paper variant="outlined" sx={{ p: 2, mb: 3, display: "flex", alignItems: "center", gap: 1.5, "&:hover": { borderColor: "primary.main" } }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontWeight: 600 }}>Cricket grounds</Typography>
+                    <Typography variant="body2" sx={{ color: "text.secondary" }}>Fixtures, results and stories from each stadium</Typography>
+                  </Box>
+                  <ChevronRightIcon sx={{ color: "primary.main", flexShrink: 0 }} />
                 </Paper>
               </Link>
             )}

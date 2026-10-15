@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import Link from "next/link";
+import { SeeAllLink } from "@/components/SeeAllLink";
 import type { StoredMedalTable } from "@/lib/events/queries";
 import { UpdatedAgo } from "@/components/scores/DataFreshness";
 
@@ -65,9 +65,7 @@ export function MedalTableCard({ title, medals, limit, pin, href }: { title: str
       </Typography>
       {href && (
         <Box sx={{ px: 2, py: 1, borderTop: "1px solid", borderColor: "divider" }}>
-          <Link href={href} style={{ textDecoration: "none", fontSize: 13, fontWeight: 600, color: "#0c7d45" }}>
-            Full medal table &rsaquo;
-          </Link>
+          <SeeAllLink href={href} size="sm">Full medal table</SeeAllLink>
         </Box>
       )}
     </Box>
