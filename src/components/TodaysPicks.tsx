@@ -117,7 +117,7 @@ export function TodaysPicks() {
         {allVoted ? "Nice picks! Come back after the games to see how you did." : "Who wins? Tap a team. Picks close at kickoff."}
       </Typography>
       {allVoted && (
-        <Button component={Link} href="/fan-card" size="small" variant="outlined" sx={{ borderRadius: 5, textTransform: "none", fontWeight: 600, mb: 1.75 }}>
+        <Button component={Link} href="/fan-card" size="small" variant="outlined" sx={{ borderRadius: 5, textTransform: "none", fontWeight: 600, fontSize: 13, minHeight: 34, py: 0, px: 1.75, mb: 1.75 }}>
           See my fan card
         </Button>
       )}
