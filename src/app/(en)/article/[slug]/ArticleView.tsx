@@ -19,7 +19,7 @@ import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
 import { ForYouStrip } from "@/components/ForYouStrip";
 import { buildBreadcrumbJsonLd } from "@/lib/breadcrumbs";
 import { crestAltText } from "@/lib/teamNames";
-import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { categoryChipStyle, chipOutlineSx } from "@/lib/categoryDisplay";
 import { ArticleThumb } from "@/components/ArticleThumb";
 import { fetchStandingsTable, STANDINGS_LEAGUES } from "@/lib/ingestion/standings";
 import { StandingsCarousel } from "@/components/StandingsCarousel";
@@ -599,8 +599,7 @@ export async function ArticleView({ slug, locale }: { slug: string; locale?: str
         size="small"
         variant="outlined"
         sx={{
-          color: categoryChipStyle(article.category).color,
-          borderColor: categoryChipStyle(article.category).color,
+          ...chipOutlineSx(categoryChipStyle(article.category)),
           fontWeight: 600,
           mb: 1.5
         }} />

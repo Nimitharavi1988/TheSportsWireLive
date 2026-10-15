@@ -602,6 +602,7 @@ export default function SiteHeader({
       sx={{
         top: 0,
         borderBottom: "1px solid #e7e5e0",
+        "@media (prefers-color-scheme: dark)": { borderBottomColor: "rgba(255, 255, 255, 0.12)" },
         boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
       }}
     >

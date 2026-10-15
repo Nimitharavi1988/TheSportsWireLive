@@ -26,6 +26,7 @@ export function TeamCrest({ name, crestUrl, size, alt = "" }: { name?: string | 
       <Image
         ref={img}
         src={crestUrl}
+        className="swl-crest"
         alt={alt}
         width={size}
         height={size}
@@ -50,6 +51,8 @@ export function TeamCrest({ name, crestUrl, size, alt = "" }: { name?: string | 
         color: "text.primary",
         border: "1px solid",
         borderColor: "grey.300",
+        // MUI's greys do not change with the colour scheme: a pale circle with light text vanished in dark mode.
+        "@media (prefers-color-scheme: dark)": { bgcolor: "rgba(255, 255, 255, 0.12)", borderColor: "rgba(255, 255, 255, 0.22)" },
         // 10px at the smallest crest (22px): 8px initials read as an empty circle.
         fontSize: Math.max(10, Math.round(size * 0.42)),
         lineHeight: 1,

@@ -65,7 +65,7 @@ export function MedalTableCard({ title, medals, limit, pin, href }: { title: str
       </Typography>
       {href && (
         <Box sx={{ px: 2, py: 1, borderTop: "1px solid", borderColor: "divider" }}>
-          <Link href={href} style={{ textDecoration: "none", fontSize: 13, fontWeight: 600, color: "#0c7d45" }}>
+          <Link href={href} style={{ textDecoration: "none", fontSize: 13, fontWeight: 600, color: "var(--mui-palette-primary-main, #0c7d45)" }}>
             Full medal table &rsaquo;
           </Link>
         </Box>

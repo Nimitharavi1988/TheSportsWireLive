@@ -74,7 +74,7 @@ function Row({ isActive, locale }: { isActive: (s: Section) => boolean; locale?:
         borderBottom: "1px solid",
         borderColor: "divider",
         // Fades the last visible item out at the right edge: the row scrolls.
-        "&::after": { content: '""', position: "absolute", top: 0, right: 0, bottom: 0, width: 28, pointerEvents: "none", background: "linear-gradient(to right, rgba(255,255,255,0), #ffffff)" },
+        "&::after": { content: '""', position: "absolute", top: 0, right: 0, bottom: 0, width: 28, pointerEvents: "none", background: "linear-gradient(to right, transparent, var(--mui-palette-background-paper, #ffffff))" },
       }}
     >
       <ScrollRow gap={0.75} sx={{ px: 1.5, py: 0.75, pb: 0.75, "&::-webkit-scrollbar": { display: "none" }, scrollbarWidth: "none" }}>

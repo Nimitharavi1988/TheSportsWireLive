@@ -131,7 +131,7 @@ export function TodaysPicks() {
           // Highlighted when it starts within about five hours.
           const soon = countdown !== null && /^Starts in (\d+m|[1-5]h)/.test(countdown);
           return (
-            <Box key={m.articleId} sx={{ bgcolor: "rgba(0, 0, 0, 0.025)", borderRadius: 2, p: 1.25 }}>
+            <Box key={m.articleId} sx={{ bgcolor: "rgba(0, 0, 0, 0.025)", "@media (prefers-color-scheme: dark)": { bgcolor: "rgba(255, 255, 255, 0.04)" }, borderRadius: 2, p: 1.25 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, mb: 1 }}>
                 <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase" }} noWrap>
                   {m.league ?? ""}

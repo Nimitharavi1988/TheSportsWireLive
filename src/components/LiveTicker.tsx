@@ -21,6 +21,7 @@ import { categoryLabel } from "@/lib/i18n/helpers";
 // that move can't be read or compared. Replaces the desktop-only marquee and
 // the separate phone row.
 const STRIP_BG = "#e9f1ec";
+const STRIP_BG_DARK = "#18261e";
 
 // The sport of a section page (/sport/cricket, /sport/football/world-cup),
 // or null elsewhere.
@@ -54,7 +55,7 @@ export function LiveTicker({ initial }: { initial: ScoreMatch[] }) {
   const scroll = (dir: -1 | 1) => track.current?.scrollBy({ left: dir * track.current.clientWidth * 0.8, behavior: "smooth" });
 
   return (
-    <Box component="section" aria-label={t.title} sx={{ display: "flex", alignItems: "stretch", bgcolor: STRIP_BG, borderBottom: "1px solid", borderColor: "divider" }}>
+    <Box component="section" aria-label={t.title} sx={{ display: "flex", alignItems: "stretch", bgcolor: STRIP_BG, "@media (prefers-color-scheme: dark)": { bgcolor: STRIP_BG_DARK }, borderBottom: "1px solid", borderColor: "divider" }}>
       <Link
         href={sport ? `/scores?category=${sport}` : "/scores"}
         aria-label={sport ? t.sportScores(sportName(sport)) : t.allScores}

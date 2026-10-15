@@ -11,7 +11,7 @@ import { findClubCrest } from "@/lib/teamNames";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { ArticleThumb } from "@/components/ArticleThumb";
-import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { categoryChipStyle, chipOutlineSx } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
 import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
 import { FollowButton } from "@/components/FollowButton";
@@ -150,8 +150,7 @@ export default async function CountryPage({ params }: { params: Promise<{ slug: 
                             variant="outlined"
                             sx={{
                               mb: 1,
-                              color: categoryChipStyle(article.category).color,
-                              borderColor: categoryChipStyle(article.category).color,
+                              ...chipOutlineSx(categoryChipStyle(article.category)),
                               fontWeight: 600,
                             }}
                           />

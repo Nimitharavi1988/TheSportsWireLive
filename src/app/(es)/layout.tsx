@@ -43,7 +43,13 @@ export function generateMetadata() {
   };
 }
 
-export const viewport = { themeColor: "#1d6b3f" };
+export const viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#1d6b3f" },
+    { media: "(prefers-color-scheme: dark)", color: "#121513" },
+  ],
+  colorScheme: "light dark",
+};
 
 export default function SpanishRootLayout({ children }: { children: React.ReactNode }) {
   const otherSite = { href: process.env.SITE_URL ?? "https://sportswirelive.com", label: ES.otherSiteLabel };

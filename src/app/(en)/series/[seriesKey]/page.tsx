@@ -15,7 +15,7 @@ import { db } from "@/db";
 import { article } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
 import { ArticleThumb } from "@/components/ArticleThumb";
-import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { categoryChipStyle, chipOutlineSx } from "@/lib/categoryDisplay";
 import { displaySummary } from "@/lib/articleSummary";
 import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
 import { buildBreadcrumbJsonLd } from "@/lib/breadcrumbs";
@@ -164,8 +164,7 @@ export default async function SeriesPage({ params }: { params: Promise<{ seriesK
                           size="small"
                           variant="outlined"
                           sx={{
-                            color: categoryChipStyle(article.category).color,
-                            borderColor: categoryChipStyle(article.category).color,
+                            ...chipOutlineSx(categoryChipStyle(article.category)),
                             fontWeight: 600,
                           }}
                         />

@@ -1,3 +1,20 @@
 /* Base reset/theming is handled by MUI's CssBaseline (see ThemeRegistry.tsx).
    This file is kept only because layout.tsx imports it; add page-specific
    overrides here only if MUI's sx props genuinely can't express them. */
+
+/* Dark mode: a dark crest or logo on a transparent background (navy, black) would
+   vanish on a dark card, so every crest (TeamCrest.tsx) gets a thin light outline.
+   Light mode is untouched. */
+@media (prefers-color-scheme: dark) {
+  img.swl-crest {
+    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.6));
+  }
+}
+
+/* Dark mode: the in-article links to teams and players are a fixed dark green (inline style),
+   too dark on a dark page (2.8:1). The !important is needed to beat that inline colour. */
+@media (prefers-color-scheme: dark) {
+  a.swl-entity-link {
+    color: #3ecf8e !important;
+  }
+}

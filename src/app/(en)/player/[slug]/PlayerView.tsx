@@ -13,7 +13,7 @@ import { StandingsCarousel } from "@/components/StandingsCarousel";
 import { PLAYER_QUOTES } from "@/lib/quotes";
 import { QuotesStrip } from "@/components/QuotesStrip";
 import { ArticleThumb } from "@/components/ArticleThumb";
-import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { categoryChipStyle, chipOutlineSx } from "@/lib/categoryDisplay";
 import { playerInitials, playerAvatarColor } from "@/lib/playerAvatar";
 import { displaySummary } from "@/lib/articleSummary";
 import { SiteBreadcrumbs } from "@/components/SiteBreadcrumbs";
@@ -223,8 +223,7 @@ export async function PlayerView({ slug, locale }: { slug: string; locale?: stri
                             variant="outlined"
                             sx={{
                               mb: 1,
-                              color: categoryChipStyle(article.category).color,
-                              borderColor: categoryChipStyle(article.category).color,
+                              ...chipOutlineSx(categoryChipStyle(article.category)),
                               fontWeight: 600,
                             }}
                           />
