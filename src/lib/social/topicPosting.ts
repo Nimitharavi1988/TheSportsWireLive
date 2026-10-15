@@ -17,6 +17,7 @@ import { isSimilarToAny } from "../titleSimilarity";
 import { breakingSlotFor, findBreaking } from "./breakingNews";
 import { postArticleToFacebook } from "./facebook";
 import { postArticleToInstagram } from "./instagram";
+import { instagramPhotoRoom, topicInstagramPhotoCap } from "./topicInstagramCap";
 import { editionConditions } from "../i18n/overlay";
 import { TOPIC_DESTINATIONS, destinationRunCap, localDayStart, prioritise, type FacebookDestination } from "./facebookDestinations";
 
@@ -113,6 +114,14 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
 
   if (dryRun) return toPost;
   let instagramOn = Boolean(d.instagramId);
+  // The Page's Instagram photo posts have a small daily limit (topicInstagramCap.ts); the Facebook posts have none added.
+  let instagramRoom = 0;
+  if (instagramOn) {
+    const [{ used }] = await db.select({ used: count() }).from(socialPost)
+      .where(and(eq(socialPost.platform, "instagram"), eq(socialPost.destination, d.key), gte(socialPost.createdAt, new Date(now.getTime() - 24 * 3600_000))));
+    instagramRoom = instagramPhotoRoom(used, topicInstagramPhotoCap());
+    console.log(`[instagram:${d.key}] photo room today: ${instagramRoom} (used ${used})`);
+  }
   for (const a of toPost) {
     try {
       const ok = await postArticleToFacebook(a.id, d);
@@ -124,7 +133,8 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
     }
     // The Page's own Instagram gets the same story (a photo post; skipped
     // without a hero photo). Its failure never stops the Facebook posts.
-    if (!instagramOn) continue;
+    if (!instagramOn || instagramRoom <= 0) continue;
+    instagramRoom--;
     try {
       const ok = await postArticleToInstagram(a.id, d);
       console.log(`[instagram:${d.key}] ${ok ? "posted" : "skipped (already posted or no photo)"} ${a.id}`);
