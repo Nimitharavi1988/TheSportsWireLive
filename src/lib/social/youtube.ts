@@ -43,7 +43,13 @@ const PRIORITY_SPORTS: Record<YoutubeChannel, string[]> = {
   en: ["wnba", "college-football", "baseball", "cricket"],
   es: ["wnba", "baseball", "tennis", "football", "american-football"],
 };
-export const priorityReserve = () => envNum("YOUTUBE_PRIORITY_RESERVE", 3);
+// Off by default since 2026-10-15 (every Short the channel allows is sent, none held back for a better sport): 0.
+// Set YOUTUBE_PRIORITY_RESERVE to a positive number to hold that many of the day's last slots for the priority sports.
+// (envNum treats 0 as unset, so this reads its own variable.)
+export const priorityReserve = () => {
+  const n = Number(process.env.YOUTUBE_PRIORITY_RESERVE);
+  return process.env.YOUTUBE_PRIORITY_RESERVE?.trim() && Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+};
 // category is the article's category ("cricket", "american-football/nfl"...). Pure, unit-tested.
 export function youtubeSportAllowed(channel: YoutubeChannel, category: string, postedLast24h: number, maxPerDay: number, reserve: number): boolean {
   if (PRIORITY_SPORTS[channel].includes(category.split("/")[0].toLowerCase())) return true;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shortsTitle, shortsTitleFor, shortsDescription, youtubeSlotOpen, youtubeSportAllowed, decorateShortsTitle, titleVariantFor, fixShoutedTitle, shortsTags, uploadLimitPauseActive, hookNamesSomeone } from "./youtube";
+import { shortsTitle, shortsTitleFor, shortsDescription, youtubeSlotOpen, youtubeSportAllowed, priorityReserve, decorateShortsTitle, titleVariantFor, fixShoutedTitle, shortsTags, uploadLimitPauseActive, hookNamesSomeone } from "./youtube";
 
 describe("shortsTitle", () => {
   it("leaves a short headline alone (no #Shorts in the title)", () => {
@@ -173,5 +173,21 @@ describe("titleVariantFor", () => {
     const dec = ids.filter((i) => titleVariantFor(i) === "decorated").length;
     expect(dec).toBeGreaterThan(150);
     expect(dec).toBeLessThan(250);
+  });
+});
+
+describe("priorityReserve", () => {
+  const saved = process.env.YOUTUBE_PRIORITY_RESERVE;
+  const restore = () => { if (saved === undefined) delete process.env.YOUTUBE_PRIORITY_RESERVE; else process.env.YOUTUBE_PRIORITY_RESERVE = saved; };
+  it("is off (0) unless the variable asks for a reserve", () => {
+    delete process.env.YOUTUBE_PRIORITY_RESERVE;
+    expect(priorityReserve()).toBe(0);
+    process.env.YOUTUBE_PRIORITY_RESERVE = "";
+    expect(priorityReserve()).toBe(0);
+    process.env.YOUTUBE_PRIORITY_RESERVE = "abc";
+    expect(priorityReserve()).toBe(0);
+    process.env.YOUTUBE_PRIORITY_RESERVE = "3";
+    expect(priorityReserve()).toBe(3);
+    restore();
   });
 });
