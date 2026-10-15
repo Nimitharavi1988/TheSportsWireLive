@@ -128,7 +128,7 @@ function ScoreStrip({ th, score }: { th: Theme; score: ReelScore }) {
     <div style={{ position: "absolute", top: 360, left: 60, width: W - 120, display: "flex", flexDirection: "column", padding: "18px 30px 20px 30px", borderRadius: 20, background: th.shade(0.82), borderLeft: `10px solid ${th.accent}` }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
         <div style={{ display: "flex", color: th.accent, fontSize: 24, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase" }}>{score.label}</div>
-        <div style={{ display: "flex", color: "rgba(255,255,255,0.65)", fontSize: 22, fontWeight: 600, textTransform: "uppercase" }}>{score.league.length > 28 ? score.league.slice(0, 27) + "…" : score.league}</div>
+        <div style={{ display: "flex", color: "rgba(255,255,255,0.65)", fontSize: 22, fontWeight: 600, textTransform: "uppercase" }}>{score.league.length > 38 ? score.league.slice(0, 37) + "…" : score.league}</div>
       </div>
       {row(score.home, score.homeScore)}
       {row(score.away, score.awayScore)}
