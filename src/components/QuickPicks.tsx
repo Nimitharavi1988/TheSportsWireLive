@@ -17,13 +17,14 @@ export interface QuickPick {
 // at the top of the For You page, so a visitor can pick something without
 // searching. Always rendered on the server too (unselected), so nothing shifts
 // when the visitor's saved follows load.
-export function QuickPicks({ picks, onFollow, compact = false }: { picks: QuickPick[]; onFollow?: (label: string) => void; compact?: boolean }) {
+// `track` renames the two anonymous counters, so the same chips can be measured separately where they are used.
+export function QuickPicks({ picks, onFollow, compact = false, track = { shown: "quick_picks_shown", followed: "quick_pick_followed" } }: { picks: QuickPick[]; onFollow?: (label: string) => void; compact?: boolean; track?: { shown: string; followed: string } }) {
   const { ready, isFollowing, toggle } = useFollows();
 
   // Once per session: the chips were on screen (the denominator for taps).
   useEffect(() => {
-    trackAppEvent("quick_picks_shown");
-  }, []);
+    trackAppEvent(track.shown);
+  }, [track.shown]);
 
   return (
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: compact ? 0.75 : 1 }}>
@@ -38,7 +39,7 @@ export function QuickPicks({ picks, onFollow, compact = false }: { picks: QuickP
             aria-pressed={on}
             onClick={() => {
               if (!on) {
-                trackAppEvent("quick_pick_followed", false);
+                trackAppEvent(track.followed, false);
                 onFollow?.(p.label);
               }
               toggle(ref);

@@ -41,6 +41,7 @@ import { UpNext } from "@/components/UpNext";
 import { pickOnward, RELATED_COUNT, trendingSince } from "@/lib/articleOnward";
 import { FanEngagementHub } from "@/components/FanEngagementHub";
 import { FanVoices } from "@/components/FanVoices";
+import { QuickPicks } from "@/components/QuickPicks";
 import { FollowUs } from "@/components/FollowUs";
 import { InAppBrowserTip } from "@/components/InAppBrowserTip";
 import { ShareButtons } from "@/components/ShareButtons";
@@ -377,6 +378,13 @@ export async function ArticleView({ slug, locale }: { slug: string; locale?: str
   const venueFromMatch = matchVenue(article.venue);
   const taggedVenues = withChosen(venueFromMatch ? [venueFromMatch] : [], chosenTags.venues);
   const hasTags = taggedPlayers.length + taggedClubs.length + taggedCountries.length + taggedVenues.length > 0;
+  // One-tap follow chips for the story's teams, players and countries. Visitors land on an article from
+  // Facebook; the club and player pages were the only place to follow them. Capped so the row stays short.
+  const followPicks = [
+    ...taggedClubs.map((c) => ({ kind: "club", slug: c.slug, label: c.name })),
+    ...taggedPlayers.map((p) => ({ kind: "player", slug: p.slug, label: p.name })),
+    ...taggedCountries.map((c) => ({ kind: "country", slug: c.slug, label: c.name })),
+  ].slice(0, 4);
 
   // Where the reader goes next: Up next, Related (tagged player/club
   // stories first — a Messi story is more usefully followed by another
@@ -675,6 +683,16 @@ export async function ArticleView({ slug, locale }: { slug: string; locale?: str
         </Stack>
       )}
 
+      {followPicks.length > 0 && (
+        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1, mb: 2.5 }}>
+          <Typography variant="body2" sx={{ color: "text.secondary", fontWeight: 600 }}>{t.forYou.followLabel}</Typography>
+          <QuickPicks picks={followPicks} compact track={{ shown: "article_follow_shown", followed: "article_follow_added" }} />
+        </Box>
+      )}
+
+      {/* The 🔥🚨🥶 reactions, just under the headline: they sat at the bottom, where almost nobody scrolls. */}
+      <FanEngagementHub articleId={article.id} locale={locale} placement="reactions" />
+
       {(() => {
         // One linker per render — its `linked` set is shared across every
         // paragraph below, so a player/club name only gets turned into a
@@ -732,7 +750,8 @@ export async function ArticleView({ slug, locale }: { slug: string; locale?: str
       {/* Engagement sits before the outbound source link, not after — a
           reader who clicks through to the source immediately after reading
           would otherwise never see it. */}
-      <FanEngagementHub articleId={article.id} locale={locale} placement={scoreMatch ? "bottom" : "all"} />
+      {/* Match pages have the prediction/rating card under the score; other stories keep a poll here. */}
+      {!scoreMatch && <FanEngagementHub articleId={article.id} locale={locale} placement="poll" />}
       {!loc && <FanVoices articleId={article.id} />}
 
       {!loc && <FollowUs />}

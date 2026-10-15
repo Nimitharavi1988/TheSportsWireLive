@@ -19,6 +19,8 @@ export const CLIENT_APP_EVENT_KINDS = new Set([
   "follows_active", "for_you_strip_shown", "for_you_strip_clicked", "for_you_page_opened",
   // One-tap favourite chips (strip and For You page): shown, and a first-time follow from a chip.
   "quick_picks_shown", "quick_pick_followed",
+  // Follow chips under an article's team and player tags: on screen, and a first-time follow from them.
+  "article_follow_shown", "article_follow_added",
   // Cards on a match page: prediction / rating card on screen.
   "prediction_shown", "rating_shown",
 ]);

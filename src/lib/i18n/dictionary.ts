@@ -188,6 +188,8 @@ export interface Dict {
     quickTeams: { kind: string; slug: string; label: string }[];
     quickDone: (label: string) => string;
     seeFeed: string;
+    // Label before the follow chips under an article's tags.
+    followLabel: string;
   };
   entity: {
     players: string;

@@ -88,6 +88,11 @@ The page now lists the real cookies (`swl_voter_id`, `swl_follows`, `swl_fav_spo
 - Fix: one-tap chips (NFL, NBA, MLB, NHL, College football, Football, Cricket, plus teams and players) at the top of For You until five things are followed; four compact chips (NFL, NBA, Football, Cricket) on the invitation strip, which turns into "Following NFL. Your For You feed is ready." with a See my feed button; Follow buttons now fit inside the card on phones. Spanish edition has its own sports and teams.
 - Counters: `quick_picks_shown`, `quick_pick_followed`; `fanReport.ts` Rates has a one-tap follow rate. Read after about 3 days: follows added, sessions with a favourite, and then whether followed fans come back more (compare fan return rate with and without a favourite).
 
+**A4e. Article follow chips and top reactions (2026-10-14). BUILT on branch `feature/article-follow-and-reactions` (not merged).**
+- Follow chips under the team, player and country tags on every article ("Follow  + Arsenal  + Everton", up to 4, same one-tap chips as For You), because visitors land on articles from Facebook and the club and player pages were the only place to follow them. All 263 tracked clubs and 279 tracked players resolve in the follow catalog.
+- The 🔥🚨🥶 reactions row moved from the bottom of the article to just under the tags (it had 26 reactions ever). The poll stays lower down; match pages keep the prediction and rating card under the score.
+- Counters: `article_follow_shown`, `article_follow_added`. After about 3 days compare article_follow_added with the For You chips (quick_pick_followed) and the reaction count per day with before (about 1 a day).
+
 **A5. Shareable fan card.** An image of the card for Facebook and WhatsApp. This is a growth loop for the Facebook audience. Build after A4.
 
 **A6. Logins and comments (later, after A1-A4 show engagement).**
