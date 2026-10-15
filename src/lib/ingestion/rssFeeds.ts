@@ -154,8 +154,13 @@ const FANTASY_OR_BETTING = /\b(dream11|fantasy|predictions?|predicted xi|betting
 // current riders and the factory teams. Kept to MotoGP-specific names so F1, rally and
 // superbike items do not land in the MotoGP section.
 export const MOTOGP_HEADLINE =
-  /\b(moto ?gp|moto2|moto3|bagnaia|m[aá]rquez|acosta|bezzecchi|quartararo|vi[nñ]ales|jorge mart[ií]n|pramac|trackhouse|gresini|vr46|tech3|dorna|aprilia|ducati lenovo|di giannantonio|diggia|zarco|joan mir|bastianini|morbidelli|aldeguer|ogura|raul fern[aá]ndez|miguel oliveira|jack miller|brad binder)\b/i;
-export const MOTOGP_NOT_GP = /\b(wsbk|world superbike|superbike|isle of man|tt races|speedway|motocross|supercross)\b/i;
+  /\b(moto ?gp|moto2|moto3|bagnaia|m[aá]rquez|acosta|bezzecchi|quartararo|vi[nñ]ales|jorge mart[ií]n|pramac|trackhouse|gresini|vr46|tech3|dorna|aprilia|ducati lenovo|di giannantonio|diggia|zarco|joan mir|bastianini|morbidelli|aldeguer|ogura|raul fern[aá]ndez|miguel oliveira|jack miller|brad binder|holgado|mandalika)\b/i;
+// Formula 1 stories in a general motorsport feed (Crash.net): the series, the current drivers, the teams.
+export const F1_HEADLINE =
+  /\b(f1|formula 1|formula one|verstappen|hamilton|russell|leclerc|norris|piastri|alonso|sainz|antonelli|albon|hadjar|bearman|lawson|gasly|ocon|stroll|hulkenberg|bortoleto|colapinto|red bull|ferrari|mercedes|mclaren|aston martin|williams|alpine|haas|cadillac|horner|wolff|mekies|vasseur|fia)\b/i;
+// ...and what is not Formula 1: MotoGP names, plus the other series Crash.net covers.
+export const F1_EXCLUDE = new RegExp(`${MOTOGP_HEADLINE.source}|\\b(indycar|gt world challenge|gt3|gt4|nascar|dtm|wec|le mans|wrc|rally|formula e|f2|f3)\\b`, "i");
+export const MOTOGP_NOT_GP =/\b(wsbk|world superbike|superbike|isle of man|tt races|speedway|motocross|supercross)\b/i;
 
 // US-sport headline filters for mixed-sport feeds (league name or a team).
 const NFL_HEADLINE =
@@ -191,6 +196,14 @@ const FEEDS: RssFeed[] = [
   // pipeline's football/cricket feeds below.
   { url: "https://www.motorsport.com/rss/f1/news/", category: "formula-1", sourceName: "Motorsport.com" },
   { url: "http://feeds.bbci.co.uk/sport/formula1/rss.xml", category: "formula-1", sourceName: "BBC Sport" },
+  // 2026-10-15: Motorsport.com and Autosport answer our article fetch with http 403, so 191 of 259
+  // Formula 1 stories in 10 days were rejected and only 30 published. These three read fine
+  // (checked with the site's own reader): The Race carries the whole article in its feed (median 4,865
+  // characters, so a blocked page fetch cannot hurt it); RaceFans and Crash.net need the page.
+  { url: "https://www.the-race.com/feed/", category: "formula-1", sourceName: "The Race" },
+  { url: "https://www.racefans.net/feed/", category: "formula-1", sourceName: "RaceFans" },
+  // Crash.net's feed is general (F1, MotoGP, IndyCar, GT): F1 headlines only, never the MotoGP ones.
+  { url: "https://www.crash.net/rss", category: "formula-1", sourceName: "Crash.net", include: F1_HEADLINE, exclude: F1_EXCLUDE },
   { url: "http://feeds.bbci.co.uk/sport/football/rss.xml", category: "football", sourceName: "BBC Sport" },
   { url: "http://feeds.bbci.co.uk/sport/cricket/rss.xml", category: "cricket", sourceName: "BBC Sport" },
   // Feed 11095 is Sky's football-only feed — confirmed by inspecting its
@@ -403,6 +416,9 @@ const FEEDS: RssFeed[] = [
   // nothing current in September). Confirmed live and working directly
   // (2026-09-12).
   { url: "https://feeds.bbci.co.uk/sport/rugby-union/rss.xml", category: "rugby", sourceName: "BBC Sport" },
+  // 2026-10-15: Rugby had one source (BBC). Both of these read fine and update daily (checked with the site's own reader).
+  { url: "https://www.theguardian.com/sport/rugby-union/rss", category: "rugby", sourceName: "The Guardian" },
+  { url: "https://www.rugbyworld.com/feed", category: "rugby", sourceName: "Rugby World" },
   // Individual / global sports (2026-10-03) — popular with Spanish-speaking readers
   // (Alcaraz, Canelo, Marc Márquez, the Vuelta, Rahm) and added for every edition. All
   // feeds checked live that day (200, current items). The Spanish edition opts in via
