@@ -1,17 +1,20 @@
 import Box from "@mui/material/Box";
 import { EVENT_HUBS } from "@/lib/events/eventHubs";
 import { getFreshMedalTable } from "@/lib/events/queries";
+import { isEventOver } from "@/lib/events/eventOver";
 import { MedalTableCard } from "./MedalTableCard";
 
 // Compact medal table for the homepage while a multi-sport Games is on: the
 // top five plus India (the site's audience), linking to the full table on the
-// event's page. Shown only for an event whose table is current — one synced
-// in the last three days — so it disappears by itself when the Games end and
-// the sync stops. Failures just hide it.
+// event's page. Shown only while the Games are on (and two days after, for the
+// final table): the event's season end is the rule (eventOver.ts). Until
+// 2026-10-15 it relied on the table having been synced in the last three days,
+// but the sync keeps running, so the Asian Games card stayed up long after the
+// Games ended. The freshness check stays as a second guard. Failures just hide it.
 const FRESH_MS = 3 * 24 * 60 * 60 * 1000;
 
 export async function HomeMedals() {
-  const hubs = Object.values(EVENT_HUBS).filter((h) => h.medalTable);
+  const hubs = Object.values(EVENT_HUBS).filter((h) => h.medalTable && !isEventOver(h.eventKey));
   const tables = await Promise.all(hubs.map((h) => getFreshMedalTable(h.eventKey, FRESH_MS).catch(() => null)));
   return (
     <>
