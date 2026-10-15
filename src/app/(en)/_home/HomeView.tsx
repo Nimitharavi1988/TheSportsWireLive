@@ -1227,6 +1227,15 @@ export async function HomeView({ category, locale }: { category?: string; locale
               <HomeStandings sport={category} footballApiKey={standingsApiKey} locale={locale} />
             </Suspense>
             )}
+            {/* The ground guides (lib/venues.ts) are all cricket, so they live here, not in the main menu. */}
+            {category === "cricket" && !loc && (
+              <Link href="/venue" style={{ textDecoration: "none", color: "inherit" }}>
+                <Paper variant="outlined" sx={{ p: 2, "&:hover": { borderColor: "primary.main" } }}>
+                  <Typography sx={{ fontWeight: 600 }}>Cricket grounds</Typography>
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>Fixtures, results and stories from each stadium &rarr;</Typography>
+                </Paper>
+              </Link>
+            )}
             <Box sx={{ position: { md: "sticky" }, top: { md: 84 } }}>
             {/* The one deliberately chosen ad placement — see
                 DisplayAd.tsx's comment. Sits among this column's other
