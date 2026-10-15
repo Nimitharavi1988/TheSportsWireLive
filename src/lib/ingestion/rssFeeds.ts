@@ -150,6 +150,13 @@ const CRICKET_HEADLINE =
 // Fantasy/betting/prediction pieces some cricket sites publish daily — not news.
 const FANTASY_OR_BETTING = /\b(dream11|fantasy|predictions?|predicted xi|betting|odds|who will win|today'?s match)\b/i;
 
+// MotoGP stories in a general motorsport feed (Crash.net, 2026-10-15): the class names, the
+// current riders and the factory teams. Kept to MotoGP-specific names so F1, rally and
+// superbike items do not land in the MotoGP section.
+export const MOTOGP_HEADLINE =
+  /\b(moto ?gp|moto2|moto3|bagnaia|m[aá]rquez|acosta|bezzecchi|quartararo|vi[nñ]ales|jorge mart[ií]n|pramac|trackhouse|gresini|vr46|tech3|dorna|aprilia|ducati lenovo|di giannantonio|diggia|zarco|joan mir|bastianini|morbidelli|aldeguer|ogura|raul fern[aá]ndez|miguel oliveira|jack miller|brad binder)\b/i;
+export const MOTOGP_NOT_GP = /\b(wsbk|world superbike|superbike|isle of man|tt races|speedway|motocross|supercross)\b/i;
+
 // US-sport headline filters for mixed-sport feeds (league name or a team).
 const NFL_HEADLINE =
   /\b(nfl|super bowl|quarterbacks?|touchdown|chiefs|eagles|cowboys|packers|patriots|bills|ravens|bengals|steelers|browns|texans|colts|jaguars|titans|broncos|raiders|chargers|dolphins|jets|commanders|lions|bears|vikings|saints|falcons|panthers|buccaneers|49ers|seahawks|rams|mahomes|hurts|burrow|lamar jackson|josh allen)\b/i;
@@ -412,6 +419,11 @@ const FEEDS: RssFeed[] = [
   { url: "https://www.cbssports.com/rss/headlines/mma/", category: "mma", sourceName: "CBS Sports" },
   { url: "https://www.motorsport.com/rss/motogp/news/", category: "motogp", sourceName: "Motorsport.com" },
   { url: "https://www.autosport.com/rss/motogp/news/", category: "motogp", sourceName: "Autosport" },
+  // Motorsport.com and Autosport refuse our page fetch (http 403), so every story from them is rejected
+  // (60 of 68 MotoGP stories in 10 days) and the MotoGP section had almost nothing and no hero. Crash.net's
+  // articles read fine (2,000-3,000 characters each). Its feed is general (the /motogp path returns the
+  // same feed), hence the headline filter.
+  { url: "https://www.crash.net/rss", category: "motogp", sourceName: "Crash.net", include: MOTOGP_HEADLINE, exclude: MOTOGP_NOT_GP },
   { url: "http://feeds.bbci.co.uk/sport/cycling/rss.xml", category: "cycling", sourceName: "BBC Sport" },
   { url: "https://www.theguardian.com/sport/cycling/rss", category: "cycling", sourceName: "The Guardian" },
   { url: "https://www.cyclingnews.com/rss/", category: "cycling", sourceName: "Cyclingnews" },
