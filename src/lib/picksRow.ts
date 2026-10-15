@@ -34,3 +34,15 @@ export function pickRowOrder<T extends PickCandidate>(candidates: T[], limit: nu
   }
   return out;
 }
+
+// "in 3h 20m" / "in 45m" / "Tomorrow" style countdown for the row. Under a day it counts down; after that it
+// names the day. null once the match has started (the row drops it).
+export function startsInLabel(kickoff: Date, now: Date): string | null {
+  const ms = kickoff.getTime() - now.getTime();
+  if (ms <= 0) return null;
+  const minutes = Math.ceil(ms / 60000);
+  if (minutes < 60) return `Starts in ${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Starts in ${hours}h ${String(minutes % 60).padStart(2, "0")}m`;
+  return "Starts tomorrow";
+}

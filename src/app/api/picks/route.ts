@@ -25,6 +25,8 @@ export async function GET() {
       leagueLabel: article.leagueLabel,
       category: article.category,
       kickoffAt: article.kickoffAt,
+      homeCrest: article.homeCrestUrl,
+      awayCrest: article.awayCrestUrl,
     })
     .from(poll)
     .innerJoin(article, eq(article.id, poll.articleId))
@@ -60,11 +62,13 @@ export async function GET() {
       away: c.awayTeam,
       league: c.leagueLabel,
       kickoffAt: c.kickoffAt.toISOString(),
+      homeCrest: c.homeCrest,
+      awayCrest: c.awayCrest,
       votedOptionId: mine.find((m) => m.pollId === c.pollId)?.optionId ?? null,
       options: options
         .filter((o) => o.pollId === c.pollId)
         .sort((a, b) => (OUTCOME_ORDER[a.outcome ?? ""] ?? 3) - (OUTCOME_ORDER[b.outcome ?? ""] ?? 3))
-        .map((o) => ({ id: o.id, text: o.text, votes: Number(o.votes) })),
+        .map((o) => ({ id: o.id, text: o.text, outcome: o.outcome, votes: Number(o.votes) })),
     })),
   });
 }
