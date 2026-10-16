@@ -68,6 +68,7 @@ import ScoreboardIcon from "@mui/icons-material/Scoreboard";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import ArticleIcon from "@mui/icons-material/Article";
 import SportsFootballIcon from "@mui/icons-material/SportsFootball";
+import { visuallyHidden } from "@mui/utils";
 
 // Main-column section headers (Player News, Transfers & Big News, etc.) were
 // using the theme's default h5 styling — Poppins, near-black — while the
@@ -896,7 +897,11 @@ export async function HomeView({ category, locale }: { category?: string; locale
           page opens with the hero, which has its own heading level). */}
       <Typography
         variant="h1"
-        sx={{ position: "absolute", width: 1, height: 1, p: 0, m: -1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap", border: 0 }}
+        // MUI's own visually-hidden style. The hand-written version used width: 1 and
+        // height: 1, which in sx mean 100% (not 1px), plus m: -1 (-8px): a full-size box
+        // sticking 8px past the right edge, so the page could be dragged sideways on a
+        // phone (since the h1 was added on 2026-10-02).
+        sx={visuallyHidden}
       >
         {category ? (loc ? t.home.h1Sport(categoryLabel(category.split("/")[0], t)) : CATEGORY_META[category]?.title ?? t.home.h1) : t.home.h1}
       </Typography>
