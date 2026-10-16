@@ -1,0 +1,31 @@
+name: Delivery watch
+
+# Hourly check that each stream (ingestion, main Facebook and Instagram, YouTube) has posted recently. The run FAILS when
+# one is silent past its window, and GitHub emails the person who last edited this schedule. Reads the database only;
+# posts nothing. Windows and streams: scripts/deliveryWatch.ts. (GitHub's own scheduler can be late: an alert that
+# arrives 10 to 20 minutes late is still far better than none.)
+on:
+  schedule: [{ cron: "40 * * * *" }]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: delivery-watch
+  cancel-in-progress: true
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsx scripts/deliveryWatch.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
