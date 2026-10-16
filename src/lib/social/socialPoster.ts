@@ -9,6 +9,9 @@ const POSTER_MAX_AGE_MS = 2 * 60 * 60 * 1000;
 import { createId } from "@paralleldrive/cuid2";
 import { generatePosterContent, generateSocialCaptions, type PosterContent, type SocialCaptions } from "@/lib/ingestion/commentary";
 import { renderInstagramPoster } from "./instagramPoster";
+import { loadScoreStrip } from "./reelScore";
+import { photoScoreGroupFor } from "./scoreVariant";
+import { logDecision } from "./decisionLog";
 import { resolvePageAccessToken } from "./facebook";
 import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepertoire";
 
@@ -241,8 +244,11 @@ export async function postSocialPoster(
   // "one Gemini call, not two" principle as the poster image itself above.
   const captions = await generateSocialCaptions(article.title, article.body);
 
-  console.log("Rendering poster image...");
-  const png = await renderInstagramPoster({ content, heroImageUrl: article.heroImageUrl, category: article.category, credit: article.heroImageCredit });
+  // A story with a verified score: half of them get the score on the poster, half the plain poster (the control).
+  const scoreAvailable = await loadScoreStrip(article.title);
+  const scoreGroup = scoreAvailable ? photoScoreGroupFor(article.id) : null;
+  console.log("Rendering poster image..." + (scoreGroup ? ` (score group: ${scoreGroup})` : ""));
+  const png = await renderInstagramPoster({ content, heroImageUrl: article.heroImageUrl, category: article.category, credit: article.heroImageCredit, score: scoreGroup === "strip" ? scoreAvailable : null });
 
   const siteUrl = process.env.SITE_URL ?? "https://sportswirelive.com";
   const publicUrl = `${siteUrl}/social-posters/${article.slug}.png`;
@@ -270,6 +276,7 @@ export async function postSocialPoster(
     await waitUntilLive(publicUrl);
 
     const instagramPosted = needInstagram ? await postToInstagram(article, publicUrl, captions) : false;
+    if (scoreGroup && needInstagram) await logDecision({ articleId: article.id, platform: "instagram", destination: "main", kind: "photo", outcome: instagramPosted ? "posted" : "failed", features: { scoreGroup, scoreOnImage: scoreGroup === "strip", sport: article.category.split("/")[0] } });
     const facebookPosted = needFacebook ? await postToFacebook(article, publicUrl, captions, articleUrl) : false;
     return { instagramPosted, facebookPosted };
   } finally {

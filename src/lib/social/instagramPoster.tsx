@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { PosterContent } from "@/lib/ingestion/commentary";
 import { categoryChipStyle } from "@/lib/categoryDisplay";
+import { ScoreBand } from "./scoreBand";
+import type { ReelScore } from "./reelScore";
 
 const WIKIMEDIA_USER_AGENT = "TheSportsWireLiveBot/1.0 (sports news aggregator)";
 
@@ -127,6 +129,8 @@ export async function renderInstagramPoster(params: {
   category?: string;
   // Photo credit, shown small on the photo as on the site.
   credit?: string | null;
+  // The score of the match the story is about (reelScore.ts), drawn over the photo; absent = no panel.
+  score?: ReelScore | null;
 }): Promise<Buffer> {
   const fontsDir = join(process.cwd(), "src/assets/fonts");
   const [bold, semibold] = await Promise.all([
@@ -169,6 +173,12 @@ export async function renderInstagramPoster(params: {
             <div style={{ display: "flex", fontSize: 18, fontWeight: 600, color: "rgba(255,255,255,0.8)", maxWidth: 440, marginTop: 10 }}>{params.credit}</div>
           )}
         </div>
+
+        {params.score && (
+          <div style={{ position: "absolute", top: 126, left: 52, display: "flex" }}>
+            <ScoreBand score={params.score} width={600} />
+          </div>
+        )}
 
         <div style={{ display: "flex", flex: 1 }} />
 

@@ -74,13 +74,21 @@ export async function translationFor(articleId: string, locale: string): Promise
 // out (the caller falls back to a link post). A comment that fails after the
 // photo is up is logged, not thrown: the photo is already public, and falling
 // back would post the story twice.
-async function postPhotoWithLinkComment(pageId: string, token: string, photoUrl: string, caption: string, link: string): Promise<string | null> {
+async function postPhotoWithLinkComment(pageId: string, token: string, photoUrl: string, caption: string, link: string, photoBytes?: Buffer): Promise<string | null> {
   try {
-    const res = await fetch(`https://graph.facebook.com/v20.0/${pageId}/photos`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: photoUrl, caption: `${caption}\n\n👇 Full story in the first comment`, access_token: token }),
-    });
+    const fullCaption = `${caption}\n\n👇 Full story in the first comment`;
+    // Our own image (the photo with the score on it, scorePhoto.tsx) goes up as the file itself; otherwise Facebook fetches the photo's address.
+    let init: RequestInit;
+    if (photoBytes) {
+      const form = new FormData();
+      form.append("source", new Blob([new Uint8Array(photoBytes)], { type: "image/png" }), "photo.png");
+      form.append("caption", fullCaption);
+      form.append("access_token", token);
+      init = { method: "POST", body: form };
+    } else {
+      init = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: photoUrl, caption: fullCaption, access_token: token }) };
+    }
+    const res = await fetch(`https://graph.facebook.com/v20.0/${pageId}/photos`, init);
     const data = await res.json();
     if (!res.ok || !(data?.post_id ?? data?.id)) {
       console.warn(`[facebook] photo post failed, falling back to a link post: ${data?.error?.message ?? res.status}`);
@@ -103,7 +111,8 @@ async function postPhotoWithLinkComment(pageId: string, token: string, photoUrl:
   }
 }
 
-export async function postArticleToFacebook(articleId: string, destination?: FacebookDestination): Promise<boolean> {
+// opts.photoBytes: for a photo-style Page, our own image (the photo with the score on it) to post instead of the plain photo.
+export async function postArticleToFacebook(articleId: string, destination?: FacebookDestination, opts?: { photoBytes?: Buffer }): Promise<boolean> {
   const destinationKey = destination?.key ?? "main";
   // Idempotency guard: confirmed live that repeated calls for the same
   // article (a manual admin re-click before the page re-rendered the
@@ -178,7 +187,7 @@ export async function postArticleToFacebook(articleId: string, destination?: Fac
     // null when the photo post fails, so the story still goes out as a normal
     // link post below.
     const photoId = photoStyle && article.heroImageUrl
-      ? await postPhotoWithLinkComment(pageId, postToken, article.heroImageUrl, message, link)
+      ? await postPhotoWithLinkComment(pageId, postToken, article.heroImageUrl, message, link, opts?.photoBytes)
       : null;
     let externalId: string;
     if (photoId) {

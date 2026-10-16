@@ -11,7 +11,7 @@ export interface Decision {
   articleId?: string | null;
   platform: "facebook" | "instagram" | "youtube";
   destination: string;
-  kind: "reel" | "short";
+  kind: "reel" | "short" | "photo";
   outcome: "posted" | "failed" | "skipped";
   reason?: string;
   features?: Record<string, unknown>;

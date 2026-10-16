@@ -16,6 +16,10 @@ import { isPromotional } from "../thinContent";
 import { isSimilarToAny } from "../titleSimilarity";
 import { breakingSlotFor, findBreaking } from "./breakingNews";
 import { postArticleToFacebook } from "./facebook";
+import { loadScoreStrip } from "./reelScore";
+import { photoScoreGroupFor } from "./scoreVariant";
+import { renderPhotoWithScore } from "./scorePhoto";
+import { logDecision } from "./decisionLog";
 import { postArticleToInstagram } from "./instagram";
 import { instagramPhotoRoom, topicInstagramPhotoCap } from "./topicInstagramCap";
 import { editionConditions } from "../i18n/overlay";
@@ -73,7 +77,7 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
   }
   const chosenTitles = recentTitleRows.map((r) => r.title);
 
-  const toPost: { id: string; title: string }[] = [];
+  const toPost: { id: string; title: string; heroImageUrl: string | null; category: string }[] = [];
   const limit = dryRun ? d.dailyCap : runCap;
   // Breaking news (breakingNews.ts): each Page takes its own half of the breaking stories
   // (breaking.slot), so two Pages never carry the same one; the other half is left alone here.
@@ -124,7 +128,21 @@ async function postToDestination(d: FacebookDestination, now: Date, dryRun: bool
   }
   for (const a of toPost) {
     try {
-      const ok = await postArticleToFacebook(a.id, d);
+      // Photo-style Pages: for stories with a verified score, half get the score on the photo, half the plain photo (the control).
+      let photoBytes: Buffer | undefined;
+      let scoreGroup: string | null = null;
+      if (d.style === "photo-question" && a.heroImageUrl) {
+        const available = await loadScoreStrip(a.title);
+        if (available) {
+          scoreGroup = photoScoreGroupFor(a.id);
+          if (scoreGroup === "strip") {
+            try { photoBytes = await renderPhotoWithScore({ heroImageUrl: a.heroImageUrl, score: available }); }
+            catch (err) { console.warn(`[facebook:${d.key}] score photo failed, posting the plain photo:`, err instanceof Error ? err.message : err); scoreGroup = "plain"; }
+          }
+        }
+      }
+      const ok = await postArticleToFacebook(a.id, d, { photoBytes });
+      if (scoreGroup) await logDecision({ articleId: a.id, platform: "facebook", destination: d.key, kind: "photo", outcome: ok ? "posted" : "skipped", features: { scoreGroup, scoreOnImage: Boolean(photoBytes), sport: a.category.split("/")[0] } });
       console.log(`[facebook:${d.key}] ${ok ? "posted" : "skipped (already posted)"} ${a.id} ("${a.title.slice(0, 60)}")`);
     } catch (err) {
       console.error(`[facebook:${d.key}] post failed for ${a.id}:`, err);
