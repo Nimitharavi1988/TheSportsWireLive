@@ -15,6 +15,8 @@ export interface ReelFeatureInput {
   captionVariant: string;
   hook: string;
   factRows: number;
+  storyType?: string;
+  hookMeta?: { style: string; by: string; candidates: unknown[] };
 }
 
 export function reelFeatures(i: ReelFeatureInput): Record<string, unknown> {
@@ -36,5 +38,9 @@ export function reelFeatures(i: ReelFeatureInput): Record<string, unknown> {
     hook: i.hook,
     hookWords: i.hook.trim().split(/\s+/).filter(Boolean).length,
     factRows: i.factRows,
+    storyType: i.storyType ?? null,
+    hookStyle: i.hookMeta?.style ?? null,
+    hookChosenBy: i.hookMeta?.by ?? null,
+    hookCandidates: i.hookMeta?.candidates ?? null,
   };
 }

@@ -19,6 +19,8 @@ import { ungroundedNumbers } from "../llm/grounding";
 import type { LlmRouter } from "../llm/router";
 import type { Priority } from "../llm/ledger";
 import type { GeminiSchema } from "../llm/schema";
+import { STYLE_GUIDE, type HookStyle } from "../social/hookStyles";
+import { chooseHook, type HookCandidate, type HookChoice } from "../social/hookChoice";
 
 // Lite tier — confirmed live (2026-09-19) resolves to gemini-3.5-flash-lite,
 // at a fraction of the standard Flash tier's per-token cost (Flash-Lite is
@@ -393,8 +395,8 @@ export async function generateSocialCaptions(title: string, body: string, langua
   return { facebook, instagram };
 }
 
-function buildPosterPrompt(title: string, body: string): string {
-  return `You are writing the on-image copy for a single sports-news Instagram poster (bold cover graphic, not the caption).
+function buildPosterPrompt(title: string, body: string, styles?: HookStyle[]): string {
+  const base = `You are writing the on-image copy for a single sports-news Instagram poster (bold cover graphic, not the caption).
 
 Headline: "${title}"
 
@@ -411,6 +413,16 @@ Produce:
 - Every row must ADD something a reader can't already see in the headline and hook: a number, a score, a stat, a record, a name not yet mentioned, a quote, a date, or what happens next. A row that just restates who or what the headline already names ("Player: Jalen Hurts", "Team: Philadelphia Eagles" under a headline about them) is wrong. Prefer concrete facts like "296 runs chased with 8 overs to spare" over labels. If fewer than 3 rows add something new, return fewer rows.
 
 If the article doesn't contain enough concrete facts for at least 3 real rows, return fewer rows rather than inventing any.`;
+  return styles?.length ? base + hookCandidatesBlock(styles) : base;
+}
+
+// Asks for one candidate hook per style, so the best can be chosen (social/hookChoice.ts) after each is checked
+// against the article (social/hookCheck.ts).
+function hookCandidatesBlock(styles: HookStyle[]): string {
+  return `
+
+HOOK CANDIDATES: also return hookCandidates, one {style, hook} object for each style below. Each hook is under 10 words, strictly true to the article, and uses only numbers, names and words the article contains. If the article cannot honestly support a style, leave that style out instead of stretching it. The styles:
+${styles.map((s) => `- ${s}: ${STYLE_GUIDE[s]}`).join("\n")}`;
 }
 
 const ROW_STOPWORDS = new Set(["the", "and", "for", "with", "from", "that", "this", "vs", "his", "her", "their", "was", "were", "has", "have", "after", "into"]);
@@ -439,6 +451,8 @@ export interface PosterContent {
   eyebrow: string;
   hook: string;
   rows: { label: string; value: string }[];
+  // Set when several candidate hooks were written and one chosen: the choice and every candidate with its check and score.
+  hookMeta?: { style: string; by: string; candidates: { style: string; hook: string; score: number; ok: boolean; problems: string[] }[] };
 }
 
 // Bespoke per-article poster copy (bold hook headline + a quick-read fact
@@ -446,13 +460,13 @@ export interface PosterContent {
 // actual image rendering. Grounded strictly in the article's own text, same
 // no-invented-facts policy as generateCommentary/generateMatchRecap above.
 // language: "es" writes the poster/reel text in Spanish (the Spanish Page's reels).
-export async function generatePosterContent(title: string, body: string, language?: string): Promise<PosterContent | null> {
+export async function generatePosterContent(title: string, body: string, language?: string, opts?: { styles?: HookStyle[]; articleId?: string }): Promise<PosterContent | null> {
   if (!body || body.trim().length < 40) return null;
 
   const languageRule = language === "es"
     ? "\n\nLANGUAGE: Write the eyebrow, hook and every row label and value in neutral Spanish for US Hispanic, Latin American and Spanish readers (no regional slang). Keep names of people, teams and competitions as they are normally written."
     : "";
-  const parsed = await callGemini(buildPosterPrompt(title, body) + languageRule, {
+  const parsed = await callGemini(buildPosterPrompt(title, body, opts?.styles) + languageRule, {
     priority: "low",
     model: COPY_MODEL,
     temperature: 0.5,
@@ -462,6 +476,7 @@ export async function generatePosterContent(title: string, body: string, languag
       properties: {
         eyebrow: { type: "STRING" },
         hook: { type: "STRING" },
+        hookCandidates: { type: "ARRAY", items: { type: "OBJECT", properties: { style: { type: "STRING" }, hook: { type: "STRING" } }, required: ["style", "hook"] } },
         rows: {
           type: "ARRAY",
           items: {
@@ -477,7 +492,21 @@ export async function generatePosterContent(title: string, body: string, languag
   if (!parsed) return null;
 
   const eyebrow = typeof parsed.eyebrow === "string" ? parsed.eyebrow.trim() : "";
-  const hook = typeof parsed.hook === "string" ? parsed.hook.trim() : "";
+  let hook = typeof parsed.hook === "string" ? parsed.hook.trim() : "";
+  // Several candidate hooks: check each against the article, score the valid ones and use the best (hookChoice.ts).
+  let hookMeta: PosterContent["hookMeta"];
+  if (opts?.styles?.length && opts.articleId && hook) {
+    const known = new Set<string>(opts.styles);
+    const raw: HookCandidate[] = [
+      ...(Array.isArray(parsed.hookCandidates) ? parsed.hookCandidates : [])
+        .filter((c: any) => typeof c?.hook === "string" && known.has(c?.style))
+        .map((c: any) => ({ style: c.style as HookStyle, hook: c.hook })),
+      { style: "model" as const, hook },
+    ];
+    const choice: HookChoice = chooseHook(raw, title, body, opts.articleId);
+    hook = choice.hook;
+    hookMeta = { style: choice.style, by: choice.by, candidates: choice.candidates.map((c) => ({ style: c.style, hook: c.hook, score: c.score, ok: c.ok, problems: c.problems })) };
+  }
   const rows = Array.isArray(parsed.rows)
     ? parsed.rows
         .filter((r: any) => typeof r?.label === "string" && typeof r?.value === "string" && r.label.trim() && r.value.trim())
@@ -487,7 +516,7 @@ export async function generatePosterContent(title: string, body: string, languag
 
   const fresh = dropRepeatedRows(rows, title, hook);
   if (!hook || fresh.length < 3) return null;
-  return { eyebrow: eyebrow || "SPORTS NEWS", hook, rows: fresh };
+  return { eyebrow: eyebrow || "SPORTS NEWS", hook, rows: fresh, ...(hookMeta ? { hookMeta } : {}) };
 }
 
 // Expands a match-data template (score/fixture + standings context, already

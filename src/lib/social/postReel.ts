@@ -22,6 +22,7 @@ import { reelTagsFor } from "./reelTags";
 import { instagramCoolingDown } from "./metaCooldown";
 import { logDecision, setDecisionContext, clearDecisionContext, decisionContextFor } from "./decisionLog";
 import { reelFeatures } from "./decisionFeatures";
+import { storyTypeOf, STYLES_BY_TYPE } from "./hookStyles";
 import { youtubeConfigured, uploadShort, shortsTitleFor, shortsDescription, shortsTags, youtubeSlotOpen, uploadLimitPauseActive, UPLOAD_LIMIT_MESSAGE, UPLOAD_LIMIT_PAUSE_HOURS, maxShortsPerDay, minGapMinutes, youtubeSportAllowed, priorityReserve, titleVariantFor, decorateShortsTitle } from "./youtube";
 
 // Posts a story as a Reel to Instagram and the main Facebook Page. Runs in
@@ -372,7 +373,9 @@ export async function postReel(
   const textBody = tr?.body ?? article.body;
 
   console.log("Generating reel copy...");
-  const content = await generatePosterContent(textTitle, textBody, locale);
+  // The hook: several candidates in the styles that suit this kind of story, each checked against the article, the best used (hookChoice.ts).
+  const storyType = storyTypeOf(article.title, article.body);
+  const content = await generatePosterContent(textTitle, textBody, locale, { styles: STYLES_BY_TYPE[storyType], articleId: article.id });
   if (!content) {
     console.log(`[reel] skipped ${articleId}: no reel copy (too few real facts, or the copy call failed)`);
     await logSkips(articleId, opts, "no reel copy (too few real facts, or the copy call failed)");
@@ -391,7 +394,7 @@ export async function postReel(
   // An explicit colour wins; otherwise every reel (main Page, topic Pages, Instagram, YouTube) rotates by sport (reelThemes.ts).
   const theme = opts.theme ?? reelThemeFor(article.id, article.category);
   // What this reel was made with, recorded with its outcome by recordAttempt (decisionLog.ts).
-  setDecisionContext(article.id, reelFeatures({ category: article.category, title: article.title, publishedAt: article.publishedAt, trendingScore: article.trendingScore ?? null, now: new Date(), theme, music, font: opts.font, language: locale, topicKey: opts.topicPage?.key, captionVariant: captionVariantFor(articleId), hook: content.hook, factRows: content.rows.length }));
+  setDecisionContext(article.id, reelFeatures({ category: article.category, title: article.title, publishedAt: article.publishedAt, trendingScore: article.trendingScore ?? null, now: new Date(), theme, music, font: opts.font, language: locale, topicKey: opts.topicPage?.key, captionVariant: captionVariantFor(articleId), hook: content.hook, factRows: content.rows.length, storyType, hookMeta: content.hookMeta }));
   console.log(`Rendering reel (music: ${music}, theme: ${theme ?? "default"}, font: ${opts.font ?? "default"})...`);
   // The score of the match the story is about, when it is clearly one live or just finished (reelScore.ts); the original English headline names the teams.
   const score = await loadScoreStrip(article.title, locale === "es" ? "es" : "en");
