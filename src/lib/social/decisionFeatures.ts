@@ -1,0 +1,40 @@
+// The features recorded with a reel decision (decisionLog.ts). Pure, so it can be tested.
+import { isStarStory } from "./freshness";
+
+export interface ReelFeatureInput {
+  category: string;
+  title: string;
+  publishedAt: Date | null;
+  trendingScore: number | null;
+  now: Date;
+  theme?: string;
+  music?: string;
+  font?: string;
+  language?: string;
+  topicKey?: string;
+  captionVariant: string;
+  hook: string;
+  factRows: number;
+}
+
+export function reelFeatures(i: ReelFeatureInput): Record<string, unknown> {
+  const ageH = i.publishedAt ? Math.round(((i.now.getTime() - i.publishedAt.getTime()) / 3_600_000) * 10) / 10 : null;
+  return {
+    sport: i.category.split("/")[0],
+    category: i.category,
+    ageH,
+    hourUtc: i.now.getUTCHours(),
+    weekdayUtc: i.now.getUTCDay(),
+    trendingScore: i.trendingScore,
+    star: isStarStory(i.title),
+    theme: i.theme ?? null,
+    music: i.music ?? null,
+    font: i.font ?? null,
+    language: i.language ?? "en",
+    topic: i.topicKey ?? "main",
+    captionVariant: i.captionVariant,
+    hook: i.hook,
+    hookWords: i.hook.trim().split(/\s+/).filter(Boolean).length,
+    factRows: i.factRows,
+  };
+}

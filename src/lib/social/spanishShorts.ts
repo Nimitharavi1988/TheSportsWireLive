@@ -18,6 +18,7 @@ import { isSimilarToAny } from "../titleSimilarity";
 import { editionConditions } from "../i18n/overlay";
 import { SPANISH_PAGE, spanishPageEnabled } from "./facebookDestinations";
 import { postReel } from "./postReel";
+import { logDecision } from "./decisionLog";
 import { spanishShortScore } from "./spanishShortsRank";
 import { loadMatchDayFixtures } from "./matchDayFixtures";
 import { isStarStory, reelIsFresh, reelMaxAgeHours } from "./freshness";
@@ -39,6 +40,7 @@ export async function postSpanishShorts(now: Date = new Date()): Promise<void> {
       .orderBy(desc(socialPost.postedAt));
     if (!youtubeSlotOpen(recent.length, recent[0]?.at ?? null, now, maxShortsPerDay(), minGapMinutes())) {
       console.log(`[spanish-shorts] skipped: ${recent.length} in 24h, last ${recent[0]?.at?.toISOString() ?? "never"}`);
+      await logDecision({ platform: "youtube", destination: DESTINATION, kind: "short", outcome: "skipped", reason: `pacing: ${recent.length} Shorts in 24h, last ${recent[0]?.at?.toISOString() ?? "never"}` });
       return;
     }
 
@@ -91,6 +93,8 @@ export async function postSpanishShorts(now: Date = new Date()): Promise<void> {
       }
     }
     console.log(`[spanish-shorts] photosChecked=${checked} attempts=${attempts}`);
+    // A run that found nothing to post says so (a Short that posted is recorded by postReel itself).
+    if (attempts === 0) await logDecision({ platform: "youtube", destination: DESTINATION, kind: "short", outcome: "skipped", reason: `no eligible story with a photo (${checked} photos checked, ${ranked.length} candidates)` });
   } catch (err) {
     console.error("[spanish-shorts] failed:", err);
   }

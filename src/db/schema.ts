@@ -175,6 +175,24 @@ export const socialPost = pgTable("SocialPost", {
   createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
 });
 
+// Decision log (social/decisionLog.ts): one row per reel/Short decision, with the features it was made with.
+export const postDecision = pgTable("PostDecision", {
+  id: text("id").primaryKey(),
+  createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  articleId: text("articleId"),
+  platform: text("platform").notNull(),
+  destination: text("destination").notNull(),
+  kind: text("kind").notNull(),
+  outcome: text("outcome").notNull(),
+  reason: text("reason"),
+  features: jsonb("features"),
+  externalPostId: text("externalPostId"),
+}, (t) => [
+  index("PostDecision_createdAt_idx").on(t.createdAt),
+  index("PostDecision_article_idx").on(t.articleId),
+  index("PostDecision_stream_idx").on(t.platform, t.destination, t.createdAt),
+]);
+
 export const source = pgTable("Source", {
   id: text("id").primaryKey(),
   verticalId: text("verticalId").notNull(),

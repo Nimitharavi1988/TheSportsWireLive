@@ -20,6 +20,8 @@ import { LOCALES } from "@/lib/i18n/locales";
 import { selectInstagramHashtags, selectFacebookHashtags } from "./hashtagRepertoire";
 import { reelTagsFor } from "./reelTags";
 import { instagramCoolingDown } from "./metaCooldown";
+import { logDecision, setDecisionContext, clearDecisionContext, decisionContextFor } from "./decisionLog";
+import { reelFeatures } from "./decisionFeatures";
 import { youtubeConfigured, uploadShort, shortsTitleFor, shortsDescription, shortsTags, youtubeSlotOpen, uploadLimitPauseActive, UPLOAD_LIMIT_MESSAGE, UPLOAD_LIMIT_PAUSE_HOURS, maxShortsPerDay, minGapMinutes, youtubeSportAllowed, priorityReserve, titleVariantFor, decorateShortsTitle } from "./youtube";
 
 // Posts a story as a Reel to Instagram and the main Facebook Page. Runs in
@@ -91,20 +93,31 @@ async function recordAttempt(article: ArticleWithVertical, platform: "instagram"
   const [row] = await db.insert(socialPostTable)
     .values({ id: createId(), articleId: article.id, platform, destination, status: "queued" })
     .returning();
+  const kind = platform === "youtube" ? "short" : "reel";
   try {
     const externalId = await run();
     await db.update(socialPostTable)
       .set({ status: "posted", externalPostId: externalId, postedAt: new Date() })
       .where(eq(socialPostTable.id, row.id));
     console.log(`[${platform} reel] Posted! id:`, externalId);
+    await logDecision({ articleId: article.id, platform, destination, kind, outcome: "posted", externalPostId: externalId, features: decisionContextFor(article.id) });
     return true;
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     await db.update(socialPostTable)
-      .set({ status: "failed", errorMessage: err instanceof Error ? err.message : String(err) })
+      .set({ status: "failed", errorMessage: message })
       .where(eq(socialPostTable.id, row.id));
     console.error(`[${platform} reel] Post failed:`, err);
+    await logDecision({ articleId: article.id, platform, destination, kind, outcome: "failed", reason: message, features: decisionContextFor(article.id) });
     return false;
   }
+}
+
+// One "skipped" row per platform the caller asked for (the reel was not made, or not posted there), with why.
+async function logSkips(articleId: string, opts: { instagram: boolean; facebook: boolean; youtube?: boolean; topicPage?: FacebookDestination }, reason: string): Promise<void> {
+  const destination = opts.topicPage ? `${opts.topicPage.key}-reel` : DESTINATION;
+  const platforms = ([opts.instagram && "instagram", opts.facebook && "facebook", opts.youtube && "youtube"].filter(Boolean)) as ("instagram" | "facebook" | "youtube")[];
+  for (const platform of platforms) await logDecision({ articleId, platform, destination, kind: platform === "youtube" ? "short" : "reel", outcome: "skipped", reason });
 }
 
 // topicPage: that Page's own Instagram account (instagramId), its own reel
@@ -267,6 +280,7 @@ export async function postReel(
   opts: { instagram: boolean; facebook: boolean; youtube?: boolean; topicPage?: FacebookDestination; music?: ReelMusicStyle; theme?: ReelTheme; font?: ReelFont }
 ): Promise<{ instagramPosted: boolean; facebookPosted: boolean; youtubePosted: boolean }> {
   const none = { instagramPosted: false, facebookPosted: false, youtubePosted: false };
+  clearDecisionContext();
   const [row] = await db.select({ article: articleTable, vertical: verticalTable })
     .from(articleTable)
     .innerJoin(verticalTable, eq(articleTable.verticalId, verticalTable.id))
@@ -276,6 +290,7 @@ export async function postReel(
   const article: ArticleWithVertical = { ...row.article, vertical: row.vertical };
   if (!article.heroImageUrl || !article.body) {
     console.log(`[reel] skipped ${articleId}: no photo or no body`);
+    await logSkips(articleId, opts, "no photo or no body");
     return none;
   }
   // Fresh news only (freshness.ts): no reel of an old story, whoever asks for it.
@@ -290,6 +305,7 @@ export async function postReel(
   }
   if (!freshEnough) {
     console.log(`[reel] skipped ${articleId}: published more than ${maxAge} hours ago (set REEL_MAX_AGE_HOURS to change)`);
+    await logSkips(articleId, opts, `too old: published more than ${maxAge} hours ago`);
     return none;
   }
 
@@ -306,6 +322,7 @@ export async function postReel(
   const tr = locale ? await translationFor(articleId, locale) : null;
   if (locale && !tr?.body) {
     console.log(`[reel] skipped ${articleId}: no ${locale} translation yet`);
+    await logSkips(articleId, opts, `no ${locale} translation yet`);
     return none;
   }
   const ownKey = opts.topicPage ? `${opts.topicPage.key}-reel` : null;
@@ -316,7 +333,10 @@ export async function postReel(
     }
     : reelNeeds(existing, { instagram: opts.instagram, facebook: opts.facebook, topicKey: opts.topicPage?.key });
   // Skip Instagram up front while Meta's app limit is cooling down, so no reel is rendered just for it (metaCooldown.ts).
-  const needInstagram = wantInstagram && !(await instagramCoolingDown(opts.topicPage ? `${opts.topicPage.key}-reel` : DESTINATION));
+  const whySkipped: string[] = [];
+  const igCooling = wantInstagram && (await instagramCoolingDown(opts.topicPage ? `${opts.topicPage.key}-reel` : DESTINATION));
+  if (igCooling) whySkipped.push("instagram paused after a platform limit error (metaCooldown.ts)");
+  const needInstagram = wantInstagram && !igCooling;
   // YouTube: the English channel for the main reels, the Spanish channel for the Spanish Page's reels
   // (other topic Pages: none), once per story per channel.
   // The cricket Pages' reels (reels.youtube) go to the English channel too, with the main reels: one Short
@@ -330,8 +350,8 @@ export async function postReel(
   if (needYouTube) {
     const [{ value: lastDay, last }] = await db.select({ value: count(), last: max(socialPostTable.postedAt) }).from(socialPostTable)
       .where(and(eq(socialPostTable.platform, "youtube"), ytChannel === "es" ? eq(socialPostTable.destination, spanishYtKey) : ne(socialPostTable.destination, spanishYtKey), eq(socialPostTable.status, "posted"), gte(socialPostTable.postedAt, new Date(Date.now() - 24 * 3600 * 1000))));
-    if (!youtubeSlotOpen(lastDay, last, new Date(), maxShortsPerDay(), minGapMinutes())) needYouTube = false;
-    else if (!youtubeSportAllowed(ytChannel ?? "en", article.category, lastDay, maxShortsPerDay(), priorityReserve())) { console.log(`[youtube short] skipped: ${article.category} waits for a free slot (the last ${priorityReserve()} of ${maxShortsPerDay()} a day go to the best-performing sports)`); needYouTube = false; }
+    if (!youtubeSlotOpen(lastDay, last, new Date(), maxShortsPerDay(), minGapMinutes())) { needYouTube = false; whySkipped.push("youtube pacing: daily cap or minimum gap"); }
+    else if (!youtubeSportAllowed(ytChannel ?? "en", article.category, lastDay, maxShortsPerDay(), priorityReserve())) { console.log(`[youtube short] skipped: ${article.category} waits for a free slot (the last ${priorityReserve()} of ${maxShortsPerDay()} a day go to the best-performing sports)`); needYouTube = false; whySkipped.push(`youtube: ${article.category} waits for a free slot`); }
   }
   if (needYouTube) {
     // YouTube's own daily upload limit was hit recently on this channel: pause, don't render and fail again (youtube.ts).
@@ -340,10 +360,12 @@ export async function postReel(
     if (uploadLimitPauseActive(limitRow?.at ?? null, new Date())) {
       console.log(`[youtube short] paused: the ${ytChannel} channel hit YouTube's daily upload limit in the last ${UPLOAD_LIMIT_PAUSE_HOURS}h`);
       needYouTube = false;
+      whySkipped.push(`youtube paused: the ${ytChannel} channel hit YouTube's daily upload limit`);
     }
   }
   if (!needInstagram && !needFacebook && !needYouTube) {
     console.log(`[reel] skipped ${articleId}: already has a reel on the requested platform(s)`);
+    if (whySkipped.length) await logSkips(articleId, opts, whySkipped.join("; "));
     return none;
   }
   const textTitle = tr?.title ?? article.title;
@@ -353,6 +375,7 @@ export async function postReel(
   const content = await generatePosterContent(textTitle, textBody, locale);
   if (!content) {
     console.log(`[reel] skipped ${articleId}: no reel copy (too few real facts, or the copy call failed)`);
+    await logSkips(articleId, opts, "no reel copy (too few real facts, or the copy call failed)");
     return none;
   }
   console.log("Reel content:", JSON.stringify(content));
@@ -367,6 +390,8 @@ export async function postReel(
   const music = opts.music ?? musicStyleFor(article.id, opts.topicPage ? { title: article.title, category: article.category } : undefined);
   // An explicit colour wins; otherwise every reel (main Page, topic Pages, Instagram, YouTube) rotates by sport (reelThemes.ts).
   const theme = opts.theme ?? reelThemeFor(article.id, article.category);
+  // What this reel was made with, recorded with its outcome by recordAttempt (decisionLog.ts).
+  setDecisionContext(article.id, reelFeatures({ category: article.category, title: article.title, publishedAt: article.publishedAt, trendingScore: article.trendingScore ?? null, now: new Date(), theme, music, font: opts.font, language: locale, topicKey: opts.topicPage?.key, captionVariant: captionVariantFor(articleId), hook: content.hook, factRows: content.rows.length }));
   console.log(`Rendering reel (music: ${music}, theme: ${theme ?? "default"}, font: ${opts.font ?? "default"})...`);
   // The score of the match the story is about, when it is clearly one live or just finished (reelScore.ts); the original English headline names the teams.
   const score = await loadScoreStrip(article.title, locale === "es" ? "es" : "en");
