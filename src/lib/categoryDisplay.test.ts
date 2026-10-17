@@ -28,7 +28,7 @@ describe("sport colours in dark mode", () => {
 
   it("builds sx fragments with the dark override", () => {
     const chip = categoryChipStyle("cricket");
-    expect(chipTextSx(chip)).toEqual({ color: "#935b20", "@media (prefers-color-scheme: dark)": { color: chip.darkColor } });
-    expect(chipOutlineSx(chip)["@media (prefers-color-scheme: dark)"]).toEqual({ color: chip.darkColor, borderColor: chip.darkColor });
+    expect(chipTextSx(chip)).toEqual({ color: "#935b20", "[data-dark] &": { color: chip.darkColor } });
+    expect(chipOutlineSx(chip)["[data-dark] &"]).toEqual({ color: chip.darkColor, borderColor: chip.darkColor });
   });
 });

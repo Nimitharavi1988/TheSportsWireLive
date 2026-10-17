@@ -32,7 +32,7 @@ const clamp = (lines: number) => ({ display: "-webkit-box", WebkitLineClamp: lin
 function GridPhoto({ item }: { item: StoryGridItem }) {
   const chip = categoryChipStyle(item.category);
   return (
-    <Box sx={{ position: "relative", aspectRatio: "16 / 9", borderRadius: 1.5, overflow: "hidden", bgcolor: "grey.100", "@media (prefers-color-scheme: dark)": { bgcolor: "rgba(255, 255, 255, 0.06)" } }}>
+    <Box sx={{ position: "relative", aspectRatio: "16 / 9", borderRadius: 1.5, overflow: "hidden", bgcolor: "grey.100", "[data-dark] &": { bgcolor: "rgba(255, 255, 255, 0.06)" } }}>
       {item.heroImageUrl ? (
         <Box
           component={Image}

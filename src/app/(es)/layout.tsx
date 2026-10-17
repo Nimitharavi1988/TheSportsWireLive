@@ -1,4 +1,5 @@
 import { poppins, inter } from "@/lib/fonts";
+import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
 import ThemeRegistry from "@/components/ThemeRegistry";
 import SiteHeader from "@/components/SiteHeader";
 import { MobileSectionNav } from "@/components/MobileSectionNav";
@@ -54,8 +55,9 @@ export const viewport = {
 export default function SpanishRootLayout({ children }: { children: React.ReactNode }) {
   const otherSite = { href: process.env.SITE_URL ?? "https://sportswirelive.com", label: ES.otherSiteLabel };
   return (
-    <html lang={ES.htmlLang} className={`${poppins.variable} ${inter.variable}`}>
+    <html lang={ES.htmlLang} className={`${poppins.variable} ${inter.variable}`} suppressHydrationWarning>
       <body>
+        <InitColorSchemeScript attribute="data" />
         <GoogleAnalytics />
         <ThemeRegistry>
           <LocaleProvider locale={LOCALE}>

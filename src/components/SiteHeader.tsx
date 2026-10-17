@@ -22,6 +22,7 @@ import { useTheme } from "@mui/material/styles";
 import { ScrollRow } from "./ScrollRow";
 import { HeaderSearch } from "./HeaderSearch";
 import { FanChip } from "./FanChip";
+import { ThemeToggle } from "./ThemeToggle";
 import MenuIcon from "@mui/icons-material/Menu";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
@@ -602,7 +603,7 @@ export default function SiteHeader({
       sx={{
         top: 0,
         borderBottom: "1px solid #e7e5e0",
-        "@media (prefers-color-scheme: dark)": { borderBottomColor: "rgba(255, 255, 255, 0.12)" },
+        "[data-dark] &": { borderBottomColor: "rgba(255, 255, 255, 0.12)" },
         boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
       }}
     >
@@ -638,6 +639,7 @@ export default function SiteHeader({
           {!locale && <FanChip />}
           {editions && editions.length > 0 && <LanguageSwitch editions={editions} />}
           {otherSite && <OtherSiteLink href={otherSite.href} label={otherSite.label} />}
+          <ThemeToggle labels={locale ? { toDark: "Cambiar a modo oscuro", toLight: "Cambiar a modo claro" } : undefined} />
           {locale ? (
             <Box component="form" action="/search" method="get" role="search" sx={{ display: "flex", gap: 0.75 }}>
               <Box

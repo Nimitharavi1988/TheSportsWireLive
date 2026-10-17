@@ -4,9 +4,10 @@ import { createTheme } from "@mui/material/styles";
 // Material Design components, rather than using MUI's default blue theme.
 const theme = createTheme({
   // Dark mode (2026-10-15): follows the visitor's browser/device setting through
-  // a CSS media query only (no JavaScript, no flash, works with the cached pages).
-  // Light is exactly the palette below as it always was; there is no toggle.
-  cssVariables: { colorSchemeSelector: "media" },
+  // the data-dark attribute, set before first paint by a tiny inline script.
+  // Light is exactly the palette below as it always was. A header toggle (ThemeToggle.tsx)
+  // lets the visitor override it; InitColorSchemeScript in the layouts applies the choice before paint.
+  cssVariables: { colorSchemeSelector: "data" },
   colorSchemes: {
     dark: {
       palette: {

@@ -20,7 +20,7 @@ export function EntityAvatar({ initials, color, size = 32 }: { initials: string;
         bgcolor: `${color}1f`,
         color,
         // Dark mode: the sport colour is too dark for text on a dark page; use its lightened version.
-        ...(/^#[0-9a-fA-F]{6}$/.test(color) ? { "@media (prefers-color-scheme: dark)": { color: darkTextColor(color) } } : {}),
+        ...(/^#[0-9a-fA-F]{6}$/.test(color) ? { "[data-dark] &": { color: darkTextColor(color) } } : {}),
         fontWeight: 700,
         fontSize: Math.round(size * 0.36),
         letterSpacing: 0.3,
