@@ -151,8 +151,10 @@ function ChromeLayer({ th, credit, darkFrom, darkTo, darkEnd, portrait, score }:
       <div style={{ position: "absolute", top: 0, left: 0, width: W, height: H, display: "flex", background: `linear-gradient(180deg, ${th.shade(0.55)} 0%, ${th.shade(0)} 14%, ${th.shade(0)} ${darkFrom}%, ${th.shade(0.8)} ${darkTo}%, ${th.shade(0.93)} ${darkEnd}%, ${th.shade(0.93)} 100%)` }} />
       <div style={{ display: "flex", flexDirection: portrait ? "column" : "row", justifyContent: "space-between", alignItems: portrait ? "flex-start" : "center", padding: "185px 60px 0 60px", position: "relative" }}>
         <Wordmark th={th} />
-        {credit && <div style={{ display: "flex", fontSize: 20, fontWeight: 600, color: "rgba(255,255,255,0.85)", maxWidth: 420, textAlign: portrait ? "left" : "right", marginTop: portrait ? 14 : 0, textShadow: "0 1px 6px rgba(0,0,0,0.85)" }}>{credit}</div>}
+        {credit && !portrait && <div style={{ display: "flex", fontSize: 20, fontWeight: 600, color: "rgba(255,255,255,0.85)", maxWidth: 420, textAlign: "right", textShadow: "0 1px 6px rgba(0,0,0,0.85)" }}>{credit}</div>}
       </div>
+      {/* Big-photo layout: the credit sits small at the bottom edge of the photo, away from faces and the wordmark. */}
+      {credit && portrait && <div style={{ position: "absolute", top: PORTRAIT_PHOTO_TOP + PORTRAIT_PHOTO_H - 52, right: 60, display: "flex", maxWidth: 520, justifyContent: "flex-end", textAlign: "right", fontSize: 18, fontWeight: 600, color: "rgba(255,255,255,0.7)", textShadow: "0 1px 6px rgba(0,0,0,0.9)" }}>{credit}</div>}
       {score && <ScoreStrip th={th} score={score} />}
     </Layer>
   );
