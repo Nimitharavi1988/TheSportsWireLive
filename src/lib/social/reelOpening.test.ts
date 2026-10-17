@@ -1,12 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { openingFor, motionProgress, motionExpr, OPENING_TIMING, OPENING_MOTION } from "./reelOpening";
+import { openingFor, motionProgress, motionExpr, OPENING_TIMING, OPENING_MOTION, FAST_OPENING_SHARE } from "./reelOpening";
 
 describe("openingFor", () => {
-  it("is stable for a story and splits stories about evenly", () => {
-    for (let i = 0; i < 40; i++) expect(openingFor(`s-${i}`)).toBe(openingFor(`s-${i}`));
-    const fast = Array.from({ length: 2000 }, (_, i) => openingFor(`story-${i}`)).filter((o) => o === "fast").length;
+  it("gives every reel the fast opening by default", () => {
+    expect(FAST_OPENING_SHARE).toBe(1);
+    for (let i = 0; i < 500; i++) expect(openingFor(`story-${i}`)).toBe("fast");
+  });
+  it("can still split stories for a test, stably, by the share given", () => {
+    for (let i = 0; i < 40; i++) expect(openingFor(`s-${i}`, 0.5)).toBe(openingFor(`s-${i}`, 0.5));
+    const fast = Array.from({ length: 2000 }, (_, i) => openingFor(`story-${i}`, 0.5)).filter((o) => o === "fast").length;
     expect(fast / 2000).toBeGreaterThan(0.45);
     expect(fast / 2000).toBeLessThan(0.55);
+    expect(Array.from({ length: 200 }, (_, i) => openingFor(`x-${i}`, 0)).every((o) => o === "classic")).toBe(true);
   });
 });
 

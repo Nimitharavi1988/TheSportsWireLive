@@ -25,10 +25,14 @@ export const OPENING_MOTION: Record<Opening, { zoom: number; panX: number; panY:
 // The hook text is set this much bigger in the fast opening.
 export const FAST_HOOK_SCALE = 1.1;
 
-export function openingFor(articleId: string): Opening {
+// The share of reels that get the fast opening. 1 = every reel (decided 2026-10-17, before the comparison finished, to
+// move quicker). Set it to 0.5 to go back to a test split with the classic opening as the control.
+export const FAST_OPENING_SHARE = 1;
+
+export function openingFor(articleId: string, share: number = FAST_OPENING_SHARE): Opening {
   let h = 0;
   for (const c of `${articleId}|opening`) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return h % 2 === 0 ? "fast" : "classic";
+  return (h % 10000) / 10000 < share ? "fast" : "classic";
 }
 
 // How far the photo's movement has got (0 to 1) at x, the share of the reel played (0 to 1).
