@@ -4,9 +4,10 @@ import { createTheme } from "@mui/material/styles";
 // Material Design components, rather than using MUI's default blue theme.
 const theme = createTheme({
   // Dark mode (2026-10-15): follows the visitor's browser/device setting through
-  // a CSS media query only (no JavaScript, no flash, works with the cached pages).
-  // Light is exactly the palette below as it always was; there is no toggle.
-  cssVariables: { colorSchemeSelector: "media" },
+  // the data-dark attribute, set before first paint by a tiny inline script.
+  // Light is exactly the palette below as it always was. A header toggle (ThemeToggle.tsx)
+  // lets the visitor override it; InitColorSchemeScript in the layouts applies the choice before paint.
+  cssVariables: { colorSchemeSelector: "data" },
   colorSchemes: {
     dark: {
       palette: {
@@ -51,12 +52,14 @@ const theme = createTheme({
     // of truth — a genuinely inconsistent scale, not just one big heading.
     // This is the site's real scale now; per-component overrides that just
     // duplicated one of these values were removed.
-    h1: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "2.25rem" }, // 36px
-    h2: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.875rem" }, // 30px
-    h3: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.625rem" }, // 26px
-    h4: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.5rem" }, // 24px — was defaulting to 34px
-    h5: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.25rem" }, // 20px
-    h6: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.125rem" }, // 18px — matches the ad-hoc value most components had already converged on
+    // Visual polish (2026-10-16): headings get a tighter line height and slight negative tracking
+    // (large type looks loose at the defaults); the sizes themselves are unchanged.
+    h1: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "2.25rem", lineHeight: 1.2, letterSpacing: "-0.015em" }, // 36px
+    h2: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.875rem", lineHeight: 1.2, letterSpacing: "-0.015em" }, // 30px
+    h3: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.625rem", lineHeight: 1.25, letterSpacing: "-0.01em" }, // 26px
+    h4: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.5rem", lineHeight: 1.25, letterSpacing: "-0.01em" }, // 24px — was defaulting to 34px
+    h5: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.25rem", lineHeight: 1.3, letterSpacing: "-0.005em" }, // 20px
+    h6: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.125rem", lineHeight: 1.3, letterSpacing: "-0.005em" }, // 18px — matches the ad-hoc value most components had already converged on
     button: { fontFamily: "var(--font-body)", textTransform: "none", fontWeight: 600 },
   },
   // Was 10 -- real request to move away from the soft, bubbly, rounded
@@ -66,6 +69,11 @@ const theme = createTheme({
   // squared off, and it's applied via each component's own shape logic,
   // not this token, so this only affects cards/buttons/chips/inputs.
   shape: { borderRadius: 4 },
+  // Motion rules: 150-300 ms with one gentle curve (matches --swl-motion-* in globals.css).
+  transitions: {
+    easing: { easeInOut: "cubic-bezier(0.2, 0, 0, 1)", easeOut: "cubic-bezier(0.2, 0, 0, 1)" },
+    duration: { shortest: 150, shorter: 200, short: 250, standard: 250, complex: 300, enteringScreen: 200, leavingScreen: 150 },
+  },
   components: {
     MuiButton: {
       styleOverrides: {

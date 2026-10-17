@@ -25,7 +25,7 @@ export const LIVE_RED_DARK = "#ff6b6b";
 export function LiveBadge({ label, locale }: { label: string | null; locale?: string }) {
   const live = getDict(locale).scores.live;
   return (
-    <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, color: LIVE_RED, "@media (prefers-color-scheme: dark)": { color: LIVE_RED_DARK }, fontWeight: 700 }}>
+    <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, color: LIVE_RED, "[data-dark] &": { color: LIVE_RED_DARK }, fontWeight: 700 }}>
       <Box
         component="span"
         aria-hidden
@@ -82,7 +82,7 @@ function StatusColumn({ match, locale }: { match: ScoreMatch; locale?: string })
   const t = getDict(locale).scores;
   if (match.state === "live") {
     return (
-      <Box sx={{ color: LIVE_RED, "@media (prefers-color-scheme: dark)": { color: LIVE_RED_DARK }, fontWeight: 700 }}>
+      <Box sx={{ color: LIVE_RED, "[data-dark] &": { color: LIVE_RED_DARK }, fontWeight: 700 }}>
         <div>{t.live}</div>
         {match.clock && <Box sx={{ fontWeight: 500 }}>{match.clock}</Box>}
       </Box>
@@ -115,7 +115,7 @@ export function EventChip({ event }: { event: MatchEvent }) {
         fontSize: 12,
         fontWeight: 700,
         color: "#b71c1c",
-        "@media (prefers-color-scheme: dark)": { color: "#ff8a80" },
+        "[data-dark] &": { color: "#ff8a80" },
         bgcolor: "rgba(211,47,47,0.08)",
         animation: "swlEventFlash 2.4s ease-out 1",
         "@keyframes swlEventFlash": { from: { bgcolor: "rgba(211,47,47,0.35)" }, to: { bgcolor: "rgba(211,47,47,0.08)" } },
@@ -131,7 +131,7 @@ export function ScoreRow({ match, event, locale }: { match: ScoreMatch; event?: 
   const isFinal = match.state === "final";
   const hasScores = match.home.score !== null || match.away.score !== null;
   const score = (side: ScoreSide) => (
-    <Typography component="div" sx={{ fontSize: 15, lineHeight: "28px", fontWeight: isFinal && side.winner ? 700 : 500, color: isFinal && !side.winner ? "text.secondary" : "text.primary", whiteSpace: "nowrap" }}>
+    <Typography component="div" sx={{ fontSize: 17, lineHeight: "28px", fontWeight: isFinal && side.winner ? 700 : 600, color: isFinal && !side.winner ? "text.secondary" : "text.primary", whiteSpace: "nowrap" }}>
       {splitScore(side.score).main}
       {splitScore(side.score).detail && (
         <Box component="span" sx={{ ml: 0.75, fontSize: 12, fontWeight: 400, color: "text.secondary" }}>{splitScore(side.score).detail}</Box>
@@ -140,7 +140,7 @@ export function ScoreRow({ match, event, locale }: { match: ScoreMatch; event?: 
   );
   return (
     <>
-    <Link href={`/article/${match.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+    <Link href={`/article/${match.slug}`} className="swl-score-row" style={{ textDecoration: "none", color: "inherit", display: "block" }}>
       <Box
         sx={{
           display: "grid",
@@ -151,8 +151,9 @@ export function ScoreRow({ match, event, locale }: { match: ScoreMatch; event?: 
           py: 1,
           borderTop: "1px solid",
           borderColor: "divider",
-          transition: "background-color 0.15s",
+          transition: "background-color var(--swl-motion-fast) var(--swl-ease)",
           "&:hover": { bgcolor: "action.hover" },
+          "&:active": { bgcolor: "action.selected" },
         }}
       >
         <Box sx={{ minWidth: 0 }}>

@@ -55,7 +55,7 @@ export function LiveTicker({ initial }: { initial: ScoreMatch[] }) {
   const scroll = (dir: -1 | 1) => track.current?.scrollBy({ left: dir * track.current.clientWidth * 0.8, behavior: "smooth" });
 
   return (
-    <Box component="section" aria-label={t.title} sx={{ display: "flex", alignItems: "stretch", bgcolor: STRIP_BG, "@media (prefers-color-scheme: dark)": { bgcolor: STRIP_BG_DARK }, borderBottom: "1px solid", borderColor: "divider" }}>
+    <Box component="section" aria-label={t.title} sx={{ display: "flex", alignItems: "stretch", bgcolor: STRIP_BG, "[data-dark] &": { bgcolor: STRIP_BG_DARK }, borderBottom: "1px solid", borderColor: "divider" }}>
       <Link
         href={sport ? `/scores?category=${sport}` : "/scores"}
         aria-label={sport ? t.sportScores(sportName(sport)) : t.allScores}

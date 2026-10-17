@@ -134,7 +134,7 @@ export function VideoStripSkeleton({ title = "Videos", headingSx }: { title?: st
       <VideosHeading title={title} headingSx={headingSx} />
       <ScrollRow>
         {[...Array(4)].map((_, i) => (
-          <Paper key={i} variant="outlined" sx={{ width: CARD_WIDTH, flexShrink: 0, overflow: "hidden" }}>
+          <Paper key={i} className="swl-skeleton" variant="outlined" sx={{ width: CARD_WIDTH, flexShrink: 0, overflow: "hidden" }}>
             <Box sx={{ aspectRatio: "16 / 9", bgcolor: "action.hover" }} />
             <Box sx={{ p: 1.25 }}>
               <Box sx={{ height: 36, borderRadius: 0.5, bgcolor: "action.hover" }} />

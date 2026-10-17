@@ -103,7 +103,7 @@ export function HeroCarousel({ slides, locale }: { slides: HeroSlideData[]; loca
                 positioning keeps it visually in the same corner either way. */}
             <Link
               href={`/article/${slide.slug}`}
-              style={{ color: "inherit", textDecoration: "none", display: "block", position: "relative", aspectRatio: HERO_ASPECT_RATIO, overflow: "hidden" }}
+              style={{ color: "inherit", textDecoration: "none", display: "block", position: "relative", aspectRatio: HERO_ASPECT_RATIO, overflow: "hidden", backgroundColor: "var(--mui-palette-action-hover)" }}
             >
               {/* priority only on the slide shown at first paint — this is
                   the site's actual LCP image; later slide switches from

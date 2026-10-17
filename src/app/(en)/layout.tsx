@@ -1,4 +1,5 @@
 import { poppins, inter } from "@/lib/fonts";
+import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
 import ThemeRegistry from "@/components/ThemeRegistry";
 import SiteHeader from "@/components/SiteHeader";
 import { MobileSectionNav } from "@/components/MobileSectionNav";
@@ -94,7 +95,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // banner, for the editions listed in LIVE_LOCALES (none until launch).
   const editions = editionLinks();
   return (
-    <html lang="en" className={`${poppins.variable} ${inter.variable}`}>
+    <html lang="en" className={`${poppins.variable} ${inter.variable}`} suppressHydrationWarning>
       <head>
         {/* DNS prefetch for third-party scripts that load after the page
             (GA and AdSense are both lazyOnload now) — resolves their
@@ -104,6 +105,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
       </head>
       <body>
+        <InitColorSchemeScript attribute="data" />
         <GoogleAnalytics />
         <ServiceWorkerRegister />
         <FanBeacon />

@@ -5,16 +5,61 @@
 /* Dark mode: a dark crest or logo on a transparent background (navy, black) would
    vanish on a dark card, so every crest (TeamCrest.tsx) gets a thin light outline.
    Light mode is untouched. */
-@media (prefers-color-scheme: dark) {
-  img.swl-crest {
+[data-dark] img.swl-crest {
     filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.6));
-  }
 }
 
 /* Dark mode: the in-article links to teams and players are a fixed dark green (inline style),
    too dark on a dark page (2.8:1). The !important is needed to beat that inline colour. */
-@media (prefers-color-scheme: dark) {
-  a.swl-entity-link {
-    color: #3ecf8e !important;
+[data-dark] a.swl-entity-link {
+  color: #3ecf8e !important;
+}
+
+/* Motion tokens: 150 ms for hover/press, 250 ms for card and tab changes, 300 ms maximum.
+   One easing curve everywhere. Animate opacity/transform only. */
+:root {
+  --swl-motion-fast: 150ms;
+  --swl-motion-base: 250ms;
+  --swl-motion-slow: 300ms;
+  --swl-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Keyboard focus: a visible ring for every link, button and control (WCAG 2.2 AA).
+   :focus-visible so mouse and touch taps do not show it. */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--mui-palette-primary-main, #0c7d45);
+  outline-offset: 2px;
+}
+
+/* Visitors who choose reduced motion get none, site-wide: animations, transitions, smooth scrolling. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
+}
+
+/* Loading placeholders: a slow, gentle opacity pulse (no flashing). Turned off for reduced motion
+   by the global rule above. Apply with className="swl-skeleton" on a placeholder block. */
+@keyframes swl-skeleton-pulse {
+  50% { opacity: 0.55; }
+}
+.swl-skeleton {
+  animation: swl-skeleton-pulse 1.6s var(--swl-ease) infinite;
+}
+
+/* Score rows sit inside a card that clips overflow, so the keyboard ring goes inside the row. */
+.swl-score-row:focus-visible {
+  outline-offset: -2px;
 }

@@ -84,14 +84,14 @@ export function categoryChipStyle(category: string): CategoryChipStyle {
 // sx fragments: the sport colour as text (and as an outline) in light mode, its lightened
 // version when the browser is dark. Spread into an sx object: sx={{ ...chipTextSx(chip) }}.
 export function chipTextSx(chip: CategoryChipStyle) {
-  return { color: chip.color, "@media (prefers-color-scheme: dark)": { color: chip.darkColor } };
+  return { color: chip.color, "[data-dark] &": { color: chip.darkColor } };
 }
 
 export function chipOutlineSx(chip: CategoryChipStyle) {
   return {
     color: chip.color,
     borderColor: chip.color,
-    "@media (prefers-color-scheme: dark)": { color: chip.darkColor, borderColor: chip.darkColor },
+    "[data-dark] &": { color: chip.darkColor, borderColor: chip.darkColor },
   };
 }
 

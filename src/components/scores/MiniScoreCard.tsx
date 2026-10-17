@@ -24,14 +24,14 @@ function Row({ side, muted, fluid }: { side: ScoreSide; muted: boolean; fluid: b
   // The narrow strip tile keeps just the overs ("28 ov"); the panel has room for the target too.
   const detail = fluid ? split.detail : split.detail?.split(",")[0] ?? null;
   return (
-    <Box sx={{ display: "grid", gridTemplateColumns: "22px minmax(0, 1fr) auto", alignItems: "center", columnGap: 1, minHeight: 34, color: muted ? "text.secondary" : "text.primary" }}>
-      <TeamCrest name={side.name} crestUrl={side.crestUrl} size={22} />
-      <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 14, fontWeight: side.winner ? 700 : 500 }}>
+    <Box sx={{ display: "grid", gridTemplateColumns: "22px minmax(0, 1fr) auto", alignItems: "center", columnGap: 1.25, minHeight: 40, color: muted ? "text.secondary" : "text.primary" }}>
+      <TeamCrest name={side.name} crestUrl={side.crestUrl} size={28} />
+      <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 15, fontWeight: side.winner ? 700 : 500 }}>
         {side.name}
       </Box>
       <Box sx={{ textAlign: "right", lineHeight: 1.15, minWidth: 28, maxWidth: 130, fontVariantNumeric: "tabular-nums" }}>
         {main && (
-          <Box component="div" sx={{ fontSize: 15, fontWeight: side.winner ? 800 : 700, whiteSpace: "nowrap" }}>
+          <Box component="div" sx={{ fontSize: 19, fontWeight: side.winner ? 800 : 600, whiteSpace: "nowrap" }}>
             {main}
           </Box>
         )}
@@ -65,24 +65,37 @@ export function MiniScoreCard({ match, fluid = false, showLeague = true, locale 
           width: fluid ? "auto" : 240,
           mx: fluid ? 0 : 0.6,
           my: fluid ? 0 : 0.9,
-          px: 1.5,
-          py: 1,
+          px: 1.75,
+          py: 1.25,
           borderRadius: 3,
-          bgcolor: "background.paper",
+          bgcolor: live ? "rgba(211, 47, 47, 0.035)" : "background.paper",
           border: "1px solid",
           borderColor: live ? "rgba(211, 47, 47, 0.4)" : "divider",
-          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-          transition: "box-shadow 0.15s, border-color 0.15s",
-          "&:hover": { boxShadow: "0 3px 10px rgba(0,0,0,0.12)", borderColor: live ? "rgba(211, 47, 47, 0.7)" : "primary.main" },
+          // A thick red edge marks a live match at a glance (inset, so the card does not grow).
+          boxShadow: live ? "inset 3px 0 0 #d32f2f, 0 1px 2px rgba(0,0,0,0.04)" : "0 1px 2px rgba(0,0,0,0.04)",
+          transition: "box-shadow var(--swl-motion-base) var(--swl-ease), border-color var(--swl-motion-base) var(--swl-ease), transform var(--swl-motion-fast) var(--swl-ease)",
+          "&:hover": { transform: "translateY(-1px)", boxShadow: live ? "inset 3px 0 0 #d32f2f, 0 4px 14px rgba(0,0,0,0.12)" : "0 4px 14px rgba(0,0,0,0.12)", borderColor: live ? "rgba(211, 47, 47, 0.7)" : "primary.main" },
+          "&:active": { transform: "none" },
         }}
       >
-        <Box sx={{ display: "flex", justifyContent: showLeague ? "space-between" : "flex-start", alignItems: "center", gap: 1, mb: 0.5, fontSize: 12, color: "text.secondary" }}>
+        <Box sx={{ display: "flex", justifyContent: showLeague ? "space-between" : "flex-start", alignItems: "center", gap: 1, mb: 0.75, fontSize: 12, color: "text.secondary" }}>
           {showLeague && (
             <Box component="span" sx={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {shortLeague(match.leagueLabel)}
             </Box>
           )}
-          <Box component="span" sx={{ flexShrink: 0, whiteSpace: "nowrap", fontWeight: 500 }}>
+          {/* Live and final get a small pill so the state reads before anything else on the card. */}
+          <Box
+            component="span"
+            sx={{
+              flexShrink: 0,
+              whiteSpace: "nowrap",
+              fontWeight: 500,
+              ...(live || isFinal
+                ? { px: 1, py: 0.25, borderRadius: 10, bgcolor: live ? "rgba(211, 47, 47, 0.1)" : "action.hover", fontSize: 11.5, letterSpacing: "0.02em" }
+                : {}),
+            }}
+          >
             <Status match={match} locale={locale} />
           </Box>
         </Box>
