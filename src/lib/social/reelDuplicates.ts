@@ -11,9 +11,18 @@ export interface ExistingReel {
 
 export function reelNeeds(
   existing: ExistingReel[],
-  want: { instagram: boolean; facebook: boolean; topicKey?: string }
+  want: { instagram: boolean; facebook: boolean; topicKey?: string; fanOut?: boolean }
 ): { needInstagram: boolean; needFacebook: boolean } {
   const ownKey = want.topicKey ? `${want.topicKey}-reel` : null;
+  // fanOut (a big match-day story, matchDay.ts): every related account gets its own reel, so only THIS account's own history
+  // counts (the main Page's destination is MAIN_REEL_DESTINATION, a topic Page's is "<key>-reel").
+  if (want.fanOut) {
+    const own = ownKey ?? MAIN_REEL_DESTINATION;
+    return {
+      needInstagram: want.instagram && !existing.some((p) => p.platform === "instagram" && p.destination === own),
+      needFacebook: want.facebook && !existing.some((p) => p.platform === "facebook" && p.destination === own),
+    };
+  }
   // A topic Page's own Instagram account keeps its own history too ("<key>-reel").
   const needInstagram = want.instagram && !existing.some((p) => p.platform === "instagram" && (p.destination === MAIN_REEL_DESTINATION || p.destination === ownKey));
   const needFacebook =

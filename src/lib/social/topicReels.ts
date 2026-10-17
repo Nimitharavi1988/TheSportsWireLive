@@ -28,6 +28,10 @@ const MAX_FAILED_PER_DAY = 2;
 // Photos checked per run, and reels attempted per run.
 const MAX_PHOTO_CHECKS = 15;
 const MAX_ATTEMPTS = 2;
+// A big match-day story (matchDay.ts: its title names both sides of a live or just-finished fixture) goes to every related
+// account, past the one-Page-per-story rule and the daily cap by up to this many reels a day (2026-10-17: the India v West
+// Indies decider reached Greenfield but not Cricket Live, which skips Greenfield's stories and had used its 10).
+const MATCH_DAY_FANOUT_EXTRA = 3;
 
 export async function postTopicReels(now: Date = new Date()): Promise<void> {
   const matchDayFixtures = await loadMatchDayFixtures(now);
@@ -44,7 +48,9 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
       // Breaking news can go past the pacing, the reel hours and the daily cap, by up to
       // `breaking.reelAllowance` a day (breakingNews.ts).
       let breakingRoom = d.breaking ? Math.max(0, d.reels.dailyCap + d.breaking.reelAllowance - posted) : 0;
-      if ((runCap === 0 && breakingRoom === 0) || failed >= MAX_FAILED_PER_DAY) {
+      // Only when a fixture is in the window: otherwise a Page that is done for the day still skips the run up front.
+      let fanoutRoom = matchDayFixtures.length > 0 ? Math.max(0, d.reels.dailyCap + MATCH_DAY_FANOUT_EXTRA - posted) : 0;
+      if ((runCap === 0 && breakingRoom === 0 && fanoutRoom === 0) || failed >= MAX_FAILED_PER_DAY) {
         console.log(`[reel:${d.key}] posted=${posted} failed=${failed} runCap=${runCap} — skipping`);
         continue;
       }
@@ -70,7 +76,8 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
           .innerJoin(article, eq(socialPost.articleId, article.id))
           .where(and(eq(socialPost.platform, "facebook"), eq(socialPost.destination, key), eq(socialPost.status, "posted"), gte(socialPost.postedAt, new Date(now.getTime() - SIMILARITY_WINDOW_MS)))),
       ]);
-      const done = new Set(doneRows.map((r) => r.articleId));
+      const ownDone = new Set(doneRows.map((r) => r.articleId));
+      const done = new Set(ownDone);
       // Stories the main Page already has a Facebook reel for: skipped up front, not
       // after a wasted attempt (postReel refuses them anyway — reelDuplicates.ts).
       const mainReelRows = await db.select({ articleId: socialPost.articleId }).from(socialPost)
@@ -88,6 +95,7 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
       let postedNow = 0;
       let normalPosted = 0;
       let breakingPosted = 0;
+      let fanoutPosted = 0;
       const breakingIds = d.breaking ? findBreaking(pool, now, d.breaking.minOutlets) : new Set<string>();
       // Drama first within each freshness tier (prioritise keeps the incoming order): social/drama.ts.
       // Stories about a match starting soon or just played come first (social/matchDay.ts).
@@ -99,31 +107,37 @@ export async function postTopicReels(now: Date = new Date()): Promise<void> {
       for (const a of queue) {
         const normalDone = normalPosted >= runCap;
         const breakingDone = breakingRoom <= 0 || breakingPosted >= 1;
-        if ((normalDone && breakingDone) || attempts >= MAX_ATTEMPTS || checked >= MAX_PHOTO_CHECKS) break;
+        const fanout = isMatchDayStory(a.title, matchDayFixtures, now);
+        const fanoutDone = !fanout || fanoutRoom <= 0 || fanoutPosted >= 1;
+        if ((normalDone && breakingDone && !(fanout && !fanoutDone)) || attempts >= MAX_ATTEMPTS || checked >= MAX_PHOTO_CHECKS) break;
         // Each Page takes its own half of the breaking stories; once the normal pacing is
         // used up (or outside the reel hours) only breaking stories are tried.
         const isBreaking = breakingIds.has(a.id);
         if (isBreaking && (!d.breaking || breakingSlotFor(a.id) !== d.breaking.slot)) continue;
-        if (normalDone && !isBreaking) continue;
-        if (done.has(a.id) || !a.body || !hasRealImage(a) || !d.matches(a)) continue;
+        if (normalDone && !isBreaking && fanoutDone) continue;
+        if ((fanout ? ownDone : done).has(a.id) || !a.body || !hasRealImage(a) || !d.matches(a)) continue;
         // Never an advertisement (thinContent.ts).
         if (isPromotional(a.title)) continue;
         // Match rows are scorecards, not stories to narrate.
         if (isMatchDataSource(a.sourceName)) continue;
         if (isSimilarToAny(a.title, titles)) continue;
         // A new story's score is still low in its first hour, so breaking news skips the floor.
-        if (!isBreaking && d.reels.minTrending && (a.trendingScore ?? 0) < d.reels.minTrending) continue;
+        if (!isBreaking && !fanout && d.reels.minTrending && (a.trendingScore ?? 0) < d.reels.minTrending) continue;
         checked++;
         if (!a.heroImageUrl) continue;
         attempts++;
         try {
           // Instagram too only where the Page opts in (reels.instagram) and has an account.
-          const r = await postReel(a.id, { instagram: Boolean(d.reels.instagram && d.instagramId), facebook: true, youtube: Boolean(d.reels.youtube), topicPage: d });
+          const r = await postReel(a.id, { instagram: Boolean(d.reels.instagram && d.instagramId), facebook: true, youtube: Boolean(d.reels.youtube), topicPage: d, fanOut: fanout });
           console.log(`[reel:${d.key}] ${r.facebookPosted ? "posted" : "not posted"} ${a.id} ("${a.title.slice(0, 60)}")`);
           if (r.facebookPosted) {
             postedNow++;
             if (normalPosted < runCap) normalPosted++;
-            else {
+            else if (fanout && !isBreaking) {
+              fanoutPosted++;
+              fanoutRoom--;
+              console.log(`[reel:${d.key}] match-day reel past the pacing: ${a.id}`);
+            } else {
               breakingPosted++;
               breakingRoom--;
               console.log(`[reel:${d.key}] breaking reel: ${a.id}`);

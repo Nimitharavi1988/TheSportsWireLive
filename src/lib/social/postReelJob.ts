@@ -33,8 +33,8 @@ async function main() {
   if (topicKey && !topicPage) throw new Error(`Unknown TOPIC_PAGE "${topicKey}"`);
 
   const { instagramPosted, facebookPosted, youtubePosted } = await postReel(articleId, topicPage
-    ? { instagram: false, facebook: true, topicPage, music, theme, font }
-    : { instagram: true, facebook: true, youtube: true, music, theme, font });
+    ? { instagram: false, facebook: true, topicPage, music, theme, font, fanOut: true }
+    : { instagram: true, facebook: true, youtube: true, music, theme, font, fanOut: true });
   console.log(`Instagram: ${instagramPosted ? "posted" : "not posted"}. Facebook: ${facebookPosted ? "posted" : "not posted"}.`);
   // Fail the run when nothing went out, so it shows red in Actions.
   if (youtubePosted) console.log("YouTube: posted.");

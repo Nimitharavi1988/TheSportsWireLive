@@ -11,7 +11,7 @@ import { isHighlightWorthy } from "../highlightWorthy";
 import { isPushWorthy } from "../pushWorthy";
 import { postToTopicPages } from "../social/topicPosting";
 import { freshnessMultiplier } from "../social/freshness";
-import { MATCH_DAY_FRESHNESS_FLOOR, matchDayMultiplier, BOTH_SIDES_MULTIPLIER, type Fixture } from "../social/matchDay";
+import { MATCH_DAY_FRESHNESS_FLOOR, matchDayMultiplier, isMatchDayStory, BOTH_SIDES_MULTIPLIER, type Fixture } from "../social/matchDay";
 import { loadMatchDayFixtures } from "../social/matchDayFixtures";
 import { postSpanishShorts } from "../social/spanishShorts";
 import { postTopicReels } from "../social/topicReels";
@@ -648,7 +648,10 @@ export async function autoApproveValidArticles(): Promise<{ checked: number; app
     try {
       let posted = false;
       try {
-        const reel = await timed("postReel (render+Gemini+API)", () => postReel(article.id, { instagram: true, facebook: facebookReelsRemaining > 0, youtube: true }));
+        // A big match-day story always gets its Facebook reel on the main Page too, past the daily pace and the one-Page-per-story
+        // rule (postReel fanOut), so it is on every related account.
+        const matchDayStory = isMatchDayStory(article.title, matchDayFixtures, now);
+        const reel = await timed("postReel (render+Gemini+API)", () => postReel(article.id, { instagram: true, facebook: facebookReelsRemaining > 0 || matchDayStory, youtube: true, fanOut: matchDayStory }));
         posted = reel.instagramPosted;
         if (reel.facebookPosted) facebookReelsRemaining--;
       } catch (reelErr) {

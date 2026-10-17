@@ -279,7 +279,9 @@ async function postReelToYouTube(article: ArticleWithVertical, mp4: Buffer, capt
 // brand green / Poppins.
 export async function postReel(
   articleId: string,
-  opts: { instagram: boolean; facebook: boolean; youtube?: boolean; topicPage?: FacebookDestination; music?: ReelMusicStyle; theme?: ReelTheme; font?: ReelFont }
+  // fanOut: a big match-day story, or an admin's explicit post: only this account's own history decides whether it needs the reel
+  // (reelDuplicates.ts), not the other Pages'.
+  opts: { instagram: boolean; facebook: boolean; youtube?: boolean; topicPage?: FacebookDestination; music?: ReelMusicStyle; theme?: ReelTheme; font?: ReelFont; fanOut?: boolean }
 ): Promise<{ instagramPosted: boolean; facebookPosted: boolean; youtubePosted: boolean }> {
   const none = { instagramPosted: false, facebookPosted: false, youtubePosted: false };
   clearDecisionContext();
@@ -333,7 +335,7 @@ export async function postReel(
       needInstagram: opts.instagram && !existing.some((p) => p.platform === "instagram" && p.destination === ownKey),
       needFacebook: opts.facebook && !existing.some((p) => p.platform === "facebook" && p.destination === ownKey),
     }
-    : reelNeeds(existing, { instagram: opts.instagram, facebook: opts.facebook, topicKey: opts.topicPage?.key });
+    : reelNeeds(existing, { instagram: opts.instagram, facebook: opts.facebook, topicKey: opts.topicPage?.key, fanOut: opts.fanOut });
   // Skip Instagram up front while Meta's app limit is cooling down, so no reel is rendered just for it (metaCooldown.ts).
   const whySkipped: string[] = [];
   const igCooling = wantInstagram && (await instagramCoolingDown(opts.topicPage ? `${opts.topicPage.key}-reel` : DESTINATION));
