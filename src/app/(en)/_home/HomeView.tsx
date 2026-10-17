@@ -264,7 +264,7 @@ function PlayerNewsSkeleton({ locale }: { locale?: string }) {
       </Stack>
       <ScrollRow>
         {[...Array(4)].map((_, i) => (
-          <Paper key={i} variant="outlined" sx={{ p: 1.5, width: 176, flexShrink: 0 }}>
+          <Paper key={i} className="swl-skeleton" variant="outlined" sx={{ p: 1.5, width: 176, flexShrink: 0 }}>
             <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1 }}>
               <Box sx={{ width: 32, height: 32, borderRadius: "50%", bgcolor: "action.hover" }} />
               <Box sx={{ width: 80, height: 12, borderRadius: 0.5, bgcolor: "action.hover" }} />

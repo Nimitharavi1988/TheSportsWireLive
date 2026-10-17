@@ -49,3 +49,12 @@ summary:focus-visible {
     scroll-behavior: auto !important;
   }
 }
+
+/* Loading placeholders: a slow, gentle opacity pulse (no flashing). Turned off for reduced motion
+   by the global rule above. Apply with className="swl-skeleton" on a placeholder block. */
+@keyframes swl-skeleton-pulse {
+  50% { opacity: 0.55; }
+}
+.swl-skeleton {
+  animation: swl-skeleton-pulse 1.6s var(--swl-ease) infinite;
+}

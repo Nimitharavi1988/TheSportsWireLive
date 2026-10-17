@@ -50,7 +50,7 @@ export function ArticleThumb({
   if (article.heroImageUrl) {
     const showCredit = size >= MIN_SIZE_FOR_CREDIT && article.heroImageCredit;
     return (
-      <Box sx={{ position: "relative", width, height: size, flexShrink: 0 }}>
+      <Box sx={{ position: "relative", width, height: size, flexShrink: 0, borderRadius: 1.5, bgcolor: "action.hover" }}>
         <Box
           component={Image}
           src={article.heroImageUrl}
