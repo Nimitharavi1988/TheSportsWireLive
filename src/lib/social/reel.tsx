@@ -15,6 +15,7 @@ import { categoryLabelEs } from "../i18n/es";
 const execFileAsync = promisify(execFile);
 
 import type { ReelScore } from "./reelScore";
+import { columnDetail, cropFit, cropKeepsSubject } from "./reelCropFit";
 import { OPENING_TIMING, OPENING_MOTION, FAST_HOOK_SCALE, motionExpr, type Opening } from "./reelOpening";
 const W = 1080;
 const H = 1920;
@@ -31,11 +32,14 @@ const PHOTO_MAX_H = 1000;
 // strategy) to a 4:5 portrait, 1080x1350, and shown big behind the text: 70%
 // of the frame rather than 32%. Needs a source at least this tall so it isn't
 // blown up; smaller photos keep the layout above.
-const USE_PORTRAIT_CROP = false;
+// On again (2026-10-17), but per photo: cropForPortrait only uses the big layout when the crop keeps the subject
+// (reelCropFit.ts: the part it keeps must be clearly the busier part), else the whole-photo layout below stays. The
+// 2026-09-29 switch-off was for crops that cut subjects off; this is the check that was missing.
+const USE_PORTRAIT_CROP = true;
 const PORTRAIT_ASPECT =1080 / 1350;
 const PORTRAIT_PHOTO_TOP = 170;
 const PORTRAIT_PHOTO_H = 1350;
-const MIN_CROP_SOURCE_H = 800;
+const MIN_CROP_SOURCE_H = 560;
 // The photo layer is built at SS x size and scaled down at the end, so the
 // moving picture stays sharp.
 const SS = 2;
@@ -249,7 +253,18 @@ async function cropForPortrait(photo: Buffer): Promise<Buffer | null> {
     const h = meta.height ?? 0;
     if (!fitsPortraitLayout(w, h)) return null;
     const cropW = Math.min(w, Math.round(h * PORTRAIT_ASPECT));
-    return await sharp(photo).resize(cropW, h, { fit: "cover", position: sharp.strategy.attention }).jpeg({ quality: 92 }).toBuffer();
+    const { data, info } = await sharp(photo).resize(cropW, h, { fit: "cover", position: sharp.strategy.attention }).jpeg({ quality: 92 }).toBuffer({ resolveWithObject: true });
+    // Where the crop landed (sharp reports the offset as a negative number), and does it keep the subject?
+    const left = Math.abs((info as { cropOffsetLeft?: number }).cropOffsetLeft ?? 0);
+    const gw = 96;
+    const gh = Math.max(2, Math.round((h / w) * gw));
+    const gray = await sharp(photo).greyscale().resize(gw, gh).raw().toBuffer();
+    const fit = cropFit(columnDetail(gray, gw, gh), (left / w) * gw, (cropW / w) * gw);
+    if (!cropKeepsSubject(fit)) {
+      console.log(`[reel] photo keeps the whole-photo layout: the crop would cut the subject (detail outside/inside ${fit.ratio.toFixed(2)})`);
+      return null;
+    }
+    return data;
   } catch {
     return null;
   }
