@@ -19,7 +19,7 @@ import { editionConditions } from "../i18n/overlay";
 import { SPANISH_PAGE, spanishPageEnabled } from "./facebookDestinations";
 import { postReel } from "./postReel";
 import { logDecision } from "./decisionLog";
-import { spanishShortScore } from "./spanishShortsRank";
+import { spanishShortScore, shortFreshEnough } from "./spanishShortsRank";
 import { loadMatchDayFixtures } from "./matchDayFixtures";
 import { isStarStory, reelIsFresh, reelMaxAgeHours } from "./freshness";
 import { youtubeConfigured, youtubeSlotOpen, maxShortsPerDay, minGapMinutes } from "./youtube";
@@ -79,7 +79,7 @@ export async function postSpanishShorts(now: Date = new Date()): Promise<void> {
     for (const a of ranked) {
       if (attempts >= MAX_ATTEMPTS || checked >= MAX_PHOTO_CHECKS) break;
       if (tried.has(a.id) || !a.body || !hasRealImage(a) || !SPANISH_PAGE.matches(a)) continue;
-      if (!isStarStory(a.title) && !reelIsFresh(a.publishedAt, a.createdAt, now, maxAge)) continue;
+      if (!shortFreshEnough(a, fixtures, now, maxAge)) continue;
       if (isPromotional(a.title) || isMatchDataSource(a.sourceName) || isSimilarToAny(a.title, titles)) continue;
       checked++;
       if (!a.heroImageUrl) continue;
