@@ -24,14 +24,14 @@ function Row({ side, muted, fluid }: { side: ScoreSide; muted: boolean; fluid: b
   // The narrow strip tile keeps just the overs ("28 ov"); the panel has room for the target too.
   const detail = fluid ? split.detail : split.detail?.split(",")[0] ?? null;
   return (
-    <Box sx={{ display: "grid", gridTemplateColumns: "22px minmax(0, 1fr) auto", alignItems: "center", columnGap: 1.25, minHeight: 40, color: muted ? "text.secondary" : "text.primary" }}>
-      <TeamCrest name={side.name} crestUrl={side.crestUrl} size={28} />
-      <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 15, fontWeight: side.winner ? 700 : 500 }}>
+    <Box sx={{ display: "grid", gridTemplateColumns: `${fluid ? 28 : 22}px minmax(0, 1fr) auto`, alignItems: "center", columnGap: fluid ? 1.25 : 1, minHeight: fluid ? 40 : 34, color: muted ? "text.secondary" : "text.primary" }}>
+      <TeamCrest name={side.name} crestUrl={side.crestUrl} size={fluid ? 28 : 22} />
+      <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: fluid ? 15 : 14, fontWeight: side.winner ? 700 : 500 }}>
         {side.name}
       </Box>
       <Box sx={{ textAlign: "right", lineHeight: 1.15, minWidth: 28, maxWidth: 130, fontVariantNumeric: "tabular-nums" }}>
         {main && (
-          <Box component="div" sx={{ fontSize: 19, fontWeight: side.winner ? 800 : 600, whiteSpace: "nowrap" }}>
+          <Box component="div" sx={{ fontSize: fluid ? 19 : 15, fontWeight: side.winner ? 800 : fluid ? 600 : 700, whiteSpace: "nowrap" }}>
             {main}
           </Box>
         )}
@@ -65,16 +65,15 @@ export function MiniScoreCard({ match, fluid = false, showLeague = true, locale 
           width: fluid ? "auto" : 240,
           mx: fluid ? 0 : 0.6,
           my: fluid ? 0 : 0.9,
-          px: 1.75,
-          py: 1.25,
+          px: fluid ? 1.75 : 1.5,
+          py: fluid ? 1.25 : 1,
           borderRadius: 3,
-          bgcolor: live ? "rgba(211, 47, 47, 0.035)" : "background.paper",
+          bgcolor: "background.paper",
           border: "1px solid",
           borderColor: live ? "rgba(211, 47, 47, 0.4)" : "divider",
-          // A thick red edge marks a live match at a glance (inset, so the card does not grow).
-          boxShadow: live ? "inset 3px 0 0 #d32f2f, 0 1px 2px rgba(0,0,0,0.04)" : "0 1px 2px rgba(0,0,0,0.04)",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
           transition: "box-shadow var(--swl-motion-base) var(--swl-ease), border-color var(--swl-motion-base) var(--swl-ease), transform var(--swl-motion-fast) var(--swl-ease)",
-          "&:hover": { transform: "translateY(-1px)", boxShadow: live ? "inset 3px 0 0 #d32f2f, 0 4px 14px rgba(0,0,0,0.12)" : "0 4px 14px rgba(0,0,0,0.12)", borderColor: live ? "rgba(211, 47, 47, 0.7)" : "primary.main" },
+          "&:hover": { transform: "translateY(-1px)", boxShadow: "0 4px 14px rgba(0,0,0,0.12)", borderColor: live ? "rgba(211, 47, 47, 0.7)" : "primary.main" },
           "&:active": { transform: "none" },
         }}
       >
