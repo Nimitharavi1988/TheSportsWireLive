@@ -52,12 +52,14 @@ const theme = createTheme({
     // of truth — a genuinely inconsistent scale, not just one big heading.
     // This is the site's real scale now; per-component overrides that just
     // duplicated one of these values were removed.
-    h1: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "2.25rem" }, // 36px
-    h2: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.875rem" }, // 30px
-    h3: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.625rem" }, // 26px
-    h4: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.5rem" }, // 24px — was defaulting to 34px
-    h5: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.25rem" }, // 20px
-    h6: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.125rem" }, // 18px — matches the ad-hoc value most components had already converged on
+    // Visual polish (2026-10-16): headings get a tighter line height and slight negative tracking
+    // (large type looks loose at the defaults); the sizes themselves are unchanged.
+    h1: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "2.25rem", lineHeight: 1.2, letterSpacing: "-0.015em" }, // 36px
+    h2: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.875rem", lineHeight: 1.2, letterSpacing: "-0.015em" }, // 30px
+    h3: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.625rem", lineHeight: 1.25, letterSpacing: "-0.01em" }, // 26px
+    h4: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.5rem", lineHeight: 1.25, letterSpacing: "-0.01em" }, // 24px — was defaulting to 34px
+    h5: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.25rem", lineHeight: 1.3, letterSpacing: "-0.005em" }, // 20px
+    h6: { fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.125rem", lineHeight: 1.3, letterSpacing: "-0.005em" }, // 18px — matches the ad-hoc value most components had already converged on
     button: { fontFamily: "var(--font-body)", textTransform: "none", fontWeight: 600 },
   },
   // Was 10 -- real request to move away from the soft, bubbly, rounded

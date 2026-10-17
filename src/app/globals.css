@@ -58,3 +58,8 @@ summary:focus-visible {
 .swl-skeleton {
   animation: swl-skeleton-pulse 1.6s var(--swl-ease) infinite;
 }
+
+/* Score rows sit inside a card that clips overflow, so the keyboard ring goes inside the row. */
+.swl-score-row:focus-visible {
+  outline-offset: -2px;
+}

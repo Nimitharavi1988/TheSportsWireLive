@@ -131,7 +131,7 @@ export function ScoreRow({ match, event, locale }: { match: ScoreMatch; event?: 
   const isFinal = match.state === "final";
   const hasScores = match.home.score !== null || match.away.score !== null;
   const score = (side: ScoreSide) => (
-    <Typography component="div" sx={{ fontSize: 15, lineHeight: "28px", fontWeight: isFinal && side.winner ? 700 : 500, color: isFinal && !side.winner ? "text.secondary" : "text.primary", whiteSpace: "nowrap" }}>
+    <Typography component="div" sx={{ fontSize: 17, lineHeight: "28px", fontWeight: isFinal && side.winner ? 700 : 600, color: isFinal && !side.winner ? "text.secondary" : "text.primary", whiteSpace: "nowrap" }}>
       {splitScore(side.score).main}
       {splitScore(side.score).detail && (
         <Box component="span" sx={{ ml: 0.75, fontSize: 12, fontWeight: 400, color: "text.secondary" }}>{splitScore(side.score).detail}</Box>
@@ -140,7 +140,7 @@ export function ScoreRow({ match, event, locale }: { match: ScoreMatch; event?: 
   );
   return (
     <>
-    <Link href={`/article/${match.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+    <Link href={`/article/${match.slug}`} className="swl-score-row" style={{ textDecoration: "none", color: "inherit", display: "block" }}>
       <Box
         sx={{
           display: "grid",
@@ -151,8 +151,9 @@ export function ScoreRow({ match, event, locale }: { match: ScoreMatch; event?: 
           py: 1,
           borderTop: "1px solid",
           borderColor: "divider",
-          transition: "background-color 0.15s",
+          transition: "background-color var(--swl-motion-fast) var(--swl-ease)",
           "&:hover": { bgcolor: "action.hover" },
+          "&:active": { bgcolor: "action.selected" },
         }}
       >
         <Box sx={{ minWidth: 0 }}>
