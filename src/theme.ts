@@ -66,6 +66,11 @@ const theme = createTheme({
   // squared off, and it's applied via each component's own shape logic,
   // not this token, so this only affects cards/buttons/chips/inputs.
   shape: { borderRadius: 4 },
+  // Motion rules: 150-300 ms with one gentle curve (matches --swl-motion-* in globals.css).
+  transitions: {
+    easing: { easeInOut: "cubic-bezier(0.2, 0, 0, 1)", easeOut: "cubic-bezier(0.2, 0, 0, 1)" },
+    duration: { shortest: 150, shorter: 200, short: 250, standard: 250, complex: 300, enteringScreen: 200, leavingScreen: 150 },
+  },
   components: {
     MuiButton: {
       styleOverrides: {
