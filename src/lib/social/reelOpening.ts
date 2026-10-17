@@ -14,6 +14,14 @@ export const OPENING_TIMING: Record<Opening, { hook: number; fact: number }> = {
   fast: { hook: 2, fact: 2.1 },
 };
 
+// How far the photo layer moves over the reel (reel.tsx): total zoom, and how much of the room the zoom frees up it drifts
+// across sideways (panX) and upward (panY). The fast opening starts moving at once, so it zooms less in total and barely
+// drifts: a face near an edge must stay in frame (full-height crops with a big zoom and a sideways drift lost faces before).
+export const OPENING_MOTION: Record<Opening, { zoom: number; panX: number; panY: number }> = {
+  classic: { zoom: 0.18, panX: 0.6, panY: 0.3 },
+  fast: { zoom: 0.14, panX: 0.3, panY: 0.15 },
+};
+
 // The hook text is set this much bigger in the fast opening.
 export const FAST_HOOK_SCALE = 1.1;
 

@@ -15,7 +15,7 @@ import { categoryLabelEs } from "../i18n/es";
 const execFileAsync = promisify(execFile);
 
 import type { ReelScore } from "./reelScore";
-import { OPENING_TIMING, FAST_HOOK_SCALE, motionExpr, type Opening } from "./reelOpening";
+import { OPENING_TIMING, OPENING_MOTION, FAST_HOOK_SCALE, motionExpr, type Opening } from "./reelOpening";
 const W = 1080;
 const H = 1920;
 const FPS = 30;
@@ -42,9 +42,7 @@ const SS = 2;
 // The whole photo layer moves once over the whole reel, eased in and out:
 // zooms 1.00 -> 1.00+ZOOM while drifting sideways across PAN_X of the room
 // the zoom frees up (left to right) and up by PAN_Y of it.
-const ZOOM = 0.18;
-const PAN_X = 0.6;
-const PAN_Y = 0.3;
+// (The amounts are per opening, in reelOpening.ts: OPENING_MOTION.)
 
 // Text scenes hand over back to back: the outgoing card fades out quickly
 // (TRANS_OUT, drifting up DRIFT px) and the next fades in (TRANS_IN, sliding
@@ -384,6 +382,7 @@ export async function renderReel(params: {
     // zoompan: it moves in whole pixels, which measured as visible judder
     // once the photo also pans (frame-to-frame motion varying ~28%).
     const ease = motionExpr(opening, frames);
+    const { zoom: ZOOM, panX: PAN_X, panY: PAN_Y } = OPENING_MOTION[opening];
     const zoom = `(1+${ZOOM}*${ease})`;
     const left = `((W-W/${zoom})*(${(1 - PAN_X) / 2}+${PAN_X}*${ease}))`;
     const top = `((H-H/${zoom})*(${(1 + PAN_Y) / 2}-${PAN_Y}*${ease}))`;

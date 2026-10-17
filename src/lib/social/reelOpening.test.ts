@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { openingFor, motionProgress, motionExpr, OPENING_TIMING } from "./reelOpening";
+import { openingFor, motionProgress, motionExpr, OPENING_TIMING, OPENING_MOTION } from "./reelOpening";
 
 describe("openingFor", () => {
   it("is stable for a story and splits stories about evenly", () => {
@@ -11,18 +11,28 @@ describe("openingFor", () => {
 });
 
 describe("motion at the start of a 12-second reel", () => {
-  const ZOOM = 0.18;
-  const zoomAt = (o: "fast" | "classic", seconds: number) => ZOOM * motionProgress(o, seconds / 12);
+  const zoomAt = (o: "fast" | "classic", seconds: number) => OPENING_MOTION[o].zoom * motionProgress(o, seconds / 12);
   it("the classic opening is almost still for the first 2 seconds (the delay noticed in the reel)", () => {
     expect(zoomAt("classic", 1)).toBeLessThan(0.005);
     expect(zoomAt("classic", 2)).toBeLessThan(0.015);
   });
   it("the fast opening is clearly moving by 1 second and by 2 seconds", () => {
     expect(zoomAt("fast", 1)).toBeGreaterThan(0.03);
-    expect(zoomAt("fast", 2)).toBeGreaterThan(0.06);
+    expect(zoomAt("fast", 2)).toBeGreaterThan(0.05);
   });
   it("both start at 0 and end at the full movement", () => {
     for (const o of ["fast", "classic"] as const) { expect(motionProgress(o, 0)).toBeCloseTo(0, 6); expect(motionProgress(o, 1)).toBeCloseTo(1, 6); }
+  });
+});
+
+describe("keeping faces in frame", () => {
+  it("the fast opening zooms less in total and drifts less than the classic one", () => {
+    expect(OPENING_MOTION.fast.zoom).toBeLessThan(OPENING_MOTION.classic.zoom);
+    expect(OPENING_MOTION.fast.panX).toBeLessThan(OPENING_MOTION.classic.panX);
+    expect(OPENING_MOTION.fast.panY).toBeLessThan(OPENING_MOTION.classic.panY);
+  });
+  it("the classic opening's motion is unchanged", () => {
+    expect(OPENING_MOTION.classic).toEqual({ zoom: 0.18, panX: 0.6, panY: 0.3 });
   });
 });
 
