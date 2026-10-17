@@ -48,7 +48,7 @@ function Row({ side, muted, fluid }: { side: ScoreSide; muted: boolean; fluid: b
 export function Status({ match, locale }: { match: ScoreMatch; locale?: string }) {
   const t = getDict(locale).scores;
   if (match.state === "live") return <LiveBadge label={match.clock} locale={locale} />;
-  if (match.state === "started") return <StartedBadge locale={locale} />;
+  if (match.state === "started") return <StartedBadge locale={locale} delayed={match.delayed} />;
   if (match.state === "paused") return <PausedBadge label={match.clock} locale={locale} />;
   if (match.state === "final") return <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>{t.final}</Box>;
   return match.kickoffAt ? <KickoffTime iso={match.kickoffAt} withDate /> : <span>{t.upcoming}</span>;

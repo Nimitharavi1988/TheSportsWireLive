@@ -132,6 +132,7 @@ export const ES: Dict = {
     final: "Final",
     upcoming: "Próximo",
     inProgress: "En juego",
+    startDelayed: "Inicio retrasado",
     paused: "Pausa",
     breakLabel: "Descanso",
     all: "Todos",

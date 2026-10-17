@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cricketPauseLabel, deriveState, toScoreMatch, type MatchRow } from "./scoreboardModel";
+import { cricketPauseLabel, deriveState, isStartDelayed, toScoreMatch, type MatchRow } from "./scoreboardModel";
 
 const now = new Date("2026-09-27T19:00:00Z");
 const hours = (h: number) => new Date(now.getTime() + h * 3600_000);
@@ -175,5 +175,25 @@ describe("cricket breaks and multi-day matches", () => {
     const m = toScoreMatch(row({ ...county, matchStatus: "finished", matchNote: "Match drawn" }), now)!;
     expect(m.state).toBe("final");
     expect(m.home.winner || m.away.winner).toBe(false);
+  });
+});
+
+describe("cricket start delay (2026-10-17: the India v West Indies decider read In progress through a rain delay)", () => {
+  const cricket = (overrides: Partial<MatchRow>) => row({ category: "cricket/t20", sourceName: "ESPN Cricket", homeTeam: "India", awayTeam: "West Indies", matchNote: "Match scheduled to begin at 19:00 local time (13:30 GMT)", ...overrides });
+  it("a cricket match 20+ minutes past its start with no scores is flagged delayed", () => {
+    const m = toScoreMatch(cricket({ kickoffAt: new Date(now.getTime() - 70 * 60_000) }), now)!;
+    expect(m.state).toBe("started");
+    expect(m.delayed).toBe(true);
+  });
+  it("is not delayed in the first minutes after the start time, or once there are scores", () => {
+    expect(toScoreMatch(cricket({ kickoffAt: new Date(now.getTime() - 10 * 60_000) }), now)!.delayed).toBe(false);
+    const live = toScoreMatch(cricket({ kickoffAt: new Date(now.getTime() - 70 * 60_000), homeScoreText: "52/1 (6 ov)" }), now)!;
+    expect(live.state).toBe("live");
+    expect(live.delayed).toBe(false);
+  });
+  it("only applies to cricket", () => {
+    expect(isStartDelayed({ category: "american-football", kickoffAt: new Date(now.getTime() - 3 * 3600_000) }, now)).toBe(false);
+    expect(isStartDelayed({ category: "cricket", kickoffAt: null }, now)).toBe(false);
+    expect(isStartDelayed({ category: "cricket/t20", kickoffAt: new Date(now.getTime() - 20 * 60_000) }, now)).toBe(true);
   });
 });

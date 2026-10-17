@@ -69,7 +69,7 @@ export function MatchHeader({ match: initial }: { match: ScoreMatch }) {
         ) : match.state === "paused" ? (
           <PausedBadge label={match.clock} locale={locale} />
         ) : match.state === "started" ? (
-          <StartedBadge locale={locale} />
+          <StartedBadge locale={locale} delayed={match.delayed} />
         ) : isFinal ? (
           <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>{t.final}</Box>
         ) : match.kickoffAt ? (

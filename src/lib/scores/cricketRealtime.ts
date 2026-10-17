@@ -10,7 +10,7 @@
  */
 import { espnCricketEventToItem, type EspnCricketEvent } from "../ingestion/espnCricketData";
 import { matchKeyVariants, slugifyTeam } from "./matchKey";
-import { cricketDayLabel, cricketPauseLabel, type ScoreMatch } from "./scoreboardModel";
+import { cricketDayLabel, cricketPauseLabel, isStartDelayed, type ScoreMatch } from "./scoreboardModel";
 
 export const CRICKET_REALTIME_MS = 15_000;
 export const ESPN_CRICKET_LIVE_URL = "https://site.api.espn.com/apis/personalized/v2/scoreboard/header?sport=cricket&region=us&lang=en";
@@ -65,6 +65,7 @@ export function applyLiveCricket(match: ScoreMatch, live: LiveCricketScore[], no
   return {
     ...match,
     state,
+    delayed: state === "started" && isStartDelayed({ category: "cricket", kickoffAt: match.kickoffAt ? new Date(match.kickoffAt) : null }, new Date(nowIso)),
     clock: state === "paused" ? pause : state === "live" ? cricketDayLabel(hit.note) : null,
     note: hit.note ?? match.note,
     updatedAt: nowIso,

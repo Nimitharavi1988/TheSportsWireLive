@@ -56,11 +56,11 @@ export function PausedBadge({ label, locale }: { label: string | null; locale?: 
 }
 
 // Past its start with no live data to show (see ScoreState "started").
-export function StartedBadge({ locale }: { locale?: string }) {
+export function StartedBadge({ locale, delayed }: { locale?: string; delayed?: boolean }) {
   return (
     <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, color: "text.secondary", fontWeight: 700 }}>
       <Box component="span" aria-hidden sx={{ width: 7, height: 7, borderRadius: "50%", border: "1.5px solid", borderColor: "text.disabled" }} />
-      <span>{getDict(locale).scores.inProgress}</span>
+      <span>{delayed ? getDict(locale).scores.startDelayed : getDict(locale).scores.inProgress}</span>
     </Box>
   );
 }
@@ -89,7 +89,7 @@ function StatusColumn({ match, locale }: { match: ScoreMatch; locale?: string })
     );
   }
   if (match.state === "paused") return <span>{match.clock ?? t.breakLabel}</span>;
-  if (match.state === "started") return <span>{t.inProgress}</span>;
+  if (match.state === "started") return <span>{match.delayed ? t.startDelayed : t.inProgress}</span>;
   if (match.state === "final") return <Box component="span" sx={{ color: "text.primary", fontWeight: 500 }}>{t.final}</Box>;
   return (
     <Box>

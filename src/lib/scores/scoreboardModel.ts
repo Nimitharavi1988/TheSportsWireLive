@@ -45,6 +45,9 @@ export interface ScoreMatch {
   away: ScoreSide;
   // Provider-independent match identity (matchKey.ts), for live overlays.
   matchKey: string | null;
+  // Cricket only: past its start time with no scores and no word of a first ball, so "In progress" would be wrong (rain,
+  // a late toss). Shown as "Start delayed" (isStartDelayed).
+  delayed?: boolean;
   // Where the data comes from ("ESPN", "MLB") and when this match was last
   // updated from it (ISO) — shown so readers can judge how current it is.
   source: string;
@@ -180,6 +183,14 @@ function effectiveNote(row: MatchRow): string | null {
   return first && first !== row.summary.trim() ? first : null;
 }
 
+// How long past the scheduled start a cricket match may go with no scores before it reads as delayed (a T20 starts on the
+// dot; the toss is half an hour earlier). ESPN keeps saying "scheduled to begin" through a rain delay, so this is our
+// own call (2026-10-17: the India v West Indies decider showed "In progress" through a delay). Pure, unit-tested.
+export const START_DELAY_AFTER_MS = 20 * 60 * 1000;
+export function isStartDelayed(row: { category: string; kickoffAt: Date | null }, now: Date): boolean {
+  return row.category.startsWith("cricket") && row.kickoffAt !== null && now.getTime() - row.kickoffAt.getTime() >= START_DELAY_AFTER_MS;
+}
+
 export function toScoreMatch(rawRow: MatchRow, now: Date): ScoreMatch | null {
   const row = { ...rawRow, matchNote: effectiveNote(rawRow) };
   if (!row.homeTeam || !row.awayTeam) return null;
@@ -206,6 +217,7 @@ export function toScoreMatch(rawRow: MatchRow, now: Date): ScoreMatch | null {
     venue: row.venue,
     broadcast: state === "upcoming" ? row.broadcast : null,
     matchKey: row.matchKey ?? null,
+    delayed: state === "started" && isStartDelayed(row, now),
     source: matchDataProvider(row.scoreSource ?? row.sourceName),
     updatedAt: row.updatedAt.toISOString(),
     home: {

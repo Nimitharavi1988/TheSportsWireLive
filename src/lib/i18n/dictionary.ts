@@ -94,6 +94,7 @@ export interface Dict {
     final: string;
     upcoming: string;
     inProgress: string;
+    startDelayed: string;
     paused: string;
     breakLabel: string;
     all: string;
