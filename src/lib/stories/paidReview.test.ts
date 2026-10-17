@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyReview, buildReviewPrompt, parseReview } from "./paidReview";
+import { applyReview, buildReviewPrompt, parseReview, parseJsonOrNull } from "./paidReview";
 
 const text = { title: "Panthers hold off Lions", summary: "Carolina won 32-26.", body: "Carolina won 32-26 in Charlotte." };
 
@@ -33,5 +33,14 @@ describe("paid draft review", () => {
     expect(partial).toMatchObject({ ok: true, text: { title: text.title, summary: text.summary, body: "Fixed body." } });
     const rejected = applyReview(text, { verdict: "reject", problems: ["contradicts itself", "invented grade"] });
     expect(rejected).toEqual({ ok: false, reason: "paid review rejected it: contradicts itself; invented grade" });
+  });
+});
+
+describe("parseJsonOrNull", () => {
+  it("parses valid JSON and returns null for a cut-off or non-JSON answer instead of throwing", () => {
+    expect(parseJsonOrNull('{"verdict":"pass","problems":[]}')).toEqual({ verdict: "pass", problems: [] });
+    expect(parseJsonOrNull('{"verdict":"fix","correctedBody":"Unfinished sentence that never ends')).toBeNull();
+    expect(parseJsonOrNull("")).toBeNull();
+    expect(parseJsonOrNull("not json")).toBeNull();
   });
 });

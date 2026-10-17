@@ -100,6 +100,16 @@ export function applyReview(original: ReviewedText, review: DraftReview): { ok: 
   return { ok: true, text: corrected, notes: [`Paid review corrected ${review.problems.length} problem(s):`, ...review.problems.map((p) => `  - ${p}`)] };
 }
 
+// JSON.parse that returns null instead of throwing (pure, unit-tested). The review model can run on to its output limit
+// (2026-10-17: a 43,000-character answer cut off mid-string), and a cut-off answer is not valid JSON.
+export function parseJsonOrNull(text: string): unknown | null {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 let paidCalls = 0;
 export const paidReviewCalls = () => paidCalls;
 // A paid call made elsewhere (the paid write pass) counts toward the same cap.
@@ -133,9 +143,15 @@ export async function paidReviewDraft(draft: ReviewedText, facts: string[]): Pro
     if (!text) return null;
     // An answer that can't be read is a verdict on this draft (skip it), not on
     // the service: the run goes on.
-    const parsed = parseReview(JSON.parse(text));
+    const json = parseJsonOrNull(text);
+    if (json === null) {
+      // Cut off or not JSON: a verdict on this draft (reject it), not on the service, so the run goes on.
+      console.error(`Paid review answer was not valid JSON (${text.length} characters, finishReason ${data.candidates?.[0]?.finishReason}); rejecting this draft`);
+      return { verdict: "reject", problems: ["the review answer was cut off or not valid JSON"] };
+    }
+    const parsed = parseReview(json);
     if (!parsed) {
-      const raw = JSON.parse(text) as Record<string, unknown>;
+      const raw = json as Record<string, unknown>;
       const shape = Object.entries(raw).map(([k, v]) => `${k}=${typeof v === "string" ? `string(${v.length})` : Array.isArray(v) ? `array(${v.length})` : typeof v}`).join(", ");
       console.error(`Paid review answer unreadable, shape: ${shape}; finishReason ${data.candidates?.[0]?.finishReason}`);
     }
