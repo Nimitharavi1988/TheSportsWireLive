@@ -22,6 +22,7 @@ import { reelTagsFor } from "./reelTags";
 import { instagramCoolingDown } from "./metaCooldown";
 import { logDecision, setDecisionContext, clearDecisionContext, decisionContextFor } from "./decisionLog";
 import { reelFeatures } from "./decisionFeatures";
+import { openingFor } from "./reelOpening";
 import { storyTypeOf, STYLES_BY_TYPE } from "./hookStyles";
 import { youtubeConfigured, uploadShort, shortsTitleFor, shortsDescription, shortsTags, youtubeSlotOpen, uploadLimitPauseActive, UPLOAD_LIMIT_MESSAGE, UPLOAD_LIMIT_PAUSE_HOURS, maxShortsPerDay, minGapMinutes, youtubeSportAllowed, priorityReserve, titleVariantFor, decorateShortsTitle } from "./youtube";
 
@@ -394,12 +395,14 @@ export async function postReel(
   // An explicit colour wins; otherwise every reel (main Page, topic Pages, Instagram, YouTube) rotates by sport (reelThemes.ts).
   const theme = opts.theme ?? reelThemeFor(article.id, article.category);
   // What this reel was made with, recorded with its outcome by recordAttempt (decisionLog.ts).
-  setDecisionContext(article.id, reelFeatures({ category: article.category, title: article.title, publishedAt: article.publishedAt, trendingScore: article.trendingScore ?? null, now: new Date(), theme, music, font: opts.font, language: locale, topicKey: opts.topicPage?.key, captionVariant: captionVariantFor(articleId), hook: content.hook, factRows: content.rows.length, storyType, hookMeta: content.hookMeta }));
+  // The reel's opening: half the stories get the fast one, half the classic (the control); recorded in the decision log.
+  const opening = openingFor(article.id);
+  setDecisionContext(article.id, reelFeatures({ category: article.category, title: article.title, publishedAt: article.publishedAt, trendingScore: article.trendingScore ?? null, now: new Date(), theme, music, font: opts.font, language: locale, topicKey: opts.topicPage?.key, captionVariant: captionVariantFor(articleId), hook: content.hook, factRows: content.rows.length, storyType, hookMeta: content.hookMeta, opening }));
   console.log(`Rendering reel (music: ${music}, theme: ${theme ?? "default"}, font: ${opts.font ?? "default"})...`);
   // The score of the match the story is about, when it is clearly one live or just finished (reelScore.ts); the original English headline names the teams.
   const score = await loadScoreStrip(article.title, locale === "es" ? "es" : "en");
   if (score) console.log(`[reel] score strip: ${score.home} ${score.homeScore} - ${score.awayScore} ${score.away} (${score.label})`);
-  const render = (youtube: boolean) => renderReel({ content, heroImageUrl: article.heroImageUrl!, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme, font: opts.font, language: locale, score, followHandle: opts.topicPage ? opts.topicPage.instagramHandle ?? null : undefined, youtube });
+  const render = (youtube: boolean) => renderReel({ content, heroImageUrl: article.heroImageUrl!, category: article.category, credit: article.heroImageCredit, musicStyle: music, theme, font: opts.font, language: locale, score, followHandle: opts.topicPage ? opts.topicPage.instagramHandle ?? null : undefined, youtube, opening });
   // Instagram/Facebook share one render; the YouTube Short gets its own end card (Subscribe, link in the description).
   const mp4 = needInstagram || needFacebook ? await render(false) : null;
   if (mp4) console.log(`Rendered ${(mp4.length / 1024 / 1024).toFixed(1)} MB`);

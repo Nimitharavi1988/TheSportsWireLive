@@ -15,6 +15,7 @@ import { categoryLabelEs } from "../i18n/es";
 const execFileAsync = promisify(execFile);
 
 import type { ReelScore } from "./reelScore";
+import { OPENING_TIMING, FAST_HOOK_SCALE, motionExpr, type Opening } from "./reelOpening";
 const W = 1080;
 const H = 1920;
 const FPS = 30;
@@ -55,9 +56,8 @@ const TRANS_OUT = 0.22;
 const OVERLAP = 0.05;
 const SLIDE = 50;
 const DRIFT = 30;
-// Kept quick (~12s, was ~14s): short reels get watched through and replayed.
-const HOOK_SECONDS = 3;
-const FACT_SECONDS = 2.3;
+// Kept quick (~12s, was ~14s): short reels get watched through and replayed. The hook and fact lengths are in
+// reelOpening.ts (OPENING_TIMING), per opening.
 const END_SECONDS = 1.9;
 // Thin bar along the top edge filling up over the reel, so viewers can see
 // it's short and stay to the end.
@@ -156,7 +156,7 @@ function ChromeLayer({ th, credit, darkFrom, darkTo, darkEnd, portrait, score }:
   );
 }
 
-function HookText({ th, content, sportLabel }: { th: Theme; content: PosterContent; sportLabel: string | null }) {
+function HookText({ th, content, sportLabel, scale = 1 }: { th: Theme; content: PosterContent; sportLabel: string | null; scale?: number }) {
   return (
     <Layer>
       <div style={{ display: "flex", flex: 1 }} />
@@ -169,7 +169,7 @@ function HookText({ th, content, sportLabel }: { th: Theme; content: PosterConte
           )}
           <div style={{ display: "flex", color: "rgba(255,255,255,0.9)", fontSize: 30, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>{content.eyebrow}</div>
         </div>
-        <div style={{ display: "flex", color: "white", lineHeight: 1.1, ...th.head(hookSize(content.hook)) }}>{content.hook}</div>
+        <div style={{ display: "flex", color: "white", lineHeight: 1.1, ...th.head(Math.round(hookSize(content.hook) * scale)) }}>{content.hook}</div>
         <div style={{ display: "flex", width: 140, height: 10, borderRadius: 5, background: th.accent, marginTop: 32 }} />
       </div>
     </Layer>
@@ -294,6 +294,8 @@ export async function renderReel(params: {
   followHandle?: string | null;
   // The YouTube Short's end card: Subscribe, and the link is in the description.
   youtube?: boolean;
+  // The opening test (reelOpening.ts); default classic.
+  opening?: Opening;
   // The score of the match the story is about, shown as a strip above the photo (reelScore.ts).
   score?: ReelScore | null;
 }): Promise<Buffer> {
@@ -326,10 +328,14 @@ export async function renderReel(params: {
   const facts = params.content.rows.slice(0, 3);
   const th = resolveTheme(params.theme ?? DEFAULT_REEL_THEME, params.font ?? DEFAULT_REEL_FONT);
 
+  // The opening (reelOpening.ts): the fast one moves at once and brings the first fact in sooner; classic is the control.
+  const opening: Opening = params.opening ?? "classic";
+  const timing = OPENING_TIMING[opening];
+
   // Text scenes back to back; the end card starts where the last fact ends.
   const texts: { node: ReactElement; seconds: number }[] = [
-    { node: <HookText th={th} content={params.content} sportLabel={params.language === "es" && params.category ? categoryLabelEs(params.category.split("/")[0]) : sport?.label ?? null} />, seconds: HOOK_SECONDS },
-    ...facts.map((row, i) => ({ node: <FactText th={th} row={row} index={i} total={facts.length} />, seconds: FACT_SECONDS })),
+    { node: <HookText th={th} content={params.content} scale={opening === "fast" ? FAST_HOOK_SCALE : 1} sportLabel={params.language === "es" && params.category ? categoryLabelEs(params.category.split("/")[0]) : sport?.label ?? null} />, seconds: timing.hook },
+    ...facts.map((row, i) => ({ node: <FactText th={th} row={row} index={i} total={facts.length} />, seconds: timing.fact })),
   ];
   const starts: number[] = [];
   let t = 0;
@@ -377,7 +383,7 @@ export async function renderReel(params: {
     // reel, sampled with sub-pixel precision by perspective (bicubic). Not
     // zoompan: it moves in whole pixels, which measured as visible judder
     // once the photo also pans (frame-to-frame motion varying ~28%).
-    const ease = `((1-cos(PI*in/${frames}))/2)`;
+    const ease = motionExpr(opening, frames);
     const zoom = `(1+${ZOOM}*${ease})`;
     const left = `((W-W/${zoom})*(${(1 - PAN_X) / 2}+${PAN_X}*${ease}))`;
     const top = `((H-H/${zoom})*(${(1 + PAN_Y) / 2}-${PAN_Y}*${ease}))`;
